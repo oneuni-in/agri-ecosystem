@@ -20,6 +20,7 @@ from sqlalchemy.pool import NullPool
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import reset_engine
+from shared.flags import reset_flag_cache
 from shared.security import rate_limiter
 
 TEST_DB_NAME = "agri_test"
@@ -32,6 +33,7 @@ def _reset_state() -> Iterator[None]:
     get_settings.cache_clear()
     reset_redis()
     reset_engine()
+    reset_flag_cache()
     rate_limiter.reset()
 
 

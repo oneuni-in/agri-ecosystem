@@ -1,12 +1,16 @@
 /**
- * @agri/ui — shared component library.
+ * @agri/ui — shared component library (SPEC D02).
  *
- * Deliberately empty at D01-A. SPEC D02 owns the design system and lands the
- * 18 components (CategoryTile, CallButton, Badge, SearchBar, …) against
- * docs/design-system.md, with docs/design-reference/preview_frontend.html as
- * the visual source of truth.
- *
- * The package exists now so the five apps already depend on it and D02 is an
- * additive change rather than a wiring change.
+ * Anatomy and tokens are binding: docs/design-system.md, with the mockup at
+ * docs/design-reference/preview_frontend.html as the visual source of truth.
+ * Server-component-first; only Modal/Toast are client islands.
  */
-export {};
+export { Badge } from "./components/badge";
+export { Button, buttonVariants, CallButton, WhatsAppButton } from "./components/button";
+export type { ButtonProps } from "./components/button";
+export { Card } from "./components/card";
+export type { CardProps } from "./components/card";
+export { EmptyState } from "./components/empty-state";
+export { RatingStars } from "./components/rating-stars";
+export { Skeleton } from "./components/skeleton";
+export { cn } from "./lib/cn";

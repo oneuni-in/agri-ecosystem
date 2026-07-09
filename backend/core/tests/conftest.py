@@ -6,6 +6,7 @@ import pytest
 
 from settings import get_settings
 from shared.cache import reset_redis
+from shared.db import reset_engine
 from shared.security import rate_limiter
 
 
@@ -14,4 +15,5 @@ def _reset_state() -> Iterator[None]:
     yield
     get_settings.cache_clear()
     reset_redis()
+    reset_engine()
     rate_limiter.reset()

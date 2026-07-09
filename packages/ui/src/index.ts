@@ -6,10 +6,15 @@
  * Server-component-first; only Modal/Toast are client islands.
  */
 export { Badge } from "./components/badge";
+export { BottomNav } from "./components/bottom-nav";
+export type { BottomNavItem } from "./components/bottom-nav";
 export { Button, buttonVariants, CallButton, WhatsAppButton } from "./components/button";
 export type { ButtonProps } from "./components/button";
 export { Card } from "./components/card";
 export type { CardProps } from "./components/card";
+export { CategoryTile, tintClass } from "./components/category-tile";
+export type { Tint } from "./components/category-tile";
+export { ListingCard, PriceUnit } from "./components/listing-card";
 export { EmptyState } from "./components/empty-state";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
 export { PincodeInput } from "./components/pincode-input";

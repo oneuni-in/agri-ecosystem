@@ -6,6 +6,7 @@ import pytest
 
 from settings import get_settings
 from shared.cache import reset_redis
+from shared.security import rate_limiter
 
 
 @pytest.fixture(autouse=True)
@@ -13,3 +14,4 @@ def _reset_state() -> Iterator[None]:
     yield
     get_settings.cache_clear()
     reset_redis()
+    rate_limiter.reset()

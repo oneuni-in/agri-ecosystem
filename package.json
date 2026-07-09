@@ -11,6 +11,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "check:hex": "node scripts/check-hex.mjs",
     "gen:types": "turbo run gen:types"
   },
   "devDependencies": {

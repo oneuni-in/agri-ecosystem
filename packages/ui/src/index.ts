@@ -15,6 +15,8 @@ export type { CardProps } from "./components/card";
 export { CategoryTile, tintClass } from "./components/category-tile";
 export type { Tint } from "./components/category-tile";
 export { ListingCard, PriceUnit } from "./components/listing-card";
+export { Modal } from "./components/modal";
+export { ToastProvider, useToast } from "./components/toast";
 export { EmptyState } from "./components/empty-state";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
 export { PincodeInput } from "./components/pincode-input";

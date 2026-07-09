@@ -1,0 +1,13 @@
+# Fixture proving the offset ban fires. Not a real module (.txt so nothing
+# collects or imports it).
+from sqlalchemy import select, text
+
+from shared.db import Base
+
+
+def bad_orm_list(page: int, size: int):
+    return select(Base).limit(size).offset(page * size)
+
+
+def bad_raw_sql(page: int, size: int):
+    return text(f"SELECT * FROM content.things LIMIT {size} OFFSET {page * size}")

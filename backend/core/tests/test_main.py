@@ -7,6 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import create_app
+from settings import get_settings
+from shared.cache import reset_redis
+from shared.db import reset_engine
 
 
 def test_health_is_public() -> None:
@@ -15,8 +18,16 @@ def test_health_is_public() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_health_deep_reports_per_service_status() -> None:
-    # no backing services running in unit tests -> degraded 503 with all-False map
+def test_health_deep_reports_per_service_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    # point every service at a closed port -> degraded 503 with all-False map,
+    # regardless of whether the dev compose stack happens to be running
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://app:app@127.0.0.1:1/agri")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
+    monkeypatch.setenv("MEILISEARCH_URL", "http://127.0.0.1:1")
+    monkeypatch.setenv("MINIO_ENDPOINT", "http://127.0.0.1:1")
+    get_settings.cache_clear()
+    reset_engine()
+    reset_redis()
     response = TestClient(create_app()).get("/health/deep")
     assert response.status_code == 503
     body = response.json()

@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     api_port: int = 8000
 
     # dev-only defaults; real values come from the environment
-    database_url: str = "postgresql+asyncpg://app:app@localhost:5432/agri"
+    # compose maps postgres to host port 55432 (5432 collides with native installs)
+    database_url: str = "postgresql+asyncpg://app:app@localhost:55432/agri"
     redis_url: str = "redis://localhost:6379/0"
     meilisearch_url: str = "http://localhost:7700"
     meilisearch_master_key: str = ""

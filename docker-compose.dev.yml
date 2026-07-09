@@ -42,7 +42,9 @@ services:
       POSTGRES_PASSWORD: app # dev-only credentials
       POSTGRES_DB: agri
     ports:
-      - "5432:5432"
+      # 55432 on the host: Windows dev boxes often run a native PostgreSQL
+      # service on 5432, which silently wins localhost connections.
+      - "55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

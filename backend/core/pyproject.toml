@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agri-core"
+version = "0.1.0"
+description = "Agri ecosystem core API - FastAPI modular monolith"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29",
+    "redis>=5.0",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "mypy>=1.10",
+    "ruff>=0.5",
+    "import-linter>=2.0",
+]
+
+[tool.setuptools]
+py-modules = ["main", "settings"]
+
+[tool.setuptools.packages.find]
+include = ["modules*", "shared*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["modules", "shared", "settings", "main"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "."
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_packages = ["modules", "shared"]
+
+[[tool.importlinter.contracts]]
+name = "Modules must not import each other"
+type = "independence"
+modules = [
+    "modules.identity",
+    "modules.coins",
+    "modules.directory",
+    "modules.leads",
+    "modules.content",
+    "modules.market_data",
+    "modules.ads",
+    "modules.notify",
+    "modules.search",
+    "modules.billing",
+    "modules.ai",
+]
+
+[[tool.importlinter.contracts]]
+name = "Shared must not import modules"
+type = "forbidden"
+source_modules = ["shared"]
+forbidden_modules = ["modules"]

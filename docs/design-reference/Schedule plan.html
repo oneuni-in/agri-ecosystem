@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agri.in Ecosystem — Build Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F5EA; --card:#FBFCF5; --ink:#1C3325; --ink-soft:#51624F;
+  --leaf:#3E7A45; --leaf-deep:#2C5A33; --turmeric:#D99A1C; --soil:#6B4A2B;
+  --monsoon:#4A6B8A; --line:#D9E0C8; --line-soft:#E6EBD8;
+  --s0:#8A9B6E; --s1:#3E7A45; --s2:#D99A1C; --s3:#6B8F3D; --s4:#2C5A33;
+  --s5:#4A6B8A; --s6:#7A9E4E; --s7:#B5541C;
+  --sb:#946B2D; --sc:#4A6B8A; --sd:#5E7D46; --se:#6B4A2B;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+body{background:var(--paper);color:var(--ink);font-family:'Public Sans',system-ui,sans-serif;font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.08;letter-spacing:-.015em}
+.mono{font-family:'Spline Sans Mono',monospace}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2.5px solid var(--turmeric);outline-offset:2px;border-radius:4px}
+
+/* ── nav ── */
+nav{position:sticky;top:0;z-index:50;background:rgba(242,245,234,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:8px;height:58px;max-width:1180px;margin:0 auto;padding:0 22px;overflow-x:auto}
+.brand{font-family:'Bricolage Grotesque';font-weight:800;font-size:17px;white-space:nowrap;margin-right:10px}
+.brand em{font-style:normal;color:var(--leaf)}
+.nav-in a{font-size:13px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:7px 11px;border-radius:99px;white-space:nowrap}
+.nav-in a:hover{background:var(--line-soft);color:var(--ink)}
+
+/* ── hero ── */
+.hero{padding:72px 0 54px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.eyebrow{font-family:'Spline Sans Mono';font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soil);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:26px;height:2px;background:var(--turmeric)}
+.hero h1{font-size:clamp(38px,6.2vw,72px);font-weight:800;margin:18px 0 8px;max-width:850px}
+.hero h1 .g{color:var(--leaf)}
+.hero .script{font-family:'Bricolage Grotesque';color:var(--ink-soft);font-weight:500;font-size:clamp(16px,2vw,21px);margin-bottom:26px}
+.hero .script span{color:var(--turmeric);font-weight:700}
+.hero p.lede{max-width:640px;color:var(--ink-soft);font-size:16.5px}
+.stats{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.stat{flex:1;min-width:150px;padding:20px 22px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat b{font-family:'Bricolage Grotesque';font-size:30px;font-weight:800;display:block;color:var(--leaf-deep)}
+.stat small{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.field-bg{position:absolute;right:-40px;top:30px;opacity:.5;pointer-events:none}
+
+/* ── sections ── */
+section{padding:64px 0;border-bottom:1px solid var(--line)}
+.sec-head{margin-bottom:34px}
+.sec-head h2{font-size:clamp(26px,3.4vw,38px);font-weight:800}
+.sec-head p{color:var(--ink-soft);max-width:620px;margin-top:8px}
+.tag-line{font-family:'Spline Sans Mono';font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--soil);margin-bottom:10px}
+
+/* ── ecosystem map ── */
+.eco{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.eco-core{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.eco-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.eco-card.core{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.eco-card.core h3{color:var(--paper)}
+.eco-card.core .k{color:var(--turmeric)}
+.eco-card h3{font-size:19px;font-weight:700;margin-bottom:6px}
+.eco-card .k{font-family:'Spline Sans Mono';font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--leaf);display:block;margin-bottom:8px}
+.eco-card p{font-size:13.5px;color:var(--ink-soft)}
+.eco-card.core p{color:#C7D3C2}
+.eco-flow{grid-column:1/-1;text-align:center;font-family:'Spline Sans Mono';font-size:12px;color:var(--soil);letter-spacing:.08em;padding:2px 0}
+
+/* ── engines ── */
+.engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px}
+.eng{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;position:relative;transition:transform .15s ease, box-shadow .15s ease}
+.eng:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(28,51,37,.08)}
+.eng .num{font-family:'Spline Sans Mono';font-size:11px;font-weight:600;color:var(--turmeric);letter-spacing:.1em}
+.eng h3{font-size:17px;font-weight:700;margin:6px 0 6px}
+.eng p{font-size:13px;color:var(--ink-soft)}
+.eng .pct{position:absolute;top:18px;right:18px;font-family:'Spline Sans Mono';font-size:10.5px;color:var(--soil);background:var(--line-soft);padding:3px 8px;border-radius:99px}
+
+/* ── verticals ── */
+.vert-group{margin-bottom:26px}
+.vert-group h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.vg-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13px;font-weight:500}
+.chip.custom{border-color:var(--turmeric);background:#FBF3DE}
+.chip.custom::after{content:" ◆";color:var(--turmeric);font-size:10px}
+.legend-note{font-size:12.5px;color:var(--ink-soft);margin-top:14px}
+.legend-note b{color:var(--turmeric)}
+
+/* ── roadmap / the field ── */
+.phase-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.pf{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 15px;font-size:12.5px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;gap:8px;transition:all .12s}
+.pf .pd{width:9px;height:9px;border-radius:50%}
+.pf:hover{border-color:var(--ink-soft)}
+.pf.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.field{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative}
+.field-label{font-family:'Spline Sans Mono';font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soil);margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.rows{display:flex;flex-direction:column;gap:9px}
+.crop-row{display:flex;align-items:center;gap:9px}
+.row-tag{font-family:'Spline Sans Mono';font-size:10px;color:var(--soil);width:78px;flex-shrink:0;text-align:right;padding-right:4px}
+.seeds{display:flex;gap:6px;flex-wrap:wrap}
+.seed{width:30px;height:30px;border-radius:8px 8px 8px 3px;border:none;position:relative;transition:transform .1s;opacity:.92}
+.seed:hover{transform:scale(1.22);opacity:1;z-index:2}
+.seed.dim{opacity:.16}
+.seed.sel{outline:2.5px solid var(--ink);outline-offset:2px;opacity:1}
+.seed.milestone::after{content:"★";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+.seed .dnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono';font-size:9.5px;font-weight:600;color:rgba(255,255,255,.95)}
+/* detail panel */
+.day-panel{margin-top:22px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--leaf);border-radius:10px;padding:20px 22px;min-height:96px}
+.day-panel .dp-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.day-panel .dp-day{font-family:'Spline Sans Mono';font-size:12px;font-weight:600;color:var(--soil)}
+.day-panel .dp-phase{font-family:'Spline Sans Mono';font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:99px;color:#fff}
+.day-panel h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.day-panel ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+.day-panel li{font-size:13.5px;color:var(--ink-soft);padding-left:18px;position:relative}
+.day-panel li::before{content:"—";position:absolute;left:0;color:var(--turmeric)}
+.day-panel .gate{margin-top:10px;font-size:12.5px;font-weight:700;color:var(--soil);background:#FBF3DE;border:1px solid #EAD9AC;display:inline-block;padding:5px 12px;border-radius:8px}
+.dp-nav{display:flex;gap:8px;margin-top:14px}
+.dp-nav button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.dp-nav button:hover{border-color:var(--ink-soft);color:var(--ink)}
+/* phase summary cards */
+.phase-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:28px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;border-top:4px solid var(--leaf)}
+.pc .pc-days{font-family:'Spline Sans Mono';font-size:10.5px;color:var(--soil);letter-spacing:.08em}
+.pc h4{font-size:14.5px;font-weight:700;margin:4px 0 4px}
+.pc p{font-size:12.5px;color:var(--ink-soft)}
+
+/* ── security ── */
+.sec-stack{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.slayer{display:grid;grid-template-columns:210px 1fr;background:var(--card);border-bottom:1px solid var(--line)}
+.slayer:last-child{border-bottom:none}
+.slayer .sl-name{padding:18px 20px;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;justify-content:center;gap:2px}
+.slayer:nth-child(2) .sl-name{background:#24402C}.slayer:nth-child(3) .sl-name{background:#2C5A33}
+.slayer:nth-child(4) .sl-name{background:#3E7A45}.slayer:nth-child(5) .sl-name{background:#5E7D46}
+.slayer:nth-child(6) .sl-name{background:#946B2D}.slayer:nth-child(7) .sl-name{background:#6B4A2B}
+.slayer:nth-child(8) .sl-name{background:#4A6B8A}
+.sl-name b{font-family:'Bricolage Grotesque';font-size:15px;font-weight:700}
+.sl-name small{font-family:'Spline Sans Mono';font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+.sl-body{padding:16px 20px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.sl-body span{font-size:12px;font-weight:500;background:var(--line-soft);border:1px solid var(--line);padding:4px 11px;border-radius:99px;color:var(--ink)}
+.sec-motto{margin-top:18px;font-size:13.5px;color:var(--ink-soft)}
+.sec-motto b{color:var(--soil)}
+
+/* ── platforms ── */
+.plats{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.plat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.plat .picon{font-size:26px;margin-bottom:8px}
+.plat h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.plat ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+.plat li{font-size:13px;color:var(--ink-soft);padding-left:16px;position:relative}
+.plat li::before{content:"·";position:absolute;left:2px;color:var(--turmeric);font-weight:800}
+.plat-note{margin-top:16px;background:#FBF3DE;border:1px solid #EAD9AC;border-radius:12px;padding:14px 18px;font-size:13px;color:var(--soil)}
+
+footer{padding:44px 0 60px;color:var(--ink-soft);font-size:12.5px}
+footer .f-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+@media(max-width:720px){
+  .eco{grid-template-columns:1fr}.eco-core{grid-template-columns:1fr}
+  .slayer{grid-template-columns:1fr}
+  .sl-name{flex-direction:row!important;align-items:center;gap:10px!important}
+  .row-tag{width:52px;font-size:9px}
+  .seed{width:24px;height:24px}.seed .dnum{font-size:8px}
+  .stats{flex-direction:column}.stat{border-right:none;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <span class="brand">agri<em>.in</em> blueprint</span>
+  <a href="#ecosystem">Ecosystem</a><a href="#engines">Engines</a><a href="#verticals">Verticals</a>
+  <a href="#roadmap">140-Day Roadmap</a><a href="#security">Security</a><a href="#platforms">Platforms</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Enterprise Build Blueprint · Phase 1 → Full Launch</div>
+  <h1>One identity.<br>Eight engines.<br><span class="g">All of Indian agriculture.</span></h1>
+  <div class="script">किसान · உழவர் · farmer · brand · admin — <span>one platform for all of them, competitor to none.</span></div>
+  <p class="lede">Agri.in, Milk.in and OrganicStore.in built as a single interconnected ecosystem on AgriID and AgriCoins — lead-gen and discovery only. No selling, no logistics, no warehousing. Built solo, AI-accelerated, security-first.</p>
+  <div class="stats">
+    <div class="stat"><b>3</b><small>Platforms, one AgriID</small></div>
+    <div class="stat"><b>8</b><small>Reusable engines</small></div>
+    <div class="stat"><b>34+</b><small>Verticals via config</small></div>
+    <div class="stat"><b>140</b><small>Days to full launch</small></div>
+    <div class="stat"><b>0</b><small>Payments handled for goods</small></div>
+  </div>
+</div></header>
+
+<section id="ecosystem"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Ecosystem</div>
+    <h2>Shared roots, three canopies</h2>
+    <p>Everything grows from two shared systems. Every platform reads the same identity, the same wallet of coins, the same location context, the same notification center.</p>
+  </div>
+  <div class="eco">
+    <div class="eco-core">
+      <div class="eco-card core"><span class="k">Shared Root · id.agri.in</span><h3>AgriID</h3><p>Universal identity. Mobile OTP first, OAuth2 + PKCE single sign-on across all domains. Internal UUID never exposed; public @handle everywhere. One profile, one location context, one session control.</p></div>
+      <div class="eco-card core"><span class="k">Shared Root · Rewards</span><h3>AgriCoins</h3><p>Closed-loop loyalty ledger — append-only, idempotent, audit-proof. Earn across any platform, see one balance everywhere. Never cash, never transferable, always accountable.</p></div>
+    </div>
+    <div class="eco-flow">▲ one identity · one wallet · one inbox · one location ▲</div>
+    <div class="eco-card"><span class="k">Hub · agri.in</span><h3>Agri.in</h3><p>The all-of-agriculture platform: 34+ verticals from seeds and tractors to schemes, land, labour, loans, mandi and weather. Discovery, leads, knowledge, community.</p></div>
+    <div class="eco-card"><span class="k">Dairy · milk.in</span><h3>Milk.in</h3><p>Pincode-first milk discovery — every brand and local vendor in your area, every milk type, subscription-intent leads routed to vendors. Platform never touches the milk money.</p></div>
+    <div class="eco-card"><span class="k">Organic · organicstore.in</span><h3>OrganicStore.in</h3><p>Organic brands, certified products and producers. B2C discovery with where-to-buy routing; B2B RFQ engine matching buyers to verified suppliers.</p></div>
+  </div>
+</div></section>
+
+<section id="engines"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Versatile Core</div>
+    <h2>8 engines, built once</h2>
+    <p>The 34 categories are not 34 features. Each is a configuration of one of eight engines — so adding a new vertical is a registry entry and a spec schema, not a rebuild.</p>
+  </div>
+  <div class="engines">
+    <div class="eng"><span class="num">E1</span><span class="pct">~60% of verticals</span><h3>Directory</h3><p>Companies, shops, labs, vets, FPOs, warehouses — profiles, branches, geo search, verification, claim flow, reviews.</p></div>
+    <div class="eng"><span class="num">E2</span><span class="pct">spec-schema driven</span><h3>Catalog</h3><p>Products with per-vertical spec sheets. Filters, comparisons and facets render automatically from admin-defined schemas.</p></div>
+    <div class="eng"><span class="num">E3</span><span class="pct">moderated</span><h3>Classifieds</h3><p>User listings with a full lifecycle — livestock, land for sale or lease. Discovery and contact only, never payments.</p></div>
+    <div class="eng"><span class="num">E4</span><span class="pct">two-sided</span><h3>Matchmaking</h3><p>Structured intents matched on category × geo × attributes: labour ↔ farms, loads ↔ transporters, trade leads.</p></div>
+    <div class="eng"><span class="num">E5</span><span class="pct">verified data</span><h3>Data / Info</h3><p>Schemes, subsidies, loan and insurance tables, helplines, mandi prices — sourced, dated, human-verified reference data.</p></div>
+    <div class="eng"><span class="num">E6</span><span class="pct">3 languages</span><h3>Content</h3><p>Blog, news, guides, webinars and events — tagged by vertical and geo so content surfaces where it's relevant.</p></div>
+    <div class="eng"><span class="num">E7</span><span class="pct">expert-flaired</span><h3>Community</h3><p>Forum with Q&amp;A mode, accepted answers, verified expert badges, coin rewards and a serious moderation queue.</p></div>
+    <div class="eng"><span class="num">E8</span><span class="pct">no payments</span><h3>Booking-Inquiry</h3><p>Soil tests, water tests, consultations, warehouse space — request, confirm, track. Providers settle directly.</p></div>
+  </div>
+</div></section>
+
+<section id="verticals"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Vertical Registry</div>
+    <h2>Every category, mapped and staged</h2>
+    <p>Grouped by launch stage. Advertiser-rich verticals ship first and fund the rest; fraud-sensitive classifieds ship last, once trust and moderation muscle exist.</p>
+  </div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--s4)"></span>Stage A · Foundation launch — Day 60</h3>
+    <div class="chips"><span class="chip custom">Mandi prices</span><span class="chip custom">Weather</span><span class="chip">Agri news</span><span class="chip">Knowledge hub</span><span class="chip">Business directory</span><span class="chip">AI assistant</span><span class="chip">Milk.in — dairy discovery</span><span class="chip">OrganicStore.in — organic B2C + B2B RFQ</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sb)"></span>Stage B · Inputs &amp; Equipment — Days 61–85</h3>
+    <div class="chips"><span class="chip">Seed companies &amp; products</span><span class="chip">Fertilizers</span><span class="chip">Pesticides · bio · chemicals</span><span class="chip custom">Tractors · mini · EV</span><span class="chip">Rotavators · harvesters · weeders</span><span class="chip">Sprayers · implements · tools</span><span class="chip">Drip irrigation</span><span class="chip">Pumps · solar · solar pumps</span><span class="chip">Agri drones</span><span class="chip">Agri machinery</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sc)"></span>Stage C · Services &amp; Trust — Days 86–105</h3>
+    <div class="chips"><span class="chip">Soil testing</span><span class="chip">Water testing</span><span class="chip">Agritech apps directory</span><span class="chip">Agri loans</span><span class="chip">Agri consulting</span><span class="chip">Vet consulting</span><span class="chip">Insurance · crop insurance</span><span class="chip">Warehouses &amp; booking</span><span class="chip">Agri transport</span><span class="chip custom">Govt schemes &amp; subsidies</span><span class="chip">Organic certification info</span><span class="chip">Carbon credits</span><span class="chip">FPO directory</span><span class="chip">Farmer helplines</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sd)"></span>Stage D · Community &amp; Content — Days 106–118</h3>
+    <div class="chips"><span class="chip">Discussion forum</span><span class="chip">Webinars &amp; events</span><span class="chip">Blog — all agri fields</span><span class="chip">Expert program</span><span class="chip">Seasonal content packs</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--se)"></span>Stage E · Classifieds &amp; Matchmaking — Days 119–140</h3>
+    <div class="chips"><span class="chip">Cattle · sheep · livestock listings</span><span class="chip custom">Agri land — sale &amp; lease</span><span class="chip custom">Agri labour ↔ farm matchmaking</span><span class="chip">Land ↔ lessee matching</span><span class="chip">Import / export trade leads</span><span class="chip">Local shops · repair &amp; spares</span></div></div>
+  <p class="legend-note"><b>◆</b> = deserves a custom-built experience beyond the engine template (comparison UX, eligibility wizard, map-first browse, low-literacy vernacular UI).</p>
+</div></section>
+
+<section id="roadmap"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Field · Day-by-Day Roadmap</div>
+    <h2>140 days, sowing to harvest</h2>
+    <p>Every square is one working day — one branch, one Claude Code work package, one reviewed merge. Tap any day for its deliverables. ★ marks launch milestones.</p>
+  </div>
+  <div class="phase-filters" id="filters" role="group" aria-label="Filter roadmap by phase"></div>
+  <div class="field">
+    <div class="field-label"><span>◦ sowing — Day 1</span><span>Day 60 · 3-platform launch ★</span><span>harvest — Day 140 ★</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="day-panel" id="panel" aria-live="polite">
+      <div class="dp-top"><span class="dp-day">SELECT A DAY</span></div>
+      <h3>Tap any square to see that day's work package</h3>
+      <ul><li>Each day lists its deliverables, and milestone days show their quality gate.</li></ul>
+    </div>
+  </div>
+  <div class="phase-cards" id="phaseCards"></div>
+</div></section>
+
+<section id="security"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Security Architecture</div>
+    <h2>Data protection as the first priority</h2>
+    <p>Eight defensive layers, from the network edge to the AI assistant. Every sensitive diff gets a second adversarial AI review before merge; every backup gets a tested restore drill before launch.</p>
+  </div>
+  <div class="sec-stack">
+    <div class="slayer"><div class="sl-name"><small>Layer 1</small><b>Edge</b></div><div class="sl-body"><span>Cloudflare WAF</span><span>DDoS protection</span><span>Bot fight mode</span><span>TLS 1.3 + HSTS</span><span>Rate limiting on /auth/*</span><span>Geo challenge on abuse</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 2</small><b>Identity</b></div><div class="sl-body"><span>OTP limits — number / IP / device</span><span>OAuth2 + PKCE</span><span>RS256 JWTs · 15-min expiry</span><span>Rotating refresh tokens, device-bound</span><span>JWKS key rotation</span><span>Logout-everywhere revocation</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 3</small><b>Application</b></div><div class="sl-body"><span>Auth guards default-on</span><span>Pydantic validation everywhere</span><span>ORM-only — zero string SQL</span><span>Per-route rate limits</span><span>CSP + security headers</span><span>Presigned uploads · EXIF strip</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 4</small><b>Data</b></div><div class="sl-body"><span>AES-256 encryption at rest</span><span>Field-level encryption for phone / PII</span><span>PII never in logs or URLs</span><span>Hash-chained append-only audit log</span><span>Internal UUIDs never exposed</span><span>Soft deletes + retention policy</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 5</small><b>Payments</b></div><div class="sl-body"><span>Razorpay signature verification</span><span>Idempotent webhooks</span><span>Daily reconciliation job</span><span>No card data ever stored</span><span>Coins ledger integrity checks nightly</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 6</small><b>Privacy · DPDP</b></div><div class="sl-body"><span>Consent records (DPDP Act 2023)</span><span>Purpose limitation</span><span>Data export endpoint</span><span>Right-to-delete endpoint</span><span>Data minimization by default</span><span>Contact reveal gated + logged</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 7</small><b>AI Safety</b></div><div class="sl-body"><span>Prompt-injection hardening</span><span>Read-only tool allowlist</span><span>Output filtering</span><span>Per-user rate + turn limits</span><span>Red-team script pre-launch</span><span>Human sign-off on dosage / scheme / loan content</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 8</small><b>Operations</b></div><div class="sl-body"><span>Encrypted secrets (SOPS)</span><span>Least-privilege access</span><span>Two-pass adversarial AI code review</span><span>Dependency audits in CI</span><span>Encrypted nightly backups → R2</span><span>Restore drills · Day 5 and Day 59</span><span>Kill switches on every risky surface</span></div></div>
+  </div>
+  <p class="sec-motto"><b>Standing rule:</b> AI writes, human approves. AI never touches production secrets, the production database, DNS, payment dashboards or deploy keys. Auth, coins, billing and lead-routing code is read line-by-line before merge — always.</p>
+</div></section>
+
+<section id="platforms"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Every Screen</div>
+    <h2>Desktop, Android and iOS from one codebase</h2>
+    <p>Responsive web plus installable PWA — the right call for rural India: no app-store friction, tiny footprint, works on low-end devices and patchy networks.</p>
+  </div>
+  <div class="plats">
+    <div class="plat"><div class="picon">🖥️</div><h3>Desktop web</h3><ul><li>Full experience for brands, advertisers and admin consoles</li><li>Data-dense dashboards: leads, campaigns, analytics</li><li>Keyboard navigation and visible focus throughout</li><li>SEO-first rendering — ISR + structured data</li></ul></div>
+    <div class="plat"><div class="picon">🤖</div><h3>Android</h3><ul><li>Installable PWA — add to home screen, splash, app icon</li><li>Web push notifications: price alerts, leads, matches</li><li>Offline shell: helplines, cached mandi prices, saved items</li><li>Low-data mode — image quality toggle, lazy loading</li></ul></div>
+    <div class="plat"><div class="picon">🍎</div><h3>iOS</h3><ul><li>Installable PWA with iOS web push (16.4+)</li><li>Safe-area aware layouts, native-feel gestures</li><li>Same AgriID session and coins balance everywhere</li><li>Capacitor-wrapped store apps as a later option, zero rewrite</li></ul></div>
+  </div>
+  <div class="plat-note"><b>Farmer-first UX baked in:</b> location-first home (my weather · my mandi · my schemes), vernacular UI in English, Tamil and Hindi, icon-heavy low-literacy flows for labour matchmaking, voice-note job posts, and click-to-call everywhere contact matters.</div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="f-row">
+    <span>Agri.in Ecosystem Blueprint v2 · Phase 1 → Stage E</span>
+    <span class="mono">git-tagged per sprint · v0.1.0 → v1.0.0 → v2.0.0</span>
+  </div>
+  <div class="f-row" style="margin-top:8px">
+    <span>Competitor to no one — a platform for all of them.</span>
+    <span>AgriID · AgriCoins · Agri.in · Milk.in · OrganicStore.in</span>
+  </div>
+</div></footer>
+
+<script>
+const PHASES={
+ S0:{n:"Sprint 0 · Foundation",c:"#8A9B6E",d:"1–6",s:"Monorepo, design system, CI/CD, observability, backups tested"},
+ S1:{n:"Sprint 1 · AgriID",c:"#3E7A45",d:"7–16",s:"OTP auth, OAuth2+PKCE SSO across all three domains, RBAC, audit log"},
+ S2:{n:"Sprint 2 · AgriCoins",c:"#D99A1C",d:"17–22",s:"Append-only ledger, rules engine, referrals, anti-abuse"},
+ S3:{n:"Sprint 3 · Shared Engines",c:"#6B8F3D",d:"23–30",s:"Directory, spec-schema catalog, reviews, leads, search, billing, ads"},
+ S4:{n:"Sprint 4 · Agri.in Hub",c:"#2C5A33",d:"31–40",s:"Homepage, directory, knowledge, news, mandi, weather, AI assistant, ads"},
+ S5:{n:"Sprint 5 · Milk.in",c:"#4A6B8A",d:"41–47",s:"Pincode-first dairy discovery, subscription leads, vendor dashboard"},
+ S6:{n:"Sprint 6 · OrganicStore.in",c:"#7A9E4E",d:"48–54",s:"Organic directory, cert verification, B2B RFQ engine, brand dashboard"},
+ S7:{n:"Sprint 7 · Harden & Launch",c:"#B5541C",d:"55–60",s:"Security audit, load tests, DPDP compliance, runbooks → 3-platform launch"},
+ B:{n:"Stage B · Inputs & Equipment",c:"#946B2D",d:"61–85",s:"Schema builder, SEO factory, 8 input/equipment verticals, tractor UX, ads v2"},
+ C:{n:"Stage C · Services & Trust",c:"#4A6B8A",d:"86–105",s:"Booking engine, labs, loans, insurance, warehouses, schemes wizard, helplines"},
+ D:{n:"Stage D · Community & Content",c:"#5E7D46",d:"106–118",s:"Forum, expert program, webinars, content velocity system, digests"},
+ E:{n:"Stage E · Classifieds & Match",c:"#6B4A2B",d:"119–140",s:"Livestock, land map-first, labour vernacular UX, trade leads → full launch"}
+};
+const DAYS=[
+[1,"S0","Monorepo scaffold",["Turborepo + pnpm, 5 Next.js apps stubbed (agri, milk, organic, id, admin)","FastAPI modular-monolith skeleton with module boundaries","Docker Compose dev stack: Postgres 16, Redis 7, Meilisearch, MinIO"]],
+[2,"S0","Design system",["Ecosystem tokens: palette, type scale, spacing, per-vertical accents","ShadCN base + 15 core components in packages/ui","i18n string framework wired (EN / TA / HI)"]],
+[3,"S0","Database foundation",["Alembic multi-schema setup, one schema per module","Base model mixins: UUID v7, timestamps, soft delete","Redis Streams event bus skeleton + feature-flag table"]],
+[4,"S0","CI/CD pipeline",["GitHub Actions: lint, typecheck, pytest, vitest, build","Staging deploy pipeline to VPS via SSH","Secrets via SOPS-encrypted env files"]],
+[5,"S0","Observability + backups",["Sentry both sides, structured JSON logs, request IDs","Uptime Kuma + health endpoints","Nightly pg_dump → R2 encrypted, restore drill #1 executed today"]],
+[6,"S0","Docs + guardrails",["ADRs for all locked decisions (A1–A12)","API + coding standards written","CLAUDE.md files per app/module: boundaries, never-do list, test rules"]],
+[7,"S1","Identity schema",["identity.* tables: users, profiles, handles, sessions, roles","Migrations with downgrade tested in CI","Public @handle + AG-XXXXXXX fallback generator (atomic)"]],
+[8,"S1","OTP service",["SMS vendor integration + DLT-registered templates","Rate limits: per number, per IP, per device; resend backoff","Mock OTP driver for dev/test environments"]],
+[9,"S1","OAuth2 authorization server",["authlib-based /authorize + /token on id.agri.in","PKCE enforced for all clients","First-party client registry (agri, milk, organic, admin)"]],
+[10,"S1","Token infrastructure",["RS256 JWT issuance + JWKS endpoint","Rotating refresh tokens, hashed at rest, device-bound","Revocation store + logout-everywhere"]],
+[11,"S1","web-id app",["Login/OTP screens + handle picker UI","Active-device session manager","Silent-SSO redirect flow polished"]],
+[12,"S1","Auth client SDK",["packages/auth-client: BFF cookie pattern per app","useAgriUser() hook + token refresh handling","Wired into all three public sites"]],
+[13,"S1","Progressive profiles",["Profile API + UI: name → location → roles → interests → language","Addresses + preferences + completion score","Privacy defaults: phone/email never public"]],
+[14,"S1","RBAC",["Roles/permissions tables + FastAPI permission dependencies","user, farmer, business_owner, staff, super_admin active","Admin user-management screens"]],
+[15,"S1","Audit + notifications",["Hash-chained append-only audit log","Notify module v1: in-app center, SMS, email templates","Notification preferences per user"]],
+[16,"S1","Auth hardening ★",["Adversarial AI security review of entire auth surface","OTP-abuse red-team + Playwright auth E2E suite","GATE: one AgriID signs into all three domains on staging"]],
+[17,"S2","Coins ledger schema",["Append-only ledger: user, delta, reason, ref, idempotency key","Unique index enforcing idempotency","No update/delete — corrections are compensating entries"]],
+[18,"S2","Award / redeem services",["Idempotent award + redeem APIs","Materialized balances + nightly integrity recompute","Coin hooks exposed via internal service interface"]],
+[19,"S2","Rules engine",["Earn rules as config rows: signup, profile, daily visit, review","Event-bus consumers wired to identity events","Velocity caps per rule"]],
+[20,"S2","Referrals + anti-abuse",["Referral codes, attribution, two-sided rewards","Device fingerprint + number-clustering flags","Admin abuse-review queue"]],
+[21,"S2","Coins UX",["Shared coins widget + history page + expiry notices","12-month FIFO expiry with 30-day warning","Admin: rules CRUD + dual-note manual adjustments"]],
+[22,"S2","Ledger integrity ★",["Concurrency storm tests: parallel awards, race attempts","Property tests on balance invariants","GATE: 10k concurrent awards, zero drift"]],
+[23,"S3","Directory engine",["Businesses, branches, categories, geo/pincode search","Claim-your-listing flow + verification-lite queue","Business subscription tiers scaffolded"]],
+[24,"S3","Vertical registry + spec schemas",["vertical_registry table: engines, nav, ad slots per vertical","Versioned JSONB spec-schema system (the versatility core)","Server-side validation of specs on write"]],
+[25,"S3","Catalog engine",["Products with schema-driven specs + variants","R2 media pipeline: presigned upload, re-encode, EXIF strip","Certifications + document attachments"]],
+[26,"S3","Reviews engine",["Polymorphic reviews: business, product, vendor","Login-gated posting + moderation queue","Ratings aggregation + coin hook on approval"]],
+[27,"S3","Leads / matchmaking v1",["Inquiry types: contact, RFQ, milk-subscription","Pincode × category routing to business inboxes","Response tracking + response-time stats"]],
+[28,"S3","Search",["Meilisearch indexers, event-driven reindex","Unified search API with per-site indexes","Typo-tolerant, facet-ready"]],
+[29,"S3","Billing",["Razorpay subscriptions for business tiers","Signature-verified idempotent webhooks + invoices","Dunning basics + reconciliation job"]],
+[30,"S3","Ads engine v1",["Campaigns, creatives, placement slots","District/pincode targeting + approval queue","Partitioned impression/click tracking"]],
+[31,"S4","Agri.in homepage",["Location-first home: weather, mandi, news, featured strips","Ecosystem switcher to Milk.in / OrganicStore.in","Global location context (profile → GPS → pincode → IP)"]],
+[32,"S4","SEO foundation",["Metadata system, sitemaps, JSON-LD, ISR","Clean URL architecture per vertical × geo","Core Web Vitals budget enforced"]],
+[33,"S4","Directory UI",["Browse / filter / detail / claim journeys","Sponsored pins clearly labeled","Nearest-first ordering by location context"]],
+[34,"S4","Knowledge hub",["Admin CMS with Claude-assisted drafting + human review","Public guides in EN / TA / HI + bookmarks","Vertical + geo tagging of content"]],
+[35,"S4","News",["RSS ingestion worker + curation queue","State-tagged personalized feed","Source attribution throughout"]],
+[36,"S4","Mandi prices",["Agmarknet daily pipeline + 90-day backfill","Commodity × market × state pages, trend charts","Price alert subscriptions → notify"]],
+[37,"S4","Weather",["Open-Meteo hyperlocal by pincode/GPS","Pincode geocoding table + 7-day forecast widgets","Severe-weather alert banners"]],
+[38,"S4","AI assistant — RAG",["pgvector RAG over knowledge hub + live mandi/weather tools","Chat UI in 3 languages","Agri-scope guard: refuses off-topic"]],
+[39,"S4","AI assistant — hardening",["Prompt-injection defense + read-only tool allowlist","Output filters + per-tier rate limits","Red-team script executed and logged"]],
+[40,"S4","Advertiser self-serve ★",["Campaign builder: targeting → creative → pay → approval","Razorpay payment for ad campaigns","GATE: Lighthouse ≥ 90 across key pages, SEO audit clean"]],
+[41,"S5","Milk.in pincode core",["Pincode-first home: enter pincode → all milk options","Vendor ↔ pincode coverage model","Brand vs local-vendor result blending"]],
+[42,"S5","Dairy discovery UX",["Milk-type filters: cow, buffalo, A2, toned, organic","Packaged vs fresh-delivery segmentation","Map + list views"]],
+[43,"S5","Vendor profiles + leads",["Vendor/brand pages: products, coverage, timings, pricing display","Tracked lead buttons: call, WhatsApp, form","Reviews login-gated"]],
+[44,"S5","Subscription-intent leads",["Post requirement: quantity, milk type, pincode, schedule","Auto-match to covering vendors → vendor inbox","Both-side status tracking"]],
+[45,"S5","Vendor dashboard",["Listing, coverage pincodes, products, lead inbox","Premium tier subscribe (priority placement)","Response-time nudges"]],
+[46,"S5","Dairy directory",["Vets, feed suppliers, dairy farms, cooperatives mounted","Reuses directory engine — config only","Cross-links from vendor pages"]],
+[47,"S5","Milk.in SEO + QA ★",["Pincode landing pages: milk.in/city/pincode","Content seed + full journey QA","GATE: discover → lead → vendor response loop verified"]],
+[48,"S6","Organic directory",["Brand + product browse with organic taxonomy","Producer / FPO listings","Category landing pages"]],
+[49,"S6","Certification verification",["Cert upload → admin verify → badge (NPOP, PGS, USDA)","Expiry tracking on certificates","Verified-only filter for buyers"]],
+[50,"S6","Product + where-to-buy",["Product detail: specs, certs, reviews, FAQs","Where-to-buy routing to brand channels","Physical store locator on maps"]],
+[51,"S6","B2B RFQ engine",["Buyer posts requirement: product, quantity, location, timeline","Supplier matching + notifications","RFQ inbox for brands"]],
+[52,"S6","Quotes + ratings",["Quote/contact via platform inbox","Two-sided ratings on closed RFQs","Lead-credit monetization wiring"]],
+[53,"S6","Brand dashboard",["Products CRUD (schema-driven), certs, RFQ inbox","Analytics-lite: views, clicks, leads by geo","Subscription management"]],
+[54,"S6","Organic SEO + QA ★",["Category × geo landing pages + content seed","Full QA pass","GATE: complete RFQ round-trip verified"]],
+[55,"S7","Cross-ecosystem QA",["One AgriID across all sites verified end-to-end","Coins earned on milk.in visible on agri.in instantly","Unified notification center + logout-everywhere"]],
+[56,"S7","Security audit day",["Adversarial AI review: every auth, payment, lead path","OWASP checklist + dependency audit","Cloudflare WAF rules tuned + rate limits verified"]],
+[57,"S7","Performance",["pg_stat_statements query audit + N+1 hunt","Cache policy + image/CDN audit","k6 load test: 500 concurrent browse, 50 concurrent auth"]],
+[58,"S7","Compliance",["Privacy policy + terms with lead-gen disclaimers","DPDP: consent records, data export + delete endpoints","AgriCoins T&C published"]],
+[59,"S7","Launch runbook",["DNS cutover + rollback plans","Backup-restore drill #2 executed","On-call checklist + incident playbook"]],
+[60,"S7","SOFT LAUNCH ★",["agri.in + milk.in + organicstore.in live","One AgriID, one coins balance, one inbox across all three","Monitoring watch + hotfix buffer"]],
+[61,"B","Spec-schema admin builder",["Create / clone / version schemas from admin","Field types: number, enum, range, boolean, unit-aware","Claude drafts first-pass schemas per vertical"]],
+[62,"B","Schema-driven UI",["Auto-rendered filters + facets from schema flags","Spec sheets grouped by schema sections","Zero per-vertical frontend code for standard views"]],
+[63,"B","Comparison engine",["Compare up to 4 products, table auto-built from schema","Difference highlighting","Shareable comparison URLs"]],
+[64,"B","Vertical registry admin",["Enable engines, nav placement, ad slots per vertical","SEO template binding","Publish/unpublish lifecycle"]],
+[65,"B","Business Console v2",["One dashboard for every business type","Schema-driven product forms","Modules light up by vertical"]],
+[66,"B","Bulk import pipeline",["CSV templates per vertical + validation + dedup","Staged imports with review diff","Claim-linking on import"]],
+[67,"B","Geo backbone completion",["Blocks + villages datasets loaded","Pincode centroids + district mapping verified","Geo APIs for all engines"]],
+[68,"B","SEO page factory",["Vertical × geo ISR pages: /tractors/tamil-nadu/madurai","noindex until populated — no thin content","Auto-sitemaps per vertical"]],
+[69,"B","SEO copy pipeline",["Claude-generated unique intros, meta, FAQs at scale","Human spot-check workflow","JSON-LD per page type"]],
+[70,"B","Internal linking mesh",["Vertical ↔ geo ↔ content cross-links","Breadcrumbs + related modules","Index submission automation"]],
+[71,"B","Vertical: Seeds",["Schema: crop, variety, duration, yield, season, resistance","Seed 100+ companies + products via pipeline","Category landing + filters live"]],
+[72,"B","Vertical: Fertilizers",["Schema: NPK, form, dosage/acre, crops, organic flag","Company + product seeding","Dosage disclaimers on every page"]],
+[73,"B","Vertical: Crop protection",["Pesticides, bio-pesticides, agri chemicals","CIB&RC registration field + toxicity label band","Display-only + follow-label disclaimers"]],
+[74,"B","Vertical: Implements & tools",["Rotavator, weeder, sprayer schema families","Tools + implements catalogs","Company directory seeded"]],
+[75,"B","Vertical: Harvesters & machinery",["Harvester + machinery schemas","Brand + dealer seeding","Comparison enabled"]],
+[76,"B","Vertical: Drip irrigation",["System components + company directory","Quote lead form: acreage, crop, water source","Subsidy cross-link to schemes"]],
+[77,"B","Vertical: Pumps & solar",["Pumps, solar, solar pumps schemas: HP, head, phase","Subsidy-eligible flags","Company + product seeding"]],
+[78,"B","Vertical: Drones",["Drone schema: payload, coverage/hr, DGCA cert","Drone service providers with per-acre pricing display","Spray-service lead forms"]],
+[79,"B","Data seeding sprint",["Brochure PDF → Claude → validated specs at volume","Government registry imports normalized","Quality sampling + fixes"]],
+[80,"B","Claim campaign tooling",["Claim-your-listing outreach flows","Coin rewards on claim + verify","Brand onboarding emails"]],
+[81,"B","Tractor UX: comparison",["Comparison-first browse, spec battle cards","HP / budget / brand quick filters","Highest-traffic vertical polish"]],
+[82,"B","Tractor UX: EMI + pricing",["EMI calculator widget","Price-range explorer by segment","Loan vertical cross-link"]],
+[83,"B","Dealer locator",["Brand → dealers by state/district","Dealer profiles + lead buttons","Test-drive inquiry flow"]],
+[84,"B","Tractor content pack",["Buying guides EN / TA / HI","Segment comparisons + FAQ content","SEO interlinking"]],
+[85,"B","Ads v2 ★",["Vertical takeover slots + sponsored products","Niche targeting: vertical × geo × role × language","GATE: 8 verticals live, 500+ companies seeded, pages indexing"]],
+[86,"C","Booking-inquiry engine",["Service definitions + request lifecycle","Slots / availability model","Status notifications both sides"]],
+[87,"C","Provider tooling",["Calendar-lite: confirm / reject / reschedule","Provider inbox + SLAs","No payments — settle directly"]],
+[88,"C","Booking polish",["Reviews on completed bookings","Reminders + no-show handling","Booking history in user account"]],
+[89,"C","Vertical: Soil testing",["Lab directory + test menus + pricing display","Sample-pickup booking flow","Report upload to user account"]],
+[90,"C","Vertical: Water testing",["Water test labs + parameters","Booking + report delivery","Cross-link irrigation content"]],
+[91,"C","Vertical: Agritech directory",["Apps + websites profiles: category, pricing model, screenshots","Link-outs — platform for all, competitor to none","Claim + verify for agritech firms"]],
+[92,"C","Vertical: Agri loans",["Lender directory + loan product tables (KCC, term, gold)","EMI calculator","Display + lead-gen only, zero lending"]],
+[93,"C","Loan lead routing",["Eligibility-lite lead form → lender routing","Consent-first data sharing","Lead tracking for lenders"]],
+[94,"C","Vertical: Agri consulting",["Consultant profiles: expertise tags, languages, experience","Consultation booking-inquiry","Verified-expert badges"]],
+[95,"C","Vertical: Vet consulting",["Vet directory + tele-consult inquiries","Emergency flag + click-to-call","Livestock vertical cross-link"]],
+[96,"C","Vertical: Insurance",["PMFBY guides + product comparison tables","Insurer + agent directory","Lead routing to agents"]],
+[97,"C","Crop insurance depth",["Claim-process step guides","Season deadline alerts by state","Document checklists"]],
+[98,"C","Vertical: Warehouses",["Capacity, storage type, commodities, WDRA reg fields","Space-request inquiry flow","Cold storage segment"]],
+[99,"C","Vertical: Agri transport",["Transporter directory","Load ↔ vehicle matchmaking intents","Route + capacity fields"]],
+[100,"C","Schemes dataset",["Scheme schema: eligibility, benefits, docs, deadlines, links","Verified sourcing workflow + last-verified stamps","State + central coverage"]],
+[101,"C","Schemes wizard",["Eligibility filter: state, landholding, crop, category","Matching schemes with how-to-apply","High-trust: human-verified, dated, sourced"]],
+[102,"C","Certification + carbon",["Organic cert process guides + cert-body directory","Carbon credits explainers + developer/aggregator directory","Register-interest lead forms"]],
+[103,"C","FPO + helplines",["FPO profiles: members, commodities, licenses","Helplines page: national + state, offline-cached, click-to-call","Built in a day, huge goodwill"]],
+[104,"C","Data engine hardening",["Source + date stamps on every record","Review cadence + staleness flags","Correction/report mechanism"]],
+[105,"C","Stage C gate ★",["QA across all service verticals","Security pass on booking + lead surfaces","GATE: schemes wizard live, booking round-trips verified"]],
+[106,"D","Forum engine",["Categories mirroring verticals + threads + replies","Vernacular posting supported","Coin hooks on participation"]],
+[107,"D","Q&A mode",["Accepted answers + answer coin rewards","Question routing by vertical","Duplicate suggestion on ask"]],
+[108,"D","Forum moderation",["Reports, rate limits, shadow tooling","Claude classification pass: spam / fraud / prohibited","Human final arbiter queue"]],
+[109,"D","Expert program",["Verified consultant / vet flair in threads","Expert AMA thread format","Reputation display"]],
+[110,"D","Forum SEO + digests",["Indexed Q&A pages with structured data","Topic digest notifications","Weekly top-threads email"]],
+[111,"D","Webinars & events",["Event listings + registration + reminders","Organizer profiles","Calendar views"]],
+[112,"D","Event archive",["Recording links post-event","Past-event SEO pages","Certificates of attendance (simple)"]],
+[113,"D","Organizer tooling",["Organizer dashboard + attendee lists","Featured event paid slots","Event lead capture"]],
+[114,"D","Content velocity system",["Editorial calendar: vertical × season matrix","Sowing calendars + region/month pest alerts planned","Claude pipeline: draft → review → publish"]],
+[115,"D","Tri-language publishing",["EN / TA / HI translation with agri glossary memory","Language QA sampling","Vernacular SEO pages"]],
+[116,"D","Seasonal packs",["Kharif / Rabi seasonal content packs","Region-specific advisories","Push + in-app placement"]],
+[117,"D","Digests & retention",["Topic + geo subscription preferences","Newsletter + push digest system","Re-engagement flows"]],
+[118,"D","Stage D gate ★",["Forum health metrics baseline","Content cadence running on schedule","GATE: community + content systems self-sustaining"]],
+[119,"E","Classifieds engine",["Listing lifecycle: create → moderate → active → renew → close","Photos, price, location, negotiable flags","Schema-driven fields per vertical"]],
+[120,"E","Fraud tooling",["Phone-verified posting requirement","Image checks + duplicate detection","Velocity limits per account"]],
+[121,"E","Trust & safety",["Report flows + blocklists","Safety-tips interstitials before contact","Prohibited-content rules enforced"]],
+[122,"E","Contact-reveal gating",["Login + daily limits on contact reveals","Reveal logging (DPDP-aligned)","Abuse pattern alerts"]],
+[123,"E","Unified moderation console",["One queue across classifieds, forum, reviews, verifications","Priority scoring","Moderator action audit trail"]],
+[124,"E","AI moderation assist",["Claude classification pre-pass on all listings","Flag reasons surfaced to human reviewer","Human remains final arbiter"]],
+[125,"E","Vertical: Livestock",["Species / breed / age / vaccination-record schemas","Lactation + yield fields for dairy animals","No payment ever — discovery + contact only"]],
+[126,"E","Livestock UX",["Browse by species × district","Safety tips + inspection checklist content","Seller verification badges"]],
+[127,"E","Livestock moderation SOP",["Listing review standards documented","Seed listings via partners/FPOs","Report-response SLAs"]],
+[128,"E","Land: map-first browse",["MapLibre map with clustering + draw-area search","List ↔ map sync","Mobile map performance tuned"]],
+[129,"E","Land schema + posting",["Acreage, soil type, water source, road access, geo pin","Sale vs lease, owner vs broker flags","Phone-verified + document-lite to post"]],
+[130,"E","Land trust framework",["Verification-lite on listings","Legal disclaimers: platform lists, never brokers","Fraud pattern detection"]],
+[131,"E","Land alerts & saved search",["New-in-my-district alerts","Saved searches + shortlists","Inquiry inbox for owners"]],
+[132,"E","Land moderation",["Manual review lane for high-value listings","Duplicate + stolen-photo checks","Takedown workflow"]],
+[133,"E","Land SEO",["District / taluk landing pages","Price-trend content (informational)","Structured data for listings"]],
+[134,"E","Labour: worker profiles",["Skills (harvest, spray, tractor-op), day rate, availability, village","Voice-note profile support","Privacy-safe contact flow"]],
+[135,"E","Labour: farm job posts",["Work type, duration, wage (mandatory display), food/stay","Distance-based matching","Both-side notifications"]],
+[136,"E","Labour: vernacular UX",["Icon-first low-literacy flows","Voice-note job posts + playback","Tamil / Hindi first screens"]],
+[137,"E","Labour: matching loops",["Match feed + accept/decline","Repeat-hire shortcuts","Completion feedback"]],
+[138,"E","Labour: safety",["Wage transparency enforced","Report tools + guidelines both sides","No exploitation-adjacent features — reviewed"]],
+[139,"E","Trade leads",["Import/export buy-sell intents: commodity, qty, port","Business-verified gate on contact reveal","FPO produce listings integration"]],
+[140,"E","FULL LAUNCH ★",["All engines + all verticals live across the ecosystem","Final security audit + full load test","Harvest: the all-of-agriculture platform is open"]]
+];
+const MILESTONES=new Set([16,22,40,47,54,60,85,105,118,140]);
+
+const rowsEl=document.getElementById('rows');
+const panel=document.getElementById('panel');
+const filtersEl=document.getElementById('filters');
+let activeFilter=null, selected=null;
+
+// build filters
+const allBtn=document.createElement('button');
+allBtn.className='pf active';allBtn.innerHTML='All 140 days';
+allBtn.onclick=()=>setFilter(null,allBtn);
+filtersEl.appendChild(allBtn);
+Object.entries(PHASES).forEach(([k,p])=>{
+  const b=document.createElement('button');b.className='pf';
+  b.innerHTML=`<span class="pd" style="background:${p.c}"></span>${p.n.split('·')[1].trim()} <span class="mono" style="font-size:10px;opacity:.7">D${p.d}</span>`;
+  b.onclick=()=>setFilter(k,b);filtersEl.appendChild(b);
+});
+function setFilter(k,btn){activeFilter=k;
+  filtersEl.querySelectorAll('.pf').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.seed').forEach(s=>{
+    s.classList.toggle('dim',k!==null&&s.dataset.ph!==k);
+  });
+}
+
+// build field rows of 20
+for(let r=0;r<7;r++){
+  const row=document.createElement('div');row.className='crop-row';
+  const tag=document.createElement('div');tag.className='row-tag';
+  tag.textContent=`D${r*20+1}–${r*20+20}`;row.appendChild(tag);
+  const seeds=document.createElement('div');seeds.className='seeds';
+  for(let i=0;i<20;i++){
+    const d=DAYS[r*20+i];if(!d)break;
+    const [day,ph]=d;
+    const s=document.createElement('button');
+    s.className='seed'+(MILESTONES.has(day)?' milestone':'');
+    s.style.background=PHASES[ph].c;s.dataset.ph=ph;s.dataset.day=day;
+    s.setAttribute('aria-label',`Day ${day}: ${d[2]}`);
+    if(!MILESTONES.has(day)){const n=document.createElement('span');n.className='dnum';n.textContent=day;s.appendChild(n);}
+    s.onclick=()=>selectDay(day);
+    seeds.appendChild(s);
+  }
+  row.appendChild(seeds);rowsEl.appendChild(row);
+}
+
+function selectDay(day){
+  selected=day;
+  document.querySelectorAll('.seed').forEach(s=>s.classList.toggle('sel',+s.dataset.day===day));
+  const d=DAYS[day-1];const p=PHASES[d[1]];
+  const gates=d[3].filter(t=>t.startsWith('GATE'));
+  const tasks=d[3].filter(t=>!t.startsWith('GATE'));
+  panel.style.borderLeftColor=p.c;
+  panel.innerHTML=`
+    <div class="dp-top"><span class="dp-day">DAY ${day} / 140</span>
+    <span class="dp-phase" style="background:${p.c}">${p.n}</span></div>
+    <h3>${d[2].replace(' ★','')}${MILESTONES.has(day)?' <span style="color:var(--turmeric)">★</span>':''}</h3>
+    <ul>${tasks.map(t=>`<li>${t}</li>`).join('')}</ul>
+    ${gates.map(g=>`<div class="gate">🏁 ${g}</div>`).join('')}
+    <div class="dp-nav">
+      <button ${day===1?'disabled':''} onclick="selectDay(${day-1})">← Day ${day-1||1}</button>
+      <button ${day===140?'disabled':''} onclick="selectDay(${Math.min(day+1,140)})">Day ${Math.min(day+1,140)} →</button>
+    </div>`;
+}
+window.selectDay=selectDay;
+selectDay(1);
+
+// phase summary cards
+const pcEl=document.getElementById('phaseCards');
+Object.entries(PHASES).forEach(([k,p])=>{
+  const c=document.createElement('div');c.className='pc';c.style.borderTopColor=p.c;
+  c.innerHTML=`<div class="pc-days">DAYS ${p.d}</div><h4>${p.n}</h4><p>${p.s}</p>`;
+  pcEl.appendChild(c);
+});
+</script>
+</body>
+</html>

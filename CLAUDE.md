@@ -9,3 +9,8 @@ boring choice, reversible choice, measured choice.
 - Every work package: create branch feat/dXX{a|b}-short-name from dev.
 - Commit with conventional commits. Push branch, open PR targeting dev.
 - Never open PRs to main. dev → main promotion is done by the human only.
+
+## Design
+- UI matches docs/design-system.md exactly. The mockup at
+  docs/design-reference/preview_frontend.html is the visual source of truth.
+- Tokens only — no raw hex colors in app code.

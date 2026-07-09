@@ -12,9 +12,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "check:hex": "node scripts/check-hex.mjs",
+    "baseline": "node scripts/capture-baseline.mjs",
     "gen:types": "turbo run gen:types"
   },
   "devDependencies": {
+    "playwright": "1.61.1",
     "turbo": "2.10.4",
     "typescript": "5.9.3"
   }

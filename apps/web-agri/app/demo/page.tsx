@@ -118,6 +118,7 @@ export default async function DemoPage({
         ))}
       </div>
 
+      <main>
       {/* ═══ composite: header stack + searchband ═══ */}
       <HeaderStack
         logo="agri.in"
@@ -460,6 +461,7 @@ export default async function DemoPage({
         ))}
         <div className="h-8" />
       </Wrap>
+      </main>
 
       {/* ═══ composite: bottom nav (sticky) ═══ */}
       <BottomNav

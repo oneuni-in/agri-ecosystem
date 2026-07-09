@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-import { cn } from "../lib/cn";
-
 /**
  * Category group (`.catgroup-t` + `.catgrid`): uppercase hairline label +
  * auto-fill grid. All categories on the homepage, zero hamburgers (UX law 2).

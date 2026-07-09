@@ -1,4 +1,5 @@
 import type { SiteTheme } from "@agri/types";
+import { fontVariables } from "@agri/ui/fonts";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -16,7 +17,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" data-theme={THEME}>
+    <html lang="en" data-theme={THEME} className={fontVariables}>
       <body>{children}</body>
     </html>
   );

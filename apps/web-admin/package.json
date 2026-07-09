@@ -14,6 +14,7 @@
     "@agri/types": "workspace:*",
     "@agri/ui": "workspace:*",
     "next": "15.5.20",
+    "next-intl": "4.13.1",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },

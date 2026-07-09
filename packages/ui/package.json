@@ -4,23 +4,37 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./fonts": "./src/fonts.ts",
+    "./seo": "./src/seo/index.ts",
+    "./i18n": "./src/i18n/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agri/types": "workspace:*"
+    "@agri/types": "workspace:*",
+    "@radix-ui/react-dialog": "1.1.19",
+    "@radix-ui/react-toast": "1.2.19",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "schema-dts": "2.0.0",
+    "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
     "@agri/config": "workspace:*",
     "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
+    "next": "15.5.20",
     "react": "19.2.7",
+    "react-dom": "19.2.7",
     "typescript": "5.9.3"
   },
   "peerDependencies": {
-    "react": "^19"
+    "next": "^15",
+    "react": "^19",
+    "react-dom": "^19"
   }
 }

@@ -1,4 +1,8 @@
-import type { NextConfig } from "next";
+﻿import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Locale comes from the shared request config; catalogs live in @agri/ui.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -13,4 +17,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

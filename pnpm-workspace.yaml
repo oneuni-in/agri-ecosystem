@@ -5,4 +5,7 @@ packages:
 # sharp is next/image's optimizer; it needs its install script to fetch the
 # native binary. Every other build script stays blocked by default.
 allowBuilds:
+  # next-intl transitives; they ship prebuilt binaries, postinstall not needed.
+  "@parcel/watcher": false
+  "@swc/core": false
   sharp: true

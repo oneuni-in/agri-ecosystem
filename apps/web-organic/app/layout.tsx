@@ -1,5 +1,7 @@
 import type { SiteTheme } from "@agri/types";
+import { fontVariables } from "@agri/ui/fonts";
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
 import "./globals.css";
@@ -16,8 +18,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" data-theme={THEME}>
-      <body>{children}</body>
+    <html lang="en" data-theme={THEME} className={fontVariables}>
+      <body>
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

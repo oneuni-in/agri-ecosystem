@@ -1,0 +1,55 @@
+{
+  "ui": {
+    "search": {
+      "placeholder": "Search anything… tractor, seeds, loan, scheme",
+      "hint": "🎤 Press the mic and speak in Tamil, Hindi or English — no typing needed",
+      "micLabel": "Speak to search",
+      "camLabel": "Search by photo",
+      "inputLabel": "Search"
+    },
+    "pincode": {
+      "title": "Milk near you — all options, one place",
+      "subtitle": "All milk in your area · brands, local vendors, farm-fresh delivery",
+      "find": "Find milk",
+      "gps": "📍 Or use my location",
+      "inputLabel": "Enter pincode"
+    },
+    "nav": {
+      "home": "Home",
+      "categories": "Categories",
+      "askAi": "Ask AI",
+      "alerts": "Alerts",
+      "profile": "Profile"
+    },
+    "actions": {
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "compare": "Compare"
+    },
+    "badges": {
+      "verified": "✔ Verified",
+      "certVerified": "✔ Cert verified"
+    },
+    "product": {
+      "whereToBuy": "Where to buy 📍"
+    },
+    "helpline": {
+      "title": "Kisan Call Centre — free help in your language",
+      "sub": "6 AM – 10 PM · toll free",
+      "call": "Call 1800-180-1551"
+    },
+    "today": {
+      "title": "Today"
+    },
+    "lang": {
+      "label": "🌐 EN · த · हि"
+    },
+    "categories": {
+      "seeds": "Seeds",
+      "tractors": "Tractors",
+      "loans": "Agri loans",
+      "mandi": "Mandi prices",
+      "vet": "Vet doctor"
+    }
+  }
+}

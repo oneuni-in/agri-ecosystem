@@ -74,4 +74,7 @@ def change_slug(
 
 
 async def find_redirect(session: AsyncSession, path: str) -> str | None:
-    return await session.scalar(select(SlugRedirect.new_path).where(SlugRedirect.old_path == path))
+    result = await session.scalars(
+        select(SlugRedirect.new_path).where(SlugRedirect.old_path == path)
+    )
+    return result.first()

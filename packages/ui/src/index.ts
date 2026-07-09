@@ -26,3 +26,16 @@ export { SearchBar } from "./components/search-bar";
 export type { SearchBarProps } from "./components/search-bar";
 export { Skeleton } from "./components/skeleton";
 export { cn } from "./lib/cn";
+
+// Composite patterns (design-system.md §2, "Composite patterns")
+export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";
+export { CategoryGroup } from "./composites/category-group";
+export { CertBar, CertCard } from "./composites/cert-bar";
+export { EcoPill, EcoStrip } from "./composites/eco-strip";
+export { HeaderStack, SearchBand } from "./composites/header-stack";
+export { HelplineBand } from "./composites/helpline-band";
+export { PincodeHero } from "./composites/pincode-hero";
+export { ProductCard, ProductGrid } from "./composites/product-card";
+export { CardsRow, Section, Wrap } from "./composites/section";
+export { TodayCard, TodayStrip } from "./composites/today-strip";
+export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";

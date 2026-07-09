@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["pnpm-lock.yaml", ".nvmrc"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.md",
+        "!.next/**",
+        "!next-env.d.ts"
+      ],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": []
+    },
+    "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": []
+    },
+    "gen:types": {
+      "cache": false
+    }
+  }
+}

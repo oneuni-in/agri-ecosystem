@@ -1,0 +1,2 @@
+# `pnpm gen:types` writes openapi.ts here from backend/openapi.json (D01-B).
+# The generated file is gitignored; this directory is not.

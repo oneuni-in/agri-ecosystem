@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* D02 layers the design-system tokens (docs/design-system.md §1) onto the
+   [data-theme] selectors set in layout.tsx. No raw hex belongs in app code. */

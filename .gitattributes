@@ -1,0 +1,7 @@
+# Normalize to LF in the repo; check out native. Keeps a Windows dev machine
+# and Linux CI from disagreeing about every line of every file.
+* text=auto eol=lf
+
+# Lockfiles and snapshots must never be CRLF-mangled.
+pnpm-lock.yaml text eol=lf
+*.sh text eol=lf

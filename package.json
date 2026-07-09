@@ -1,0 +1,20 @@
+{
+  "name": "agri-ecosystem",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "gen:types": "turbo run gen:types"
+  },
+  "devDependencies": {
+    "turbo": "2.10.4",
+    "typescript": "5.9.3"
+  }
+}

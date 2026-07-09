@@ -1,0 +1,21 @@
+{
+  "name": "@agri/types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi": "./src/generated/openapi.ts"
+  },
+  "scripts": {
+    "gen:types": "node ./scripts/gen-types.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@agri/config": "workspace:*",
+    "eslint": "9.39.4",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

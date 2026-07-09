@@ -1,0 +1,21 @@
+{
+  "name": "@agri/auth-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agri/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@agri/config": "workspace:*",
+    "eslint": "9.39.4",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@agri/web-admin",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3004",
+    "build": "next build",
+    "start": "next start --port 3004",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agri/auth-client": "workspace:*",
+    "@agri/types": "workspace:*",
+    "@agri/ui": "workspace:*",
+    "next": "15.5.20",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@agri/config": "workspace:*",
+    "@types/node": "24.10.2",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.5.2",
+    "eslint": "9.39.4",
+    "postcss": "8.5.16",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.9.3"
+  }
+}

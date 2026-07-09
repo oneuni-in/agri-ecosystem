@@ -8,7 +8,7 @@ time-ordered for free.
 
 import base64
 import uuid
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Select
@@ -22,7 +22,13 @@ class InvalidCursorError(ValueError):
     """The supplied cursor is not one we issued."""
 
 
+@runtime_checkable
 class HasId(Protocol):
+    """Anything with a UUID primary key (every UUIDv7PKMixin model).
+
+    runtime_checkable because Page[T]'s eager parametrization builds an
+    isinstance validator from the bound."""
+
     id: uuid.UUID
 
 

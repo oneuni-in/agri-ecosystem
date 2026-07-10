@@ -8,6 +8,9 @@ out/
 dist/
 build/
 
+# local pg backups (scripts/backup/backup.sh)
+backups/
+
 # turbo
 .turbo/
 

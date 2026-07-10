@@ -82,3 +82,13 @@ def test_extra_fields_merged_and_scrubbed() -> None:
 
 def test_short_numbers_not_redacted() -> None:
     assert scrub("status 200 in 42ms on port 55432") == "status 200 in 42ms on port 55432"
+
+
+def test_uuids_survive_scrubbing() -> None:
+    # digit-heavy runs inside UUIDs must not be mistaken for phone numbers:
+    # request ids and entity ids (UUIDv7) have to stay greppable in logs
+    for uuid in (
+        "019f4b6d-06f5-7853-9204-269485421f3a",
+        "01951234-5678-7000-8000-123456789abc",
+    ):
+        assert scrub(f"request {uuid} done") == f"request {uuid} done"

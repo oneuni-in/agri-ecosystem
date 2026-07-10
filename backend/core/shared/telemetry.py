@@ -19,8 +19,9 @@ request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 REDACTED = "[REDACTED]"
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 10-15 digits with optional + and separators: Indian mobiles (+91 98765 43210)
-# and STD landlines. The lookarounds stop matches starting/ending mid-number.
-_PHONE = re.compile(r"(?<!\d)\+?(?:\d[\s\-().]?){9,14}\d(?!\d)")
+# and STD landlines. The lookarounds reject matches bounded by hex letters or
+# dashes so digit runs inside UUIDs (request ids, entity ids) stay greppable.
+_PHONE = re.compile(r"(?<![0-9A-Za-z-])\+?(?:\d[\s\-().]?){9,14}\d(?![0-9A-Za-z-])")
 
 
 def scrub(text: str) -> str:

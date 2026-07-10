@@ -26,6 +26,7 @@ from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
 from shared.security import SecureRouter
+from shared.sentry import init_sentry
 from shared.storage import check_storage
 from shared.telemetry import configure_logging, get_logger
 
@@ -115,6 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    init_sentry(get_settings())
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

@@ -13,6 +13,9 @@ FROM python:3.13-slim
 RUN useradd --create-home --uid 1000 appuser
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
+# release tag for sentry/observability; set by CI (deploy-staging.yml)
+ARG GIT_SHA=""
+ENV RELEASE=$GIT_SHA
 USER appuser
 WORKDIR /home/appuser
 EXPOSE 8000

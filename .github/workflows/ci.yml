@@ -39,6 +39,11 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-
       - run: pnpm exec turbo run lint typecheck test build --cache-dir=.turbo
+        env:
+          # sentry source-map upload: inactive until these secrets are set at
+          # launch prep (docs/runbooks/monitoring.md); unset -> builds skip it
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
 
   # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
   design-tokens:

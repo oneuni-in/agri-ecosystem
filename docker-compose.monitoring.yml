@@ -1,0 +1,16 @@
+# Uptime Kuma — READY BUT INACTIVE (D05). Do not start on the dev box; it
+# runs on the VPS at launch prep. Bring-up + monitor list:
+# docs/runbooks/monitoring.md
+name: agri-monitoring
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    ports:
+      - "3011:3001"
+    volumes:
+      - kumadata:/app/data
+    restart: unless-stopped
+
+volumes:
+  kumadata:

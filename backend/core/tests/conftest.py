@@ -21,6 +21,7 @@ from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import reset_engine
 from shared.flags import reset_flag_cache
+from shared.metrics import reset_metrics
 from shared.security import rate_limiter
 
 TEST_DB_NAME = "agri_test"
@@ -35,6 +36,7 @@ def _reset_state() -> Iterator[None]:
     reset_engine()
     reset_flag_cache()
     rate_limiter.reset()
+    reset_metrics()
 
 
 @pytest.fixture(scope="session")

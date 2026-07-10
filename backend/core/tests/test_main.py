@@ -36,12 +36,12 @@ def test_health_deep_reports_per_service_status(monkeypatch: pytest.MonkeyPatch)
     assert all(up is False for up in body["services"].values())
 
 
-def test_public_routes_are_exactly_the_health_endpoints() -> None:
+def test_public_routes_are_exactly_the_declared_endpoints() -> None:
     app = create_app()
-    assert app.state.public_routes == ["/health", "/health/deep"]
+    assert app.state.public_routes == ["/health", "/health/deep", "/metrics"]
 
 
 def test_boot_log_lists_public_routes(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO), TestClient(create_app()):
         pass
-    assert "public routes: ['/health', '/health/deep']" in caplog.text
+    assert "public routes: ['/health', '/health/deep', '/metrics']" in caplog.text

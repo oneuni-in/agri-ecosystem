@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # Sentry is READY BUT INACTIVE: no SENTRY_DSN in the environment means
+    # init_sentry() is a no-op. Activation: docs/runbooks/monitoring.md.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.1
+    release: str = ""  # git sha, baked into images as the RELEASE env var
+
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 

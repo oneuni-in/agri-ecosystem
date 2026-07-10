@@ -39,6 +39,11 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-
       - run: pnpm exec turbo run lint typecheck test build --cache-dir=.turbo
+        env:
+          # sentry source-map upload: inactive until these secrets are set at
+          # launch prep (docs/runbooks/monitoring.md); unset -> builds skip it
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
 
   # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
   design-tokens:
@@ -138,7 +143,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # no `cache: pnpm` here: audit reads only the lockfile and never
+          # populates the store, so the post-step cache save errors on the
+          # missing path whenever the lockfile (cache key) changes
       - name: pnpm dependency audit (fail high)
         run: pnpm audit --audit-level high
       - uses: actions/setup-python@v5

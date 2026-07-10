@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@agri/auth-client": "workspace:*",
+    "@agri/observability": "workspace:*",
     "@agri/types": "workspace:*",
     "@agri/ui": "workspace:*",
+    "@sentry/nextjs": "10.64.0",
     "next": "15.5.20",
     "next-intl": "4.13.1",
     "react": "19.2.7",

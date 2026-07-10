@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -26,7 +27,7 @@ const nextConfig: NextConfig = {
   }),
   // Workspace packages ship TypeScript source (no build step), so Next must
   // compile them alongside the app.
-  transpilePackages: ["@agri/ui", "@agri/types", "@agri/auth-client"],
+  transpilePackages: ["@agri/ui", "@agri/types", "@agri/auth-client", "@agri/observability"],
   eslint: {
     // Linting is its own turbo task (`pnpm lint`, --max-warnings 0). Running
     // it again inside `next build` would double the work and hide which task
@@ -35,4 +36,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+const config = withNextIntl(nextConfig);
+
+// Source-map upload is READY BUT INACTIVE: SENTRY_AUTH_TOKEN is a CI secret
+// that stays unset until launch prep (docs/runbooks/monitoring.md), so local
+// and CI builds skip the wrapper entirely.
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(config, {
+      ...(process.env.SENTRY_ORG ? { org: process.env.SENTRY_ORG } : {}),
+      project: "agri-web-admin",
+      silent: true,
+      widenClientFileUpload: true,
+    })
+  : config;

@@ -15,6 +15,10 @@ ARG APP
 # NEXT_OUTPUT switches next.config.ts to standalone output (kept off for
 # local/CI builds - symlink tracing breaks on Windows dev boxes)
 ENV NEXT_OUTPUT=standalone
+# release tag for sentry (set by deploy-staging.yml); NEXT_PUBLIC_ vars are
+# inlined at build time, so this must exist in the builder stage
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_RELEASE=$GIT_SHA
 RUN pnpm exec turbo run build --filter=@agri/${APP}
 
 FROM node:24-alpine AS runner
@@ -22,11 +26,13 @@ FROM node:24-alpine AS runner
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ARG APP
+ARG GIT_SHA=""
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     APP=${APP} \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    RELEASE=${GIT_SHA}
 
 # standalone output is rooted at the monorepo root (outputFileTracingRoot),
 # so server.js lives at apps/<APP>/server.js inside the bundle

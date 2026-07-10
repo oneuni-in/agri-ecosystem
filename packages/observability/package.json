@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.36.0"
+    "@sentry/nextjs": "10.64.0"
   },
   "devDependencies": {
     "@agri/config": "workspace:*",

@@ -5,6 +5,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["NEXT_OUTPUT"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!**/*.md",
@@ -22,6 +23,10 @@
       "outputs": []
     },
     "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": []
+    },
+    "test": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
       "outputs": []
     },

@@ -1,0 +1,132 @@
+# Staging stack (SPEC D04-E): same VPS as everything else, ISOLATED compose
+# project. Always run with `-p agri-staging -f docker-compose.staging.yml`.
+# Images come from GHCR tagged by git sha (TAG env, set by the deploy script);
+# secrets come from secrets/staging.env, decrypted from SOPS at deploy time
+# and removed afterwards. No bind mounts, no build: — staging runs only what
+# CI built and pushed.
+name: agri-staging
+
+services:
+  api:
+    image: ghcr.io/oneuni-in/agri-api:${TAG:-dev}
+    env_file: secrets/staging.env
+    ports:
+      - "8100:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  web-milk:
+    image: ghcr.io/oneuni-in/agri-web-milk:${TAG:-dev}
+    ports:
+      - "3100:3000"
+    healthcheck: &web-health
+      test: ["CMD-SHELL", "wget --no-verbose --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  web-organic:
+    image: ghcr.io/oneuni-in/agri-web-organic:${TAG:-dev}
+    ports:
+      - "3101:3000"
+    healthcheck: *web-health
+    restart: unless-stopped
+
+  web-agri:
+    image: ghcr.io/oneuni-in/agri-web-agri:${TAG:-dev}
+    ports:
+      - "3102:3000"
+    healthcheck: *web-health
+    restart: unless-stopped
+
+  web-id:
+    image: ghcr.io/oneuni-in/agri-web-id:${TAG:-dev}
+    ports:
+      - "3103:3000"
+    healthcheck: *web-health
+    restart: unless-stopped
+
+  web-admin:
+    image: ghcr.io/oneuni-in/agri-web-admin:${TAG:-dev}
+    ports:
+      - "3104:3000"
+    healthcheck: *web-health
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    env_file: secrets/staging.env # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    env_file: secrets/staging.env # MEILI_MASTER_KEY
+    environment:
+      MEILI_ENV: production
+    volumes:
+      - meilidata:/meili_data
+    healthcheck:
+      # 127.0.0.1, not localhost: busybox wget resolves localhost to ::1 but
+      # meilisearch binds IPv4 only
+      test: ["CMD-SHELL", "wget --no-verbose --spider http://127.0.0.1:7700/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    env_file: secrets/staging.env # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  meilidata:
+  miniodata:

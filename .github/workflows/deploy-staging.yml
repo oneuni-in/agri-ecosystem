@@ -1,0 +1,96 @@
+# SPEC D04-D/E: on merge to dev, build+push all images tagged by sha (auto),
+# then deploy to staging ONLY after manual approval (the `staging` GitHub
+# environment requires a reviewer — configured in repo settings, see
+# docs/runbooks/staging-deploy.md). No auto-deploy; prod does not exist yet.
+name: deploy-staging
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false # never cancel a deploy midway
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - name: api
+            context: backend/core
+            dockerfile: backend/core/Dockerfile
+          - name: web-milk
+            context: .
+            dockerfile: apps/Dockerfile
+          - name: web-organic
+            context: .
+            dockerfile: apps/Dockerfile
+          - name: web-agri
+            context: .
+            dockerfile: apps/Dockerfile
+          - name: web-id
+            context: .
+            dockerfile: apps/Dockerfile
+          - name: web-admin
+            context: .
+            dockerfile: apps/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          build-args: |
+            APP=${{ matrix.name }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/agri-${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/agri-${{ matrix.name }}:dev
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # manual approval gate: the environment requires a reviewer in repo settings
+    environment: staging
+    env:
+      SSH_TARGET: ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}
+    steps:
+      - name: set up SSH (deploy-scoped key, pinned host key)
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.STAGING_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: place age key on VPS (stdin, never in argv or logs)
+        run: |
+          printf '%s' "${{ secrets.SOPS_AGE_KEY }}" | ssh "$SSH_TARGET" \
+            'umask 077 && mkdir -p ~/.config/sops/age && cat > ~/.config/sops/age/ci-key.txt'
+      - name: pull dev + run deploy script (smoke + auto-rollback inside)
+        run: |
+          ssh "$SSH_TARGET" \
+            "cd ~/agri-ecosystem \
+             && git fetch origin dev \
+             && git checkout dev \
+             && git reset --hard origin/dev \
+             && SOPS_AGE_KEY_FILE=\$HOME/.config/sops/age/ci-key.txt \
+                bash scripts/deploy/staging_deploy.sh ${{ github.sha }}"
+      - name: remove age key from VPS
+        if: always()
+        run: ssh "$SSH_TARGET" 'rm -f ~/.config/sops/age/ci-key.txt' || true

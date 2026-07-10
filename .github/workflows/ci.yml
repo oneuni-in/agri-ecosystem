@@ -1,0 +1,215 @@
+# SPEC D04 — merge gates. Every job here is a required check on dev/main
+# (docs/runbooks/branch-protection.md). No path filters: a skipped required
+# check blocks the merge, and gates that sometimes don't run stop being gates.
+# Removing or weakening a job is a visible diff in a protected workflow file.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  # A: pnpm lint + typecheck + vitest + build, turbo-cached (<10 min warm rule)
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-web-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+      - run: pnpm exec turbo run lint typecheck test build --cache-dir=.turbo
+
+  # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
+  design-tokens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/check-hex.mjs
+
+  # A: ruff + mypy + import-linter + pytest (offset ban + migration NOTES gate
+  # live in the test suite) + alembic up/down/up vs a real Postgres
+  # (non-negotiable 3: irreversible migration fails CI)
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/core
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app # CI-only credentials
+          POSTGRES_DB: agri
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U app -d agri"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - run: pip install -e .[dev]
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: mypy .
+      - run: lint-imports
+      - run: python scripts/migrate_check.py
+      - run: pytest -q
+
+  # B / non-negotiable 1: undeclared public route fails CI. Boots the app
+  # factory and diffs the live SecureRouter registry against the committed
+  # backend/core/public_routes.txt.
+  public-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - run: pip install -e .
+      - run: python scripts/dump_public_routes.py --check
+
+  # A: gitleaks (full history, redacted output) + dependency audits (fail high)
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: "8.24.2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history, not just HEAD
+      - name: gitleaks secret scan
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks git --redact --no-banner --exit-code 1 .
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: pnpm dependency audit (fail high)
+        run: pnpm audit --audit-level high
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - name: pip-audit backend deps (fail on known vulns)
+        run: |
+          pip install --upgrade pip # pip itself is in the audited environment
+          pip install -e backend/core pip-audit
+          pip-audit --skip-editable
+
+  # C / non-negotiable 2: Lighthouse mobile + throttled 3G on affected app
+  # templates (always including the D02 /demo route); perf>=90 a11y>=95 seo>=95
+  # + committed budgets.json. Thresholds live in lighthouserc.cjs.
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # turbo diffs against the PR base to find affected apps
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-lhci-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+      - run: node scripts/lhci-affected.mjs
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          TURBO_CACHE_DIR: .turbo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: .lhci
+          if-no-files-found: ignore
+
+  # G: conventional commits enforced on the PR title and every branch commit
+  conventional-commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: check PR title + commit subjects
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          pattern='^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
+          fail=0
+          if ! grep -qE "$pattern" <<<"$PR_TITLE"; then
+            echo "PR title is not a conventional commit: $PR_TITLE"
+            fail=1
+          fi
+          while IFS= read -r subject; do
+            [[ "$subject" =~ ^Merge\  ]] && continue
+            if ! grep -qE "$pattern" <<<"$subject"; then
+              echo "commit subject is not conventional: $subject"
+              fail=1
+            fi
+          done < <(git log --format=%s "origin/${BASE_REF}..HEAD")
+          exit $fail

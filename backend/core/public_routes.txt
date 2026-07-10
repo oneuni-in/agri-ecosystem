@@ -1,0 +1,6 @@
+# Declared public API routes (no auth). CI diffs this file against the live
+# SecureRouter registry (scripts/dump_public_routes.py --check); a public
+# route missing here fails the PR. Add a line ONLY when the exposure is
+# deliberate and reviewed.
+/health
+/health/deep

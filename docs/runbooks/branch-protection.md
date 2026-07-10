@@ -6,7 +6,26 @@ protected file in the sense that weakening or deleting a gate is a visible
 diff in a PR that itself must pass review (threat model: gate erosion under
 deadlines).
 
-## Required settings (GitHub → Settings → Branches → add rule)
+## Current enforcement status — KNOWN GAP (2026-07-10)
+
+The ruleset **"secure branch rules"** exists (Settings → Rules → Rulesets),
+targets `dev` + `main`, is set to **Active**, and matches the settings below.
+**BUT GitHub does not enforce rulesets (or classic branch protection) on
+private repos under the free org plan.** Decision (owner, 2026-07-10): stay
+on the free plan for now — **enforcement is convention-based until the org
+upgrades to GitHub Team or the repo goes public**, at which point the saved
+ruleset activates with zero reconfiguration.
+
+What this means day-to-day while the gap exists:
+
+- Direct pushes to `dev`/`main` are *physically possible*; the CLAUDE.md rule
+  (never commit to main/dev, PRs only) is the actual barrier.
+- CI still runs on every PR and shows red/green — but a red PR *can* be
+  merged. Do not.
+- Revisit at GATE 1 (D05): re-evaluate the Team upgrade before the first
+  dev → main promotion.
+
+## Required settings (implemented as ruleset "secure branch rules")
 
 For **both** `main` and `dev`:
 
@@ -45,11 +64,20 @@ Check in the output: `required_pull_request_reviews.required_approving_review_co
 `required_status_checks.contexts`, and `enforce_admins.enabled == true`.
 
 No-CLI fallback: attempt `git push origin HEAD:dev` from a feature branch —
-it must be rejected with `protected branch hook declined`; and confirm on a
-test PR that all seven checks appear in the merge box as **Required**.
+it must be rejected; and confirm on a test PR that all seven checks appear
+in the merge box as **Required**. *While the free-plan gap is open (see
+above), the push will NOT be rejected — that is the known gap, not a
+misconfiguration.*
+
+For rulesets, the CLI check is:
+
+```sh
+gh api repos/oneuni-in/agri-ecosystem/rulesets | python -m json.tool
+```
 
 ## Verification log
 
 | Date | Branch | Verified by | Notes |
 | --- | --- | --- | --- |
 | 2026-07-10 | dev, main | (pending human verification after D04 merges) | initial gate set: 7 required checks |
+| 2026-07-10 | dev, main | owner | ruleset "secure branch rules" created, Active, empty bypass list; NOT enforced on free-plan private repo — convention-based until Team upgrade (see Known Gap) |

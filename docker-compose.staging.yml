@@ -75,6 +75,15 @@ services:
 
   postgres:
     image: postgres:16
+    # D05 observability: mirror of docker-compose.dev.yml postgres command
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - log_min_duration_statement=200ms
     env_file: secrets/staging.env # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
     volumes:
       - pgdata:/var/lib/postgresql/data

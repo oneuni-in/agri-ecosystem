@@ -8,6 +8,7 @@ import "./globals.css";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
 const THEME: SiteTheme = "theme-milk";
+export const badDemoColor = "#FF0000"; // deliberately raw hex - design-tokens gate must go red
 
 export const metadata: Metadata = {
   title: "Milk.in",

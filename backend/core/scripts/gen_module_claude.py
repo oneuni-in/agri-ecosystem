@@ -125,7 +125,7 @@ def main() -> None:
     root = Path(__file__).resolve().parent.parent / "modules"
     for name, cfg in MODULES.items():
         target = root / name / "CLAUDE.md"
-        target.write_text(TEMPLATE.format(name=name, **cfg), encoding="utf-8")
+        target.write_text(TEMPLATE.format(name=name, **cfg), encoding="utf-8", newline="\n")
         print(f"wrote {target}")  # noqa: T201 - CLI output
 
 

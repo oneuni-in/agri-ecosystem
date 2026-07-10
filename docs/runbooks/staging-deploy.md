@@ -49,6 +49,10 @@ deploy fails loudly at the decrypt step until this exists with real values.
 Staging ports on the VPS: API `:8100`, apps `:3100`–`:3104`
 (milk, organic, agri, id, admin).
 
+After the first successful deploy, activate monitoring + backups:
+docs/runbooks/monitoring.md and docs/runbooks/backup-restore.md
+("ACTIVATE AT LAUNCH PREP" sections).
+
 ## When smoke fails
 
 The script re-deploys the previous last-good sha automatically and exits

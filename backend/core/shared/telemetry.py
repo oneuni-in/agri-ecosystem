@@ -65,7 +65,10 @@ def configure_logging(level: str) -> None:
     handler.setFormatter(JsonFormatter())
     handler.addFilter(PiiScrubFilter())
     root = logging.getLogger()
-    root.handlers = [handler]
+    # replace only our own previous handler: reconfiguring must be idempotent
+    # without evicting foreign handlers (pytest's caplog, notably)
+    root.handlers = [h for h in root.handlers if not isinstance(h.formatter, JsonFormatter)]
+    root.addHandler(handler)
     root.setLevel(level.upper())
     # our JSON access line (shared/request_context.py) replaces uvicorn's
     logging.getLogger("uvicorn.access").disabled = True

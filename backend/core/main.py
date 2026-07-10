@@ -23,6 +23,7 @@ from settings import get_settings
 from shared.cache import check_cache, close_redis
 from shared.db import check_database
 from shared.middleware import SlugRedirectMiddleware
+from shared.request_context import RequestContextMiddleware
 from shared.security import SecureRouter
 from shared.storage import check_storage
 from shared.telemetry import configure_logging, get_logger
@@ -106,6 +107,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
+    # added last so it runs outermost: every request gets an id before
+    # anything else, and the access line covers slug redirects too
+    app.add_middleware(RequestContextMiddleware)
     public_routes: list[str] = []
     for router in [health_router, *MODULE_ROUTERS]:
         app.include_router(router)

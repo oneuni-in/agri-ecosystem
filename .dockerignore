@@ -1,0 +1,14 @@
+# context for apps/Dockerfile is the repo root; keep it lean
+.git
+.github
+.turbo
+.lhci
+node_modules
+**/node_modules
+**/.next
+**/.turbo
+backend
+docs
+secrets
+scripts/deploy
+*.md

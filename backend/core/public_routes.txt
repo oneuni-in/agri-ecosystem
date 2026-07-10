@@ -4,3 +4,4 @@
 # deliberate and reviewed.
 /health
 /health/deep
+/metrics

@@ -22,6 +22,7 @@ from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
 from shared.db import check_database
+from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
 from shared.security import SecureRouter
@@ -95,6 +96,15 @@ async def health_deep(response: Response) -> DeepHealthResponse:
     return DeepHealthResponse(status="ok" if healthy else "degraded", services=services)
 
 
+metrics_router = SecureRouter(tags=["observability"])
+
+
+@metrics_router.get("/metrics", public=True)
+async def metrics() -> Response:
+    body, content_type = render()
+    return Response(content=body, media_type=content_type)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -111,7 +121,7 @@ def create_app() -> FastAPI:
     # anything else, and the access line covers slug redirects too
     app.add_middleware(RequestContextMiddleware)
     public_routes: list[str] = []
-    for router in [health_router, *MODULE_ROUTERS]:
+    for router in [health_router, metrics_router, *MODULE_ROUTERS]:
         app.include_router(router)
         public_routes.extend(router.public_paths)
     app.state.public_routes = public_routes

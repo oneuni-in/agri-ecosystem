@@ -108,9 +108,7 @@ def downgrade() -> None:
         permissions_table.c.name.in_(list(PERMISSIONS))
     )
     op.execute(
-        role_permissions_table.delete().where(
-            role_permissions_table.c.role_id.in_(seeded_roles)
-        )
+        role_permissions_table.delete().where(role_permissions_table.c.role_id.in_(seeded_roles))
     )
     op.execute(user_roles_table.delete().where(user_roles_table.c.role_id.in_(seeded_roles)))
     op.execute(

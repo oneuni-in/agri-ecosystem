@@ -25,8 +25,7 @@ def _contains_uuid(annotation: object) -> bool:
             return True
         if issubclass(annotation, BaseModel):
             return any(
-                _contains_uuid(field.annotation)
-                for field in annotation.model_fields.values()
+                _contains_uuid(field.annotation) for field in annotation.model_fields.values()
             )
         return False
     return any(_contains_uuid(arg) for arg in typing.get_args(annotation))

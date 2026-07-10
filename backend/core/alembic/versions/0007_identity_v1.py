@@ -33,15 +33,23 @@ depends_on: str | Sequence[str] | None = None
 
 def _user_status() -> postgresql.ENUM:
     return postgresql.ENUM(
-        "active", "suspended", "deleted",
-        name="user_status", schema="identity", create_type=False,
+        "active",
+        "suspended",
+        "deleted",
+        name="user_status",
+        schema="identity",
+        create_type=False,
     )
 
 
 def _user_language() -> postgresql.ENUM:
     return postgresql.ENUM(
-        "en", "ta", "hi",
-        name="user_language", schema="identity", create_type=False,
+        "en",
+        "ta",
+        "hi",
+        name="user_language",
+        schema="identity",
+        create_type=False,
     )
 
 
@@ -61,9 +69,7 @@ def upgrade() -> None:
     sa.Enum("active", "suspended", "deleted", name="user_status", schema="identity").create(
         bind, checkfirst=True
     )
-    sa.Enum("en", "ta", "hi", name="user_language", schema="identity").create(
-        bind, checkfirst=True
-    )
+    sa.Enum("en", "ta", "hi", name="user_language", schema="identity").create(bind, checkfirst=True)
     op.execute("CREATE SEQUENCE identity.agri_id_seq")
 
     op.create_table(
@@ -188,9 +194,7 @@ def upgrade() -> None:
         sa.Column("state", sa.Text, nullable=True),
         sa.Column("district", sa.Text, nullable=True),
         sa.Column("pincode", sa.Text, nullable=True),
-        sa.Column(
-            "language", _user_language(), server_default=sa.text("'en'"), nullable=False
-        ),
+        sa.Column("language", _user_language(), server_default=sa.text("'en'"), nullable=False),
         sa.Column(
             "interests", postgresql.JSONB, server_default=sa.text("'[]'::jsonb"), nullable=False
         ),

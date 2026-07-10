@@ -163,9 +163,7 @@ class Profile(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     interests: Mapped[list[str]] = mapped_column(
         postgresql.JSONB, server_default=text("'[]'::jsonb"), nullable=False
     )
-    completion_score: Mapped[int] = mapped_column(
-        Integer, server_default=text("0"), nullable=False
-    )
+    completion_score: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
 
 
 class Address(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -181,9 +179,7 @@ class Address(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     district: Mapped[str | None] = mapped_column(Text, nullable=True)
     state: Mapped[str | None] = mapped_column(Text, nullable=True)
     pincode: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_default: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), nullable=False
-    )
+    is_default: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), nullable=False)
 
 
 class Preference(UUIDv7PKMixin, TimestampMixin, Base):

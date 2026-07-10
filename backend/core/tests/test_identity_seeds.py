@@ -18,12 +18,12 @@ EXPECTED_PERMISSIONS = {
 
 async def test_roles_seeded(db_session: AsyncSession) -> None:
     names = set((await db_session.scalars(select(Role.name))).all())
-    assert EXPECTED_ROLES <= names
+    assert names >= EXPECTED_ROLES
 
 
 async def test_permissions_seeded(db_session: AsyncSession) -> None:
     names = set((await db_session.scalars(select(Permission.name))).all())
-    assert EXPECTED_PERMISSIONS <= names
+    assert names >= EXPECTED_PERMISSIONS
 
 
 async def test_super_admin_has_every_baseline_permission(db_session: AsyncSession) -> None:

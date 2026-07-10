@@ -37,7 +37,10 @@ async def create_user(session: AsyncSession, phone: str) -> User:
 
 
 async def get_by_phone(session: AsyncSession, phone: str) -> User | None:
-    return await session.scalar(select(User).where(User.phone == normalize_phone(phone)))
+    user: User | None = await session.scalar(
+        select(User).where(User.phone == normalize_phone(phone))
+    )
+    return user
 
 
 async def assign_role(session: AsyncSession, user_id: uuid.UUID, role_name: str) -> UserRole:

@@ -143,7 +143,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # no `cache: pnpm` here: audit reads only the lockfile and never
+          # populates the store, so the post-step cache save errors on the
+          # missing path whenever the lockfile (cache key) changes
       - name: pnpm dependency audit (fail high)
         run: pnpm audit --audit-level high
       - uses: actions/setup-python@v5

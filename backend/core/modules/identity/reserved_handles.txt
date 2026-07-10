@@ -1,0 +1,15 @@
+# Reserved @handles - one per line, lowercase; lines starting with # and
+# blank lines are ignored. Extend freely: protects official/brand names
+# from handle-squatting (D06 threat model). Loaded by modules/identity/handles.py.
+admin
+agri
+milk
+organic
+official
+support
+help
+root
+api
+www
+aavin
+amul

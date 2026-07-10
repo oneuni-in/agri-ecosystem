@@ -13,7 +13,10 @@ module.exports = {
   ci: {
     collect: {
       url: urls,
-      numberOfRuns: 1,
+      // 3 runs per URL, asserted on the median run: a single run on shared
+      // CI VMs swings 15-20 perf points (observed: 0.78 vs 0.99 for the same
+      // page); the median is stable without loosening any threshold.
+      numberOfRuns: 3,
       settings: {
         // Lighthouse's mobile defaults already emulate a Moto G-class phone;
         // this pins the classic 3G network profile + 4x CPU slowdown.
@@ -42,9 +45,9 @@ module.exports = {
           // App templates: the Constitution floor, non-negotiable.
           matchingUrlPattern: "^https?://[^/]+/$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.9 }],
-            "categories:accessibility": ["error", { minScore: 0.95 }],
-            "categories:seo": ["error", { minScore: 0.95 }],
+            "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
+            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
           },
         },
         {
@@ -56,8 +59,8 @@ module.exports = {
           // Deliberate carve-out, approved 2026-07-10 - see PR D04.
           matchingUrlPattern: "/demo$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.8 }],
-            "categories:accessibility": ["error", { minScore: 0.95 }],
+            "categories:performance": ["error", { minScore: 0.8, aggregationMethod: "median-run" }],
+            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
           },
         },
       ],

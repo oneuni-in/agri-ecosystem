@@ -20,11 +20,15 @@ const body = Public_Sans({
   display: "swap",
 });
 
+// preload: false — these are locale-specific (ta/hi); preloading put ~170KB
+// of glyphs on every page's critical path and sank the Lighthouse perf gate
+// (D04 non-negotiable: >=90 on 3G). display:swap still loads them on demand.
 const tamil = Noto_Sans_Tamil({
   subsets: ["tamil"],
   weight: ["500", "700"],
   variable: "--font-tamil",
   display: "swap",
+  preload: false,
 });
 
 const devanagari = Noto_Sans_Devanagari({
@@ -32,6 +36,7 @@ const devanagari = Noto_Sans_Devanagari({
   weight: ["500", "700"],
   variable: "--font-devanagari",
   display: "swap",
+  preload: false,
 });
 
 /**

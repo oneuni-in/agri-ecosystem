@@ -9,3 +9,8 @@ allowBuilds:
   "@parcel/watcher": false
   "@swc/core": false
   sharp: true
+
+# security-audit floors (pnpm audit --audit-level high is a CI gate);
+# tmp <0.2.6 (GHSA-ph9p-34f9-6g65) comes in through @lhci/cli
+overrides:
+  tmp: ">=0.2.6"

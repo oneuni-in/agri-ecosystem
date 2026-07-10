@@ -19,6 +19,17 @@ packages/types/src/generated/openapi.ts
 .env.*
 !.env.example
 
+# secrets: only the SOPS-encrypted file and the template may be committed
+secrets/*
+!secrets/*.sops.env
+!secrets/staging.env.example
+
+# staging deploy state (written on the VPS by scripts/deploy/staging_deploy.sh)
+.staging-deployed
+
+# lighthouse CI reports
+.lhci/
+
 # logs
 *.log
 npm-debug.log*

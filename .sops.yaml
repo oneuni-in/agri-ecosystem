@@ -1,0 +1,10 @@
+# SOPS config (SPEC D04-F). Anything matching secrets/*.sops.* is encrypted
+# to the staging age recipient below. The PRIVATE key never touches the repo,
+# CI logs, or the VPS disk outside a deploy (docs/runbooks/secrets.md).
+#
+# PLACEHOLDER: replace with the real public key after generating the keypair
+# offline (age-keygen); until then `sops --encrypt` will fail loudly rather
+# than encrypt to a key nobody holds.
+creation_rules:
+  - path_regex: secrets/.*\.sops\..*$
+    age: age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqql6uvw5

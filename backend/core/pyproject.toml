@@ -37,6 +37,9 @@ py-modules = ["main", "settings"]
 [tool.setuptools.packages.find]
 include = ["modules*", "shared*"]
 
+[tool.setuptools.package-data]
+"modules.identity" = ["*.txt"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

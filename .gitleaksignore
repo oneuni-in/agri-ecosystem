@@ -1,0 +1,10 @@
+# Known-fake findings only. Each line pins ONE finding by commit fingerprint,
+# so the rule stays live everywhere else (a real leak in the same file or a
+# new commit still fails CI).
+#
+# D04 bad-PR exhibit (test/d04-bad-pr-demo): deliberately fake AWS creds used
+# to prove the security gate goes red. The branch was accidentally merged to
+# dev (PR #7, reverted in the next commit), putting commit 069a54b in dev's
+# permanent history. Keys were never real; nothing to rotate.
+069a54b8f3e61ff2be96ae48a3be47d93b1b95a0:secrets/fake-leak.txt:aws-access-token:2
+069a54b8f3e61ff2be96ae48a3be47d93b1b95a0:secrets/fake-leak.txt:generic-api-key:3

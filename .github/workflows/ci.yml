@@ -192,6 +192,63 @@ jobs:
           path: .lhci
           if-no-files-found: ignore
 
+  # D09 non-negotiables at the browser level: signup, returning login,
+  # wrong-OTP lockout UX, device revoke, logout-everywhere. Real FastAPI
+  # (uvicorn + migrated Postgres + Redis) behind web-id's rewrites, driven by
+  # Playwright. OTP codes come from the flag-gated mock peek route.
+  e2e-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app # CI-only credentials
+          POSTGRES_DB: agri
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U app -d agri"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      REDIS_URL: redis://localhost:6379/0
+      API_BASE_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - run: pip install -e backend/core
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results
+          if-no-files-found: ignore
+
   # G: conventional commits enforced on the PR title and every branch commit
   conventional-commits:
     if: github.event_name == 'pull_request'

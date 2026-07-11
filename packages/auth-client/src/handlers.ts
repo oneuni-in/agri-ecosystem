@@ -155,10 +155,17 @@ async function handleCallback(cfg: ResolvedConfig, req: Request): Promise<Respon
     // CSRF/state failure: no redirect (nothing user-supplied is trusted here)
     return json({ error: "state_mismatch" }, 400, [clearTx]);
   }
-  if (url.searchParams.get("error")) {
-    // login_required from a prompt=none probe (D10.B): graceful fallback -
-    // land where the user was going, just unauthenticated.
-    return redirect(`${cfg.appOrigin}${tx.next}`, [clearTx]);
+  const errorParam = url.searchParams.get("error");
+  if (errorParam) {
+    // D10 spec: graceful fallback is ONLY for prompt=none silent probes -
+    // login_required is always benign there, and any error on a silent tx
+    // means "not logged in", so land where the user was going, unauthenticated.
+    // An interactive flow hitting an error (access_denied, etc.) is a real
+    // failure and must surface, not be silently swallowed into `next`.
+    if (tx.silent || errorParam === "login_required") {
+      return redirect(`${cfg.appOrigin}${tx.next}`, [clearTx]);
+    }
+    return json({ error: "authorize_failed" }, 400, [clearTx]);
   }
   const code = url.searchParams.get("code");
   if (!code) return json({ error: "missing_code" }, 400, [clearTx]);

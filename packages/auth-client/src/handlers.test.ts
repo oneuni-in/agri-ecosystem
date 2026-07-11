@@ -173,6 +173,34 @@ describe("GET /api/auth/callback", () => {
     expect(setCookies(res).some((c) => c.startsWith("milk_session=ey"))).toBe(false);
   });
 
+  it("interactive flow (silent=false) + error=access_denied -> 400, tx cleared, no session cookie", async () => {
+    const { GET } = createHandlers(cfg);
+    const res = await GET(
+      new Request("http://localhost:3000/api/auth/callback?error=access_denied&state=st-1", {
+        headers: { cookie: await txCookieHeader({ silent: false }) },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "authorize_failed" });
+    const cookies = setCookies(res);
+    expect(cookies.some((c) => c.startsWith("milk_session_tx=;") || c.includes("milk_session_tx=; Max-Age=0"))).toBe(
+      true,
+    );
+    expect(cookies.some((c) => c.startsWith("milk_session=ey"))).toBe(false);
+  });
+
+  it("silent probe + error=access_denied still falls back gracefully to next", async () => {
+    const { GET } = createHandlers(cfg);
+    const res = await GET(
+      new Request("http://localhost:3000/api/auth/callback?error=access_denied&state=st-1", {
+        headers: { cookie: await txCookieHeader({ silent: true }) },
+      }),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/shop");
+    expect(setCookies(res).some((c) => c.startsWith("milk_session=ey"))).toBe(false);
+  });
+
   it("web-admin gate: non-staff roles -> 403, no session (non-negotiable 4)", async () => {
     stubTokenEndpoint(200, {
       access_token: await fakeAccessToken({ roles: ["user"] }),
@@ -230,5 +258,13 @@ describe("GET /api/auth/callback", () => {
   it("unknown path -> 404", async () => {
     const { GET } = createHandlers(cfg);
     expect((await GET(new Request("http://localhost:3000/api/auth/whatever"))).status).toBe(404);
+  });
+});
+
+describe("POST /api/auth/*", () => {
+  it("unknown path -> 404", async () => {
+    const { POST } = createHandlers(cfg);
+    const res = await POST(new Request("http://localhost:3000/api/auth/whatever", { method: "POST" }));
+    expect(res.status).toBe(404);
   });
 });

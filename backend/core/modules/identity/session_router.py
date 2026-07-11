@@ -161,9 +161,22 @@ async def logout_everywhere(
     principal: PrincipalDep, response: Response, session: SessionDep
 ) -> StatusOut:
     """Every session + every refresh family, one request cycle (D09
-    non-negotiable 3); then best-effort back-channel to every BFF (D10.D)."""
+    non-negotiable 3); then best-effort back-channel to every BFF (D10.D).
+
+    Best-effort is absolute: get_session commits only if this handler returns
+    without raising, so ANY exception out of notify_logout_everywhere -
+    including one that happens before its own internal gather() shield, e.g.
+    a client-registry SELECT or JWT signing failure - would roll back
+    revoke_everything above. A dead or misbehaving BFF must never undo the
+    user's logout, so nothing from notify is allowed to escape this call."""
     await revoke_everything(session, principal.user_id)
-    await notify_logout_everywhere(session, principal.user_id)
+    try:
+        await notify_logout_everywhere(session, principal.user_id)
+    except Exception:
+        # event name only - the exception text is never logged (see module
+        # docstring: PII/token material could ride inside it); exc_info is
+        # fine since it never carries request bodies.
+        logger.warning("backchannel.logout.notify_failed", exc_info=True)
     _clear_session_cookie(response)
     return StatusOut()
 

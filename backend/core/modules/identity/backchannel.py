@@ -79,5 +79,5 @@ async def notify_logout_everywhere(
             return_exceptions=True,
         )
     for (uri, _), result in zip(posts, results, strict=True):
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException) or result.status_code >= 400:
             logger.warning("backchannel.logout.delivery_failed uri=%s", uri)

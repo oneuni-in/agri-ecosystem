@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.identity.backchannel import notify_logout_everywhere
 from modules.identity.handles import HandleError, can_change_handle, validate_handle
 from modules.identity.models import (
     HandleHistory,
@@ -159,8 +160,10 @@ async def logout(
 async def logout_everywhere(
     principal: PrincipalDep, response: Response, session: SessionDep
 ) -> StatusOut:
-    """Every session + every refresh family, one request cycle (non-negotiable 3)."""
+    """Every session + every refresh family, one request cycle (D09
+    non-negotiable 3); then best-effort back-channel to every BFF (D10.D)."""
     await revoke_everything(session, principal.user_id)
+    await notify_logout_everywhere(session, principal.user_id)
     _clear_session_cookie(response)
     return StatusOut()
 

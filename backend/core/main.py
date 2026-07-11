@@ -14,6 +14,8 @@ from modules.billing.router import router as billing_router
 from modules.coins.router import router as coins_router
 from modules.content.router import router as content_router
 from modules.directory.router import router as directory_router
+from modules.identity.router import msg91_webhook_router
+from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
 from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
@@ -40,6 +42,7 @@ MODULE_ROUTERS = [
     content_router,
     directory_router,
     identity_router,
+    identity_otp_router,
     leads_router,
     market_data_router,
     notify_router,
@@ -122,8 +125,13 @@ def create_app() -> FastAPI:
     # added last so it runs outermost: every request gets an id before
     # anything else, and the access line covers slug redirects too
     app.add_middleware(RequestContextMiddleware)
+    routers = [health_router, metrics_router, *MODULE_ROUTERS]
+    if get_settings().sms_provider == "msg91":
+        # the delivery webhook exists only when the real driver is active;
+        # default (mock) builds expose exactly the routes in public_routes.txt
+        routers.append(msg91_webhook_router())
     public_routes: list[str] = []
-    for router in [health_router, metrics_router, *MODULE_ROUTERS]:
+    for router in routers:
         app.include_router(router)
         public_routes.extend(router.public_paths)
     app.state.public_routes = public_routes

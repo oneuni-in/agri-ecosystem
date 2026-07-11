@@ -36,6 +36,23 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 60
     rate_limit_window_seconds: int = 60
 
+    # OTP (D07). The pepper keys the HMAC over stored code hashes: a DB dump
+    # alone must not allow offline brute-force of the 10^6 code space. The
+    # default is for dev only; prod supplies OTP_PEPPER via the environment.
+    otp_pepper: str = "dev-only-pepper"
+
+    # SMS driver flag. "mock" is the default everywhere until DLT registration
+    # clears; the MSG91 driver (and its webhook route) is unreachable unless
+    # this is flipped to "msg91" in the environment.
+    sms_provider: Literal["mock", "msg91"] = "mock"
+    msg91_auth_key: str = ""
+    msg91_sender_id: str = ""
+    msg91_webhook_secret: str = ""
+    # DLT template ID slots, one per OTP purpose (filled after DLT approval)
+    msg91_template_login: str = ""
+    msg91_template_verify_email: str = ""
+    msg91_template_sensitive_action: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

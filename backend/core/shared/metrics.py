@@ -35,6 +35,28 @@ LATENCY = Histogram(
     registry=registry,
 )
 
+# OTP abuse telemetry (D07): aggregates only. Phones and IPs must never become
+# label values (unbounded cardinality + PII); per-phone/per-IP counting lives
+# in the Redis throttle keys (modules/identity/otp_throttle.py).
+OTP_ISSUED = Counter(
+    "otp_issued_total",
+    "OTP codes issued",
+    ["purpose", "driver"],
+    registry=registry,
+)
+OTP_VERIFIED = Counter(
+    "otp_verify_total",
+    "OTP verification attempts by outcome",
+    ["result"],
+    registry=registry,
+)
+OTP_SEND_COST = Counter(
+    "otp_send_cost_inr_total",
+    "Cumulative SMS send cost in INR (vendor drivers only)",
+    ["provider"],
+    registry=registry,
+)
+
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
     REQUESTS.labels(method, route, str(status)).inc()
@@ -49,5 +71,5 @@ def render() -> tuple[bytes, str]:
 
 def reset_metrics() -> None:
     """Test hook (tests/conftest.py): drop label children between tests."""
-    for metric in (REQUESTS, ERRORS, LATENCY):
+    for metric in (REQUESTS, ERRORS, LATENCY, OTP_ISSUED, OTP_VERIFIED, OTP_SEND_COST):
         metric.clear()

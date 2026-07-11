@@ -17,6 +17,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from modules.identity.otp_drivers import MockDriver
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import reset_engine
@@ -37,6 +38,7 @@ def _reset_state() -> Iterator[None]:
     reset_flag_cache()
     rate_limiter.reset()
     reset_metrics()
+    MockDriver.reset()
 
 
 @pytest.fixture(scope="session")
@@ -85,6 +87,16 @@ async def db_session(database_url: str) -> AsyncIterator[AsyncSession]:
             yield session
         await outer.rollback()
     await engine.dispose()
+
+
+@pytest.fixture
+async def otp_redis(redis_client: Redis, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Redis]:
+    """Point shared.cache.get_redis at the flushed test redis DB (OTP suites)."""
+    url = get_settings().redis_url.rsplit("/", 1)[0] + f"/{TEST_REDIS_DB}"
+    monkeypatch.setenv("REDIS_URL", url)
+    get_settings.cache_clear()
+    reset_redis()
+    yield redis_client
 
 
 @pytest.fixture

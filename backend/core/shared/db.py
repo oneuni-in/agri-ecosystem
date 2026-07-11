@@ -4,6 +4,7 @@ soft-delete, and pending-by-default moderation for user-generated content.
 """
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 import uuid6
@@ -130,6 +131,16 @@ def reset_engine() -> None:
 
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(get_engine(), expire_on_commit=False)
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: one session per request, committed on success.
+
+    An exception escaping the endpoint skips the commit; closing the session
+    rolls the transaction back."""
+    async with get_sessionmaker()() as session:
+        yield session
+        await session.commit()
 
 
 async def check_database() -> bool:

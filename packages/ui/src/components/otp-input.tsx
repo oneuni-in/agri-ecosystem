@@ -40,6 +40,10 @@ export function OtpInput({
     if (value.length === length && completed.current !== value) {
       completed.current = value;
       onComplete?.(value);
+    } else if (value.length < length) {
+      // cleared (e.g. after a wrong code): the SAME code typed again must
+      // fire onComplete again
+      completed.current = null;
     }
   }, [value, length, onComplete]);
 

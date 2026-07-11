@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.identity.otp_service import issue_otp
+from modules.identity.otp_throttle import OtpRateLimited
 from settings import get_settings
 from shared.db import get_session
 
@@ -50,6 +51,27 @@ async def test_peek_returns_last_code_when_flagged(
         assert response.status_code == 200
         code = response.json()["code"]
         assert code is not None and len(code) == 6
+
+
+async def test_reset_clears_resend_cooldown_when_flagged(
+    make_api: MakeApi,
+    db_session: AsyncSession,
+    otp_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OTP_TEST_PEEK", "true")
+    get_settings.cache_clear()
+    async with await make_api() as http:
+        await issue_otp(db_session, phone=PHONE, purpose="login", ip=None, device_fingerprint=None)
+        # immediate reissue is inside the 30s resend cooldown
+        with pytest.raises(OtpRateLimited):
+            await issue_otp(
+                db_session, phone=PHONE, purpose="login", ip=None, device_fingerprint=None
+            )
+        response = await http.post("/auth/otp/_reset", json={"phone": PHONE})
+        assert response.status_code == 200
+        # ladder cleared: the same phone can be issued a code again at once
+        await issue_otp(db_session, phone=PHONE, purpose="login", ip=None, device_fingerprint=None)
 
 
 async def test_peek_never_mounts_in_prod(

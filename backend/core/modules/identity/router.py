@@ -160,16 +160,36 @@ class OtpPeekOut(BaseModel):
     code: str | None
 
 
+class OtpResetOut(BaseModel):
+    status: Literal["ok"] = "ok"
+
+
 def otp_test_peek_router() -> SecureRouter:
     """E2E peek at the mock outbox, mounted by main.create_app() ONLY when
     settings.otp_test_peek is set outside prod. Same doctrine as the msg91
     webhook: default builds expose exactly the public_routes.txt surface."""
     from modules.identity.otp_drivers import MockDriver
+    from shared.cache import get_redis
 
     peek = SecureRouter(prefix="/auth/otp", tags=["auth-otp"])
 
     @peek.get("/_peek", public=True)
     async def otp_peek(phone: str) -> OtpPeekOut:
         return OtpPeekOut(code=MockDriver.last_code(normalize_phone(phone)))
+
+    @peek.post("/_reset", public=True)
+    async def otp_reset(body: _PhoneModel, request: Request) -> OtpResetOut:
+        """Clear the D07 throttle ladder for one phone + the caller's IP so
+        E2E scenarios can log the same phone in twice without a 30s wait."""
+        ip = _client_ip(request)
+        keys = [
+            f"otp:cd:{body.phone}",
+            f"otp:cdlvl:{body.phone}",
+            f"otp:day:phone:{body.phone}",
+        ]
+        if ip:
+            keys += [f"otp:day:ip:{ip}", f"otp:vday:ip:{ip}", f"otp:phones:{ip}"]
+        await get_redis().delete(*keys)
+        return OtpResetOut()
 
     return peek

@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.identity.models import OAuthClient, OAuthCode
+from modules.identity.models import OAuthClient, OAuthCode, Profile
 from modules.identity.oauth_limits import AUTH_CODE_TTL_SECONDS
 from modules.identity.oauth_service import (
     consume_authorization_code,
@@ -124,3 +124,21 @@ async def test_suspended_user_yields_no_token_subject(db_session: AsyncSession) 
     user.status = "suspended"
     await db_session.flush()
     assert await load_token_subject(db_session, user.id) is None
+
+
+async def test_load_token_subject_carries_profile_name(db_session: AsyncSession) -> None:
+    user = await create_user(db_session, "+919812300001")
+    await assign_role(db_session, user.id, "user")
+    db_session.add(Profile(user_id=user.id, name="Asha"))
+    await db_session.flush()
+    subject = await load_token_subject(db_session, user.id)
+    assert subject is not None
+    assert subject.name == "Asha"
+
+
+async def test_load_token_subject_name_none_without_profile(db_session: AsyncSession) -> None:
+    user = await create_user(db_session, "+919812300002")
+    await assign_role(db_session, user.id, "user")
+    subject = await load_token_subject(db_session, user.id)
+    assert subject is not None
+    assert subject.name is None

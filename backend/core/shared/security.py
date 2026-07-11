@@ -10,7 +10,7 @@ dependency and records the route for the boot-time log.
 import inspect
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.types import DecoratedCallable
@@ -45,7 +45,9 @@ def reset_principal_resolver() -> None:
     _principal_resolver = None
 
 
-async def require_auth(request: Request, session: AsyncSession = Depends(get_session)) -> None:
+async def require_auth(
+    request: Request, session: Annotated[AsyncSession, Depends(get_session)]
+) -> None:
     """Session-cookie auth for every non-public route (D09). Unresolved and
     unregistered are the same 401 - fail closed, never open.
 

@@ -45,6 +45,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/.well-known/jwks.json",
     "/auth/otp/request",
     "/auth/otp/verify",
+    "/auth/login",
 ]
 
 

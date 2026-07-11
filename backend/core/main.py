@@ -20,6 +20,7 @@ from modules.identity.router import msg91_webhook_router
 from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
 from modules.identity.session_auth import resolve_principal
+from modules.identity.session_router import session_router as identity_session_router
 from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
@@ -47,6 +48,7 @@ MODULE_ROUTERS = [
     identity_router,
     identity_oauth_router,
     identity_otp_router,
+    identity_session_router,
     leads_router,
     market_data_router,
     notify_router,

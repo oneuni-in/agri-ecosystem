@@ -9,10 +9,12 @@ export type { AgriAuthConfig } from "./config";
 export { resolveConfig } from "./config";
 export type { AgriUser } from "./session";
 export { createHandlers, readSession, safeNext } from "./handlers";
+export { getServerUser } from "./server";
 
 import type { AgriAuthConfig } from "./config";
 import { resolveConfig } from "./config";
 import { createHandlers } from "./handlers";
+import { getServerUser } from "./server";
 import type { AgriUser } from "./session";
 
 export interface AgriAuth {
@@ -26,7 +28,6 @@ export function createAgriAuth(config: AgriAuthConfig): AgriAuth {
   const cfg = resolveConfig(config);
   return {
     handlers: createHandlers(cfg),
-    // Task 9 replaces this with ./server (RSC cookie-store read + rotation).
-    getServerUser: async () => null,
+    getServerUser: () => getServerUser(cfg),
   };
 }

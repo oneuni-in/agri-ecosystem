@@ -45,7 +45,8 @@ export const tintClass: Record<Tint, string> = {
 /**
  * Icon + English + mother tongue on every tile (UX law 1). Emoji icons are
  * v1-official; a custom icon set later swaps in behind the `icon` prop
- * (design-system.md §4).
+ * (design-system.md §4). Renders an anchor when `href` is given, otherwise a
+ * button (D09 language picker) - visual anatomy is identical either way.
  */
 export function CategoryTile({
   icon,
@@ -53,26 +54,29 @@ export function CategoryTile({
   vernacular,
   tint,
   href,
+  onClick,
+  selected = false,
   className,
 }: {
   icon: ReactNode;
   label: ReactNode;
   vernacular: ReactNode;
   tint: Tint;
-  href: string;
+  href?: string;
+  onClick?: () => void;
+  selected?: boolean;
   className?: string;
 }) {
-  return (
-    <a
-      href={href}
-      className={cn(
-        "flex min-h-[104px] flex-col items-center justify-start gap-1.5 rounded-card border-[1.5px] border-line bg-card px-1.5 pb-2.5 pt-3 text-center text-ink no-underline",
-        "transition-[transform,box-shadow,border-color] duration-100 hover:-translate-y-0.5 hover:border-brand hover:shadow-lift",
-        "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-        "max-sm:min-h-[98px] max-sm:px-1 max-sm:pb-2 max-sm:pt-2.5",
-        className,
-      )}
-    >
+  const classes = cn(
+    "flex min-h-[104px] flex-col items-center justify-start gap-1.5 rounded-card border-[1.5px] border-line bg-card px-1.5 pb-2.5 pt-3 text-center text-ink no-underline",
+    "transition-[transform,box-shadow,border-color] duration-100 hover:-translate-y-0.5 hover:border-brand hover:shadow-lift",
+    "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+    "max-sm:min-h-[98px] max-sm:px-1 max-sm:pb-2 max-sm:pt-2.5",
+    selected && "border-brand ring-[3px] ring-accent",
+    className,
+  );
+  const body = (
+    <>
       <span
         aria-hidden="true"
         className={cn(
@@ -87,6 +91,18 @@ export function CategoryTile({
         {label}
         <span className="vern text-[10.5px]">{vernacular}</span>
       </b>
-    </a>
+    </>
+  );
+  if (href) {
+    return (
+      <a href={href} className={classes}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} aria-pressed={selected} className={classes}>
+      {body}
+    </button>
   );
 }

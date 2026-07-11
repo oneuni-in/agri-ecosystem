@@ -37,6 +37,13 @@ from modules.identity.oauth_service import (
     get_client,
     load_token_subject,
 )
+from modules.identity.refresh_service import (
+    RefreshInvalidError,
+    issue_refresh_token,
+    revoke_family,
+    rotate_refresh_token,
+)
+from modules.identity.session_service import device_fingerprint
 from shared.db import get_session
 from shared.security import SecureRouter
 
@@ -92,11 +99,44 @@ async def token(request: Request, session: SessionDep) -> Response:
         key: [value for value in form.getlist(key) if isinstance(value, str)] for key in form
     }
     ctx = await _client_context(session, params.get("client_id"))
+    grant_type = params.get("grant_type")
+    fingerprint = device_fingerprint(
+        request.headers.get("user-agent"), request.headers.get("sec-ch-ua-platform")
+    )
     code = params.get("code")
-    if ctx.client is not None and code:
+    if ctx.client is not None and grant_type == "authorization_code" and code:
         ctx.code = await consume_authorization_code(session, code=code, client=ctx.client.row)
         if ctx.code is not None:
             ctx.subject = await load_token_subject(session, ctx.code.user_id)
+        if ctx.code is not None and ctx.subject is not None:
+            # D09: every successful code exchange starts a refresh family,
+            # bound to the exchanging device (D10's BFF forwards the browser
+            # UA so the binding is the user's browser, not the BFF host)
+            issued = await issue_refresh_token(
+                session,
+                user_id=ctx.code.user_id,
+                client=ctx.client.row,
+                fingerprint=fingerprint,
+                ip=request.client.host if request.client else None,
+            )
+            ctx.new_refresh_token = issued.token
+            ctx.issued_family_id = issued.family_id
+    elif ctx.client is not None and grant_type == "refresh_token" and params.get("refresh_token"):
+        try:
+            # burn-on-attempt: the old token is retired even if authlib
+            # rejects the request afterwards (mirrors D08 code burning)
+            rotation = await rotate_refresh_token(
+                session,
+                token=params["refresh_token"],
+                client=ctx.client.row,
+                fingerprint=fingerprint,
+            )
+            ctx.rotation = rotation
+            ctx.subject = rotation.subject
+            ctx.new_refresh_token = rotation.token
+            ctx.issued_family_id = rotation.family_id
+        except RefreshInvalidError:
+            pass  # ctx.rotation stays None -> authlib answers invalid_grant
     await session.commit()
     server = AgriAuthorizationServer(ctx)
     try:
@@ -104,6 +144,11 @@ async def token(request: Request, session: SessionDep) -> Response:
     except OAuth2Error as error:
         return server.handle_response(*error(None))
     response: Response = server.create_token_response(oauth2_request)
+    if response.status_code != 200 and ctx.issued_family_id is not None:
+        # a refresh credential whose plaintext never reached a client must
+        # not linger as a phantom device in the manager
+        await revoke_family(session, ctx.issued_family_id)
+        await session.commit()
     return response
 
 

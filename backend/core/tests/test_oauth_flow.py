@@ -134,7 +134,7 @@ async def test_full_code_flow_with_pkce(api: tuple[httpx.AsyncClient, AsyncSessi
     body = response.json()
     assert body["token_type"] == "Bearer"
     assert body["expires_in"] == ACCESS_TOKEN_TTL_SECONDS
-    assert "refresh_token" not in body  # D09, not sooner
+    assert body["refresh_token"]  # D09: the code exchange starts a refresh family
 
     # step 4: the token verifies against the served JWKS and carries D08.D claims
     jwks = (await http.get("/.well-known/jwks.json")).json()

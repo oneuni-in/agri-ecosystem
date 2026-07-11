@@ -1,5 +1,5 @@
 {
-  "extends": "@agri/config/tsconfig/library.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "extends": "@agri/config/tsconfig/base.json",
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

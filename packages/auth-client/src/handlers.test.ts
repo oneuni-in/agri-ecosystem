@@ -323,6 +323,7 @@ describe("GET /api/auth/me", () => {
 
   it("expired access token -> refresh grant with forwarded UA, resealed cookie", async () => {
     const accessToken = await fakeAccessToken({});
+    const originalIssuedAt = Math.floor(Date.now() / 1000) - 60;
     const spy = stubTokenEndpoint(200, {
       access_token: accessToken,
       refresh_token: "rt-2",
@@ -334,6 +335,7 @@ describe("GET /api/auth/me", () => {
         headers: {
           cookie: await sessionCookieHeader({
             accessExpiresAt: Math.floor(Date.now() / 1000) - 10,
+            issuedAt: originalIssuedAt,
           }),
           "user-agent": "TestBrowser/1.0",
         },
@@ -350,6 +352,7 @@ describe("GET /api/auth/me", () => {
       cfg.sessionSecret,
     );
     expect(payload?.refreshToken).toBe("rt-2");
+    expect(payload?.issuedAt).toBe(originalIssuedAt);
   });
 
   it("refresh rejected (family revoked) -> 401 + cookie cleared: the TTL safety net", async () => {
@@ -388,6 +391,7 @@ describe("GET /api/auth/me", () => {
     );
     expect(res.status).toBe(403);
     expect(setCookies(res).some((c) => c.startsWith("admin_session=ey"))).toBe(false);
+    expect(setCookies(res).some((c) => c.includes("Max-Age=0"))).toBe(true);
   });
 
   it("role gate on the refresh branch: rotated roles unmet on the admin app -> 403, no session", async () => {
@@ -409,6 +413,7 @@ describe("GET /api/auth/me", () => {
     );
     expect(res.status).toBe(403);
     expect(setCookies(res).some((c) => c.startsWith("admin_session=ey"))).toBe(false);
+    expect(setCookies(res).some((c) => c.includes("Max-Age=0"))).toBe(true);
   });
 });
 
@@ -426,6 +431,22 @@ describe("POST /api/auth/logout", () => {
     const [revokeUrl, init] = spy.mock.calls[0] as [string, RequestInit];
     expect(revokeUrl).toBe("http://127.0.0.1:8000/oauth/revoke");
     expect((init.body as URLSearchParams).get("token")).toBe("rt-1");
+    expect((init.body as URLSearchParams).get("client_id")).toBe("web-milk");
+    expect(setCookies(res).some((c) => c.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("revoke endpoint rejects -> still 200 and session cookie cleared: revoke failure must not trap the user", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("conn refused");
+    }));
+    const { POST } = createHandlers(cfg);
+    const res = await POST(
+      new Request("http://localhost:3000/api/auth/logout", {
+        method: "POST",
+        headers: { cookie: await sessionCookieHeader() },
+      }),
+    );
+    expect(res.status).toBe(200);
     expect(setCookies(res).some((c) => c.includes("Max-Age=0"))).toBe(true);
   });
 

@@ -80,6 +80,18 @@ def test_extra_fields_merged_and_scrubbed() -> None:
     assert payload["path"] == f"/users/{REDACTED}"
 
 
+def test_otp_codes_redacted() -> None:
+    # D07: a standalone 6-digit run is OTP-shaped and never reaches a log
+    assert scrub("issued code 042137 to user") == f"issued code {REDACTED} to user"
+    assert scrub("code=137942") == f"code={REDACTED}"
+
+
+def test_otp_code_redacted_in_extra_fields() -> None:
+    record = make_record("otp issued")
+    record.extra_fields = {"detail": "code 654321 sent"}
+    assert render(record)["detail"] == f"code {REDACTED} sent"
+
+
 def test_short_numbers_not_redacted() -> None:
     assert scrub("status 200 in 42ms on port 55432") == "status 200 in 42ms on port 55432"
 

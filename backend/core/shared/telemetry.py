@@ -22,11 +22,15 @@ _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # and STD landlines. The lookarounds reject matches bounded by hex letters or
 # dashes so digit runs inside UUIDs (request ids, entity ids) stay greppable.
 _PHONE = re.compile(r"(?<![0-9A-Za-z-])\+?(?:\d[\s\-().]?){9,14}\d(?![0-9A-Za-z-])")
+# Standalone 6-digit runs are OTP codes (D07): a leaked code inside its TTL is
+# a working credential. This also swallows pincodes in free text - D05's bias
+# is over-redaction, and pincodes belong in structured fields, not messages.
+_OTP_CODE = re.compile(r"(?<![0-9A-Za-z-])\d{6}(?![0-9A-Za-z-])")
 
 
 def scrub(text: str) -> str:
-    """Redact email addresses and phone numbers."""
-    return _PHONE.sub(REDACTED, _EMAIL.sub(REDACTED, text))
+    """Redact email addresses, phone numbers, and OTP-shaped 6-digit codes."""
+    return _OTP_CODE.sub(REDACTED, _PHONE.sub(REDACTED, _EMAIL.sub(REDACTED, text)))
 
 
 class PiiScrubFilter(logging.Filter):

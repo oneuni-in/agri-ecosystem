@@ -38,6 +38,7 @@ For **both** `main` and `dev`:
   - `public-routes`
   - `security`
   - `lighthouse`
+  - `e2e-auth`
   - `conventional-commits`
 - [x] Require conversation resolution before merging
 - [x] Do not allow bypassing the above settings (include administrators)
@@ -60,11 +61,11 @@ gh api repos/oneuni-in/agri-ecosystem/branches/main/protection | python -m json.
 ```
 
 Check in the output: `required_pull_request_reviews.required_approving_review_count >= 1`,
-`required_status_checks.strict == true`, the seven contexts above listed in
+`required_status_checks.strict == true`, the eight contexts above listed in
 `required_status_checks.contexts`, and `enforce_admins.enabled == true`.
 
 No-CLI fallback: attempt `git push origin HEAD:dev` from a feature branch —
-it must be rejected; and confirm on a test PR that all seven checks appear
+it must be rejected; and confirm on a test PR that all eight checks appear
 in the merge box as **Required**. *While the free-plan gap is open (see
 above), the push will NOT be rejected — that is the known gap, not a
 misconfiguration.*
@@ -81,3 +82,4 @@ gh api repos/oneuni-in/agri-ecosystem/rulesets | python -m json.tool
 | --- | --- | --- | --- |
 | 2026-07-10 | dev, main | (pending human verification after D04 merges) | initial gate set: 7 required checks |
 | 2026-07-10 | dev, main | owner | ruleset "secure branch rules" created, Active, empty bypass list; NOT enforced on free-plan private repo — convention-based until Team upgrade (see Known Gap) |
+| 2026-07-11 | dev, main | (pending human: add `e2e-auth` to the ruleset's required checks) | D09 adds the 8th required check: `e2e-auth` (Playwright auth flows) |

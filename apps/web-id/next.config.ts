@@ -9,6 +9,16 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // D09: the session cookie must be first-party on id.agri.in. In dev the
+  // Next server proxies the FastAPI backend so browser, UI and API share one
+  // origin; in prod the reverse proxy does the same job at id.agri.in.
+  async rewrites() {
+    const api = process.env.API_BASE_URL ?? "http://localhost:8000";
+    return [
+      { source: "/api/id/:path*", destination: `${api}/:path*` },
+      { source: "/authorize", destination: `${api}/authorize` },
+    ];
+  },
   // Next 15 streams metadata into <body> on dynamically rendered pages;
   // Lighthouse's SEO audits only read <head>. Bots on this list get the
   // blocking in-head variant instead. The list is Next's default set plus

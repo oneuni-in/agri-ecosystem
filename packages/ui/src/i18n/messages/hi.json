@@ -44,6 +44,55 @@
     "lang": {
       "label": "🌐 EN · த · हि"
     },
+    "auth": {
+      "phone": {
+        "title": "AgriID में साइन इन करें",
+        "subtitle": "एग्री, दूध और ऑर्गैनिक — एक ही लॉगिन",
+        "label": "मोबाइल नंबर",
+        "cta": "OTP भेजें",
+        "invalid": "सही 10 अंकों का मोबाइल नंबर डालें"
+      },
+      "otp": {
+        "title": "6 अंकों का कोड डालें",
+        "sentTo": "{phone} पर कोड भेजा गया",
+        "verify": "सत्यापित करें",
+        "resend": "फिर से भेजें",
+        "resendIn": "{seconds} सेकंड में फिर से भेजें",
+        "wrong": "कोड गलत है — फिर कोशिश करें",
+        "locked": "बहुत अधिक प्रयास। नया कोड मांगें।",
+        "inputLabel": "OTP अंक"
+      },
+      "handle": {
+        "title": "अपना @handle चुनें",
+        "subtitle": "सभी ऐप्स में आपका सार्वजनिक नाम",
+        "placeholder": "your_handle",
+        "available": "उपलब्ध है",
+        "taken": "पहले से लिया गया है",
+        "reserved": "यह नाम आरक्षित है",
+        "invalidFormat": "4–20 अक्षर: a–z, 0–9 और _",
+        "suggestions": "सुझाव",
+        "save": "सहेजें",
+        "skip": "अभी नहीं"
+      },
+      "language": {
+        "title": "अपनी भाषा चुनें",
+        "continue": "जारी रखें"
+      },
+      "devices": {
+        "title": "आपके डिवाइस",
+        "current": "यह डिवाइस",
+        "revoke": "साइन आउट",
+        "revokeAll": "हर जगह से साइन आउट करें",
+        "rename": "नाम बदलें",
+        "renamePlaceholder": "जैसे: घर का लैपटॉप",
+        "empty": "कोई अन्य डिवाइस नहीं",
+        "confirmRevoke": "इस डिवाइस से साइन आउट करें?",
+        "confirmRevokeAll": "हर डिवाइस से साइन आउट करें? सभी ऐप्स साइन आउट हो जाएँगे।",
+        "cancel": "रद्द करें",
+        "revoked": "डिवाइस साइन आउट हो गया",
+        "logout": "साइन आउट"
+      }
+    },
     "categories": {
       "seeds": "बीज",
       "tractors": "ट्रैक्टर",

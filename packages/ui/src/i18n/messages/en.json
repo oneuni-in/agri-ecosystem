@@ -44,6 +44,55 @@
     "lang": {
       "label": "🌐 EN · த · हि"
     },
+    "auth": {
+      "phone": {
+        "title": "Sign in to AgriID",
+        "subtitle": "One login for agri, milk and organic",
+        "label": "Mobile number",
+        "cta": "Send OTP",
+        "invalid": "Enter a valid 10-digit mobile number"
+      },
+      "otp": {
+        "title": "Enter the 6-digit code",
+        "sentTo": "Code sent to {phone}",
+        "verify": "Verify",
+        "resend": "Resend code",
+        "resendIn": "Resend in {seconds}s",
+        "wrong": "That code didn't work — try again",
+        "locked": "Too many attempts. Request a new code.",
+        "inputLabel": "OTP digit"
+      },
+      "handle": {
+        "title": "Pick your @handle",
+        "subtitle": "Your public name across the family of apps",
+        "placeholder": "your_handle",
+        "available": "Available",
+        "taken": "Already taken",
+        "reserved": "This name is reserved",
+        "invalidFormat": "4–20 characters: a–z, 0–9 and _",
+        "suggestions": "Suggestions",
+        "save": "Save handle",
+        "skip": "Skip for now"
+      },
+      "language": {
+        "title": "Choose your language",
+        "continue": "Continue"
+      },
+      "devices": {
+        "title": "Your devices",
+        "current": "This device",
+        "revoke": "Sign out",
+        "revokeAll": "Sign out everywhere",
+        "rename": "Rename",
+        "renamePlaceholder": "e.g. Home laptop",
+        "empty": "No other devices",
+        "confirmRevoke": "Sign out this device?",
+        "confirmRevokeAll": "Sign out of every device? All apps on all devices will be signed out.",
+        "cancel": "Cancel",
+        "revoked": "Device signed out",
+        "logout": "Sign out"
+      }
+    },
     "categories": {
       "seeds": "Seeds",
       "tractors": "Tractors",

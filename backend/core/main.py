@@ -16,9 +16,11 @@ from modules.content.router import router as content_router
 from modules.directory.router import router as directory_router
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
-from modules.identity.router import msg91_webhook_router
+from modules.identity.router import msg91_webhook_router, otp_test_peek_router
 from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
+from modules.identity.session_auth import resolve_principal
+from modules.identity.session_router import session_router as identity_session_router
 from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
@@ -29,7 +31,7 @@ from shared.db import check_database
 from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
-from shared.security import SecureRouter
+from shared.security import SecureRouter, register_principal_resolver
 from shared.sentry import init_sentry
 from shared.storage import check_storage
 from shared.telemetry import configure_logging, get_logger
@@ -46,6 +48,7 @@ MODULE_ROUTERS = [
     identity_router,
     identity_oauth_router,
     identity_otp_router,
+    identity_session_router,
     leads_router,
     market_data_router,
     notify_router,
@@ -125,6 +128,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     init_sentry(get_settings())
+    register_principal_resolver(resolve_principal)  # D09: real session auth
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before
@@ -135,6 +139,9 @@ def create_app() -> FastAPI:
         # the delivery webhook exists only when the real driver is active;
         # default (mock) builds expose exactly the routes in public_routes.txt
         routers.append(msg91_webhook_router())
+    if get_settings().otp_test_peek and get_settings().app_env != "prod":
+        # E2E-only OTP peek (D09); the prod guard is a hard AND, not config
+        routers.append(otp_test_peek_router())
     public_routes: list[str] = []
     for router in routers:
         app.include_router(router)

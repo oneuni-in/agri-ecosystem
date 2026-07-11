@@ -1,4 +1,5 @@
 import type { SiteTheme } from "@agri/types";
+import { ToastProvider } from "@agri/ui";
 import { fontVariables } from "@agri/ui/fonts";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme={THEME} className={fontVariables}>
       <body>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

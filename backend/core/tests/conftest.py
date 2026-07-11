@@ -24,7 +24,7 @@ from shared.cache import reset_redis
 from shared.db import reset_engine
 from shared.flags import reset_flag_cache
 from shared.metrics import reset_metrics
-from shared.security import rate_limiter
+from shared.security import rate_limiter, reset_principal_resolver
 
 TEST_DB_NAME = "agri_test"
 TEST_REDIS_DB = 9
@@ -41,6 +41,7 @@ def _reset_state() -> Iterator[None]:
     reset_metrics()
     MockDriver.reset()
     reset_oauth_keys()
+    reset_principal_resolver()
 
 
 @pytest.fixture(scope="session")

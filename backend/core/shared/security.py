@@ -1,30 +1,65 @@
 """SecureRouter: every route is private and rate-limited unless explicitly public.
 
 The threat model is a future session adding an endpoint and forgetting auth.
-A route registered without public=True gets an auth dependency that returns
-401 unconditionally (real auth lands in D08-09) plus a rate limit. public=True
-skips only the auth dependency and records the route for the boot-time log.
+A route registered without public=True gets an auth dependency that resolves
+the id.agri.in session cookie (D09) plus a rate limit; with no resolver
+registered or no valid session it is a 401. public=True skips only the auth
+dependency and records the route for the boot-time log.
 """
 
 import inspect
 import time
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.types import DecoratedCallable
 from redis.exceptions import RedisError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from settings import get_settings
 from shared.cache import get_redis
+from shared.db import get_session
 from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
+PrincipalResolver = Callable[[Request, AsyncSession], Awaitable[object | None]]
 
-async def require_auth(request: Request) -> None:
-    """Auth stub: unconditionally 401 until the identity module lands (D08-09)."""
-    raise HTTPException(status_code=401, detail="Authentication required")
+_principal_resolver: PrincipalResolver | None = None
+
+
+def register_principal_resolver(resolver: PrincipalResolver) -> None:
+    """The identity module plugs real session auth in at app creation (D09).
+
+    Indirection, not import: import-linter forbids shared -> modules, and the
+    threat model (a route registered without public=True must never be open)
+    holds either way - no resolver means every private route 401s.
+    """
+    global _principal_resolver
+    _principal_resolver = resolver
+
+
+def reset_principal_resolver() -> None:
+    global _principal_resolver
+    _principal_resolver = None
+
+
+async def require_auth(
+    request: Request, session: Annotated[AsyncSession, Depends(get_session)]
+) -> None:
+    """Session-cookie auth for every non-public route (D09). Unresolved and
+    unregistered are the same 401 - fail closed, never open.
+
+    Rides the request-scoped get_session dependency (FastAPI caches it, so
+    the endpoint shares the same session/transaction - one connection per
+    request, and test overrides of get_session apply here too)."""
+    if _principal_resolver is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    principal = await _principal_resolver(request, session)
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    request.state.principal = principal
 
 
 class RateLimiter:

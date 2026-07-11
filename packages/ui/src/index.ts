@@ -18,6 +18,8 @@ export { ListingCard, PriceUnit } from "./components/listing-card";
 export { Modal } from "./components/modal";
 export { ToastProvider, useToast } from "./components/toast";
 export { EmptyState } from "./components/empty-state";
+export { OtpInput } from "./components/otp-input";
+export type { OtpInputProps } from "./components/otp-input";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
 export { PincodeInput } from "./components/pincode-input";
 export type { PincodeInputProps } from "./components/pincode-input";

@@ -19,11 +19,14 @@ Deviations from bare RFC 6749, all tightening (spec E + non-negotiables):
 - state is required, not recommended - the router raises before issuing
   anything when it is missing.
 - clients are public ("none" token-endpoint auth) and may use exactly
-  response_type=code / grant_type=authorization_code, so authlib can never
-  emit a refresh token for them (D09 adds that grant deliberately).
+  response_type=code / grant_type=authorization_code or refresh_token. The
+  refresh grant (D09) rides opaque rotating tokens: the router rotates them
+  atomically BEFORE authlib runs (burn-on-attempt), authlib only confirms the
+  prefetched result and the token generator attaches the new plaintext.
 """
 
 import time
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +46,7 @@ from modules.identity.models import OAuthClient, OAuthCode
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_limits import ACCESS_TOKEN_TTL_SECONDS
 from modules.identity.oauth_service import TokenSubject, hash_code
+from modules.identity.refresh_service import RefreshRotation
 from settings import get_settings
 
 
@@ -82,7 +86,7 @@ class ClientWrapper(ClientMixin):  # type: ignore[misc]
         return response_type == "code"
 
     def check_grant_type(self, grant_type: str) -> bool:
-        return grant_type == "authorization_code"
+        return grant_type in ("authorization_code", "refresh_token")
 
 
 class CodeWrapper(AuthorizationCodeMixin):  # type: ignore[misc]
@@ -113,6 +117,12 @@ class RequestContext:
     client: ClientWrapper | None = None
     code: OAuthCode | None = None
     subject: TokenSubject | None = None
+    # D09: refresh rotation result (refresh grant) or freshly-minted family
+    # (code grant). new_refresh_token rides into the token response;
+    # issued_family_id lets the router clean up when authlib rejects late.
+    rotation: RefreshRotation | None = None
+    new_refresh_token: str | None = None
+    issued_family_id: uuid.UUID | None = None
 
 
 class S256CodeChallenge(CodeChallenge):  # type: ignore[misc]
@@ -160,17 +170,53 @@ class AgriAuthorizationCodeGrant(grants.AuthorizationCodeGrant):  # type: ignore
         return subject  # None (suspended/missing) -> invalid_grant
 
 
+class RefreshCredentialWrapper:
+    """authlib's view of an already-rotated sessions_refresh lineage. The
+    atomic rotation in the router settled reuse/expiry/binding; this only
+    confirms the prefetched result belongs to THIS request."""
+
+    def __init__(self, rotation: RefreshRotation) -> None:
+        self.rotation = rotation
+
+    def check_client(self, client: ClientWrapper) -> bool:
+        # client binding was enforced by the atomic rotation's WHERE clause
+        # (token_hash AND client_id); a rotation result only exists for the
+        # client the router prefetched, which is the one authlib holds here
+        return True
+
+    def get_scope(self) -> str:
+        return ""
+
+
+class AgriRefreshTokenGrant(grants.RefreshTokenGrant):  # type: ignore[misc]
+    TOKEN_ENDPOINT_AUTH_METHODS = ["none"]
+    INCLUDE_NEW_REFRESH_TOKEN = True
+
+    def authenticate_refresh_token(self, refresh_token: str) -> RefreshCredentialWrapper | None:
+        rotation = self.server.ctx.rotation
+        if rotation is None:
+            return None  # rotation failed in prefetch -> invalid_grant
+        return RefreshCredentialWrapper(rotation)
+
+    def authenticate_user(self, credential: RefreshCredentialWrapper) -> TokenSubject | None:
+        subject: TokenSubject | None = self.server.ctx.subject
+        return subject
+
+    def revoke_old_credential(self, credential: RefreshCredentialWrapper) -> None:
+        pass  # rotated atomically in the router before authlib ran
+
+
 def _generate_access_token(
     grant_type: str,
     client: ClientWrapper,
     user: TokenSubject | None = None,
     scope: str | None = None,
     expires_in: int | None = None,
-    include_refresh_token: bool = True,
 ) -> dict[str, Any]:
     """RS256 access token (D08.D). sub is the internal user UUID - downstream
     services see it, browsers never do (profile responses expose agri_id).
-    No refresh_token key exists on purpose, whatever the caller asks."""
+    The refresh_token key is attached by the server's ctx-aware generator
+    closure, never here."""
     assert user is not None  # authenticate_user returned it or authlib raised
     key = get_signing_key()
     now = int(time.time())
@@ -198,7 +244,24 @@ class AgriAuthorizationServer(AuthorizationServer):  # type: ignore[misc]
         super().__init__()
         self.ctx = ctx
         self.register_grant(AgriAuthorizationCodeGrant, [S256CodeChallenge(required=True)])
-        self.register_token_generator("default", _generate_access_token)
+        self.register_grant(AgriRefreshTokenGrant)
+
+        def _token_with_refresh(
+            grant_type: str,
+            client: ClientWrapper,
+            user: TokenSubject | None = None,
+            scope: str | None = None,
+            expires_in: int | None = None,
+            include_refresh_token: bool = True,
+        ) -> dict[str, Any]:
+            token = _generate_access_token(grant_type, client, user, scope, expires_in)
+            # D09: the router minted/rotated the opaque refresh credential;
+            # this closure is the only place its plaintext joins a response
+            if self.ctx.new_refresh_token is not None:
+                token["refresh_token"] = self.ctx.new_refresh_token
+            return token
+
+        self.register_token_generator("default", _token_with_refresh)
 
     def query_client(self, client_id: str) -> ClientWrapper | None:
         client = self.ctx.client

@@ -14,10 +14,13 @@
     "test": "turbo run test",
     "check:hex": "node scripts/check-hex.mjs",
     "baseline": "node scripts/capture-baseline.mjs",
-    "gen:types": "turbo run gen:types"
+    "gen:types": "turbo run gen:types",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "e2e:api": "node scripts/e2e-api.mjs"
   },
   "devDependencies": {
     "@lhci/cli": "0.15.1",
+    "@playwright/test": "1.61.1",
     "playwright": "1.61.1",
     "turbo": "2.10.4",
     "typescript": "5.9.3"

@@ -21,7 +21,9 @@ export function recordLogout(sub: string, atEpochSeconds: number): void {
   // Anchored to the incoming event's own clock, not wall-clock Date.now():
   // events arrive close to real time in production, and anchoring here (vs.
   // the system clock) keeps this pure and deterministic under test.
-  const horizon = atEpochSeconds - TTL_SECONDS;
+  // Horizon is clock-bounded by Math.min to prevent a skewed event timestamp
+  // from pruning other subs' live entries across the entire map.
+  const horizon = Math.min(Math.floor(Date.now() / 1000), atEpochSeconds) - TTL_SECONDS;
   for (const [key, at] of map) if (at < horizon) map.delete(key);
 }
 

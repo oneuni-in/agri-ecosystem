@@ -46,6 +46,7 @@ from modules.identity.oauth_service import (
 from modules.identity.refresh_service import (
     RefreshInvalidError,
     issue_refresh_token,
+    revoke_by_token,
     revoke_family,
     rotate_refresh_token,
 )
@@ -188,6 +189,21 @@ async def token(request: Request, session: SessionDep) -> Response:
         await revoke_family(session, ctx.issued_family_id)
         await session.commit()
     return response
+
+
+@oauth_router.post("/oauth/revoke", public=True)
+async def revoke(request: Request, session: SessionDep) -> JSONResponse:
+    """App-logout back-channel (D10.A): a BFF retires its own refresh family.
+    Always 200 (RFC 7009 §2.2) - never reveal whether the token existed."""
+    form = await request.form()
+    client_id = form.get("client_id")
+    token = form.get("token")
+    if isinstance(client_id, str) and isinstance(token, str) and client_id and token:
+        row = await get_client(session, client_id)
+        if row is not None:
+            await revoke_by_token(session, token=token, client=row)
+            await session.commit()
+    return JSONResponse({"status": "ok"})
 
 
 @oauth_router.get("/.well-known/jwks.json", public=True)

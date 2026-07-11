@@ -117,12 +117,10 @@ async def test_full_code_flow_with_pkce(api: tuple[httpx.AsyncClient, AsyncSessi
     http, session = api
     verifier, challenge = _pkce()
 
-    # step 1: a valid /authorize parks at login_required until D09 sessions
+    # step 1: a valid /authorize with no session parks at the login resume (D09)
     authorize = await http.get("/authorize", params=_authorize_params(challenge))
-    query = _location_query(authorize)
-    assert query["error"] == ["login_required"]
-    assert query["state"] == ["state-xyz"]
-    assert "code" not in query
+    assert authorize.status_code == 302
+    assert authorize.headers["location"].startswith("/login?next=")
 
     # step 2 (D09 stand-in): post-login, the same request mints a code
     code, user = await _mint_code(session, challenge)

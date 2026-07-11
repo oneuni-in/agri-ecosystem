@@ -16,7 +16,7 @@ from modules.content.router import router as content_router
 from modules.directory.router import router as directory_router
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
-from modules.identity.router import msg91_webhook_router
+from modules.identity.router import msg91_webhook_router, otp_test_peek_router
 from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
 from modules.identity.session_auth import resolve_principal
@@ -139,6 +139,9 @@ def create_app() -> FastAPI:
         # the delivery webhook exists only when the real driver is active;
         # default (mock) builds expose exactly the routes in public_routes.txt
         routers.append(msg91_webhook_router())
+    if get_settings().otp_test_peek and get_settings().app_env != "prod":
+        # E2E-only OTP peek (D09); the prod guard is a hard AND, not config
+        routers.append(otp_test_peek_router())
     public_routes: list[str] = []
     for router in routers:
         app.include_router(router)

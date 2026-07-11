@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     oauth_jwt_kid: str = "dev-1"
     oauth_jwt_extra_public_keys_pem: str = ""
 
+    # E2E-only escape hatch (D09): mounts GET /auth/otp/_peek returning the
+    # mock driver's last code so Playwright can log in across processes.
+    # Never on in prod: main.create_app() refuses to mount it there.
+    otp_test_peek: bool = False
+
     # SMS driver flag. "mock" is the default everywhere until DLT registration
     # clears; the MSG91 driver (and its webhook route) is unreachable unless
     # this is flipped to "msg91" in the environment.

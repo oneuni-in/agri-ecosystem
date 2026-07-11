@@ -154,3 +154,22 @@ def msg91_webhook_router() -> SecureRouter:
         return DeliveryAck()
 
     return webhook
+
+
+class OtpPeekOut(BaseModel):
+    code: str | None
+
+
+def otp_test_peek_router() -> SecureRouter:
+    """E2E peek at the mock outbox, mounted by main.create_app() ONLY when
+    settings.otp_test_peek is set outside prod. Same doctrine as the msg91
+    webhook: default builds expose exactly the public_routes.txt surface."""
+    from modules.identity.otp_drivers import MockDriver
+
+    peek = SecureRouter(prefix="/auth/otp", tags=["auth-otp"])
+
+    @peek.get("/_peek", public=True)
+    async def otp_peek(phone: str) -> OtpPeekOut:
+        return OtpPeekOut(code=MockDriver.last_code(normalize_phone(phone)))
+
+    return peek

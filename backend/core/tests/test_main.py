@@ -40,6 +40,9 @@ EXPECTED_PUBLIC_ROUTES = [
     "/health",
     "/health/deep",
     "/metrics",
+    "/authorize",
+    "/token",
+    "/.well-known/jwks.json",
     "/auth/otp/request",
     "/auth/otp/verify",
 ]

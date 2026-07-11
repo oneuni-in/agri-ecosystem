@@ -86,6 +86,37 @@ class SessionRefresh(UUIDv7PKMixin, TimestampMixin, Base):
     rotated_from: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), ForeignKey("identity.sessions_refresh.id"), nullable=True
     )
+    # D09 rotation family: family_id is the root row's id, shared by every
+    # rotation descendant so one UPDATE revokes the whole family. client_id
+    # scopes tokens per relying app; device_fingerprint binds them to the UA.
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("identity.oauth_clients.id"), nullable=False
+    )
+    device_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class SessionWeb(UUIDv7PKMixin, TimestampMixin, Base):
+    """id.agri.in browser session (D09). Stores the sid HASH only - a
+    plaintext sid column must never exist. Revocation is revoked_at (instant
+    server-side deny), not soft-delete."""
+
+    __tablename__ = "sessions_web"
+    __table_args__ = {"schema": "identity"}
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("identity.users.id"), nullable=False, index=True
+    )
+    sid_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    device_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    device_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
 
 class Email(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):

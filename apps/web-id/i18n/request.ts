@@ -1,12 +1,19 @@
-﻿import { getUiMessages, isLocale } from "@agri/ui/i18n";
+import { getUiMessages, isLocale } from "@agri/ui/i18n";
 import { getRequestConfig } from "next-intl/server";
+import { cookies } from "next/headers";
 
 /**
- * No locale routing yet (D02): default is "en"; explicit locales come from
- * getTranslations({ locale }) callers. Locale routing lands with a later spec.
+ * Locale = NEXT_LOCALE cookie (set by the language screen), else "en".
+ * The cookie holds a locale code, never a token - localStorage stays empty
+ * and agri_sid stays httpOnly (D09 non-negotiable 2).
  */
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
-  const locale = requested !== undefined && isLocale(requested) ? requested : "en";
+  if (requested !== undefined && isLocale(requested)) {
+    return { locale: requested, messages: getUiMessages(requested) };
+  }
+  const jar = await cookies();
+  const fromCookie = jar.get("NEXT_LOCALE")?.value;
+  const locale = isLocale(fromCookie) ? fromCookie : "en";
   return { locale, messages: getUiMessages(locale) };
 });

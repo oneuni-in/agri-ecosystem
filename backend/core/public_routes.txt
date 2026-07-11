@@ -7,3 +7,6 @@
 /metrics
 /auth/otp/request
 /auth/otp/verify
+/authorize
+/token
+/.well-known/jwks.json

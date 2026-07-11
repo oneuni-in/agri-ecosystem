@@ -17,6 +17,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from settings import get_settings
 from shared.cache import reset_redis
@@ -39,6 +40,7 @@ def _reset_state() -> Iterator[None]:
     rate_limiter.reset()
     reset_metrics()
     MockDriver.reset()
+    reset_oauth_keys()
 
 
 @pytest.fixture(scope="session")

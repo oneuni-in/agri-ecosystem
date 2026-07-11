@@ -41,6 +41,18 @@ class Settings(BaseSettings):
     # default is for dev only; prod supplies OTP_PEPPER via the environment.
     otp_pepper: str = "dev-only-pepper"
 
+    # OAuth2 authorization server (D08). The issuer is the id.agri.in origin
+    # baked into every access token's iss claim. The signing key is an RSA
+    # private key PEM supplied via the environment; when empty in dev/test an
+    # ephemeral keypair is generated per process (tokens die on restart), and
+    # in prod an empty key is a hard startup error. Extra public keys keep
+    # retired kids resolvable in JWKS during rotation overlap
+    # (docs/runbooks/jwks-rotation.md).
+    oauth_issuer: str = "https://id.agri.in"
+    oauth_jwt_private_key_pem: str = ""
+    oauth_jwt_kid: str = "dev-1"
+    oauth_jwt_extra_public_keys_pem: str = ""
+
     # SMS driver flag. "mock" is the default everywhere until DLT registration
     # clears; the MSG91 driver (and its webhook route) is unreachable unless
     # this is flipped to "msg91" in the environment.

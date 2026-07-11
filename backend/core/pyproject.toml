@@ -20,6 +20,9 @@ dependencies = [
     "httpx>=0.27",
     "prometheus-client>=0.20",
     "sentry-sdk[fastapi]>=2.0",
+    "authlib>=1.6",
+    "joserfc>=1.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -54,6 +57,11 @@ known-first-party = ["modules", "shared", "settings", "main"]
 python_version = "3.12"
 strict = true
 mypy_path = "."
+
+[[tool.mypy.overrides]]
+# authlib ships no type stubs; joserfc is typed, authlib's OAuth2 core is not
+module = ["authlib.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

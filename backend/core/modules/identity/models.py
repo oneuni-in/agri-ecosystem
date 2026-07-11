@@ -145,6 +145,46 @@ class UserRole(UUIDv7PKMixin, TimestampMixin, Base):
     )
 
 
+class OAuthClient(UUIDv7PKMixin, TimestampMixin, Base):
+    """Seed-only first-party client registry (D08). No registration endpoint
+    exists anywhere - rows change only via reviewed migrations."""
+
+    __tablename__ = "oauth_clients"
+    __table_args__ = {"schema": "identity"}
+
+    client_id: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    client_name: Mapped[str] = mapped_column(Text, nullable=False)
+    redirect_uris: Mapped[list[str]] = mapped_column(postgresql.JSONB, nullable=False)
+
+
+class OAuthCode(UUIDv7PKMixin, TimestampMixin, Base):
+    """One-time authorization code (D08). Stores the code HASH only - a
+    plaintext code column must never exist. consumed_at is the single-use
+    proof: set atomically on first exchange attempt, checked by the reuse
+    test."""
+
+    __tablename__ = "oauth_codes"
+    __table_args__ = {"schema": "identity"}
+
+    code_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("identity.oauth_clients.id"),
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("identity.users.id"), nullable=False, index=True
+    )
+    redirect_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    code_challenge: Mapped[str] = mapped_column(Text, nullable=False)
+    code_challenge_method: Mapped[str] = mapped_column(
+        Text, server_default=text("'S256'"), nullable=False
+    )
+    scope: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+
+
 class Profile(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "profiles"
     __table_args__ = {"schema": "identity"}

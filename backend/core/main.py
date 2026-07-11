@@ -14,6 +14,8 @@ from modules.billing.router import router as billing_router
 from modules.coins.router import router as coins_router
 from modules.content.router import router as content_router
 from modules.directory.router import router as directory_router
+from modules.identity.oauth_keys import get_signing_key
+from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.router import msg91_webhook_router
 from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
@@ -42,6 +44,7 @@ MODULE_ROUTERS = [
     content_router,
     directory_router,
     identity_router,
+    identity_oauth_router,
     identity_otp_router,
     leads_router,
     market_data_router,
@@ -113,6 +116,8 @@ async def metrics() -> Response:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
+    # fail at boot, not first token: prod without a signing key must not start
+    get_signing_key()
     logger.info("public routes: %s", app.state.public_routes)
     yield
     await close_redis()

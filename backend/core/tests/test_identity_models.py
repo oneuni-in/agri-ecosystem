@@ -1,4 +1,4 @@
-"""Identity ORM models stay in lockstep with migration 0007, and the D03
+"""Identity ORM models stay in lockstep with migrations 0007/0009, and the D03
 mixins (UUIDv7 PK, soft-delete default filter, unique phone) behave on the
 real tables."""
 
@@ -25,6 +25,8 @@ IDENTITY_TABLES = (
     "profiles",
     "addresses",
     "preferences",
+    "oauth_clients",
+    "oauth_codes",
 )
 
 

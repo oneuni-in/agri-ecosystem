@@ -19,6 +19,7 @@ from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.router import msg91_webhook_router
 from modules.identity.router import otp_router as identity_otp_router
 from modules.identity.router import router as identity_router
+from modules.identity.session_auth import resolve_principal
 from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
@@ -29,7 +30,7 @@ from shared.db import check_database
 from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
-from shared.security import SecureRouter
+from shared.security import SecureRouter, register_principal_resolver
 from shared.sentry import init_sentry
 from shared.storage import check_storage
 from shared.telemetry import configure_logging, get_logger
@@ -125,6 +126,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     init_sentry(get_settings())
+    register_principal_resolver(resolve_principal)  # D09: real session auth
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

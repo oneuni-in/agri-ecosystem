@@ -4,18 +4,30 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./react": "./src/react.tsx"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@agri/types": "workspace:*"
+    "@agri/types": "workspace:*",
+    "@agri/ui": "workspace:*",
+    "jose": "6.2.3"
+  },
+  "peerDependencies": {
+    "next": "^15",
+    "react": "^19"
   },
   "devDependencies": {
     "@agri/config": "workspace:*",
+    "@types/node": "24.10.2",
     "eslint": "9.39.4",
-    "typescript": "5.9.3"
+    "next": "15.5.20",
+    "react": "19.2.7",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
   }
 }

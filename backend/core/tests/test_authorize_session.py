@@ -95,3 +95,31 @@ async def test_authorize_suspended_session_parks_at_login(
     await session.flush()
     response = await http.get("/authorize", params=_authorize_params(challenge))
     assert response.headers["location"].startswith("/login?next=")  # instant deny
+
+
+async def test_authorize_prompt_none_without_session_returns_login_required(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, _ = api
+    _, challenge = _pkce()
+    params = _authorize_params(challenge) | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    assert response.status_code == 302
+    location = urlsplit(response.headers["location"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == REDIRECT
+    query = parse_qs(location.query)
+    assert query["error"] == ["login_required"]
+    assert query["state"] == ["state-xyz"]
+
+
+async def test_authorize_prompt_none_with_session_mints_code(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session)  # sets agri_sid; login assigns the "user" role
+    _, challenge = _pkce()
+    params = _authorize_params(challenge) | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    assert response.status_code == 302
+    query = parse_qs(urlsplit(response.headers["location"]).query)
+    assert "code" in query

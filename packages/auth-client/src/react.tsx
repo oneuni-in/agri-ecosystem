@@ -31,6 +31,7 @@ export function useAgriUser({ autoSilentSso = true }: { autoSilentSso?: boolean 
         if (cancelled) return;
         if (res.ok) {
           const body = (await res.json()) as { user: AgriUser };
+          if (cancelled) return;
           sessionStorage.removeItem(SSO_MARKER);
           setUser(body.user);
           setStatus("authenticated");

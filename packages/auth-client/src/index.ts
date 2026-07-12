@@ -11,7 +11,7 @@ export type { AgriUser } from "./session";
 export { createHandlers, readSession, safeNext } from "./handlers";
 export { getServerUser } from "./server";
 
-import type { AgriAuthConfig } from "./config";
+import type { AgriAuthConfig, ResolvedConfig } from "./config";
 import { resolveConfig } from "./config";
 import { createHandlers } from "./handlers";
 import { getServerUser } from "./server";
@@ -25,9 +25,24 @@ export interface AgriAuth {
 }
 
 export function createAgriAuth(config: AgriAuthConfig): AgriAuth {
-  const cfg = resolveConfig(config);
+  // Config resolution (and its prod-secret guard) is LAZY + MEMOIZED: apps
+  // call createAgriAuth() at module scope in lib/auth.ts, and `next build`
+  // evaluates route modules during "Collecting page data" under
+  // NODE_ENV=production - resolving eagerly here would fail every prod
+  // build for any app missing AUTH_SESSION_SECRET at build time, even
+  // though it's set in the real runtime environment. Resolving on first
+  // request instead means the guard still fires - just at the first
+  // request, not at import time - so a genuinely missing secret still
+  // fails loudly in production, only later.
+  let resolved: ResolvedConfig | undefined;
+  const cfg = () => (resolved ??= resolveConfig(config));
+  let handlers: ReturnType<typeof createHandlers> | undefined;
+  const getHandlers = () => (handlers ??= createHandlers(cfg()));
   return {
-    handlers: createHandlers(cfg),
-    getServerUser: () => getServerUser(cfg),
+    handlers: {
+      GET: async (req) => getHandlers().GET(req),
+      POST: async (req) => getHandlers().POST(req),
+    },
+    getServerUser: async () => getServerUser(cfg()),
   };
 }

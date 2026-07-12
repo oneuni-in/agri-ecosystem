@@ -37,7 +37,7 @@ process start:
 | `APP_ORIGIN` | dev: no (defaults per app) / prod: yes | This app's own browser-facing origin, e.g. `https://milk.in`. Used to build the OAuth `redirect_uri` and to redirect back after login. |
 | `ID_PUBLIC_ORIGIN` | dev: no / prod: yes | Browser-facing AgriID origin — `/authorize` and the login UI live here. |
 | `API_BASE_URL` | dev: no / prod: yes | Server-to-server AgriID API origin (`idInternalOrigin` internally) — `/token`, `/oauth/revoke`, JWKS. Called from the Next server only, never the browser. |
-| `AUTH_SESSION_SECRET` | dev: no (falls back to a fixed dev constant) / **prod: yes, per app** | Key material for sealing this app's session cookie. `resolveConfig()` throws at startup if `NODE_ENV=production` and this is unset. Each app must get its **own** value — sharing one across apps would let a sealed cookie from one app decrypt on another. |
+| `AUTH_SESSION_SECRET` | dev: no (falls back to a fixed dev constant) / **prod: yes, per app** | Key material for sealing this app's session cookie. `resolveConfig()` is resolved lazily on first request and throws then if `NODE_ENV=production` and this is unset (not at import/build time, so `next build` never evaluates it). Each app must get its **own** value — sharing one across apps would let a sealed cookie from one app decrypt on another. |
 
 ## Prod domain map
 

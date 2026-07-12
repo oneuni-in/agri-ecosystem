@@ -10,9 +10,9 @@ and a privilege-escalation surface.
   within one request cycle: the resolver re-checks status on every request)
   + best-effort back-channel to BFFs. Suspend is not delete - no row is
   removed anywhere.
-- Audit: structured logger.warning placeholders; D12's audit schema replaces
-  these call-site-for-call-site. Per module rules nothing logs bodies or
-  query strings.
+- Audit: real rows in schema `audit` via shared.audit.audit() (D12),
+  written call-site-for-call-site where logger.warning placeholders stood.
+  Per module rules nothing logs bodies or query strings.
 """
 
 import re
@@ -33,7 +33,8 @@ from modules.identity.rbac import require_permission
 from modules.identity.schemas import IdentityPublicSchema
 from modules.identity.service import UnknownRoleError, assign_role
 from modules.identity.session_auth import PrincipalDep
-from modules.identity.session_service import revoke_everything
+from modules.identity.session_service import WebPrincipal, revoke_everything
+from shared.audit import audit
 from shared.db import get_session
 from shared.pagination import paginate
 from shared.security import SecureRouter
@@ -112,11 +113,29 @@ async def _target_user(session: AsyncSession, agri_id: str) -> User:
     return user
 
 
-def _audit(action: str, *, actor: str, target: str, role: str | None = None) -> None:
-    fields: dict[str, str] = {"actor": actor, "target": target}
+async def _audit(
+    session: AsyncSession,
+    request: Request,
+    action: str,
+    *,
+    actor: WebPrincipal,
+    target: User,
+    role: str | None = None,
+) -> None:
+    """D12: real audit rows (schema audit), call-site-for-call-site where
+    logger.warning placeholders stood. agri_ids only - never phone/UUID."""
+    meta: dict[str, object] = {"actor": actor.agri_id, "target": target.agri_id}
     if role is not None:
-        fields["role"] = role
-    logger.warning(action, extra={"extra_fields": fields})
+        meta["role"] = role
+    await audit(
+        session,
+        action=action,
+        actor_user_id=actor.user_id,
+        target_type="user",
+        target_id=target.agri_id,
+        metadata=meta,
+        ip=request.client.host if request.client else None,
+    )
 
 
 @admin_router.get("/users", dependencies=[require_permission("users.read")])
@@ -206,7 +225,7 @@ async def _roles_out(session: AsyncSession, user: User) -> AdminRolesOut:
 
 @admin_router.post("/users/{agri_id}/roles", dependencies=[require_permission("roles.assign")])
 async def add_role(
-    agri_id: str, body: RoleIn, principal: PrincipalDep, session: SessionDep
+    agri_id: str, body: RoleIn, principal: PrincipalDep, request: Request, session: SessionDep
 ) -> AdminRolesOut:
     user = await _target_user(session, agri_id)
     _guard_super_admin(body.role, principal)
@@ -221,7 +240,9 @@ async def add_role(
         raise HTTPException(status_code=404, detail="unknown_role") from exc
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="already_assigned") from exc
-    _audit("admin.role_assigned", actor=principal.agri_id, target=user.agri_id, role=body.role)
+    await _audit(
+        session, request, "admin.role_assigned", actor=principal, target=user, role=body.role
+    )
     return await _roles_out(session, user)
 
 
@@ -229,7 +250,7 @@ async def add_role(
     "/users/{agri_id}/roles/{role}", dependencies=[require_permission("roles.assign")]
 )
 async def remove_role(
-    agri_id: str, role: str, principal: PrincipalDep, session: SessionDep
+    agri_id: str, role: str, principal: PrincipalDep, request: Request, session: SessionDep
 ) -> AdminRolesOut:
     user = await _target_user(session, agri_id)
     _guard_super_admin(role, principal)
@@ -243,7 +264,7 @@ async def remove_role(
     )
     if result.first() is None:
         raise HTTPException(status_code=404, detail="not_assigned")
-    _audit("admin.role_removed", actor=principal.agri_id, target=user.agri_id, role=role)
+    await _audit(session, request, "admin.role_removed", actor=principal, target=user, role=role)
     return await _roles_out(session, user)
 
 
@@ -274,18 +295,20 @@ async def suspend_user(
             "backchannel.logout.notify_failed",
             extra={"extra_fields": {"exc_type": type(exc).__name__}},
         )
-    _audit("admin.user_suspended", actor=principal.agri_id, target=user.agri_id)
+    await _audit(session, request, "admin.user_suspended", actor=principal, target=user)
     return StatusOut()
 
 
 @admin_router.post(
     "/users/{agri_id}/reactivate", dependencies=[require_permission("users.suspend")]
 )
-async def reactivate_user(agri_id: str, principal: PrincipalDep, session: SessionDep) -> StatusOut:
+async def reactivate_user(
+    agri_id: str, principal: PrincipalDep, request: Request, session: SessionDep
+) -> StatusOut:
     user = await _target_user(session, agri_id)
     if user.status != "suspended":
         raise HTTPException(status_code=409, detail="not_suspended")
     user.status = "active"
     await session.flush()
-    _audit("admin.user_reactivated", actor=principal.agri_id, target=user.agri_id)
+    await _audit(session, request, "admin.user_reactivated", actor=principal, target=user)
     return StatusOut()

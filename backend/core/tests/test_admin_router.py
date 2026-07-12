@@ -232,17 +232,35 @@ async def test_cannot_suspend_self_or_super_admin_as_staff(
     assert (await http.post(f"/admin/users/{admin.agri_id}/suspend")).status_code == 400
 
 
-async def test_audit_lines_use_agri_ids_never_phone(
-    api: tuple[httpx.AsyncClient, AsyncSession], caplog: pytest.LogCaptureFixture
+async def test_audit_rows_use_agri_ids_never_phone(
+    api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:
     http, session = api
     target = await _make_target(http, session)
     await _login_admin(http, session, role="super_admin")
-    with caplog.at_level("WARNING"):
-        await http.post(f"/admin/users/{target.agri_id}/roles", json={"role": "farmer"})
-        await http.post(f"/admin/users/{target.agri_id}/suspend")
-    events = {record.message for record in caplog.records}
-    assert "admin.role_assigned" in events and "admin.user_suspended" in events
-    for record in caplog.records:
-        fields = getattr(record, "extra_fields", {})
-        assert TARGET_PHONE not in str(fields) and TARGET_PHONE not in record.message
+    assigned = await http.post(f"/admin/users/{target.agri_id}/roles", json={"role": "farmer"})
+    assert assigned.status_code == 200
+    suspended = await http.post(f"/admin/users/{target.agri_id}/suspend")
+    assert suspended.status_code == 200
+
+    from shared.audit import AuditEntry
+
+    rows = (
+        await session.scalars(select(AuditEntry).where(AuditEntry.action == "admin.role_assigned"))
+    ).all()
+    assert len(rows) == 1
+    entry = rows[0]
+    assert entry.target_id == target.agri_id  # agri_id, not UUID/phone
+    assert entry.actor_user_id is not None
+    serialized = str(entry.meta) + str(entry.target_id)
+    assert TARGET_PHONE not in serialized  # the raw phone never lands in audit
+    assert entry.meta["actor"].startswith(("AG", "@")) or entry.meta["actor"]
+
+    suspend_rows = (
+        await session.scalars(select(AuditEntry).where(AuditEntry.action == "admin.user_suspended"))
+    ).all()
+    assert len(suspend_rows) == 1
+    suspend_entry = suspend_rows[0]
+    assert suspend_entry.target_id == target.agri_id
+    serialized_suspend = str(suspend_entry.meta) + str(suspend_entry.target_id)
+    assert TARGET_PHONE not in serialized_suspend

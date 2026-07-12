@@ -47,6 +47,7 @@ from modules.identity.session_service import (
     revoke_everything,
     revoke_web_session,
 )
+from shared.audit import audit
 from shared.db import get_session
 from shared.pagination import Page, paginate
 from shared.security import SecureRouter
@@ -220,7 +221,9 @@ class HandleOut(IdentityPublicSchema):
 
 
 @session_router.post("/handle")
-async def set_handle(body: HandleIn, principal: PrincipalDep, session: SessionDep) -> HandleOut:
+async def set_handle(
+    body: HandleIn, principal: PrincipalDep, request: Request, session: SessionDep
+) -> HandleOut:
     """The one free change (D06.B). Signup's pick from the AG- fallback IS the
     change - the flag model has no second dimension, deliberately."""
     try:
@@ -240,6 +243,15 @@ async def set_handle(body: HandleIn, principal: PrincipalDep, session: SessionDe
     except IntegrityError as exc:
         await session.rollback()
         raise HTTPException(status_code=409, detail="taken") from exc
+    await audit(
+        session,
+        action="identity.handle_changed",
+        actor_user_id=user.id,
+        target_type="handle",
+        target_id=handle,
+        metadata={"old": old, "new": handle},
+        ip=request.client.host if request.client else None,
+    )
     return HandleOut(agri_id=handle)
 
 

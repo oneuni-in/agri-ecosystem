@@ -25,7 +25,9 @@ from modules.identity.otp_limits import (
     RESEND_ESCALATION_RESET_SECONDS,
     SUSPICIOUS_PHONES_PER_IP,
 )
+from shared.audit import audit
 from shared.cache import get_redis
+from shared.db import get_sessionmaker
 from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
@@ -37,6 +39,21 @@ class OtpRateLimited(Exception):
     def __init__(self, retry_after: int) -> None:
         super().__init__(f"otp rate limited, retry after {retry_after}s")
         self.retry_after = max(1, retry_after)
+
+
+async def _audit_system(action: str, metadata: dict[str, object]) -> None:
+    """System-actor audit row in its own committed session: abuse records must
+    survive the request's 429 rollback. Best-effort - an audit outage must not
+    take OTP issuance down with it."""
+    try:
+        async with get_sessionmaker()() as session:
+            await audit(session, action=action, metadata=metadata)
+            await session.commit()
+    except Exception as exc:
+        logger.warning(
+            "audit.write_failed",
+            extra={"extra_fields": {"action": action, "exc_type": type(exc).__name__}},
+        )
 
 
 def _cooldown_key(phone: str) -> str:
@@ -70,6 +87,9 @@ async def assert_issue_allowed(phone: str, ip: str | None, device_fingerprint: s
             "otp_abuse.burst_issues",
             extra={"extra_fields": {"ip": ip, "cap": OTP_ISSUES_PER_PHONE_PER_DAY}},
         )
+        await _audit_system(
+            "otp.abuse_burst_issues", {"ip": ip, "cap": OTP_ISSUES_PER_PHONE_PER_DAY}
+        )
         raise
     if ip is not None:
         await _bump_daily(redis, f"otp:day:ip:{ip}", OTP_ISSUES_PER_IP_PER_DAY)
@@ -99,6 +119,9 @@ async def register_issue(phone: str, ip: str | None) -> None:
             logger.warning(
                 "otp_abuse.many_phones_per_ip",
                 extra={"extra_fields": {"ip": ip, "distinct_phones": distinct}},
+            )
+            await _audit_system(
+                "otp.abuse_many_phones_per_ip", {"ip": ip, "distinct_phones": distinct}
             )
 
 

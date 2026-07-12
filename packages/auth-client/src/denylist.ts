@@ -18,11 +18,12 @@ export function recordLogout(sub: string, atEpochSeconds: number): void {
   const map = store();
   const existing = map.get(sub);
   map.set(sub, existing === undefined ? atEpochSeconds : Math.max(existing, atEpochSeconds));
-  // Anchored to the incoming event's own clock, not wall-clock Date.now():
-  // events arrive close to real time in production, and anchoring here (vs.
-  // the system clock) keeps this pure and deterministic under test.
-  // Horizon is clock-bounded by Math.min to prevent a skewed event timestamp
-  // from pruning other subs' live entries across the entire map.
+  // Horizon is bounded by Math.min(Date.now(), atEpochSeconds): normally the
+  // incoming event's own clock drives it (events arrive close to real time
+  // in production, and using the event's timestamp keeps this deterministic
+  // under test), but capping at wall-clock Date.now() stops a future-skewed
+  // event timestamp from pushing the horizon forward and pruning other subs'
+  // still-live entries across the entire map.
   const horizon = Math.min(Math.floor(Date.now() / 1000), atEpochSeconds) - TTL_SECONDS;
   for (const [key, at] of map) if (at < horizon) map.delete(key);
 }

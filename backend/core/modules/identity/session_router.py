@@ -172,11 +172,17 @@ async def logout_everywhere(
     await revoke_everything(session, principal.user_id)
     try:
         await notify_logout_everywhere(session, principal.user_id)
-    except Exception:
-        # event name only - the exception text is never logged (see module
-        # docstring: PII/token material could ride inside it); exc_info is
-        # fine since it never carries request bodies.
-        logger.warning("backchannel.logout.notify_failed", exc_info=True)
+    except Exception as exc:
+        # event name + exception type only - the exception message/args are
+        # never logged (see module docstring: PII/token material could ride
+        # inside them) and exc_info is avoided too: PiiScrubFilter only
+        # scrubs record.msg/args, not formatted tracebacks, so exc_info=True
+        # would leak whatever a client-registry SELECT or JWT signing
+        # failure put in its str().
+        logger.warning(
+            "backchannel.logout.notify_failed",
+            extra={"extra_fields": {"exc_type": type(exc).__name__}},
+        )
     _clear_session_cookie(response)
     return StatusOut()
 

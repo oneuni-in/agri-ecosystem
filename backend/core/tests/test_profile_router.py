@@ -174,3 +174,60 @@ async def test_completed_event_exactly_once_per_crossing(
     # Same state again: no second crossing, no second event.
     await http.patch("/identity/profile", json={"name": "Asha Again"})
     assert await redis_client.xlen("identity") == 1
+
+
+async def test_avatar_upload_stores_and_scores(
+    api: tuple[httpx.AsyncClient, AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, int, str]] = []
+
+    async def fake_put_object(key: str, data: bytes, content_type: str) -> None:
+        calls.append((key, len(data), content_type))
+
+    monkeypatch.setattr(storage, "put_object", fake_put_object)
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+    response = await http.post(
+        "/identity/profile/avatar", files={"file": ("me.jpg", jpeg, "image/jpeg")}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_avatar"] is True and body["completion_score"] == 20 + 15
+    assert len(calls) == 1
+    key, size, content_type = calls[0]
+    assert key.startswith("avatars/") and key.endswith(".jpg")
+    assert content_type == "image/jpeg" and size == len(jpeg)
+
+
+async def test_avatar_rejects_lying_content_type(
+    api: tuple[httpx.AsyncClient, AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_put_object(key: str, data: bytes, content_type: str) -> None:
+        raise AssertionError("must not reach storage")
+
+    monkeypatch.setattr(storage, "put_object", fake_put_object)
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    response = await http.post(
+        "/identity/profile/avatar",
+        files={"file": ("evil.jpg", b"<svg onload=alert(1)>", "image/jpeg")},
+    )
+    assert response.status_code == 422 and response.json()["detail"] == "unsupported_type"
+
+
+async def test_avatar_storage_down_is_503_and_profile_untouched(
+    api: tuple[httpx.AsyncClient, AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken_put_object(key: str, data: bytes, content_type: str) -> None:
+        raise storage.StorageError("down")
+
+    monkeypatch.setattr(storage, "put_object", broken_put_object)
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+    response = await http.post(
+        "/identity/profile/avatar", files={"file": ("me.jpg", jpeg, "image/jpeg")}
+    )
+    assert response.status_code == 503
+    assert (await http.get("/identity/profile")).json()["has_avatar"] is False

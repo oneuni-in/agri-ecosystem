@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     meilisearch_url: str = "http://localhost:7700"
     meilisearch_master_key: str = ""
     minio_endpoint: str = "http://localhost:9000"
-    minio_access_key: str = ""
-    minio_secret_key: str = ""
+    minio_access_key: str = "minioadmin"  # dev-only default, matches compose
+    minio_secret_key: str = "minioadmin"  # dev-only default, matches compose
     minio_bucket: str = "agri-media"
 
     rate_limit_requests: int = 60

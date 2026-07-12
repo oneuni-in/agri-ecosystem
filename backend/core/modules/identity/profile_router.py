@@ -4,18 +4,23 @@ Per module rules nothing here logs bodies or query strings. All routes are
 private (SecureRouter default) and additionally permission-gated - profile.*
 are two of the three sample permissions the D11 tests pin the pattern on.
 
-Avatar upload (POST /identity/profile/avatar) lands in Task 7 - it needs
-shared.storage.put_object/StorageError, which don't exist yet. Nothing here
-imports modules.identity.avatar or shared.storage for that reason.
+Avatar upload (POST /identity/profile/avatar) - multipart image upload,
+type sniffed from magic bytes only, stored via shared.storage.put_object.
 """
 
 from typing import Annotated, Literal
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.identity.avatar import (
+    MAX_AVATAR_BYTES,
+    AvatarError,
+    avatar_object_key,
+    validate_avatar,
+)
 from modules.identity.models import Profile, User
 from modules.identity.profile_service import (
     INTERESTS_MAX,
@@ -32,6 +37,7 @@ from modules.identity.profile_service import (
 from modules.identity.rbac import require_permission
 from modules.identity.schemas import IdentityPublicSchema
 from modules.identity.session_auth import PrincipalDep
+from shared import storage
 from shared.db import get_session
 from shared.events import publish
 from shared.security import SecureRouter
@@ -146,6 +152,30 @@ async def patch_profile(
             await set_visibility(session, user.id, body.visibility)
     except ProfileUpdateError as exc:
         raise HTTPException(status_code=422, detail=exc.code) from exc
+    _, crossed = await recompute_score(session, user=user, profile=profile)
+    await _commit_and_announce(session, user=user, crossed=crossed)
+    return await _profile_out(session, user, profile)
+
+
+@profile_router.post("/avatar", dependencies=[require_permission("profile.write")])
+async def upload_avatar(
+    file: UploadFile, principal: PrincipalDep, session: SessionDep
+) -> ProfileOut:
+    """Multipart image upload. Type comes from magic bytes only - the part's
+    Content-Type header is never consulted."""
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    try:
+        content_type, ext = validate_avatar(data)
+    except AvatarError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
+    key = avatar_object_key(ext)
+    try:
+        await storage.put_object(key, data, content_type)
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage_unavailable") from exc
+    user = await _load_user(session, principal)
+    profile = await get_or_create_profile(session, user.id)
+    profile.avatar_key = key
     _, crossed = await recompute_score(session, user=user, profile=profile)
     await _commit_and_announce(session, user=user, crossed=crossed)
     return await _profile_out(session, user, profile)

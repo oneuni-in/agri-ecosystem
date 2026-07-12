@@ -26,6 +26,7 @@ from shared.db import reset_engine
 from shared.flags import reset_flag_cache
 from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
+from shared.storage import reset_storage
 
 TEST_DB_NAME = "agri_test"
 TEST_REDIS_DB = 9
@@ -36,6 +37,7 @@ def _reset_state() -> Iterator[None]:
     yield
     get_settings.cache_clear()
     reset_redis()
+    reset_storage()
     reset_engine()
     reset_flag_cache()
     rate_limiter.reset()

@@ -30,6 +30,9 @@ async function forward(
     ...(method === "POST" ? { body: await req.text() } : {}),
     cache: "no-store",
   });
+  if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
+    return new NextResponse(null, { status: upstream.status });
+  }
   const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
   return NextResponse.json(body, { status: upstream.status });
 }

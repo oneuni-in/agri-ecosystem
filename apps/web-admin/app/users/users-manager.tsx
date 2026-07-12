@@ -128,7 +128,7 @@ export function UsersManager() {
         }}
       >
         <input
-          className="min-w-0 flex-1 rounded-btn border border-line bg-card px-3 py-2 text-ink"
+          className="min-h-[44px] min-w-0 flex-1 rounded-btn border border-line bg-card px-3 py-2 text-ink"
           aria-label={t("searchLabel")}
           placeholder={t("searchPlaceholder")}
           value={query}
@@ -203,7 +203,7 @@ export function UsersManager() {
                 </button>
               ))}
               <select
-                className="rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
+                className="min-h-[44px] rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
                 aria-label={t("addRole")}
                 value=""
                 onChange={(event) => {

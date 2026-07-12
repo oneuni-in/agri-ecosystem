@@ -94,6 +94,23 @@ async def test_patch_name_language_interests(
     assert body["completion_score"] == 20 + 15 + 10 + 15
 
 
+async def test_empty_interests_list_is_rejected_and_clears_nothing(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Progressive-only invariant: [] would wipe a set field, regress the
+    score, and allow a second profile.completed for the same state."""
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    set_up = await http.patch("/identity/profile", json={"interests": ["Paddy"]})
+    assert set_up.status_code == 200
+    assert set_up.json()["completion_score"] == 20 + 15
+    wipe = await http.patch("/identity/profile", json={"interests": []})
+    assert wipe.status_code == 422  # min_length=1 at the Pydantic layer
+    body = (await http.get("/identity/profile")).json()
+    assert body["interests"] == ["Paddy"]  # unchanged
+    assert body["completion_score"] == 20 + 15  # no regression
+
+
 async def test_location_is_pincode_derived(
     api: tuple[httpx.AsyncClient, AsyncSession], geo_row: str
 ) -> None:

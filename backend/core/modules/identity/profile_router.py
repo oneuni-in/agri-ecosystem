@@ -99,7 +99,9 @@ class ProfilePatchIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     pincode: str | None = Field(default=None, pattern=r"^\d{6}$")
     language: Literal["en", "ta", "hi"] | None = None
-    interests: list[str] | None = Field(default=None, max_length=INTERESTS_MAX)
+    # min_length=1: an empty list would CLEAR a previously-set field, breaking
+    # the progressive-only invariant (scores only rise, crossings fire once).
+    interests: list[str] | None = Field(default=None, min_length=1, max_length=INTERESTS_MAX)
     visibility: dict[str, bool] | None = None
 
 

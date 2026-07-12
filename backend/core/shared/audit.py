@@ -16,6 +16,7 @@ what closes that hole for the application role.
 import hashlib
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -127,3 +128,43 @@ async def audit(
     session.add(entry)
     await session.flush()
     return entry
+
+
+@dataclass(frozen=True, slots=True)
+class ChainBreak:
+    day: date
+    seq: int
+    reason: str  # "hash_mismatch" | "link_mismatch" | "seq_gap"
+
+
+async def verify_chain(
+    session: AsyncSession, *, days: list[date] | None = None
+) -> list[ChainBreak]:
+    """Recompute each day's chain; return every divergence. After a broken
+    entry, verification continues from the STORED hash so one tampered row
+    reports once instead of cascading down the day."""
+    if days is None:
+        day_rows = await session.execute(
+            select(AuditEntry.chain_day).distinct().order_by(AuditEntry.chain_day)
+        )
+        days = [row[0] for row in day_rows]
+    breaks: list[ChainBreak] = []
+    for day in days:
+        rows = (
+            await session.scalars(
+                select(AuditEntry).where(AuditEntry.chain_day == day).order_by(AuditEntry.seq)
+            )
+        ).all()
+        expected_prev = genesis_hash(day)
+        expected_seq = 1
+        for row in rows:
+            if row.seq != expected_seq:
+                breaks.append(ChainBreak(day, row.seq, "seq_gap"))
+                expected_seq = row.seq
+            if row.prev_hash != expected_prev:
+                breaks.append(ChainBreak(day, row.seq, "link_mismatch"))
+            if compute_entry_hash(row) != row.entry_hash:
+                breaks.append(ChainBreak(day, row.seq, "hash_mismatch"))
+            expected_prev = row.entry_hash
+            expected_seq += 1
+    return breaks

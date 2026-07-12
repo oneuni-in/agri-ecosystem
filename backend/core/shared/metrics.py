@@ -57,6 +57,22 @@ OTP_SEND_COST = Counter(
     registry=registry,
 )
 
+# Audit chain telemetry (D12): counts only - entry contents never label metrics.
+AUDIT_CHAIN_DAYS_VERIFIED = Counter(
+    "audit_chain_days_verified_total",
+    "Audit chain day-verifications by outcome",
+    ["result"],  # ok | broken
+    registry=registry,
+)
+AUDIT_CHAIN_BREAKS = Counter(
+    "audit_chain_breaks_total",
+    "Individual audit chain breaks detected",
+    # unlabeled Counters have no working .clear() (D07 trap); "reason" is
+    # bounded to hash_mismatch|link_mismatch|seq_gap so cardinality is safe.
+    ["reason"],
+    registry=registry,
+)
+
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
     REQUESTS.labels(method, route, str(status)).inc()
@@ -71,5 +87,14 @@ def render() -> tuple[bytes, str]:
 
 def reset_metrics() -> None:
     """Test hook (tests/conftest.py): drop label children between tests."""
-    for metric in (REQUESTS, ERRORS, LATENCY, OTP_ISSUED, OTP_VERIFIED, OTP_SEND_COST):
+    for metric in (
+        REQUESTS,
+        ERRORS,
+        LATENCY,
+        OTP_ISSUED,
+        OTP_VERIFIED,
+        OTP_SEND_COST,
+        AUDIT_CHAIN_DAYS_VERIFIED,
+        AUDIT_CHAIN_BREAKS,
+    ):
         metric.clear()

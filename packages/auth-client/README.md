@@ -56,8 +56,8 @@ process start:
 Per app, derived from `APP_ORIGIN`:
 
 - Callback (redirect_uri): `{APP_ORIGIN}/api/auth/callback` — must match a
-  seeded OAuth client redirect URI exactly (a future prod-seed migration;
-  dev parity is migration 0009).
+  seeded OAuth client redirect URI exactly (migration 0009 seeds the dev
+  localhost URIs and, when `app_env == "prod"`, these prod URIs).
 - Back-channel logout: `{APP_ORIGIN}/api/auth/backchannel-logout`.
 
 Cookies are **per-app, host-only** by design — no cross-TLD or cross-subdomain
@@ -91,6 +91,7 @@ prod domains. All apps still get real, independent cookies because
   safety net that bounds the exposure regardless of which process a request
   hits.
 - **Silent-SSO suppression marker is per-tab** (`SSO_MARKER` in
-  `src/react-helpers.ts`, held in memory via `useAgriUser`, not persisted
-  storage). Opening a new tab re-attempts the silent `prompt=none` probe
-  once, even right after a failed probe in another tab.
+  `src/react-helpers.ts`, stored in `sessionStorage` — tab-scoped and it
+  survives the probe's full-page redirect; the value is a boolean `"1"`,
+  never a token). Opening a new tab re-attempts the silent `prompt=none`
+  probe once, even right after a failed probe in another tab.

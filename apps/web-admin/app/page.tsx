@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Page() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-2 p-8">
@@ -5,7 +7,11 @@ export default function Page() {
       <p className="text-sm">
         @agri/web-admin · port 3004 · data-theme=&quot;theme-agri&quot;
       </p>
-      <p className="text-sm">D01-A scaffold. UI lands in D02.</p>
+      <p className="text-sm">
+        <Link href="/users" className="text-brand underline">
+          Users
+        </Link>
+      </p>
     </main>
   );
 }

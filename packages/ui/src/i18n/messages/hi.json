@@ -99,6 +99,35 @@
       "loans": "ऋण",
       "mandi": "मंडी भाव",
       "vet": "पशु चिकित्सक"
+    },
+    "admin": {
+      "users": {
+        "title": "उपयोगकर्ता",
+        "searchLabel": "उपयोगकर्ता खोजें",
+        "searchPlaceholder": "@handle या फ़ोन के आख़िरी 4 अंक",
+        "search": "खोजें",
+        "empty": "कोई उपयोगकर्ता नहीं मिला",
+        "loadMore": "और लोड करें",
+        "phoneEnding": "{last4} पर समाप्त होने वाला फ़ोन",
+        "status": { "active": "सक्रिय", "suspended": "निलंबित", "deleted": "हटाया गया" },
+        "roles": "भूमिकाएँ",
+        "addRole": "भूमिका जोड़ें",
+        "removeRole": "{role} हटाएँ",
+        "suspend": "निलंबित करें",
+        "reactivate": "फिर सक्रिय करें",
+        "confirmSuspend": "{agriId} को निलंबित करें? हर ऐप पर उनके सभी सत्र तुरंत साइन आउट हो जाएँगे।",
+        "confirmReactivate": "{agriId} को फिर सक्रिय करें? निलंबन हट जाएगा; उन्हें फिर से साइन इन करना होगा।",
+        "cancel": "रद्द करें",
+        "suspended": "उपयोगकर्ता निलंबित किया गया",
+        "reactivated": "उपयोगकर्ता फिर सक्रिय किया गया",
+        "roleAdded": "भूमिका जोड़ी गई",
+        "roleRemoved": "भूमिका हटाई गई",
+        "completion": "प्रोफ़ाइल पूर्णता",
+        "location": "स्थान",
+        "language": "भाषा",
+        "interests": "रुचियाँ",
+        "error": "यह काम नहीं हुआ — फिर कोशिश करें"
+      }
     }
   }
 }

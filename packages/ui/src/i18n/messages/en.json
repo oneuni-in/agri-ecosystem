@@ -99,6 +99,35 @@
       "loans": "Agri loans",
       "mandi": "Mandi prices",
       "vet": "Vet doctor"
+    },
+    "admin": {
+      "users": {
+        "title": "Users",
+        "searchLabel": "Search users",
+        "searchPlaceholder": "@handle or last 4 digits of phone",
+        "search": "Search",
+        "empty": "No users match",
+        "loadMore": "Load more",
+        "phoneEnding": "Phone ending {last4}",
+        "status": { "active": "Active", "suspended": "Suspended", "deleted": "Deleted" },
+        "roles": "Roles",
+        "addRole": "Add role",
+        "removeRole": "Remove {role}",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate",
+        "confirmSuspend": "Suspend {agriId}? All their sessions on every app are signed out immediately.",
+        "confirmReactivate": "Reactivate {agriId}? Suspension is lifted; they must sign in again.",
+        "cancel": "Cancel",
+        "suspended": "User suspended",
+        "reactivated": "User reactivated",
+        "roleAdded": "Role added",
+        "roleRemoved": "Role removed",
+        "completion": "Profile completion",
+        "location": "Location",
+        "language": "Language",
+        "interests": "Interests",
+        "error": "That didn't work — try again"
+      }
     }
   }
 }

@@ -14,6 +14,7 @@ from modules.billing.router import router as billing_router
 from modules.coins.router import router as coins_router
 from modules.content.router import router as content_router
 from modules.directory.router import router as directory_router
+from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.profile_router import profile_router as identity_profile_router
@@ -46,6 +47,7 @@ MODULE_ROUTERS = [
     coins_router,
     content_router,
     directory_router,
+    identity_admin_router,
     identity_router,
     identity_oauth_router,
     identity_otp_router,

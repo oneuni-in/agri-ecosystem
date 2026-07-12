@@ -86,7 +86,8 @@ def _clear_session_cookie(response: Response) -> None:
 
 async def _language_for(session: AsyncSession, user_id: uuid.UUID) -> str:
     profile = await session.scalar(select(Profile).where(Profile.user_id == user_id))
-    return profile.language if profile is not None else "en"
+    language = profile.language if profile is not None else None
+    return language or "en"
 
 
 class LoginIn(BaseModel):

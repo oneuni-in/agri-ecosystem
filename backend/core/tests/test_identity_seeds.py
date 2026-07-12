@@ -13,6 +13,7 @@ EXPECTED_PERMISSIONS = {
     "handle.change",
     "users.suspend",
     "roles.assign",
+    "users.read",
 }
 
 
@@ -46,3 +47,20 @@ async def test_plain_user_cannot_suspend_or_assign(db_session: AsyncSession) -> 
     )
     granted = set((await db_session.scalars(stmt)).all())
     assert granted == {"profile.read", "profile.write", "handle.change"}
+
+
+async def test_staff_can_read_and_suspend_but_not_assign(db_session: AsyncSession) -> None:
+    stmt = (
+        select(Permission.name)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .join(Role, Role.id == RolePermission.role_id)
+        .where(Role.name == "staff")
+    )
+    granted = set((await db_session.scalars(stmt)).all())
+    assert granted == {
+        "profile.read",
+        "profile.write",
+        "handle.change",
+        "users.suspend",
+        "users.read",
+    }

@@ -46,6 +46,20 @@ test("login once on milk -> in on organic -> logout-everywhere kills both", asyn
   await expect(page.getByRole("button", { name: /🪙/ })).toBeVisible({ timeout: 20_000 });
   expect(page.url().startsWith(ORGANIC)).toBe(true); // never parked on a login screen
 
+  // ---- NON-NEGOTIABLE 1 again: silent SSO must not leak tokens either
+  const organicJsVisible = await page.evaluate(() => ({
+    local: JSON.stringify(localStorage),
+    session: JSON.stringify(sessionStorage),
+    cookies: document.cookie,
+  }));
+  for (const surface of Object.values(organicJsVisible)) {
+    expect(surface).not.toMatch(/eyJ[\w-]{10,}/); // JWT/JWE shape
+  }
+  const organicCookies = await page.context().cookies(ORGANIC);
+  const organicSessionCookie = organicCookies.find((c) => c.name === "organic_session");
+  expect(organicSessionCookie).toBeTruthy();
+  expect(organicSessionCookie!.httpOnly).toBe(true);
+
   // ---- logout-everywhere on id.agri.in (devices manager)
   await page.goto(`${ID}/devices`);
   await page.getByRole("button", { name: /sign out everywhere/i }).click();

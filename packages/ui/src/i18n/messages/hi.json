@@ -91,6 +91,38 @@
         "cancel": "रद्द करें",
         "revoked": "डिवाइस साइन आउट हो गया",
         "logout": "साइन आउट"
+      },
+      "profile": {
+        "title": "आपकी प्रोफ़ाइल",
+        "completion": "प्रोफ़ाइल {score}% पूरी हुई",
+        "name": "नाम",
+        "namePlaceholder": "आपका नाम",
+        "save": "सहेजें",
+        "saved": "सहेजा गया",
+        "location": "स्थान",
+        "pincodeHint": "अपना 6 अंकों का पिनकोड डालें — ज़िला और राज्य अपने आप भर जाएँगे",
+        "pincodeFind": "खोजें",
+        "unknownPincode": "हमें यह पिनकोड अभी नहीं पता",
+        "language": "भाषा",
+        "interests": "रुचियाँ",
+        "interestsHint": "अधिकतम 10 — फ़सलें, पशुधन, कुछ भी कृषि से जुड़ा",
+        "addInterest": "जोड़ें",
+        "interestPlaceholder": "जैसे: धान",
+        "removeInterest": "{interest} हटाएँ",
+        "avatar": "प्रोफ़ाइल फ़ोटो",
+        "avatarUpload": "फ़ोटो अपलोड करें",
+        "avatarTooLarge": "फ़ोटो 2 MB से कम होनी चाहिए (JPG, PNG या WebP)",
+        "visibility": "दूसरे क्या देख सकते हैं",
+        "visibilityHint": "आपका मोबाइल नंबर कभी सार्वजनिक नहीं होता",
+        "visibilityKeys": {
+          "name": "नाम",
+          "location": "स्थान",
+          "language": "भाषा",
+          "interests": "रुचियाँ",
+          "avatar": "फ़ोटो"
+        },
+        "devices": "डिवाइस प्रबंधित करें",
+        "error": "यह काम नहीं हुआ — फिर कोशिश करें"
       }
     },
     "categories": {

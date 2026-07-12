@@ -91,6 +91,38 @@
         "cancel": "Cancel",
         "revoked": "Device signed out",
         "logout": "Sign out"
+      },
+      "profile": {
+        "title": "Your profile",
+        "completion": "Profile {score}% complete",
+        "name": "Name",
+        "namePlaceholder": "Your name",
+        "save": "Save",
+        "saved": "Saved",
+        "location": "Location",
+        "pincodeHint": "Enter your 6-digit pincode — district and state fill in automatically",
+        "pincodeFind": "Find",
+        "unknownPincode": "We don't know that pincode yet",
+        "language": "Language",
+        "interests": "Interests",
+        "interestsHint": "Up to 10 — crops, livestock, anything agri",
+        "addInterest": "Add",
+        "interestPlaceholder": "e.g. paddy",
+        "removeInterest": "Remove {interest}",
+        "avatar": "Profile photo",
+        "avatarUpload": "Upload photo",
+        "avatarTooLarge": "Photo must be under 2 MB (JPG, PNG or WebP)",
+        "visibility": "What others can see",
+        "visibilityHint": "Your phone number is never public",
+        "visibilityKeys": {
+          "name": "Name",
+          "location": "Location",
+          "language": "Language",
+          "interests": "Interests",
+          "avatar": "Photo"
+        },
+        "devices": "Manage devices",
+        "error": "That didn't work — try again"
       }
     },
     "categories": {

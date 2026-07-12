@@ -35,3 +35,16 @@ export function postJson(path: string, payload: unknown): Promise<JsonBody> {
 export function getJson(path: string): Promise<JsonBody> {
   return fetch(`/api/id${path}`).then(parse);
 }
+
+export function patchJson(path: string, payload: unknown): Promise<JsonBody> {
+  return fetch(`/api/id${path}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  }).then(parse);
+}
+
+export function postForm(path: string, form: FormData): Promise<JsonBody> {
+  // no content-type header: the browser sets the multipart boundary
+  return fetch(`/api/id${path}`, { method: "POST", body: form }).then(parse);
+}

@@ -15,7 +15,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => cookieStore,
 }));
 
-import { getServerUser } from "./server";
+import { getAccessToken, getServerUser } from "./server";
 
 const cfg = resolveConfig({
   clientId: "web-milk",
@@ -86,5 +86,35 @@ describe("getServerUser", () => {
   it("requiredRoles unmet on the admin app -> null", async () => {
     cookieStore.get.mockReturnValue({ value: await sessionCookieValue({}, adminCfg) });
     expect(await getServerUser(adminCfg)).toBeNull();
+  });
+});
+
+describe("getAccessToken", () => {
+  it("valid session -> raw access token (server-side only)", async () => {
+    cookieStore.get.mockReturnValue({ value: await sessionCookieValue() });
+    expect(await getAccessToken(cfg)).toBe("at");
+  });
+
+  it("no cookie -> null", async () => {
+    cookieStore.get.mockReturnValue(undefined);
+    expect(await getAccessToken(cfg)).toBeNull();
+  });
+
+  it("expired access token -> null (caller heals via /api/auth/me)", async () => {
+    cookieStore.get.mockReturnValue({
+      value: await sessionCookieValue({ accessExpiresAt: Math.floor(Date.now() / 1000) - 10 }),
+    });
+    expect(await getAccessToken(cfg)).toBeNull();
+  });
+
+  it("requiredRoles unmet -> null (admin gate holds for tokens too)", async () => {
+    cookieStore.get.mockReturnValue({ value: await sessionCookieValue({}, adminCfg) });
+    expect(await getAccessToken(adminCfg)).toBeNull();
+  });
+
+  it("denylisted sub -> null", async () => {
+    recordLogout("sub-1", Math.floor(Date.now() / 1000) + 5);
+    cookieStore.get.mockReturnValue({ value: await sessionCookieValue() });
+    expect(await getAccessToken(cfg)).toBeNull();
   });
 });

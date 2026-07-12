@@ -82,6 +82,16 @@ prod domains. All apps still get real, independent cookies because
 | 3004 | web-admin |
 | 8000 | api |
 
+## API
+
+### `auth.getAccessToken()`
+
+Server-side only. Returns the session's D08 access token for calling the
+backend API with `Authorization: Bearer <token>`, or `null` when the session
+is missing/stale/role-disallowed. It never refreshes: on `null` (or a 401
+from the API), call `GET /api/auth/me` (which owns rotation) and retry once.
+Never pass the token to client components.
+
 ## Known v1 limits
 
 - **In-memory denylist is per-process** (`src/denylist.ts`). It is not

@@ -6,9 +6,9 @@
  */
 import type { ResolvedConfig } from "./config";
 import { readSession } from "./handlers";
-import { projectUser, type AgriUser } from "./session";
+import { projectUser, type AgriUser, type SessionPayload } from "./session";
 
-export async function getServerUser(cfg: ResolvedConfig): Promise<AgriUser | null> {
+async function readValidSession(cfg: ResolvedConfig): Promise<SessionPayload | null> {
   const { cookies } = await import("next/headers");
   const store = await cookies();
   const raw = store.get(cfg.sessionCookie)?.value;
@@ -17,5 +17,21 @@ export async function getServerUser(cfg: ResolvedConfig): Promise<AgriUser | nul
   if (session.accessExpiresAt <= Math.floor(Date.now() / 1000)) return null;
   if (cfg.requiredRoles.length && !cfg.requiredRoles.some((r) => session.roles.includes(r)))
     return null;
-  return projectUser(session);
+  return session;
+}
+
+export async function getServerUser(cfg: ResolvedConfig): Promise<AgriUser | null> {
+  const session = await readValidSession(cfg);
+  return session ? projectUser(session) : null;
+}
+
+/**
+ * SERVER-SIDE ONLY: the raw D08 access token for backend calls
+ * (Authorization: Bearer). Read-only like getServerUser - an expired token
+ * reads as null and the caller retries after GET /api/auth/me rotates the
+ * session. Never hand this value to client components.
+ */
+export async function getAccessToken(cfg: ResolvedConfig): Promise<string | null> {
+  const session = await readValidSession(cfg);
+  return session?.accessToken ?? null;
 }

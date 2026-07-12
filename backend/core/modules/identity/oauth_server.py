@@ -229,6 +229,8 @@ def _generate_access_token(
         "iat": now,
         "exp": now + ACCESS_TOKEN_TTL_SECONDS,
     }
+    if user.name:
+        claims["name"] = user.name
     access_token = jwt.encode({"alg": "RS256", "kid": key.kid, "typ": "JWT"}, claims, key)
     return {
         "access_token": access_token,

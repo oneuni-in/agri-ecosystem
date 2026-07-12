@@ -24,7 +24,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.identity.models import OAuthClient, OAuthCode, Role, User, UserRole
+from modules.identity.models import OAuthClient, OAuthCode, Profile, Role, User, UserRole
 from modules.identity.oauth_limits import AUTH_CODE_TTL_SECONDS
 
 
@@ -97,6 +97,7 @@ class TokenSubject:
     user_id: uuid.UUID
     agri_id: str
     roles: tuple[str, ...]
+    name: str | None = None
 
 
 async def load_token_subject(session: AsyncSession, user_id: uuid.UUID) -> TokenSubject | None:
@@ -110,4 +111,7 @@ async def load_token_subject(session: AsyncSession, user_id: uuid.UUID) -> Token
         .join(UserRole, UserRole.role_id == Role.id)
         .where(UserRole.user_id == user_id)
     )
-    return TokenSubject(user_id=user.id, agri_id=user.agri_id, roles=tuple(sorted(roles)))
+    name = await session.scalar(select(Profile.name).where(Profile.user_id == user_id))
+    return TokenSubject(
+        user_id=user.id, agri_id=user.agri_id, roles=tuple(sorted(roles)), name=name
+    )

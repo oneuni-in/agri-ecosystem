@@ -29,13 +29,19 @@ export async function fillOtp(page: Page, code: string): Promise<void> {
   await page.keyboard.type(code, { delay: 40 });
 }
 
-export async function loginAs(page: Page, phone: string): Promise<void> {
-  await resetOtpThrottle(phone); // same-phone re-login must not wait out the 30s cooldown
-  await page.goto("/login");
+/** Complete the web-id login UI when we ARRIVED there via a redirect (the
+ * BFF authorize dance), unlike loginAs which starts at /login itself. */
+export async function completeLoginUi(page: Page, phone: string): Promise<void> {
   await page.getByLabel(/mobile number/i).fill(phone);
   await page.getByRole("button", { name: /send otp/i }).click();
   await expect(page.getByText(/6-digit code/i)).toBeVisible();
   await fillOtp(page, await peekOtp(`+91${phone}`));
+}
+
+export async function loginAs(page: Page, phone: string): Promise<void> {
+  await resetOtpThrottle(phone); // same-phone re-login must not wait out the 30s cooldown
+  await page.goto("/login");
+  await completeLoginUi(page, phone);
 }
 
 /** The app's own error line - Next's route announcer also carries role=alert. */

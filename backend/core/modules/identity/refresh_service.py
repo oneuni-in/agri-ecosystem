@@ -96,6 +96,22 @@ async def revoke_family(session: AsyncSession, family_id: uuid.UUID) -> int:
     return len(revoked)
 
 
+async def revoke_by_token(session: AsyncSession, *, token: str, client: OAuthClient) -> bool:
+    """RFC 7009-style revocation: retire the whole family this token belongs
+    to. Scoped to the presenting client - a foreign client's guess is a no-op,
+    and callers never learn whether the token existed."""
+    row = await session.scalar(
+        select(SessionRefresh).where(
+            SessionRefresh.token_hash == hash_code(token),
+            SessionRefresh.client_id == client.id,
+        )
+    )
+    if row is None:
+        return False
+    await revoke_family(session, row.family_id)
+    return True
+
+
 async def revoke_families_for_device(
     session: AsyncSession, *, user_id: uuid.UUID, fingerprint: str
 ) -> int:

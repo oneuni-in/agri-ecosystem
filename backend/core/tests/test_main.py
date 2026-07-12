@@ -42,6 +42,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/metrics",
     "/authorize",
     "/token",
+    "/oauth/revoke",
     "/.well-known/jwks.json",
     "/auth/otp/request",
     "/auth/otp/verify",

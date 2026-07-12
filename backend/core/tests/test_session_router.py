@@ -141,8 +141,17 @@ async def test_logout_kills_session_and_device_refresh(
 
 async def test_logout_everywhere_one_request_cycle(
     api: tuple[httpx.AsyncClient, AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Non-negotiable: ALL sessions + refresh families die in one request."""
+
+    # back-channel notification (D10.D) is best-effort but must not make real
+    # network calls in tests - stub it out here, dedicated coverage lives in
+    # test_backchannel_logout.py.
+    async def _no_notify(*args: object, **kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("modules.identity.session_router.notify_logout_everywhere", _no_notify)
     http, session = api
     await _login(http, session)  # device A's session (older, no longer in jar)
     await _login(http, session)  # device B's session (in the client jar now)

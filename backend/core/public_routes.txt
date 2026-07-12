@@ -10,4 +10,5 @@
 /auth/login
 /authorize
 /token
+/oauth/revoke
 /.well-known/jwks.json

@@ -95,3 +95,79 @@ async def test_authorize_suspended_session_parks_at_login(
     await session.flush()
     response = await http.get("/authorize", params=_authorize_params(challenge))
     assert response.headers["location"].startswith("/login?next=")  # instant deny
+
+
+async def test_authorize_prompt_none_without_session_returns_login_required(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, _ = api
+    _, challenge = _pkce()
+    params = _authorize_params(challenge) | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    assert response.status_code == 302
+    location = urlsplit(response.headers["location"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == REDIRECT
+    query = parse_qs(location.query)
+    assert query["error"] == ["login_required"]
+    assert query["state"] == ["state-xyz"]
+
+
+async def test_authorize_prompt_none_with_session_mints_code(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session)  # sets agri_sid; login assigns the "user" role
+    _, challenge = _pkce()
+    params = _authorize_params(challenge) | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    assert response.status_code == 302
+    query = parse_qs(urlsplit(response.headers["location"]).query)
+    assert "code" in query
+
+
+async def test_authorize_prompt_none_unknown_client_never_redirects(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """prompt=none + unknown client_id: 400 JSON, NOT login_required redirect."""
+    http, _ = api
+    _, challenge = _pkce()
+    params = _authorize_params(challenge, client_id="evil-app") | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    # validation fails before session check: 400 JSON, no Location
+    assert response.status_code == 400
+    assert "location" not in response.headers
+    assert response.json()["error"] == "invalid_client"
+
+
+async def test_authorize_prompt_none_unregistered_redirect_never_redirects(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """prompt=none + unregistered redirect_uri: 400 JSON, NOT login_required redirect."""
+    http, _ = api
+    _, challenge = _pkce()
+    params = _authorize_params(challenge, redirect_uri="https://evil.example/callback") | {
+        "prompt": "none"
+    }
+    response = await http.get("/authorize", params=params)
+    # validation fails before session check: 400 JSON, no Location
+    assert response.status_code == 400
+    assert "location" not in response.headers
+    assert response.json()["error"] == "invalid_request"
+
+
+async def test_authorize_prompt_none_missing_state_not_login_required(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """prompt=none + missing state: error redirect is invalid_request, never login_required."""
+    http, _ = api
+    _, challenge = _pkce()
+    params = _authorize_params(challenge, state="") | {"prompt": "none"}
+    response = await http.get("/authorize", params=params)
+    # client+redirect valid, state missing: safe to redirect with invalid_request error
+    assert response.status_code == 302
+    location = urlsplit(response.headers["location"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == REDIRECT
+    query = parse_qs(location.query)
+    # error is invalid_request (state validation), NOT login_required (session absence)
+    assert query["error"] == ["invalid_request"]
+    assert "code" not in query

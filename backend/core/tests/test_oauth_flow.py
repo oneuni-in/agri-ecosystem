@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.identity.models import OAuthCode, User
+from modules.identity.models import OAuthCode, Profile, User
 from modules.identity.oauth_limits import ACCESS_TOKEN_TTL_SECONDS
 from modules.identity.oauth_service import create_authorization_code, get_client
 from modules.identity.service import assign_role, create_user
@@ -146,6 +146,108 @@ async def test_full_code_flow_with_pkce(api: tuple[httpx.AsyncClient, AsyncSessi
     assert claims["agri_id"] == user.agri_id
     assert claims["roles"] == ["user"]
     assert claims["exp"] - claims["iat"] == ACCESS_TOKEN_TTL_SECONDS
+
+
+async def test_access_token_includes_name_claim_when_profile_set(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    verifier, challenge = _pkce()
+
+    # step 1: create user with profile containing a name
+    user = await create_user(session, "+919876543210")
+    await assign_role(session, user.id, "user")
+    profile = Profile(user_id=user.id, name="Asha Kumar")
+    session.add(profile)
+    await session.flush()
+
+    # step 2: mint code for this user
+    client = await get_client(session, "web-agri")
+    assert client is not None
+    code = await create_authorization_code(
+        session,
+        user_id=user.id,
+        client=client,
+        redirect_uri=REDIRECT,
+        code_challenge=challenge,
+    )
+
+    # step 3: exchange at the real endpoint
+    response = await _exchange(http, code, verifier)
+    assert response.status_code == 200
+
+    # step 4: verify name claim is present in the token
+    jwks = (await http.get("/.well-known/jwks.json")).json()
+    decoded = jwt.decode(response.json()["access_token"], KeySet.import_key_set(jwks))
+    claims = decoded.claims
+    assert claims["name"] == "Asha Kumar"
+
+
+async def test_access_token_omits_name_claim_when_profile_absent(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    verifier, challenge = _pkce()
+
+    # step 1: create user WITHOUT a profile
+    user = await create_user(session, "+919876543211")
+    await assign_role(session, user.id, "user")
+
+    # step 2: mint code for this user
+    client = await get_client(session, "web-agri")
+    assert client is not None
+    code = await create_authorization_code(
+        session,
+        user_id=user.id,
+        client=client,
+        redirect_uri=REDIRECT,
+        code_challenge=challenge,
+    )
+
+    # step 3: exchange at the real endpoint
+    response = await _exchange(http, code, verifier)
+    assert response.status_code == 200
+
+    # step 4: verify name claim is absent from the token
+    jwks = (await http.get("/.well-known/jwks.json")).json()
+    decoded = jwt.decode(response.json()["access_token"], KeySet.import_key_set(jwks))
+    claims = decoded.claims
+    assert "name" not in claims
+
+
+async def test_access_token_omits_name_claim_when_profile_name_empty(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    verifier, challenge = _pkce()
+
+    # step 1: create user with profile but empty name
+    user = await create_user(session, "+919876543212")
+    await assign_role(session, user.id, "user")
+    profile = Profile(user_id=user.id, name="")
+    session.add(profile)
+    await session.flush()
+
+    # step 2: mint code for this user
+    client = await get_client(session, "web-agri")
+    assert client is not None
+    code = await create_authorization_code(
+        session,
+        user_id=user.id,
+        client=client,
+        redirect_uri=REDIRECT,
+        code_challenge=challenge,
+    )
+
+    # step 3: exchange at the real endpoint
+    response = await _exchange(http, code, verifier)
+    assert response.status_code == 200
+
+    # step 4: verify name claim is absent from the token (empty string is falsy)
+    jwks = (await http.get("/.well-known/jwks.json")).json()
+    decoded = jwt.decode(response.json()["access_token"], KeySet.import_key_set(jwks))
+    claims = decoded.claims
+    assert "name" not in claims
 
 
 # --- token endpoint rejections ------------------------------------------------

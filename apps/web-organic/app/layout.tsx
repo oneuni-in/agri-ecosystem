@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 
+import { SiteHeader } from "./site-header";
+
 /** Design Spec §1.1 switches brand tokens off this attribute. */
 const THEME: SiteTheme = "theme-organic";
 
@@ -20,7 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme={THEME} className={fontVariables}>
       <body>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <SiteHeader />
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

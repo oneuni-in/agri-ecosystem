@@ -22,5 +22,17 @@ export default defineConfig({
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
     },
+    {
+      command: "pnpm --filter @agri/web-milk dev",
+      url: "http://localhost:3000",
+      timeout: 180_000,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "pnpm --filter @agri/web-organic dev",
+      url: "http://localhost:3001",
+      timeout: 180_000,
+      reuseExistingServer: !process.env.CI,
+    },
   ],
 });

@@ -98,6 +98,6 @@ async def test_profile_defaults(db_session: AsyncSession) -> None:
     await db_session.flush()
     await db_session.refresh(profile)
 
-    assert profile.language == "en"
+    assert profile.language is None  # NULL = "not chosen yet"; API layers report "en"
     assert profile.interests == []
     assert profile.completion_score == 0

@@ -38,13 +38,14 @@ def device_fingerprint(user_agent: str | None, platform: str | None) -> str:
 
 @dataclass(frozen=True)
 class WebPrincipal:
-    """The resolved session identity routers act on. Internal-only shape -
-    response models re-expose agri_id and stringified session ids only."""
+    """The resolved identity routers act on. Internal-only shape - response
+    models re-expose agri_id and stringified session ids only. session_id is
+    None for bearer-token principals (D11): no web session exists to revoke."""
 
     user_id: uuid.UUID
     agri_id: str
     roles: tuple[str, ...]
-    session_id: uuid.UUID
+    session_id: uuid.UUID | None
     fingerprint: str | None
 
 

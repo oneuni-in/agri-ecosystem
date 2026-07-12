@@ -23,6 +23,7 @@ dependencies = [
     "authlib>=1.6",
     "joserfc>=1.0",
     "python-multipart>=0.0.9",
+    "minio>=7.2",
 ]
 
 [project.optional-dependencies]

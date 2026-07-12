@@ -228,9 +228,7 @@ class Profile(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     state: Mapped[str | None] = mapped_column(Text, nullable=True)
     district: Mapped[str | None] = mapped_column(Text, nullable=True)
     pincode: Mapped[str | None] = mapped_column(Text, nullable=True)
-    language: Mapped[str] = mapped_column(
-        user_language_enum, server_default=text("'en'"), nullable=False
-    )
+    language: Mapped[str | None] = mapped_column(user_language_enum, nullable=True)
     interests: Mapped[list[str]] = mapped_column(
         postgresql.JSONB, server_default=text("'[]'::jsonb"), nullable=False
     )

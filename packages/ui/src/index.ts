@@ -23,6 +23,8 @@ export type { OtpInputProps } from "./components/otp-input";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
 export { PincodeInput } from "./components/pincode-input";
 export type { PincodeInputProps } from "./components/pincode-input";
+export { ProfileNudge, clampScore } from "./components/profile-nudge";
+export type { ProfileNudgeProps } from "./components/profile-nudge";
 export { RatingStars } from "./components/rating-stars";
 export { SearchBar } from "./components/search-bar";
 export type { SearchBarProps } from "./components/search-bar";

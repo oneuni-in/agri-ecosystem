@@ -74,6 +74,7 @@ async def test_revoke_web_session_is_scoped_to_owner(db_session: AsyncSession) -
     sid = await create_web_session(db_session, user_id=alice.id, fingerprint="fp", ip=None)
     principal = await resolve_web_session(db_session, sid)
     assert principal is not None
+    assert principal.session_id is not None
     # bob cannot revoke alice's session
     assert not await revoke_web_session(db_session, session_id=principal.session_id, user_id=bob.id)
     assert await revoke_web_session(db_session, session_id=principal.session_id, user_id=alice.id)

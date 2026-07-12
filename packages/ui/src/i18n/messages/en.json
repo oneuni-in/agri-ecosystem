@@ -91,6 +91,38 @@
         "cancel": "Cancel",
         "revoked": "Device signed out",
         "logout": "Sign out"
+      },
+      "profile": {
+        "title": "Your profile",
+        "completion": "Profile {score}% complete",
+        "name": "Name",
+        "namePlaceholder": "Your name",
+        "save": "Save",
+        "saved": "Saved",
+        "location": "Location",
+        "pincodeHint": "Enter your 6-digit pincode — district and state fill in automatically",
+        "pincodeFind": "Find",
+        "unknownPincode": "We don't know that pincode yet",
+        "language": "Language",
+        "interests": "Interests",
+        "interestsHint": "Up to 10 — crops, livestock, anything agri",
+        "addInterest": "Add",
+        "interestPlaceholder": "e.g. paddy",
+        "removeInterest": "Remove {interest}",
+        "avatar": "Profile photo",
+        "avatarUpload": "Upload photo",
+        "avatarTooLarge": "Photo must be under 2 MB (JPG, PNG or WebP)",
+        "visibility": "What others can see",
+        "visibilityHint": "Your phone number is never public",
+        "visibilityKeys": {
+          "name": "Name",
+          "location": "Location",
+          "language": "Language",
+          "interests": "Interests",
+          "avatar": "Photo"
+        },
+        "devices": "Manage devices",
+        "error": "That didn't work — try again"
       }
     },
     "categories": {
@@ -99,6 +131,39 @@
       "loans": "Agri loans",
       "mandi": "Mandi prices",
       "vet": "Vet doctor"
+    },
+    "admin": {
+      "users": {
+        "title": "Users",
+        "searchLabel": "Search users",
+        "searchPlaceholder": "@handle or last 4 digits of phone",
+        "search": "Search",
+        "empty": "No users match",
+        "loadMore": "Load more",
+        "phoneEnding": "Phone ending {last4}",
+        "status": { "active": "Active", "suspended": "Suspended", "deleted": "Deleted" },
+        "roles": "Roles",
+        "addRole": "Add role",
+        "removeRole": "Remove {role}",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate",
+        "confirmSuspend": "Suspend {agriId}? All their sessions on every app are signed out immediately.",
+        "confirmReactivate": "Reactivate {agriId}? Suspension is lifted; they must sign in again.",
+        "cancel": "Cancel",
+        "suspended": "User suspended",
+        "reactivated": "User reactivated",
+        "roleAdded": "Role added",
+        "roleRemoved": "Role removed",
+        "completion": "Profile completion",
+        "location": "Location",
+        "language": "Language",
+        "interests": "Interests",
+        "error": "That didn't work — try again"
+      }
+    },
+    "profileNudge": {
+      "title": "Complete your profile — {score}%",
+      "cta": "Complete now"
     }
   }
 }

@@ -86,7 +86,8 @@ def _clear_session_cookie(response: Response) -> None:
 
 async def _language_for(session: AsyncSession, user_id: uuid.UUID) -> str:
     profile = await session.scalar(select(Profile).where(Profile.user_id == user_id))
-    return profile.language if profile is not None else "en"
+    language = profile.language if profile is not None else None
+    return language or "en"
 
 
 class LoginIn(BaseModel):
@@ -147,7 +148,10 @@ async def logout(
     principal: PrincipalDep, request: Request, response: Response, session: SessionDep
 ) -> StatusOut:
     """This device only: web session + refresh families minted from it."""
-    await revoke_web_session(session, session_id=principal.session_id, user_id=principal.user_id)
+    if principal.session_id is not None:
+        await revoke_web_session(
+            session, session_id=principal.session_id, user_id=principal.user_id
+        )
     if principal.fingerprint:
         await revoke_families_for_device(
             session, user_id=principal.user_id, fingerprint=principal.fingerprint

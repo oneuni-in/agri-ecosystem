@@ -9,12 +9,12 @@ export type { AgriAuthConfig } from "./config";
 export { resolveConfig } from "./config";
 export type { AgriUser } from "./session";
 export { createHandlers, readSession, safeNext } from "./handlers";
-export { getServerUser } from "./server";
+export { getServerUser, getAccessToken } from "./server";
 
 import type { AgriAuthConfig, ResolvedConfig } from "./config";
 import { resolveConfig } from "./config";
 import { createHandlers } from "./handlers";
-import { getServerUser } from "./server";
+import { getAccessToken, getServerUser } from "./server";
 import type { AgriUser } from "./session";
 
 export interface AgriAuth {
@@ -22,6 +22,9 @@ export interface AgriAuth {
   /** Read-only session view for RSC - never refreshes (route handlers own
    * cookie writes); a stale session reads as null and useAgriUser() heals it. */
   getServerUser(): Promise<AgriUser | null>;
+  /** Server-side only: bearer token for backend API calls. Stale -> null;
+   * call GET /api/auth/me to rotate, then retry once. */
+  getAccessToken(): Promise<string | null>;
 }
 
 export function createAgriAuth(config: AgriAuthConfig): AgriAuth {
@@ -44,5 +47,6 @@ export function createAgriAuth(config: AgriAuthConfig): AgriAuth {
       POST: async (req) => getHandlers().POST(req),
     },
     getServerUser: async () => getServerUser(cfg()),
+    getAccessToken: async () => getAccessToken(cfg()),
   };
 }

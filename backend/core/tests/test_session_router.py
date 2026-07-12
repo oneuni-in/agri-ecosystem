@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.identity.models import SessionRefresh, SessionWeb, User
+from modules.identity.models import Profile, SessionRefresh, SessionWeb, User
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.otp_service import issue_otp, verify_otp
 from modules.identity.session_limits import SESSION_COOKIE_NAME
@@ -164,3 +164,24 @@ async def test_logout_everywhere_one_request_cycle(
     assert len(web_rows) == 2 and all(r.revoked_at is not None for r in web_rows)
     assert all(r.revoked_at is not None for r in refresh_rows)
     assert (await http.get("/auth/me")).status_code == 401
+
+
+async def test_language_reports_en_until_explicitly_chosen(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """D11: profiles.language is NULL until chosen; APIs report "en" as the
+    effective language for both no-profile and language-less-profile users."""
+    http, session = api
+    # 1. brand-new user, no profile row at all
+    login = await _login(http, session)
+    assert login.json()["language"] == "en"
+    # 2. a profile row created WITHOUT a language (future name-only write)
+    user = (await session.scalars(select(User))).one()
+    session.add(Profile(user_id=user.id, language=None))
+    await session.flush()
+    me = await http.get("/auth/me")
+    assert me.status_code == 200
+    assert me.json()["language"] == "en"
+    # 3. explicit choice wins
+    assert (await http.post("/auth/language", json={"language": "ta"})).status_code == 200
+    assert (await http.get("/auth/me")).json()["language"] == "ta"

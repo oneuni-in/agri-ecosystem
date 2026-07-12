@@ -23,3 +23,8 @@ def normalize_phone(raw: str) -> str:
     if E164_RE.fullmatch(cleaned):
         return cleaned
     raise PhoneError("phone number is not E.164 and not a bare Indian mobile number")
+
+
+def phone_last4(phone: str) -> str:
+    """The only phone fragment admin surfaces may show (D11 non-negotiable 2)."""
+    return phone[-4:]

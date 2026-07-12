@@ -85,7 +85,11 @@ def upgrade() -> None:
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_rt') THEN
-                CREATE ROLE app_rt LOGIN NOSUPERUSER PASSWORD 'app_rt';
+                BEGIN
+                    CREATE ROLE app_rt LOGIN NOSUPERUSER PASSWORD 'app_rt';
+                EXCEPTION WHEN duplicate_object THEN
+                    NULL;  -- concurrent migration created it first
+                END;
             END IF;
         END
         $$

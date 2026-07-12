@@ -160,6 +160,10 @@
         "interests": "Interests",
         "error": "That didn't work — try again"
       }
+    },
+    "profileNudge": {
+      "title": "Complete your profile — {score}%",
+      "cta": "Complete now"
     }
   }
 }

@@ -29,6 +29,7 @@ import {
   PriceUnit,
   ProductCard,
   ProductGrid,
+  ProfileNudge,
   RatingStars,
   SearchBand,
   SearchBar,
@@ -387,6 +388,17 @@ export default async function DemoPage({
             <EcoPill href="#" gradient="organic" title="🌿 organicstore.in" sub="Certified organic brands & products" />
             <EcoPill href="#" gradient="coins" title="🪙 AgriCoins" sub="Your rewards: 1,240 coins" />
           </EcoStrip>
+        </Section>
+
+        {/* ═══ composite: profile nudge (D11) ═══ */}
+        <Section title="Profile nudge (D11)">
+          <ProfileNudge
+            score={60}
+            href="#"
+            title={t.en("profileNudge.title", { score: 60 })}
+            cta={t.en("profileNudge.cta")}
+            className="max-w-[420px]"
+          />
         </Section>
 
         {/* ═══ remaining primitives ═══ */}

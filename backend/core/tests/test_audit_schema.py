@@ -3,7 +3,10 @@
 the runtime role physically cannot UPDATE/DELETE audit rows)."""
 
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from settings import get_settings
 
 
 async def test_audit_entries_table_exists_with_chain_columns(db_session: AsyncSession) -> None:
@@ -40,3 +43,8 @@ async def test_app_rt_role_has_no_update_or_delete_on_audit(db_session: AsyncSes
     )
     privileges = {row[0] for row in rows}
     assert privileges == {"INSERT", "SELECT"}
+
+
+def test_runtime_url_is_app_rt_and_admin_url_is_app() -> None:
+    assert make_url(get_settings().database_url).username == "app_rt"
+    assert make_url(get_settings().database_admin_url).username == "app"

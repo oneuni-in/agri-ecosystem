@@ -24,7 +24,11 @@ class Settings(BaseSettings):
 
     # dev-only defaults; real values come from the environment
     # compose maps postgres to host port 55432 (5432 collides with native installs)
-    database_url: str = "postgresql+asyncpg://app:app@localhost:55432/agri"
+    # Runtime role (D12): app_rt has no UPDATE/DELETE on schema audit - the
+    # audit log's append-only guarantee is a grant, not a convention. The
+    # admin URL (table owner) is for alembic and the test harness only.
+    database_url: str = "postgresql+asyncpg://app_rt:app_rt@localhost:55432/agri"
+    database_admin_url: str = "postgresql+asyncpg://app:app@localhost:55432/agri"
     redis_url: str = "redis://localhost:6379/0"
     meilisearch_url: str = "http://localhost:7700"
     meilisearch_master_key: str = ""

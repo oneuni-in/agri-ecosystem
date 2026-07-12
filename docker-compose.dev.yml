@@ -7,7 +7,8 @@ services:
       - "8000:8000"
     environment:
       APP_ENV: dev
-      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/agri
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@postgres:5432/agri
+      DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@postgres:5432/agri
       REDIS_URL: redis://redis:6379/0
       MEILISEARCH_URL: http://meilisearch:7700
       MINIO_ENDPOINT: http://minio:9000

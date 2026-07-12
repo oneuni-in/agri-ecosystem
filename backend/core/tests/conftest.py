@@ -22,7 +22,7 @@ from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
 from settings import get_settings
 from shared.cache import reset_redis
-from shared.db import reset_engine
+from shared.db import Base, reset_engine
 from shared.flags import reset_flag_cache
 from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
@@ -50,9 +50,17 @@ def _reset_state() -> Iterator[None]:
 
 @pytest.fixture(scope="session")
 def database_url() -> str:
-    """Recreate and migrate the test database once per session; return its URL."""
-    admin_url = make_url(get_settings().database_url)
-    test_url = admin_url.set(database=TEST_DB_NAME).render_as_string(hide_password=False)
+    """Recreate and migrate the test database once per session; return its
+    runtime (app_rt) URL. DROP/CREATE and the alembic migration run with the
+    admin (table-owner) role; db_session and everything downstream connect
+    as app_rt, matching the app's runtime DB identity (D12)."""
+    admin_url = make_url(get_settings().database_admin_url)
+    admin_test_url = admin_url.set(database=TEST_DB_NAME).render_as_string(hide_password=False)
+    runtime_test_url = (
+        make_url(get_settings().database_url)
+        .set(database=TEST_DB_NAME)
+        .render_as_string(hide_password=False)
+    )
 
     async def _prepare() -> None:
         engine = create_async_engine(
@@ -72,17 +80,45 @@ def database_url() -> str:
 
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
-        env=os.environ | {"ALEMBIC_DATABASE_URL": test_url},
+        env=os.environ | {"ALEMBIC_DATABASE_URL": admin_test_url},
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         raise RuntimeError(f"alembic upgrade head failed on {TEST_DB_NAME}:\n{result.stderr}")
-    return test_url
+    return runtime_test_url
+
+
+@pytest.fixture(scope="session")
+def admin_database_url(database_url: str) -> str:
+    """Owner-credentials URL on the same migrated test DB (tamper tests only)."""
+    return (
+        make_url(get_settings().database_admin_url)
+        .set(database=TEST_DB_NAME)
+        .render_as_string(hide_password=False)
+    )
+
+
+@pytest.fixture(scope="session")
+def _scratch_tables_ready(admin_database_url: str) -> None:
+    """Several suites (test_mixins/test_slugs/test_pagination/test_ownership/
+    test_i18n) declare throwaway `test_*` model classes and create their
+    tables at runtime via `Base.metadata.create_all(checkfirst=True)`. Those
+    tables aren't part of any migration. Since app_rt (D12) has DML only, no
+    CREATE, provision them once per session with admin credentials; each
+    test's own create_all call then finds them already present and no-ops."""
+
+    async def _create() -> None:
+        engine = create_async_engine(admin_database_url, poolclass=NullPool)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    asyncio.run(_create())
 
 
 @pytest.fixture
-async def db_session(database_url: str) -> AsyncIterator[AsyncSession]:
+async def db_session(database_url: str, _scratch_tables_ready: None) -> AsyncIterator[AsyncSession]:
     """Session inside an outer transaction that always rolls back."""
     engine = create_async_engine(database_url, poolclass=NullPool)
     async with engine.connect() as conn:

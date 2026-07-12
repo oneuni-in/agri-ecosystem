@@ -89,7 +89,8 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@localhost:5432/agri
+      DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
@@ -223,7 +224,8 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@localhost:5432/agri
+      DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
     steps:

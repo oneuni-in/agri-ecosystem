@@ -148,7 +148,10 @@ async def logout(
     principal: PrincipalDep, request: Request, response: Response, session: SessionDep
 ) -> StatusOut:
     """This device only: web session + refresh families minted from it."""
-    await revoke_web_session(session, session_id=principal.session_id, user_id=principal.user_id)
+    if principal.session_id is not None:
+        await revoke_web_session(
+            session, session_id=principal.session_id, user_id=principal.user_id
+        )
     if principal.fingerprint:
         await revoke_families_for_device(
             session, user_id=principal.user_id, fingerprint=principal.fingerprint

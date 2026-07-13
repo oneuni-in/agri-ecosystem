@@ -30,11 +30,19 @@ def deterministic_key(
     rule_code: str, user_id: uuid.UUID, *, day: str | None = None, ref_id: str | None = None
 ) -> str:
     if rule_code == "daily_visit":
-        assert day is not None, "daily_visit requires a day (yyyy-mm-dd)"
+        if day is None:
+            raise ValueError("daily_visit requires a day (yyyy-mm-dd)")
         return f"daily_visit:{user_id}:{day}"
-    if rule_code in _ONCE_PER_USER and ref_id is None:
+    if rule_code in _ONCE_PER_USER:
+        # ref_id is intentionally ignored here: these rules are user-scoped
+        # once-ever (total_cap=1) and check_numeric_caps skips caps <= 1,
+        # relying entirely on this deterministic key + UNIQUE(idempotency_key)
+        # to enforce "once". If a caller-supplied ref_id were allowed to
+        # change the key, the same user could be credited more than once by
+        # simply varying ref_id - so the key must never depend on it.
         return f"{rule_code}:{user_id}"
-    assert ref_id is not None, f"{rule_code} requires an explicit ref_id for its idem key"
+    if ref_id is None:
+        raise ValueError(f"{rule_code} requires an explicit ref_id for its idem key")
     return f"{rule_code}:{ref_id}"
 
 

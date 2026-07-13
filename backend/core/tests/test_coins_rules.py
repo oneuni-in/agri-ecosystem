@@ -22,6 +22,19 @@ async def test_deterministic_keys() -> None:
     )
 
 
+async def test_once_rule_key_ignores_ref_id() -> None:
+    uid = uuid.uuid4()
+    for rule_code in ("signup_complete", "profile_100", "referral_referee"):
+        assert rules.deterministic_key(rule_code, uid, ref_id="anything") == f"{rule_code}:{uid}"
+
+
+async def test_non_once_rule_requires_ref_id() -> None:
+    uid = uuid.uuid4()
+    with pytest.raises(ValueError):
+        rules.deterministic_key("referral_referrer", uid)
+    assert rules.deterministic_key("referral_referrer", uid, ref_id="r1") == "referral_referrer:r1"
+
+
 async def test_award_once_rule_credits_once(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     key = rules.deterministic_key("signup_complete", uid)
@@ -95,6 +108,22 @@ async def test_window_gating_before_valid_from(db_session: AsyncSession) -> None
             rule_code="profile_100",
             ref_id="x",
             idempotency_key="k2",
+            now=NOW,
+        )
+
+
+async def test_window_gating_after_valid_to(db_session: AsyncSession) -> None:
+    r = await db_session.get(Rule, "profile_100")
+    assert r is not None
+    r.valid_to = NOW - timedelta(days=1)
+    await db_session.flush()
+    with pytest.raises(rules.RuleNotActiveError):
+        await service.award(
+            db_session,
+            user_id=uuid.uuid4(),
+            rule_code="profile_100",
+            ref_id="x",
+            idempotency_key="k3",
             now=NOW,
         )
 

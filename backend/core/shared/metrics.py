@@ -73,6 +73,19 @@ AUDIT_CHAIN_BREAKS = Counter(
     registry=registry,
 )
 
+NOTIFY_SENT = Counter(
+    "notify_sends_total",
+    "Notification channel outcomes",
+    ["channel", "status"],  # status: sent | failed | dead
+    registry=registry,
+)
+NOTIFY_DROPPED = Counter(
+    "notify_dropped_total",
+    "Notifications or channel sends suppressed before any driver call",
+    ["reason"],  # rate_cap | preference | flag | no_destination
+    registry=registry,
+)
+
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
     REQUESTS.labels(method, route, str(status)).inc()
@@ -96,5 +109,7 @@ def reset_metrics() -> None:
         OTP_SEND_COST,
         AUDIT_CHAIN_DAYS_VERIFIED,
         AUDIT_CHAIN_BREAKS,
+        NOTIFY_SENT,
+        NOTIFY_DROPPED,
     ):
         metric.clear()

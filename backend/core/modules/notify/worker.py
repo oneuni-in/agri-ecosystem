@@ -32,7 +32,12 @@ async def run_worker(stop: asyncio.Event, *, poll_interval: float = 2.0) -> None
                             await session.commit()
                         await consumer.ack(event)
                     except Exception as exc:
-                        # unacked -> redelivered; >= max_deliveries -> :dlq
+                        # stays in the group's PEL unacked. KNOWN GAP: read()
+                        # only fetches new messages (">") and reap_poison()
+                        # needs times_delivered >= 3, so a once-failed event
+                        # is never retried nor DLQ'd - needs idle-based
+                        # XAUTOCLAIM in EventConsumer before this worker
+                        # handles real traffic (pre-VPS fast-follow).
                         logger.warning(
                             "notify.event_failed",
                             extra={

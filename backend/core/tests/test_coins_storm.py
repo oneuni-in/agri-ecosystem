@@ -18,6 +18,7 @@ N = 10_000
 CONCURRENCY = 32  # bound simultaneous connections; asyncio queues the rest
 
 
+@pytest.mark.slow
 async def test_storm_no_drift_no_negative(database_url: str) -> None:
     engine = create_async_engine(database_url, poolclass=NullPool)
     maker = async_sessionmaker(engine, expire_on_commit=False)

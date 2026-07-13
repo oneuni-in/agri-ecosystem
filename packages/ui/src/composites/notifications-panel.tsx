@@ -5,7 +5,7 @@
  * mark-read. Data access is injected so web-id (cookie rewrite) and the
  * public apps (bearer BFF proxy) reuse one component.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "../components/button";
 import { Card } from "../components/card";
@@ -38,6 +38,7 @@ export function NotificationsPanel({
   api,
   strings,
 }: {
+  /** May be a new object identity on every render — do not put it in a dep array. */
   api: NotificationsApi;
   strings: NotificationsStrings;
 }) {
@@ -45,41 +46,40 @@ export function NotificationsPanel({
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(
-    async (after?: string) => {
-      const page = await api.list(after);
-      setItems((prev) => (after && prev ? [...prev, ...page.items] : page.items));
-      setCursor(page.next_cursor);
-    },
-    [api],
-  );
+  const apiRef = useRef(api);
+  useEffect(() => {
+    apiRef.current = api;
+  });
+
+  const load = useCallback(async (after?: string) => {
+    const page = await apiRef.current.list(after);
+    setItems((prev) => (after && prev ? [...prev, ...page.items] : page.items));
+    setCursor(page.next_cursor);
+  }, []);
 
   useEffect(() => {
     void load().catch(() => setItems([]));
   }, [load]);
 
-  const markRead = useCallback(
-    async (id: string) => {
-      await api.markRead(id);
-      setItems((prev) =>
-        prev
-          ? prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
-          : prev,
-      );
-    },
-    [api],
-  );
+  const markRead = useCallback(async (id: string) => {
+    await apiRef.current.markRead(id);
+    setItems((prev) =>
+      prev
+        ? prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
+        : prev,
+    );
+  }, []);
 
   const markAllRead = useCallback(async () => {
     setBusy(true);
     try {
-      await api.markAllRead();
+      await apiRef.current.markAllRead();
       const stamp = new Date().toISOString();
       setItems((prev) => (prev ? prev.map((n) => ({ ...n, read_at: n.read_at ?? stamp })) : prev));
     } finally {
       setBusy(false);
     }
-  }, [api]);
+  }, []);
 
   if (items === null) {
     return (
@@ -97,7 +97,12 @@ export function NotificationsPanel({
     <section aria-label={strings.title}>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-[18px] font-extrabold text-ink">{strings.title}</h2>
-        <Button variant="ghost" disabled={busy} onClick={() => void markAllRead()}>
+        <Button
+          variant="ghost"
+          className="flex-none"
+          disabled={busy}
+          onClick={() => void markAllRead()}
+        >
           {strings.markAllRead}
         </Button>
       </div>
@@ -114,7 +119,7 @@ export function NotificationsPanel({
                 </time>
               </div>
               {item.read_at === null ? (
-                <Button variant="ghost" onClick={() => void markRead(item.id)}>
+                <Button variant="ghost" className="flex-none" onClick={() => void markRead(item.id)}>
                   {strings.markRead}
                 </Button>
               ) : null}
@@ -124,7 +129,7 @@ export function NotificationsPanel({
       </ul>
       {cursor ? (
         <div className="mt-3 flex justify-center">
-          <Button variant="ghost" onClick={() => void load(cursor)}>
+          <Button variant="ghost" className="flex-none" onClick={() => void load(cursor)}>
             {strings.loadMore}
           </Button>
         </div>

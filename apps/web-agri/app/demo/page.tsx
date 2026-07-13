@@ -24,6 +24,7 @@ import {
   ListingCard,
   LocationPill,
   Modal,
+  NotificationBell,
   PincodeHero,
   PincodeInput,
   PriceUnit,
@@ -49,6 +50,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
 
 export const metadata: Metadata = buildMetadata({
@@ -399,6 +401,30 @@ export default async function DemoPage({
             cta={t.en("profileNudge.cta")}
             className="max-w-[420px]"
           />
+        </Section>
+
+        {/* ═══ notification center (D12) ═══ */}
+        <Section title="Notifications (D12)">
+          <Label>Bell — HeaderStack right slot</Label>
+          <div className="overflow-hidden rounded-band bg-header-gradient p-4">
+            <div className="flex items-center gap-3">
+              <NotificationBell label={t.en("notifications.bell")} unread={0} />
+              <NotificationBell label={t.en("notifications.bell")} unread={3} />
+              <NotificationBell label={t.en("notifications.bell")} unread={120} />
+            </div>
+          </div>
+          <Label>Panel</Label>
+          <div className="max-w-[560px]">
+            <NotificationsPanelDemo
+              strings={{
+                title: t.en("notifications.title"),
+                empty: t.en("notifications.empty"),
+                markAllRead: t.en("notifications.markAllRead"),
+                markRead: t.en("notifications.markRead"),
+                loadMore: t.en("notifications.loadMore"),
+              }}
+            />
+          </div>
         </Section>
 
         {/* ═══ remaining primitives ═══ */}

@@ -164,6 +164,14 @@
     "profileNudge": {
       "title": "Complete your profile — {score}%",
       "cta": "Complete now"
+    },
+    "notifications": {
+      "bell": "Notifications",
+      "title": "Notifications",
+      "empty": "You're all caught up.",
+      "markAllRead": "Mark all read",
+      "markRead": "Mark read",
+      "loadMore": "Load more"
     }
   }
 }

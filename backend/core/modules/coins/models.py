@@ -9,7 +9,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Integer, Text, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    text,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,7 +36,11 @@ class LedgerEntry(UUIDv7PKMixin, Base):
     """Append-only. Never updated or deleted (DB trigger + revoked grants)."""
 
     __tablename__ = "ledger_entries"
-    __table_args__ = (CheckConstraint("delta <> 0", name="delta_nonzero"), {"schema": "coins"})
+    __table_args__ = (
+        CheckConstraint("delta <> 0", name="delta_nonzero"),
+        Index("ix_coins_ledger_entries_user_id_id", "user_id", "id"),
+        {"schema": "coins"},
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
     delta: Mapped[int] = mapped_column(BigInteger, nullable=False)

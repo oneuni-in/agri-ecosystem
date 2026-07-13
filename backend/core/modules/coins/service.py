@@ -15,11 +15,13 @@ Concurrency + idempotency invariants:
 """
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.coins import rules
 from modules.coins.models import Balance, LedgerEntry
 from shared.pagination import Page, paginate
 
@@ -123,4 +125,27 @@ async def history(
         select(LedgerEntry).where(LedgerEntry.user_id == user_id),
         cursor=cursor,
         limit=limit,
+    )
+
+
+async def award(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    rule_code: str,
+    ref_id: str | None,
+    idempotency_key: str,
+    now: datetime,
+) -> LedgerEntry:
+    """Rules-gated award - the ONLY sanctioned award path (no cap bypass)."""
+    rule = await rules.load_active_rule(session, rule_code, now)
+    await rules.check_numeric_caps(session, rule, user_id, now)
+    return await record_entry(
+        session,
+        user_id=user_id,
+        delta=rule.amount,
+        reason_code=rule_code,
+        ref_type="rule",
+        ref_id=ref_id,
+        idempotency_key=idempotency_key,
     )

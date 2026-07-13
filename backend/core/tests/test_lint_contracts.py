@@ -56,7 +56,10 @@ def test_no_offset_pagination_anywhere_in_app_code() -> None:
 def test_ledger_write_ban_fires_on_fixture() -> None:
     fixture = Path(__file__).parent / "fixtures" / "ledger_write_violation.py.txt"
     assert len(check_ledger_writes([fixture], allow={fixture})) == 0  # allowlisted -> clean
-    assert len(check_ledger_writes([fixture], allow=set())) == 2
+    violations = check_ledger_writes([fixture], allow=set())
+    # ORM instantiation, raw INSERT, Core insert(), and bulk_insert_mappings()
+    assert len(violations) == 4
+    assert all("ledger_write_violation.py.txt:" in violation for violation in violations)
 
 
 def test_no_ledger_writes_outside_service() -> None:

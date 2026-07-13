@@ -74,6 +74,15 @@ class Settings(BaseSettings):
     msg91_template_verify_email: str = ""
     msg91_template_sensitive_action: str = ""
 
+    # Notify engine (D12). Email is mock by default; the ZeptoMail driver is
+    # additionally gated by the notify.email_enabled DB flag. The hourly cap
+    # is the harassment brake from the threat model.
+    email_provider: Literal["mock", "zeptomail"] = "mock"
+    zeptomail_token: str = ""
+    zeptomail_from: str = "no-reply@agri.in"
+    notify_user_hourly_cap: int = 30
+    notify_worker_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

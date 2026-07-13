@@ -20,6 +20,7 @@ from sqlalchemy.pool import NullPool
 from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
+from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import Base, reset_engine
@@ -46,6 +47,8 @@ def _reset_state() -> Iterator[None]:
     reset_oauth_keys()
     reset_principal_resolver()
     reset_permission_cache()
+    MockEmailDriver.reset()
+    MockNotifySmsDriver.reset()
 
 
 @pytest.fixture(scope="session")

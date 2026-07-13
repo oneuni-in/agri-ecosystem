@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import service
 from modules.coins.models import LedgerEntry
@@ -11,13 +12,16 @@ from modules.coins.models import LedgerEntry
 pytestmark = pytest.mark.asyncio
 
 
-async def _count(session, user_id):
-    return await session.scalar(
-        select(func.count()).select_from(LedgerEntry).where(LedgerEntry.user_id == user_id)
+async def _count(session: AsyncSession, user_id: uuid.UUID) -> int:
+    return (
+        await session.scalar(
+            select(func.count()).select_from(LedgerEntry).where(LedgerEntry.user_id == user_id)
+        )
+        or 0
     )
 
 
-async def test_award_then_balance(db_session):
+async def test_award_then_balance(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     await service.record_entry(
         db_session,
@@ -31,7 +35,7 @@ async def test_award_then_balance(db_session):
     assert await service.balance(db_session, uid) == 100
 
 
-async def test_same_idempotency_key_credits_once(db_session):
+async def test_same_idempotency_key_credits_once(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     key = f"once:{uid}"
     e1 = await service.record_entry(
@@ -57,7 +61,7 @@ async def test_same_idempotency_key_credits_once(db_session):
     assert await service.balance(db_session, uid) == 100
 
 
-async def test_redeem_success(db_session):
+async def test_redeem_success(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     await service.record_entry(
         db_session,
@@ -79,7 +83,7 @@ async def test_redeem_success(db_session):
     assert await service.balance(db_session, uid) == 70
 
 
-async def test_redeem_to_exactly_zero(db_session):
+async def test_redeem_to_exactly_zero(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     await service.record_entry(
         db_session,
@@ -102,7 +106,7 @@ async def test_redeem_to_exactly_zero(db_session):
     assert await _count(db_session, uid) == 2
 
 
-async def test_redeem_insufficient_raises_and_persists_nothing(db_session):
+async def test_redeem_insufficient_raises_and_persists_nothing(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     await service.record_entry(
         db_session,
@@ -126,7 +130,7 @@ async def test_redeem_insufficient_raises_and_persists_nothing(db_session):
     assert await _count(db_session, uid) == 1  # the failed redeem left no row
 
 
-async def test_history_is_keyset_paginated(db_session):
+async def test_history_is_keyset_paginated(db_session: AsyncSession) -> None:
     uid = uuid.uuid4()
     for i in range(3):
         await service.record_entry(

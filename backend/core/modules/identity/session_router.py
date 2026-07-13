@@ -48,6 +48,7 @@ from modules.identity.session_service import (
     revoke_web_session,
 )
 from shared.db import get_session
+from shared.events import publish
 from shared.pagination import Page, paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
@@ -59,6 +60,7 @@ session_router = SecureRouter(prefix="/auth", tags=["auth-session"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 AG_FALLBACK_PREFIX = "AG-"
+EVENT_STREAM = "identity"
 
 
 def _fingerprint(request: Request) -> str:
@@ -93,6 +95,7 @@ async def _language_for(session: AsyncSession, user_id: uuid.UUID) -> str:
 class LoginIn(BaseModel):
     otp_proof: str
     device_label: str | None = Field(default=None, max_length=DEVICE_LABEL_MAX_CHARS)
+    referral_code: str | None = Field(default=None, max_length=16)
 
 
 class LoginOut(IdentityPublicSchema):
@@ -130,6 +133,28 @@ async def login(
         device_label=body.device_label,
     )
     _set_session_cookie(response, sid)
+    if is_new_user:
+        # commit BEFORE announcing (mirrors profile_router._commit_and_announce):
+        # a user.registered for a rolled-back signup would hand the D13 coins
+        # worker a user_id that never existed. Best-effort after that - a
+        # Redis blip must never fail a real signup.
+        await session.commit()
+        try:
+            await publish(
+                EVENT_STREAM,
+                "user.registered",
+                {
+                    "user_id": str(user.id),
+                    "agri_id": user.agri_id,
+                    "referral_code": body.referral_code,
+                    "phone_prefix": phone[:4],
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                "user.registered.publish_failed",
+                extra={"extra_fields": {"exc_type": type(exc).__name__}},
+            )
     return LoginOut(
         is_new_user=is_new_user,
         agri_id=user.agri_id,

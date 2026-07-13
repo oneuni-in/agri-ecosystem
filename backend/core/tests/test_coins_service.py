@@ -79,6 +79,29 @@ async def test_redeem_success(db_session):
     assert await service.balance(db_session, uid) == 70
 
 
+async def test_redeem_to_exactly_zero(db_session):
+    uid = uuid.uuid4()
+    await service.record_entry(
+        db_session,
+        user_id=uid,
+        delta=30,
+        reason_code="r",
+        ref_type="rule",
+        ref_id=None,
+        idempotency_key=f"az:{uid}",
+    )
+    await service.redeem(
+        db_session,
+        user_id=uid,
+        amount=30,
+        reason_code="spend",
+        ref_id=None,
+        idempotency_key=f"rdz:{uid}",
+    )
+    assert await service.balance(db_session, uid) == 0
+    assert await _count(db_session, uid) == 2
+
+
 async def test_redeem_insufficient_raises_and_persists_nothing(db_session):
     uid = uuid.uuid4()
     await service.record_entry(

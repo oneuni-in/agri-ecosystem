@@ -29,6 +29,16 @@ from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
 from shared.storage import reset_storage
 
+# D12: the notify lifespan worker is gated on `notify_worker_enabled and
+# app_env != "test"`, but APP_ENV is never set to "test" here or in CI's
+# pytest job (ci.yml pytest step; see test_settings.py which pins the "dev"
+# default) - only the explicit-otp_test_peek code path cares about "test" as
+# a value. Without this, `with TestClient(create_app())` in test_main.py/
+# test_metrics.py would boot a real background worker (real DB/redis, not
+# the per-test fixtures) on every run. setdefault() so a test that wants the
+# worker can still monkeypatch+cache_clear around it.
+os.environ.setdefault("NOTIFY_WORKER_ENABLED", "false")
+
 TEST_DB_NAME = "agri_test"
 TEST_REDIS_DB = 9
 

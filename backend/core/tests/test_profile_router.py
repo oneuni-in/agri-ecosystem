@@ -3,6 +3,7 @@ toggles, live score, and exactly-one profile.completed per crossing."""
 
 from collections.abc import AsyncIterator
 from decimal import Decimal
+from typing import cast
 
 import httpx
 import pytest
@@ -157,23 +158,27 @@ async def test_completed_event_exactly_once_per_crossing(
     monkeypatch.setattr(storage, "put_object", fake_put_object)
     http, session = api
     await _login(http, session, phone=PHONE)
+    # D12: first login for a new phone publishes identity.signup_completed -
+    # the baseline below accounts for that one entry, not zero.
+    assert await redis_client.xlen("identity") == 1
     await http.patch(
         "/identity/profile",
         json={"name": "Asha", "language": "ta", "interests": ["paddy"], "pincode": geo_row},
     )
-    assert await redis_client.xlen("identity") == 0  # 85: not complete yet
+    assert await redis_client.xlen("identity") == 1  # 85: not complete yet
     jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
     upload = await http.post(
         "/identity/profile/avatar", files={"file": ("me.jpg", jpeg, "image/jpeg")}
     )
     assert upload.status_code == 200
     assert upload.json()["completion_score"] == 100
-    entries = await redis_client.xrange("identity")
+    entries = cast(list[tuple[str, dict[str, str]]], await redis_client.xrange("identity"))
     assert entries is not None
-    assert len(entries) == 1 and entries[0][1]["type"] == "profile.completed"  # type: ignore[index]
+    types = [fields["type"] for _id, fields in entries]
+    assert types == ["identity.signup_completed", "profile.completed"]
     # Same state again: no second crossing, no second event.
     await http.patch("/identity/profile", json={"name": "Asha Again"})
-    assert await redis_client.xlen("identity") == 1
+    assert await redis_client.xlen("identity") == 2
 
 
 async def test_avatar_upload_stores_and_scores(

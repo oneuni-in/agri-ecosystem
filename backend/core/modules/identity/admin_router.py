@@ -36,11 +36,14 @@ from modules.identity.session_auth import PrincipalDep
 from modules.identity.session_service import WebPrincipal, revoke_everything
 from shared.audit import audit
 from shared.db import get_session
+from shared.events import publish
 from shared.pagination import paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
+
+EVENT_STREAM = "identity"
 
 admin_router = SecureRouter(prefix="/admin", tags=["admin"])
 
@@ -243,6 +246,29 @@ async def add_role(
     await _audit(
         session, request, "admin.role_assigned", actor=principal, target=user, role=body.role
     )
+    # commit BEFORE announcing (session_router/profile_router precedent): an
+    # event for a rolled-back role change must not exist. After commit, the
+    # publish is best-effort. Locale/email enrichment is deliberately skipped
+    # for admin-initiated events - in-app only per EVENT_ROUTES.
+    await session.commit()
+    try:
+        await publish(
+            EVENT_STREAM,
+            "identity.role_changed",
+            {
+                "user_id": str(user.id),
+                "agri_id": user.agri_id,
+                "locale": "en",
+                "email": None,
+                "phone": None,
+                "vars": {"role": body.role},
+            },
+        )
+    except Exception as exc:
+        logger.warning(
+            "identity.event_publish_failed",
+            extra={"extra_fields": {"exc_type": type(exc).__name__}},
+        )
     return await _roles_out(session, user)
 
 

@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.identity.backchannel import notify_logout_everywhere
 from modules.identity.handles import HandleError, can_change_handle, validate_handle
 from modules.identity.models import (
+    Email,
     HandleHistory,
     OAuthClient,
     Profile,
@@ -49,11 +50,14 @@ from modules.identity.session_service import (
 )
 from shared.audit import audit
 from shared.db import get_session
+from shared.events import publish
 from shared.pagination import Page, paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
+
+EVENT_STREAM = "identity"
 
 session_router = SecureRouter(prefix="/auth", tags=["auth-session"])
 
@@ -123,20 +127,60 @@ async def login(
     if user.status != "active":
         # the proof is already burned (GETDEL) - nothing to roll back
         raise HTTPException(status_code=403, detail="account_unavailable")
+    # BEFORE create_web_session: the new session row below would otherwise
+    # always make this fingerprint "known" (it's the one we're about to insert).
+    fingerprint = _fingerprint(request)
+    known_device = await session.scalar(
+        select(SessionWeb.id)
+        .where(SessionWeb.user_id == user.id, SessionWeb.device_fingerprint == fingerprint)
+        .limit(1)
+    )
     sid = await create_web_session(
         session,
         user_id=user.id,
-        fingerprint=_fingerprint(request),
+        fingerprint=fingerprint,
         ip=request.client.host if request.client else None,
         device_label=body.device_label,
     )
     _set_session_cookie(response, sid)
+    # commit BEFORE announcing (profile.completed precedent): an event for a
+    # rolled-back login must not exist. After commit, publish is best-effort.
+    language = await _language_for(session, user.id)
+    email = await session.scalar(
+        select(Email.email).where(Email.user_id == user.id, Email.verified_at.is_not(None))
+    )
+    await session.commit()
+    event_payload = {
+        "user_id": str(user.id),
+        "agri_id": user.agri_id,
+        "locale": language,
+        "email": email,
+        "phone": None,  # notify-SMS is mock-only; the phone stays out of the bus for now
+    }
+    try:
+        if is_new_user:
+            await publish(
+                EVENT_STREAM,
+                "identity.signup_completed",
+                {**event_payload, "vars": {"agri_id": user.agri_id}},
+            )
+        elif known_device is None:
+            await publish(
+                EVENT_STREAM,
+                "identity.login_new_device",
+                {**event_payload, "vars": {"device": body.device_label or "a new device"}},
+            )
+    except Exception as exc:
+        logger.warning(
+            "identity.event_publish_failed",
+            extra={"extra_fields": {"exc_type": type(exc).__name__}},
+        )
     return LoginOut(
         is_new_user=is_new_user,
         agri_id=user.agri_id,
         handle_is_fallback=user.agri_id.startswith(AG_FALLBACK_PREFIX)
         and not user.agri_id_changed_once,
-        language=await _language_for(session, user.id),
+        language=language,
     )
 
 

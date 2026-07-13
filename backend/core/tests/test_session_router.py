@@ -1,7 +1,12 @@
 """D09.A/C at the HTTP layer: login (new + returning), cookie discipline,
-fixation, suspended deny, logout, logout-everywhere in one request."""
+fixation, suspended deny, logout, logout-everywhere in one request.
 
+D12: login() also announces signup/new-device events on the "identity"
+stream (best-effort, after commit) - covered at the bottom of this file."""
+
+import json
 from collections.abc import AsyncIterator
+from typing import cast
 
 import httpx
 import pytest
@@ -185,3 +190,52 @@ async def test_language_reports_en_until_explicitly_chosen(
     # 3. explicit choice wins
     assert (await http.post("/auth/language", json={"language": "ta"})).status_code == 200
     assert (await http.get("/auth/me")).json()["language"] == "ta"
+
+
+def _stream_entries(raw: list[tuple[str, dict[str, str]]]) -> list[dict[str, object]]:
+    return [{"type": fields["type"], **json.loads(fields["payload"])} for _id, fields in raw]
+
+
+async def test_first_login_publishes_signup_completed_event(
+    api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
+) -> None:
+    """_otp_proof() flushes redis before each login, so whatever lands on the
+    "identity" stream after ONE login is that login's publish only."""
+    http, session = api
+    login = await _login(http, session)
+    raw = cast(list[tuple[str, dict[str, str]]], await otp_redis.xrange("identity", "-", "+"))
+    entries = _stream_entries(raw)
+    assert len(entries) == 1
+    event = entries[0]
+    assert event["type"] == "identity.signup_completed"
+    assert event["agri_id"] == login.json()["agri_id"]
+    assert event["phone"] is None
+    assert PHONE not in json.dumps(event)
+
+
+async def test_second_login_same_device_publishes_nothing(
+    api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
+) -> None:
+    http, session = api
+    await _login(http, session)  # signup event, wiped by the next login's redis flush
+    await _login(http, session)  # same UA/platform -> same fingerprint -> known device
+    entries = await otp_redis.xrange("identity", "-", "+")
+    assert entries == []
+
+
+async def test_second_login_different_device_publishes_new_device_event(
+    api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
+) -> None:
+    http, session = api
+    await _login(http, session)  # signup event, wiped by the next login's redis flush
+    http.headers.update({"user-agent": "pytest-browser-2", "sec-ch-ua-platform": '"macOS"'})
+    second = await _login(http, session)
+    assert second.json()["is_new_user"] is False
+    raw = cast(list[tuple[str, dict[str, str]]], await otp_redis.xrange("identity", "-", "+"))
+    entries = _stream_entries(raw)
+    assert len(entries) == 1
+    event = entries[0]
+    assert event["type"] == "identity.login_new_device"
+    assert event["agri_id"] == second.json()["agri_id"]
+    assert event["phone"] is None
+    assert PHONE not in json.dumps(event)

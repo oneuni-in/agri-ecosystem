@@ -2,9 +2,11 @@
 admin response, suspension kills access within one request cycle, super_admin
 assignment requires super_admin."""
 
+import json
 import time
 import uuid
 from collections.abc import AsyncIterator
+from typing import cast
 
 import httpx
 import pytest
@@ -21,7 +23,7 @@ from modules.identity.rbac import reset_permission_cache
 from modules.identity.service import assign_role
 from settings import get_settings
 from shared.db import get_session
-from tests.test_session_router import UA, _login
+from tests.test_session_router import UA, _login, _stream_entries
 
 ADMIN_PHONE = "+919876533333"
 TARGET_PHONE = "+919876544444"
@@ -138,6 +140,28 @@ async def test_role_assign_remove_and_unknowns(
     assert not_assigned.status_code == 404
     ghost = await http.post("/admin/users/does_not_exist/roles", json={"role": "farmer"})
     assert ghost.status_code == 404
+
+
+async def test_add_role_publishes_role_changed_event(
+    api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
+) -> None:
+    """add_role's best-effort publish (commit-then-announce) must land exactly
+    one identity.role_changed entry on the "identity" stream, carrying the
+    assigned role and the target's agri_id - never their phone."""
+    http, session = api
+    target = await _make_target(http, session)
+    await _login_admin(http, session, role="super_admin")
+    assigned = await http.post(f"/admin/users/{target.agri_id}/roles", json={"role": "farmer"})
+    assert assigned.status_code == 200 and "farmer" in assigned.json()["roles"]
+
+    raw = cast(list[tuple[str, dict[str, str]]], await otp_redis.xrange("identity", "-", "+"))
+    entries = _stream_entries(raw)
+    role_changed = [e for e in entries if e["type"] == "identity.role_changed"]
+    assert len(role_changed) == 1
+    event = role_changed[0]
+    assert event["agri_id"] == target.agri_id
+    assert event["vars"] == {"role": "farmer"}
+    assert TARGET_PHONE not in json.dumps(event)
 
 
 async def test_super_admin_assignment_requires_super_admin(

@@ -1,4 +1,4 @@
-import { AuthCluster } from "@agri/auth-client/react";
+import { AuthCluster, NotificationBellIsland } from "@agri/auth-client/react";
 import { HeaderStack, LocationPill } from "@agri/ui";
 
 export function SiteHeader() {
@@ -11,7 +11,12 @@ export function SiteHeader() {
           📍 <span className="max-sm:hidden">Coimbatore</span> ▾
         </LocationPill>
       }
-      right={<AuthCluster />}
+      right={
+        <>
+          <NotificationBellIsland basePath="/api/notify" href="/notifications" label="Notifications" />
+          <AuthCluster />
+        </>
+      }
     />
   );
 }

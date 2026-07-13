@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 
+import { NotificationBellWidget } from "./notification-bell";
+
 /** Design Spec §1.1 switches brand tokens off this attribute. */
 const THEME: SiteTheme = "theme-agri";
 
@@ -22,7 +24,12 @@ export default function RootLayout({
     <html lang="en" data-theme={THEME} className={fontVariables}>
       <body>
         <NextIntlClientProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <div className="flex justify-end bg-header-gradient px-4 py-2">
+              <NotificationBellWidget />
+            </div>
+            {children}
+          </ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

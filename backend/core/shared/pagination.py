@@ -57,12 +57,14 @@ async def paginate[T: HasId](
     *,
     cursor: str | None = None,
     limit: int = DEFAULT_PAGE_SIZE,
+    descending: bool = False,
 ) -> Page[T]:
     """Return one keyset page of an id-ordered model query.
 
     The query must select a single ORM entity with an ``id`` primary key
     (every table built on UUIDv7PKMixin qualifies). Ordering is applied here;
-    callers must not order the query themselves.
+    callers must not order the query themselves. descending=True pages
+    newest-first (notifications).
     """
     if limit < 1:
         raise ValueError(f"limit must be >= 1, got {limit}")
@@ -75,8 +77,10 @@ async def paginate[T: HasId](
 
     stmt = query
     if cursor is not None:
-        stmt = stmt.where(id_column > decode_cursor(cursor))
-    stmt = stmt.order_by(id_column).limit(limit + 1)
+        last_seen = decode_cursor(cursor)
+        stmt = stmt.where(id_column < last_seen if descending else id_column > last_seen)
+    order_col = id_column.desc() if descending else id_column
+    stmt = stmt.order_by(order_col).limit(limit + 1)
 
     rows = (await session.scalars(stmt)).all()
     items = list(rows[:limit])

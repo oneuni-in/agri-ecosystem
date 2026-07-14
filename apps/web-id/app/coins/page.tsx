@@ -53,14 +53,14 @@ export default async function CoinsHistoryPage({
     fetch(`${API}/coins/referral-code`, { headers: cookieHeader, cache: "no-store" }),
   ]);
 
-  if (balanceRes.status === 401 || historyRes.status === 401 || referralRes.status === 401) {
-    redirect("/login?next=/coins");
-  }
-  if (!balanceRes.ok || !historyRes.ok || !referralRes.ok) redirect("/login?next=/coins");
+  if (balanceRes.status === 401 || historyRes.status === 401) redirect("/login?next=/coins");
+  if (!balanceRes.ok || !historyRes.ok) redirect("/login?next=/coins");
 
   const { balance } = (await balanceRes.json()) as { balance: number };
   const history = (await historyRes.json()) as CoinsHistoryResponse;
-  const { code: referralCode } = (await referralRes.json()) as { code: string };
+  const referralCode = referralRes.ok
+    ? ((await referralRes.json()) as { code?: string }).code ?? null
+    : null;
 
   const t = await getTranslations();
 
@@ -74,17 +74,19 @@ export default async function CoinsHistoryPage({
         <CoinsPill amount={balance.toLocaleString()} />
       </header>
 
-      <Card className="flex flex-col gap-2 p-4">
-        <h2 className="font-display text-base font-bold text-ink">
-          {t("ui.coins.referralTitle")}
-        </h2>
-        <p className="font-mono text-2xl font-extrabold tracking-[.1em] text-ink">
-          {referralCode}
-        </p>
-        <p className="text-xs font-bold text-sub">{t("ui.coins.referralShare")}</p>
-        <p className="break-all text-sm text-ink">{`/login?ref=${referralCode}`}</p>
-        <p className="text-xs text-sub">{t("ui.coins.referralHint")}</p>
-      </Card>
+      {referralCode && (
+        <Card className="flex flex-col gap-2 p-4">
+          <h2 className="font-display text-base font-bold text-ink">
+            {t("ui.coins.referralTitle")}
+          </h2>
+          <p className="font-mono text-2xl font-extrabold tracking-[.1em] text-ink">
+            {referralCode}
+          </p>
+          <p className="text-xs font-bold text-sub">{t("ui.coins.referralShare")}</p>
+          <a href={`/login?ref=${referralCode}`} className="break-all text-sm text-ink">{`/login?ref=${referralCode}`}</a>
+          <p className="text-xs text-sub">{t("ui.coins.referralHint")}</p>
+        </Card>
+      )}
 
       {history.items.length === 0 ? (
         <EmptyState icon="🪙" title={t("ui.coins.empty")} />

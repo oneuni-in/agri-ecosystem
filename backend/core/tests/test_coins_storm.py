@@ -1,6 +1,7 @@
 """DoD non-negotiable: 10k parallel award/redeem on ONE user -> exact final
 balance, zero drift, zero negative. Uses a real committing engine so writers
 actually contend on the per-user balance row lock."""
+
 import asyncio
 import uuid
 
@@ -35,11 +36,24 @@ async def test_storm_no_drift_no_negative(database_url: str) -> None:
         async with sem, maker() as s:
             try:
                 if is_award:
-                    await service.record_entry(s, user_id=uid, delta=10, reason_code="storm",
-                                               ref_type="rule", ref_id=None, idempotency_key=key)
+                    await service.record_entry(
+                        s,
+                        user_id=uid,
+                        delta=10,
+                        reason_code="storm",
+                        ref_type="rule",
+                        ref_id=None,
+                        idempotency_key=key,
+                    )
                 else:
-                    await service.redeem(s, user_id=uid, amount=5, reason_code="storm",
-                                         ref_id=None, idempotency_key=key)
+                    await service.redeem(
+                        s,
+                        user_id=uid,
+                        amount=5,
+                        reason_code="storm",
+                        ref_id=None,
+                        idempotency_key=key,
+                    )
                 await s.commit()
                 async with lock:
                     succeeded_delta += 10 if is_award else -5
@@ -52,8 +66,9 @@ async def test_storm_no_drift_no_negative(database_url: str) -> None:
         async with maker() as s:
             stored = await s.scalar(select(Balance.balance).where(Balance.user_id == uid))
             recomputed = await s.scalar(
-                select(func.coalesce(func.sum(LedgerEntry.delta), 0))
-                .where(LedgerEntry.user_id == uid)
+                select(func.coalesce(func.sum(LedgerEntry.delta), 0)).where(
+                    LedgerEntry.user_id == uid
+                )
             )
             entry_count = await s.scalar(
                 select(func.count()).select_from(LedgerEntry).where(LedgerEntry.user_id == uid)

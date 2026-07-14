@@ -1,4 +1,5 @@
 """D13 migration: coins schema exists, ledger is immutable, rules seeded."""
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import InternalError, ProgrammingError
@@ -19,11 +20,14 @@ async def _insert_entry(session: AsyncSession, idem: str = "t:1", delta: int = 1
 
 
 async def test_seeded_rules_present(db_session: AsyncSession) -> None:
-    codes = set(
-        (await db_session.execute(text("SELECT code FROM coins.rules"))).scalars().all()
-    )
-    assert {"signup_complete", "profile_100", "daily_visit",
-            "referral_referrer", "referral_referee"} <= codes
+    codes = set((await db_session.execute(text("SELECT code FROM coins.rules"))).scalars().all())
+    assert {
+        "signup_complete",
+        "profile_100",
+        "daily_visit",
+        "referral_referrer",
+        "referral_referee",
+    } <= codes
 
 
 async def test_ledger_update_is_blocked(db_session: AsyncSession) -> None:

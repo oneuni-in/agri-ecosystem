@@ -14,6 +14,9 @@ EXPECTED_PERMISSIONS = {
     "users.suspend",
     "roles.assign",
     "users.read",
+    "coins.rules.write",
+    "coins.adjust",
+    "coins.abuse.review",
 }
 
 
@@ -63,4 +66,5 @@ async def test_staff_can_read_and_suspend_but_not_assign(db_session: AsyncSessio
         "handle.change",
         "users.suspend",
         "users.read",
+        "coins.abuse.review",
     }

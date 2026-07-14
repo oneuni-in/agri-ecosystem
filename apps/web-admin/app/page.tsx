@@ -12,6 +12,11 @@ export default function Page() {
           Users
         </Link>
       </p>
+      <p className="text-sm">
+        <Link href="/coins" className="text-brand underline">
+          Coins
+        </Link>
+      </p>
     </main>
   );
 }

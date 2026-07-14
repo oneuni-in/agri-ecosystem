@@ -1,5 +1,5 @@
 import { AuthCluster, NotificationBellIsland } from "@agri/auth-client/react";
-import { HeaderStack } from "@agri/ui";
+import { CoinsBalancePill, HeaderStack } from "@agri/ui";
 
 export function SiteHeader() {
   return (
@@ -9,6 +9,7 @@ export function SiteHeader() {
       right={
         <>
           <NotificationBellIsland basePath="/api/notify" href="/notifications" label="Notifications" />
+          <CoinsBalancePill endpoint="/api/coins/balance" />
           <AuthCluster />
         </>
       }

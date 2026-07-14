@@ -98,6 +98,7 @@ async def _language_for(session: AsyncSession, user_id: uuid.UUID) -> str:
 class LoginIn(BaseModel):
     otp_proof: str
     device_label: str | None = Field(default=None, max_length=DEVICE_LABEL_MAX_CHARS)
+    referral_code: str | None = Field(default=None, max_length=16)
 
 
 class LoginOut(IdentityPublicSchema):
@@ -143,13 +144,34 @@ async def login(
         device_label=body.device_label,
     )
     _set_session_cookie(response, sid)
-    # commit BEFORE announcing (profile.completed precedent): an event for a
-    # rolled-back login must not exist. After commit, publish is best-effort.
+    # commit BEFORE announcing (mirrors profile_router._commit_and_announce /
+    # profile.completed precedent): an event for a rolled-back signup/login
+    # must not exist - a user.registered or identity.* event for a user_id
+    # that never existed would hand D13 coins and D12 notify garbage.
+    # Publishing is best-effort after that - a Redis blip must never fail a
+    # real signup or login.
     language = await _language_for(session, user.id)
     email = await session.scalar(
         select(Email.email).where(Email.user_id == user.id, Email.verified_at.is_not(None))
     )
     await session.commit()
+    if is_new_user:
+        try:
+            await publish(
+                EVENT_STREAM,
+                "user.registered",
+                {
+                    "user_id": str(user.id),
+                    "agri_id": user.agri_id,
+                    "referral_code": body.referral_code,
+                    "phone_prefix": phone[:4],
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                "user.registered.publish_failed",
+                extra={"extra_fields": {"exc_type": type(exc).__name__}},
+            )
     event_payload = {
         "user_id": str(user.id),
         "agri_id": user.agri_id,

@@ -200,17 +200,21 @@ async def test_first_login_publishes_signup_completed_event(
     api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
 ) -> None:
     """_otp_proof() flushes redis before each login, so whatever lands on the
-    "identity" stream after ONE login is that login's publish only."""
+    "identity" stream after ONE login is that login's publishes only: D13's
+    user.registered followed by D12's identity.signup_completed."""
     http, session = api
     login = await _login(http, session)
     raw = cast(list[tuple[str, dict[str, str]]], await otp_redis.xrange("identity", "-", "+"))
     entries = _stream_entries(raw)
-    assert len(entries) == 1
-    event = entries[0]
-    assert event["type"] == "identity.signup_completed"
-    assert event["agri_id"] == login.json()["agri_id"]
-    assert event["phone"] is None
-    assert PHONE not in json.dumps(event)
+    assert len(entries) == 2
+    registered, completed = entries
+    assert registered["type"] == "user.registered"
+    assert registered["agri_id"] == login.json()["agri_id"]
+    assert PHONE not in json.dumps(registered)
+    assert completed["type"] == "identity.signup_completed"
+    assert completed["agri_id"] == login.json()["agri_id"]
+    assert completed["phone"] is None
+    assert PHONE not in json.dumps(completed)
 
 
 async def test_second_login_same_device_publishes_nothing(

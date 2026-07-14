@@ -44,6 +44,14 @@ export function postJson(path: string, payload?: unknown): Promise<JsonBody> {
   });
 }
 
+export function putJson(path: string, payload?: unknown): Promise<JsonBody> {
+  return request(path, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload ?? {}),
+  });
+}
+
 export function deleteJson(path: string): Promise<JsonBody> {
   return request(path, { method: "DELETE" });
 }

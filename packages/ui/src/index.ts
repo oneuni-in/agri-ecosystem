@@ -22,6 +22,7 @@ export { NotificationBell, formatUnread } from "./components/notification-bell";
 export { OtpInput } from "./components/otp-input";
 export type { OtpInputProps } from "./components/otp-input";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
+export { CoinsBalancePill, useCoinsBalance } from "./components/coins-balance-pill";
 export { PincodeInput } from "./components/pincode-input";
 export type { PincodeInputProps } from "./components/pincode-input";
 export { ProfileNudge, clampScore } from "./components/profile-nudge";
@@ -31,6 +32,7 @@ export { SearchBar } from "./components/search-bar";
 export type { SearchBarProps } from "./components/search-bar";
 export { Skeleton } from "./components/skeleton";
 export { cn } from "./lib/cn";
+export { fetchCoinsBalance } from "./lib/coins-balance";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";

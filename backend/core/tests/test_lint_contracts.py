@@ -4,11 +4,18 @@ is mandatory in every migration, and OFFSET pagination is banned everywhere
 
 from pathlib import Path
 
-from tests.lint_checks import check_offset_ban
+from tests.lint_checks import check_ledger_writes, check_offset_ban
 
 CORE = Path(__file__).resolve().parents[1]
 VERSIONS = CORE / "alembic" / "versions"
 BANNED_SCOPE = [CORE / "main.py", CORE / "settings.py", CORE / "modules", CORE / "shared", VERSIONS]
+
+# coins.service is the sanctioned writer. models.py is allowlisted because the
+# regex `LedgerEntry\s*\(` also matches the `class LedgerEntry(...)` definition.
+LEDGER_ALLOWED = {
+    CORE / "modules" / "coins" / "service.py",
+    CORE / "modules" / "coins" / "models.py",
+}
 
 
 def test_every_migration_has_a_filled_threat_notes_block() -> None:
@@ -43,4 +50,21 @@ def test_no_offset_pagination_anywhere_in_app_code() -> None:
     violations = check_offset_ban(BANNED_SCOPE)
     assert violations == [], "OFFSET pagination is banned; use shared.pagination.paginate:\n" + (
         "\n".join(violations)
+    )
+
+
+def test_ledger_write_ban_fires_on_fixture() -> None:
+    fixture = Path(__file__).parent / "fixtures" / "ledger_write_violation.py.txt"
+    assert len(check_ledger_writes([fixture], allow={fixture})) == 0  # allowlisted -> clean
+    violations = check_ledger_writes([fixture], allow=set())
+    # ORM instantiation, raw INSERT, Core insert(), and bulk_insert_mappings()
+    assert len(violations) == 4
+    assert all("ledger_write_violation.py.txt:" in violation for violation in violations)
+
+
+def test_no_ledger_writes_outside_service() -> None:
+    violations = check_ledger_writes([CORE / "modules", VERSIONS], allow=LEDGER_ALLOWED)
+    assert violations == [], (
+        "coins.ledger_entries may only be written by modules/coins/service.py:\n"
+        + "\n".join(violations)
     )

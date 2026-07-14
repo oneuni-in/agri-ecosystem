@@ -16,7 +16,7 @@ export const metadata: Metadata = buildMetadata({
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; ref?: string }>;
 }) {
   return <LoginFlow searchParamsPromise={searchParams} />;
 }

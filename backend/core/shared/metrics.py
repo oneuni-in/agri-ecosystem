@@ -57,6 +57,15 @@ OTP_SEND_COST = Counter(
     registry=registry,
 )
 
+# Coins nightly balance-integrity check (D13): incremented once per user found
+# to have drifted between the stored materialized balance and the recomputed
+# ledger sum. No labels - user_id must never become a label value.
+COINS_BALANCE_DRIFT = Counter(
+    "coins_balance_drift_total",
+    "users whose stored balance drifted from the recomputed ledger sum",
+    registry=registry,
+)
+
 # Audit chain telemetry (D12): counts only - entry contents never label metrics.
 AUDIT_CHAIN_DAYS_VERIFIED = Counter(
     "audit_chain_days_verified_total",

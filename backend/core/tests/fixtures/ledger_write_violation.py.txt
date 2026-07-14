@@ -1,0 +1,4 @@
+session.add(LedgerEntry(user_id=u, delta=1))
+await session.execute(text("INSERT INTO coins.ledger_entries (id) VALUES (:x)"))
+await session.execute(insert(LedgerEntry).values(user_id=u))
+session.bulk_insert_mappings(LedgerEntry, [{"user_id": u}])

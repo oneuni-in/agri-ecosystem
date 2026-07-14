@@ -1,6 +1,17 @@
 import { AuthCluster } from "@agri/auth-client/react";
-import { HeaderStack } from "@agri/ui";
+import { CoinsBalancePill, HeaderStack } from "@agri/ui";
 
 export function SiteHeader() {
-  return <HeaderStack logo="Agri Admin" tagline="internal" right={<AuthCluster />} />;
+  return (
+    <HeaderStack
+      logo="Agri Admin"
+      tagline="internal"
+      right={
+        <>
+          <CoinsBalancePill endpoint="/api/coins/balance" />
+          <AuthCluster />
+        </>
+      }
+    />
+  );
 }

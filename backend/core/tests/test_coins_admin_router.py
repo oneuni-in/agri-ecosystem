@@ -285,8 +285,9 @@ async def test_void_is_not_double_applied_on_second_call(
     api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
     otp_redis: Redis,
 ) -> None:
-    """A second void on the same (already-voided) flag reuses the same
-    compensation idempotency keys, so balances never drift further."""
+    """A second void on an already-resolved (non-"open") flag short-circuits:
+    it returns 200 with reversed_count=0 and does not reverse anything again,
+    re-mark the referral/flag, or publish another audit event."""
     http, session, state = api
     referrer, referee = uuid.uuid4(), uuid.uuid4()
     code = await referrals.get_or_create_code(session, referrer)
@@ -302,8 +303,98 @@ async def test_void_is_not_double_applied_on_second_call(
     _admin(state, "super_admin")
     first = await http.post(f"/admin/coins/abuse/{flag.id}/void")
     assert first.status_code == 200
+    assert first.json()["reversed_count"] == 2
     second = await http.post(f"/admin/coins/abuse/{flag.id}/void")
     assert second.status_code == 200
-    assert second.json()["reversed_count"] == 2  # entries still found by ref_id/reason_code
+    assert second.json()["reversed_count"] == 0  # already-resolved: no reprocessing
     assert await service.balance(session, referrer) == 0
     assert await service.balance(session, referee) == 0
+
+    compensating = (
+        await session.scalars(select(LedgerEntry).where(LedgerEntry.reason_code == "compensation"))
+    ).all()
+    assert len(compensating) == 2  # second call did not create more compensation rows
+
+
+async def test_adjust_confirm_insufficient_balance_409(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+    otp_redis: Redis,
+) -> None:
+    """A negative manual adjust larger than the target's balance is rejected
+    at confirm time with 409; nothing is written (no ledger row, no balance
+    change) - the intent token is still consumed (single-use getdel)."""
+    http, session, state = api
+    _admin(state, "super_admin")
+    target = uuid.uuid4()
+    assert await service.balance(session, target) == 0
+
+    step1 = await http.post(
+        "/admin/coins/adjust",
+        json={"user_id": str(target), "delta": -500, "reason_note": "clawback"},
+    )
+    assert step1.status_code == 200
+    token = step1.json()["confirmation_token"]
+
+    confirmed = await http.post("/admin/coins/adjust/confirm", json={"confirmation_token": token})
+    assert confirmed.status_code == 409
+    assert confirmed.json()["detail"] == "insufficient_balance"
+
+    assert await service.balance(session, target) == 0
+    entries = (
+        await session.scalars(
+            select(LedgerEntry).where(
+                LedgerEntry.user_id == target, LedgerEntry.reason_code == "manual_adjust"
+            )
+        )
+    ).all()
+    assert len(entries) == 0
+
+
+async def test_void_insufficient_balance_rolls_back_atomically(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+    otp_redis: Redis,
+) -> None:
+    """If the referrer already spent their referral reward, voiding must be
+    whole-or-nothing: the -250 referrer reversal overdraws, so the savepoint
+    must roll back the referee's reversal (which would have succeeded first)
+    too, along with the referral/flag status changes - even though nothing
+    ever touches the same row twice."""
+    http, session, state = api
+    referrer, referee = uuid.uuid4(), uuid.uuid4()
+    code = await referrals.get_or_create_code(session, referrer)
+    referral = await referrals.attribute(
+        session, referee_id=referee, code=code, device_fingerprint=None, phone_prefix=None
+    )
+    assert referral is not None
+    await referrals.maybe_reward(session, referee_id=referee, now=NOW)
+    assert await service.balance(session, referrer) == 250
+    assert await service.balance(session, referee) == 100
+
+    await service.redeem(
+        session,
+        user_id=referrer,
+        amount=250,
+        reason_code="spend",
+        ref_id=None,
+        idempotency_key=f"spend:{referrer}",
+    )
+    assert await service.balance(session, referrer) == 0
+
+    flag = AbuseFlag(referral_id=referral.id, cluster_reason="device")
+    session.add(flag)
+    await session.flush()
+
+    _admin(state, "super_admin")
+    response = await http.post(f"/admin/coins/abuse/{flag.id}/void")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "cannot_void_insufficient_balance"
+
+    compensating = (
+        await session.scalars(select(LedgerEntry).where(LedgerEntry.reason_code == "compensation"))
+    ).all()
+    assert len(compensating) == 0  # whole-void atomicity: zero compensation rows
+
+    await session.refresh(referral)
+    await session.refresh(flag)
+    assert referral.status == "rewarded"  # unchanged, not voided
+    assert flag.status == "open"  # unchanged, not voided

@@ -213,6 +213,10 @@ async def adjust_confirm(
     delta = int(intent["delta"])
     admin_id = intent["admin_id"]
     try:
+        # ref_id/audit use the intent's stored admin_id (the initiator), not the
+        # confirmer: dual-confirm is a two-STEP accidental-adjustment guard, not
+        # a two-PERSON approval control - the confirmer is independently
+        # role-checked above via _require_role.
         await service.record_entry(
             session,
             user_id=user_id,
@@ -267,6 +271,12 @@ async def void_abuse(flag_id: uuid.UUID, request: Request, session: SessionDep) 
     flag = await session.get(AbuseFlag, flag_id)
     if flag is None:
         raise HTTPException(status_code=404, detail="unknown_flag")
+    if flag.status != "open":
+        # Already resolved (voided/reviewed): re-void is idempotent (200) but
+        # must not reverse anything again, re-mark the referral/flag, or
+        # publish another audit event - that would duplicate the audit trail
+        # and re-process a settled case.
+        return VoidOut(status="voided", reversed_count=0)
     referral = await session.get(Referral, flag.referral_id)
     if referral is None:
         raise HTTPException(status_code=404, detail="unknown_referral")
@@ -280,8 +290,16 @@ async def void_abuse(flag_id: uuid.UUID, request: Request, session: SessionDep) 
         )
     ).all()
     reversed_count = 0
-    for entry in awarded:
-        try:
+    now = datetime.now(UTC)
+    # The whole void (compensating entries + referral/flag status) is wrapped
+    # in one savepoint so it is SELF-atomic regardless of how the caller
+    # manages the outer transaction: if any reversal overdraws, we roll back
+    # this savepoint - discarding any compensation entries already applied AND
+    # the status changes - before raising 409. service.record_entry's own
+    # inner begin_nested() calls stack fine inside this outer savepoint.
+    void_sp = await session.begin_nested()
+    try:
+        for entry in awarded:
             await service.record_entry(
                 session,
                 user_id=entry.user_id,
@@ -291,17 +309,19 @@ async def void_abuse(flag_id: uuid.UUID, request: Request, session: SessionDep) 
                 ref_id=str(referral.id),
                 idempotency_key=f"compensation:{entry.id}",
             )
-        except service.InsufficientBalanceError as exc:
-            raise HTTPException(status_code=409, detail="cannot_void_insufficient_balance") from exc
-        reversed_count += 1
+            reversed_count += 1
 
-    now = datetime.now(UTC)
-    referral.status = "voided"
-    referral.voided_at = now
-    flag.status = "voided"
-    flag.reviewed_by = admin_id
-    flag.reviewed_at = now
-    await session.flush()
+        referral.status = "voided"
+        referral.voided_at = now
+        flag.status = "voided"
+        flag.reviewed_by = admin_id
+        flag.reviewed_at = now
+        await session.flush()
+    except service.InsufficientBalanceError as exc:
+        await void_sp.rollback()
+        raise HTTPException(status_code=409, detail="cannot_void_insufficient_balance") from exc
+    else:
+        await void_sp.commit()
 
     await publish(
         "audit",

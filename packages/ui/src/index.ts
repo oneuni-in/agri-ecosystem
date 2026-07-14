@@ -18,6 +18,7 @@ export { ListingCard, PriceUnit } from "./components/listing-card";
 export { Modal } from "./components/modal";
 export { ToastProvider, useToast } from "./components/toast";
 export { EmptyState } from "./components/empty-state";
+export { NotificationBell, formatUnread } from "./components/notification-bell";
 export { OtpInput } from "./components/otp-input";
 export type { OtpInputProps } from "./components/otp-input";
 export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
@@ -38,6 +39,12 @@ export { CertBar, CertCard } from "./composites/cert-bar";
 export { EcoPill, EcoStrip } from "./composites/eco-strip";
 export { HeaderStack, SearchBand } from "./composites/header-stack";
 export { HelplineBand } from "./composites/helpline-band";
+export { NotificationsPanel } from "./composites/notifications-panel";
+export type {
+  NotificationItem,
+  NotificationsApi,
+  NotificationsStrings,
+} from "./composites/notifications-panel";
 export { PincodeHero } from "./composites/pincode-hero";
 export { ProductCard, ProductGrid } from "./composites/product-card";
 export { CardsRow, Section, Wrap } from "./composites/section";

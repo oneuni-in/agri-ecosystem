@@ -57,6 +57,15 @@ OTP_SEND_COST = Counter(
     registry=registry,
 )
 
+# Coins nightly balance-integrity check (D13): incremented once per user found
+# to have drifted between the stored materialized balance and the recomputed
+# ledger sum. No labels - user_id must never become a label value.
+COINS_BALANCE_DRIFT = Counter(
+    "coins_balance_drift_total",
+    "users whose stored balance drifted from the recomputed ledger sum",
+    registry=registry,
+)
+
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
     REQUESTS.labels(method, route, str(status)).inc()

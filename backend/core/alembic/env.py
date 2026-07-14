@@ -24,7 +24,7 @@ def _database_url() -> str:
     configured = config.get_main_option("sqlalchemy.url")
     if configured:
         return configured
-    return os.environ.get("ALEMBIC_DATABASE_URL") or get_settings().database_url
+    return os.environ.get("ALEMBIC_DATABASE_URL") or get_settings().database_admin_url
 
 
 def _configure(connection: Connection | None = None, url: str | None = None) -> None:

@@ -3,6 +3,7 @@ toggles, live score, and exactly-one profile.completed per crossing."""
 
 from collections.abc import AsyncIterator
 from decimal import Decimal
+from typing import cast
 
 import httpx
 import pytest
@@ -157,8 +158,9 @@ async def test_completed_event_exactly_once_per_crossing(
     monkeypatch.setattr(storage, "put_object", fake_put_object)
     http, session = api
     await _login(http, session, phone=PHONE)
-    # Signup now emits user.registered on the identity stream (D13); drop it so
-    # this test isolates profile.completed crossings from the login event.
+    # Login now emits both user.registered (D13) and identity.signup_completed
+    # (D12) on the identity stream; drop them so this test isolates
+    # profile.completed crossings from login events.
     await redis_client.delete("identity")
     await http.patch(
         "/identity/profile",
@@ -171,9 +173,10 @@ async def test_completed_event_exactly_once_per_crossing(
     )
     assert upload.status_code == 200
     assert upload.json()["completion_score"] == 100
-    entries = await redis_client.xrange("identity")
+    entries = cast(list[tuple[str, dict[str, str]]], await redis_client.xrange("identity"))
     assert entries is not None
-    assert len(entries) == 1 and entries[0][1]["type"] == "profile.completed"  # type: ignore[index]
+    types = [fields["type"] for _id, fields in entries]
+    assert types == ["profile.completed"]
     # Same state again: no second crossing, no second event.
     await http.patch("/identity/profile", json={"name": "Asha Again"})
     assert await redis_client.xlen("identity") == 1

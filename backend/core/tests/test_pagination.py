@@ -81,3 +81,15 @@ async def test_paginate_respects_soft_delete_filter(db_session: AsyncSession) ->
 
     page = await paginate(db_session, select(PageItem), limit=10)
     assert [item.name for item in page.items] == ["item-000", "item-002", "item-003"]
+
+
+async def test_paginate_descending_orders_newest_first(db_session: AsyncSession) -> None:
+    await _seed(db_session, 5)
+    page = await paginate(db_session, select(PageItem), limit=2, descending=True)
+    ids = [item.id for item in page.items]
+    assert ids == sorted(ids, reverse=True)
+    assert page.next_cursor is not None
+    page2 = await paginate(
+        db_session, select(PageItem), cursor=page.next_cursor, limit=2, descending=True
+    )
+    assert all(item.id < min(ids) for item in page2.items)

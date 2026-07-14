@@ -1,7 +1,8 @@
 """CI gate: prove every migration upgrades AND downgrades cleanly.
 
 Runs upgrade -> head, downgrade -> base, upgrade -> head against the database
-in ALEMBIC_DATABASE_URL (falling back to settings.database_url). Run from
+in ALEMBIC_DATABASE_URL (falling back to settings.database_admin_url - alembic
+needs DDL rights that the runtime app_rt role does not have, D12). Run from
 backend/core:
 
     python scripts/migrate_check.py

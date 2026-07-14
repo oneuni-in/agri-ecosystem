@@ -173,6 +173,14 @@
       "referralTitle": "Your referral code",
       "referralHint": "You earn coins once your friend signs up and completes their profile — not just for sharing the link.",
       "referralShare": "Share this link"
+    },
+    "notifications": {
+      "bell": "Notifications",
+      "title": "Notifications",
+      "empty": "You're all caught up.",
+      "markAllRead": "Mark all read",
+      "markRead": "Mark read",
+      "loadMore": "Load more"
     }
   },
   "coins": {

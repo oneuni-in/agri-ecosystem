@@ -7,6 +7,9 @@ import logging
 
 import pytest
 from redis.asyncio import Redis
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from modules.identity.otp_limits import (
     OTP_ISSUES_PER_DEVICE_PER_DAY,
@@ -22,6 +25,9 @@ from modules.identity.otp_throttle import (
     assert_verify_allowed,
     register_issue,
 )
+from settings import get_settings
+from shared.audit import AuditEntry
+from shared.db import reset_engine
 
 PHONE = "+919876543210"
 IP = "203.0.113.7"
@@ -104,6 +110,48 @@ async def test_phone_daily_cap_trip_emits_burst_audit(
         await assert_issue_allowed(PHONE, IP, None)
     assert "otp_abuse.burst_issues" in caplog.text
     assert PHONE not in caplog.text  # audit hook never logs the phone
+
+
+async def test_phone_daily_cap_trip_writes_committed_audit_row(
+    otp_redis: Redis,
+    database_url: str,
+    admin_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """otp.abuse_burst_issues lands as a real row (D12), not just a log line.
+    _audit_system opens its OWN committed session via get_sessionmaker(),
+    which reads settings.database_url - point it at the migrated test DB
+    (mirrors the otp_redis fixture's REDIS_URL override) so the committed row
+    is visible here, then clean it up via admin credentials (app_rt has no
+    DELETE on schema audit)."""
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    reset_engine()
+    try:
+        for _ in range(OTP_ISSUES_PER_PHONE_PER_DAY):
+            await issue_once(otp_redis)
+        await clear_cooldown(otp_redis)
+        with pytest.raises(OtpRateLimited):
+            await assert_issue_allowed(PHONE, IP, None)
+
+        engine = create_async_engine(database_url, poolclass=NullPool)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                rows = (
+                    await session.scalars(
+                        select(AuditEntry).where(AuditEntry.action == "otp.abuse_burst_issues")
+                    )
+                ).all()
+                assert len(rows) == 1
+                assert PHONE not in str(rows[0].meta)
+        finally:
+            await engine.dispose()
+    finally:
+        admin_engine = create_async_engine(admin_database_url, poolclass=NullPool)
+        async with admin_engine.connect() as conn:
+            await conn.execute(text("DELETE FROM audit.entries WHERE action LIKE 'otp.abuse%'"))
+            await conn.commit()
+        await admin_engine.dispose()
 
 
 async def test_ip_daily_cap_allows_20_blocks_21st(otp_redis: Redis) -> None:

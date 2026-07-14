@@ -10,6 +10,8 @@ import { useCallback, useEffect, useState } from "react";
 import { currentRelativeUrl, shouldAttemptSilentSso, SSO_MARKER } from "./react-helpers";
 import type { AgriUser } from "./session";
 
+export { NotificationBellIsland } from "./notification-bell-island";
+
 export type AgriUserStatus = "loading" | "authenticated" | "unauthenticated";
 
 export interface UseAgriUserResult {

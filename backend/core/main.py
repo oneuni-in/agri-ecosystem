@@ -27,6 +27,7 @@ from modules.identity.session_router import session_router as identity_session_r
 from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
+from modules.notify.worker import run_worker
 from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
@@ -128,7 +129,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # fail at boot, not first token: prod without a signing key must not start
     get_signing_key()
     logger.info("public routes: %s", app.state.public_routes)
+    worker_stop: asyncio.Event | None = None
+    worker_task: asyncio.Task[None] | None = None
+    if settings.notify_worker_enabled and settings.app_env != "test":
+        worker_stop = asyncio.Event()
+        worker_task = asyncio.create_task(run_worker(worker_stop))
     yield
+    if worker_stop is not None and worker_task is not None:
+        worker_stop.set()
+        await worker_task
     await close_redis()
 
 

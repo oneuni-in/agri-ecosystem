@@ -96,3 +96,21 @@ name = "Shared must not import modules"
 type = "forbidden"
 source_modules = ["shared"]
 forbidden_modules = ["modules"]
+
+[[tool.importlinter.contracts]]
+name = "Notify drivers only reachable from inside notify (D12 lint contract)"
+type = "forbidden"
+source_modules = [
+    "modules.identity",
+    "modules.coins",
+    "modules.directory",
+    "modules.leads",
+    "modules.content",
+    "modules.market_data",
+    "modules.ads",
+    "modules.search",
+    "modules.billing",
+    "modules.ai",
+    "shared",
+]
+forbidden_modules = ["modules.notify.drivers"]

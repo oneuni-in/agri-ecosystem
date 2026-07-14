@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.identity.models import Profile, User
+from shared.audit import AuditEntry
 from shared.db import get_session
 from tests.test_session_router import UA, _login
 
@@ -83,6 +84,7 @@ async def test_revoke_rejects_foreign_and_garbage_ids(
 async def test_handle_check_suggest_and_set(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     http, session = api
     await _login(http, session)
+    old_handle = (await session.scalars(select(User))).one().agri_id
 
     check = await http.get("/auth/handle/check", params={"h": "good_farmer"})
     assert check.json() == {"ok": True, "code": None}
@@ -100,6 +102,14 @@ async def test_handle_check_suggest_and_set(api: tuple[httpx.AsyncClient, AsyncS
     assert taken.json()["agri_id"] == "good_farmer"
     user = (await session.scalars(select(User))).one()
     assert user.agri_id == "good_farmer" and user.agri_id_changed_once is True
+
+    audit_rows = (
+        await session.scalars(
+            select(AuditEntry).where(AuditEntry.action == "identity.handle_changed")
+        )
+    ).all()
+    assert len(audit_rows) == 1
+    assert audit_rows[0].meta == {"old": old_handle, "new": "good_farmer"}
 
     again = await http.post("/auth/handle", json={"handle": "second_pick"})
     assert again.status_code == 409  # one free change ever

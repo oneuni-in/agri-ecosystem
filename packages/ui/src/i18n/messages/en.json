@@ -164,6 +164,25 @@
     "profileNudge": {
       "title": "Complete your profile — {score}%",
       "cta": "Complete now"
+    },
+    "coins": {
+      "title": "AgriCoins",
+      "subtitle": "Your coins history",
+      "empty": "No AgriCoins activity yet",
+      "loadMore": "Load more"
+    }
+  },
+  "coins": {
+    "reason": {
+      "signup_complete": "Signup bonus",
+      "profile_100": "Profile completed",
+      "daily_visit": "Daily visit",
+      "referral_referrer": "Referral reward",
+      "referral_referee": "Referral bonus",
+      "redeem": "Redeemed",
+      "manual_adjust": "Manual adjustment",
+      "compensation": "Correction",
+      "unknown": "Reward"
     }
   }
 }

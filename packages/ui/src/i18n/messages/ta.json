@@ -164,6 +164,25 @@
     "profileNudge": {
       "title": "உங்கள் சுயவிவரத்தை நிறைவு செய்யவும் — {score}%",
       "cta": "இப்போது நிறைவு செய்யவும்"
+    },
+    "coins": {
+      "title": "AgriCoins",
+      "subtitle": "உங்கள் நாணயங்கள் வரலாறு",
+      "empty": "இதுவரை செயல்பாடு இல்லை",
+      "loadMore": "மேலும் ஏற்று"
+    }
+  },
+  "coins": {
+    "reason": {
+      "signup_complete": "பதிவு போனஸ்",
+      "profile_100": "சுயவிவரம் முடிந்தது",
+      "daily_visit": "தினசரி வருகை",
+      "referral_referrer": "பரிந்துரை வெகுமதி",
+      "referral_referee": "பரிந்துரை போனஸ்",
+      "redeem": "மீட்கப்பட்டது",
+      "manual_adjust": "கையேடு சரிசெய்தல்",
+      "compensation": "திருத்தம்",
+      "unknown": "வெகுமதி"
     }
   }
 }

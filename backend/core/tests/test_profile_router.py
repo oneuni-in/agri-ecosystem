@@ -157,6 +157,9 @@ async def test_completed_event_exactly_once_per_crossing(
     monkeypatch.setattr(storage, "put_object", fake_put_object)
     http, session = api
     await _login(http, session, phone=PHONE)
+    # Signup now emits user.registered on the identity stream (D13); drop it so
+    # this test isolates profile.completed crossings from the login event.
+    await redis_client.delete("identity")
     await http.patch(
         "/identity/profile",
         json={"name": "Asha", "language": "ta", "interests": ["paddy"], "pincode": geo_row},

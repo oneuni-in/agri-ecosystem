@@ -169,7 +169,10 @@
       "title": "AgriCoins",
       "subtitle": "Your coins history",
       "empty": "No AgriCoins activity yet",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "referralTitle": "Your referral code",
+      "referralHint": "You earn coins once your friend signs up and completes their profile — not just for sharing the link.",
+      "referralShare": "Share this link"
     }
   },
   "coins": {

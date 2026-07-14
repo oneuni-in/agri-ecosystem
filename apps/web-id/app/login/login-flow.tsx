@@ -19,9 +19,9 @@ function safeNext(raw: string | undefined): string | null {
 export function LoginFlow({
   searchParamsPromise,
 }: {
-  searchParamsPromise: Promise<{ next?: string }>;
+  searchParamsPromise: Promise<{ next?: string; ref?: string }>;
 }) {
-  const { next } = use(searchParamsPromise);
+  const { next, ref } = use(searchParamsPromise);
   const t = useTranslations("ui.auth");
   const router = useRouter();
 
@@ -81,7 +81,10 @@ export function LoginFlow({
         purpose: "login",
         code: fullCode,
       });
-      const login = await postJson("/auth/login", { otp_proof: verified.otp_proof });
+      const login = await postJson("/auth/login", {
+        otp_proof: verified.otp_proof,
+        ...(ref ? { referral_code: ref } : {}),
+      });
       if (login.is_new_user) {
         const suggested = await getJson("/auth/handle/suggest");
         setSuggestions(suggested.suggestions as string[]);

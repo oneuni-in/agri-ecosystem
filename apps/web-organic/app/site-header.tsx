@@ -1,5 +1,5 @@
 import { AuthCluster } from "@agri/auth-client/react";
-import { HeaderStack, LocationPill } from "@agri/ui";
+import { CoinsBalancePill, HeaderStack, LocationPill } from "@agri/ui";
 
 export function SiteHeader() {
   return (
@@ -11,7 +11,12 @@ export function SiteHeader() {
           📍 <span className="max-sm:hidden">Coimbatore</span> ▾
         </LocationPill>
       }
-      right={<AuthCluster />}
+      right={
+        <>
+          <CoinsBalancePill endpoint="/api/coins/balance" />
+          <AuthCluster />
+        </>
+      }
     />
   );
 }

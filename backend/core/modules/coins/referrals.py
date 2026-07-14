@@ -130,6 +130,14 @@ async def maybe_reward(session: AsyncSession, *, referee_id: uuid.UUID, now: dat
         now=now,
     )
     # Referrer earns 250 per referral, unless already at the 20/month cap.
+    # NOTE (fast-follow): this count-then-award has a TOCTOU race under
+    # CONCURRENT callers for the same referrer - two maybe_reward() calls could
+    # both read count==19 and both award, exceeding the cap. It is safe today
+    # because a single coins worker processes profile_100 events serially (one
+    # worker service, per docker-compose). Before running multiple worker
+    # replicas, serialize this section per referrer - e.g. take
+    # pg_advisory_xact_lock(hashtext('coins_referrer:' || referrer_id)) (or
+    # SELECT ... FOR UPDATE the referrer's referral_codes row) before the count.
     rewarded_this_month = await session.scalar(
         select(func.count())
         .select_from(Referral)

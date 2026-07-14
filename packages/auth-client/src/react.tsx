@@ -4,7 +4,7 @@
  * Client surface of @agri/auth-client (D10.C). Everything here works off the
  * /api/auth/* BFF routes - no token ever reaches this module.
  */
-import { Avatar, Button, CoinsPill } from "@agri/ui";
+import { Avatar, Button } from "@agri/ui";
 import { useCallback, useEffect, useState } from "react";
 
 import { currentRelativeUrl, shouldAttemptSilentSso, SSO_MARKER } from "./react-helpers";
@@ -73,21 +73,21 @@ export function useAgriUser({ autoSilentSso = true }: { autoSilentSso?: boolean 
   return { user, status, login, logout };
 }
 
-/** Right-side header cluster per the design system: coins pill + avatar when
- * authed, Login button otherwise. Drop into HeaderStack's `right` slot. */
+/** Right-side header cluster per the design system: avatar when authed,
+ * Login button otherwise. The coins pill is D13's live CoinsBalancePill,
+ * placed by each app's own header next to this cluster - AuthCluster no
+ * longer renders one itself (its `coinsBalance` field was a D10 placeholder,
+ * always 0, now superseded). Drop into HeaderStack's `right` slot. */
 export function AuthCluster({ loginLabel = "Login" }: { loginLabel?: string }) {
   const { user, status, login, logout } = useAgriUser();
   if (status === "loading") return null;
   if (user) {
     return (
-      <>
-        <CoinsPill amount={user.coinsBalance} />
-        <Avatar
-          initial={(user.name ?? user.agriId).charAt(0).toUpperCase()}
-          title="Log out"
-          onClick={() => void logout()}
-        />
-      </>
+      <Avatar
+        initial={(user.name ?? user.agriId).charAt(0).toUpperCase()}
+        title="Log out"
+        onClick={() => void logout()}
+      />
     );
   }
   return (

@@ -12,7 +12,7 @@ type Expect<T extends true> = T;
 // assertion-only aliases as dead code — the check lives in the type, not in
 // a runtime call site.
 export type _ExactKeys = Expect<
-  Equal<keyof AgriUser, "agriId" | "name" | "roles" | "coinsBalance">
+  Equal<keyof AgriUser, "agriId" | "name" | "roles">
 >;
 export type _NoUuidOrPhone = Expect<
   Equal<

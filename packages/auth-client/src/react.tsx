@@ -76,8 +76,9 @@ export function useAgriUser({ autoSilentSso = true }: { autoSilentSso?: boolean 
 /** Right-side header cluster per the design system: avatar when authed,
  * Login button otherwise. The coins pill is D13's live CoinsBalancePill,
  * placed by each app's own header next to this cluster - AuthCluster no
- * longer renders one itself (its `coinsBalance` field was a D10 placeholder,
- * always 0, now superseded). Drop into HeaderStack's `right` slot.
+ * longer renders one itself (its balance field on AgriUser was a D10
+ * placeholder, always 0, now superseded and removed). Drop into
+ * HeaderStack's `right` slot.
  *
  * THIS IS THE HEADER INTEGRATION POINT (D14 A4): future header widgets
  * (badges, alerts, balances, whatever) belong as SIBLINGS of <AuthCluster/>

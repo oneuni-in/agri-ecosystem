@@ -269,6 +269,18 @@ class MeOut(IdentityPublicSchema):
 async def me(principal: PrincipalDep, session: SessionDep) -> MeOut:
     user = await session.scalar(select(User).where(User.id == principal.user_id))
     assert user is not None  # resolve_web_session proved existence this request
+    # Best-effort, same pattern as login()'s publishes: a Redis blip must
+    # never fail a plain "who am I" read. The coins worker's daily_visit
+    # award is idempotent per user+day (rules.deterministic_key), so
+    # publishing on every /me call (one per app-header mount) is safe -
+    # duplicate awards are impossible even under heavy repeat calls.
+    try:
+        await publish(EVENT_STREAM, "identity.session_resumed", {"user_id": str(user.id)})
+    except Exception as exc:
+        logger.warning(
+            "identity.session_resumed.publish_failed",
+            extra={"extra_fields": {"exc_type": type(exc).__name__}},
+        )
     return MeOut(
         agri_id=user.agri_id,
         handle_is_fallback=user.agri_id.startswith(AG_FALLBACK_PREFIX)

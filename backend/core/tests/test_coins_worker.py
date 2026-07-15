@@ -65,3 +65,30 @@ async def test_profile_completed_awards_profile_100(db_session: AsyncSession) ->
 
 async def test_unknown_event_is_noop(db_session: AsyncSession) -> None:
     await handle_event(db_session, _ev("something.else", {}), now=NOW)  # no raise
+
+
+async def test_session_resumed_awards_daily_visit(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    await handle_event(
+        db_session,
+        _ev("identity.session_resumed", {"user_id": str(uid)}),
+        now=NOW,
+    )
+    assert await service.balance(db_session, uid) == 5
+
+
+async def test_session_resumed_is_idempotent_per_day(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    ev = _ev("identity.session_resumed", {"user_id": str(uid)})
+    await handle_event(db_session, ev, now=NOW)
+    await handle_event(db_session, ev, now=NOW)  # same day, redelivery or a second /me call
+    assert await service.balance(db_session, uid) == 5
+
+
+async def test_session_resumed_awards_again_next_day(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    ev = _ev("identity.session_resumed", {"user_id": str(uid)})
+    await handle_event(db_session, ev, now=NOW)
+    next_day = NOW.replace(day=NOW.day + 1)
+    await handle_event(db_session, ev, now=next_day)
+    assert await service.balance(db_session, uid) == 10

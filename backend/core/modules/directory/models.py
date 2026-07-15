@@ -8,7 +8,7 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, Numeric, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -108,10 +108,11 @@ class BusinessCoverage(UUIDv7PKMixin, TimestampMixin, Base):
     __tablename__ = "business_coverage"
     __table_args__ = (
         UniqueConstraint("business_id", "pincode", name="uq_business_coverage_pair"),
+        Index("ix_directory_business_coverage_pincode", "pincode"),
         {"schema": "directory"},
     )
 
     business_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
     )
-    pincode: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    pincode: Mapped[str] = mapped_column(Text, nullable=False)

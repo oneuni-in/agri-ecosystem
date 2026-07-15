@@ -92,7 +92,8 @@ doesn't regress this.
 
 ## A5. BFF path-traversal
 
-**Medium finding, fixed in Task 6.** All 8 `[...path]` catch-all proxies
+**Low finding (downgraded from an initial Medium during Task 6 — see
+below), fixed in Task 6.** All 8 `[...path]` catch-all proxies
 (`web-admin/coins,admin`, `web-agri/coins,notify`, `web-milk/coins,notify`,
 `web-organic/coins,notify`) build the upstream URL as
 `new URL(`${API}/<prefix>/${path.map(encodeURIComponent).join("/")}`)`.
@@ -105,9 +106,40 @@ the intended path prefix). The route header comment's claim ("Only the
 backend's /X prefix is reachable through this route by construction") was
 not actually enforced by any code. Backend RBAC still gates every route
 regardless of which BFF proxy reached it, so this was defense-in-depth
-missing, not a full authz bypass — graded Medium, not High, on that basis.
-Fixed by rejecting any `.`/`..`/empty path segment up front, before the
-auth check, in all 8 files (Task 6).
+missing, not a full authz bypass. Fixed by rejecting any `.`/`..`/empty path
+segment up front, before the auth check, in all 8 files (Task 6).
+
+**Severity correction found during Task 6's TDD:** the guard's own test
+(`e2e/bff-path-traversal.spec.ts`) could not be made to observe a live `..`
+segment reaching `params.path` through any genuine HTTP request. Four
+independent request methods — `curl`, Node's `http.request`, a raw TCP
+socket writing the HTTP request line by hand, and Playwright's own
+`request` fixture — all confirmed the same root cause: Next.js 15's App
+Router normalizes literal and percent-encoded (`%2e`) dot-segments in the
+incoming request's pathname *before* route matching and *before*
+populating a `[...path]` catch-all's `params.path` array. Concretely,
+`/api/coins/%2e%2e/%2e%2e/admin/rules` collapses to `/admin/rules` at
+Next's own front door, matching no route in the requesting app (its own
+404, never reaching our handler); `/api/coins/./balance` collapses
+harmlessly to `/api/coins/balance`. Manually verified the same holds for
+`web-admin`'s admin proxy (port 3004): both `%2e%2e`-encoded and literal
+`../../` traversal payloads against `/api/admin/../../coins/rules` returned
+Next's own `404`, before ever reaching the guard.
+
+**Net assessment:** the practical exploitability of this specific vector —
+a client sending `..`/`%2e%2e` segments over real HTTP to a live Next.js
+App Router `[...path]` route — is already neutralized at the framework
+layer, independent of whether the 8-file guard exists. Downgraded from
+Medium to **Low** on that basis. The guard itself is kept as legitimate
+defense-in-depth (it protects any future code path that constructs the
+`path` array from a source Next itself doesn't normalize, or against a
+Next config/version change that stops normalizing) — not reverted, just no
+longer treated as the primary mitigation for this vector.
+`e2e/bff-path-traversal.spec.ts` now asserts the discovered Next.js
+front-door behavior directly (404/404/401 for the three payloads) as a
+regression guard: if that test ever starts failing, it signals the
+normalization assumption changed and the guard's HTTP-reachability needs
+re-verifying.
 
 ## A6. Generic attack surface
 

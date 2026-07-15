@@ -16,9 +16,12 @@ async function forward(
   params: Promise<{ path: string[] }>,
   method: "GET" | "POST",
 ): Promise<NextResponse> {
+  const { path } = await params;
+  if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
+    return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
+  }
   const token = await auth.getAccessToken();
   if (!token) return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
-  const { path } = await params;
   const url = new URL(`${API}/coins/${path.map(encodeURIComponent).join("/")}`);
   url.search = req.nextUrl.search;
   const upstream = await fetch(url, {

@@ -3,6 +3,7 @@ intent - every limit constant is pinned by an explicit boundary test here.
 Cooldown/escalation elapse is simulated by deleting the Redis keys (their TTLs
 are asserted instead of slept through)."""
 
+import asyncio
 import logging
 
 import pytest
@@ -86,6 +87,46 @@ async def test_cooldown_is_per_phone(otp_redis: Redis) -> None:
     await issue_once(otp_redis, phone_n(1))
     # a different phone from the same IP is not in cooldown
     await assert_issue_allowed(phone_n(2), IP, None)
+
+
+# --- D14 Task 14: assert_issue_allowed cooldown race (High, sprint1-audit.md A6) --
+#
+# The cooldown key used to be checked with a plain `TTL` read while the real
+# write happened later, in register_issue(), after an awaited DB flush -
+# concurrent assert_issue_allowed() callers for the same phone could all
+# observe "no cooldown active" before any of them had written the key. This
+# is a pure Redis atomicity question (single command, single round-trip), not
+# a Postgres row-lock one, so Redis's own command serialization is enough:
+# fire genuinely concurrent calls at the real test Redis (otp_redis fixture)
+# via asyncio.gather and assert exactly one claims the cooldown.
+
+_COOLDOWN_RACE_CONCURRENCY = 5
+
+
+async def test_concurrent_issue_requests_only_one_claims_cooldown(otp_redis: Redis) -> None:
+    """N genuinely concurrent assert_issue_allowed() calls for the same
+    phone/IP, no prior cooldown armed: exactly one must return normally (the
+    caller that goes on to actually issue), and every other one must raise
+    OtpRateLimited immediately from the cooldown claim itself - not from the
+    (much larger) daily cap, which only one call ever gets far enough to
+    bump. Pre-fix (plain TTL read before any write), all N would pass this
+    check concurrently instead - this assertion fails on that code."""
+    phone = phone_n(500)
+    results = await asyncio.gather(
+        *(assert_issue_allowed(phone, IP, None) for _ in range(_COOLDOWN_RACE_CONCURRENCY)),
+        return_exceptions=True,
+    )
+    successes = [r for r in results if r is None]
+    failures = [r for r in results if isinstance(r, OtpRateLimited)]
+    unexpected = [r for r in results if r is not None and not isinstance(r, OtpRateLimited)]
+    assert not unexpected
+    assert len(successes) == 1
+    assert len(failures) == _COOLDOWN_RACE_CONCURRENCY - 1
+    for exc in failures:
+        # rejected by the cooldown claim specifically: retry_after is bounded
+        # by the provisional claim's TTL (the ladder's shortest rung), never
+        # by the daily cap's much longer window.
+        assert 0 < exc.retry_after <= RESEND_COOLDOWNS_SECONDS[0]
 
 
 # --- daily caps: phone 5, IP 20, device 20 ------------------------------------

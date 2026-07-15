@@ -1,19 +1,24 @@
 """OTP issue/verify services (D07.A/B): happy path, hash-at-rest, reissue
 invalidation, expiry, 3-attempt burn, purpose scoping, and single-use proof."""
 
+import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from modules.identity.models import OtpRequest
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.otp_limits import OTP_MAX_ATTEMPTS
 from modules.identity.otp_service import (
+    OtpPurpose,
     OtpVerifyError,
     consume_otp_proof,
+    hash_code,
     issue_otp,
     verify_otp,
 )
@@ -140,3 +145,120 @@ async def test_verify_with_no_code_ever_issued_fails_identically(
 
 async def test_consume_unknown_proof_returns_none(otp_redis: Redis) -> None:
     assert await consume_otp_proof("no-such-token") is None
+
+
+# --- D14 Task 14: verify_otp lost-update race (Critical, sprint1-audit.md A6) --
+#
+# The `db_session` fixture above is a single connection wrapped in one outer
+# transaction with savepoints (conftest.py) - every "concurrent" query on it
+# would actually serialize through Python's own event-loop scheduling on one
+# connection, which proves nothing about Postgres row-locking. These tests
+# instead follow test_coins_storm.py's pattern: a real engine, a real
+# sessionmaker, and one genuinely separate AsyncSession/connection/DB
+# transaction per concurrent task, each committing for real - so the outcome
+# depends on Postgres's own lock semantics, not asyncio ordering.
+
+_RACE_PHONE = "+919876500001"
+_RACE_PURPOSE: OtpPurpose = "login"
+_RACE_REAL_CODE = "424242"
+_RACE_WRONG_CODE = "000000"
+
+
+async def _seed_active_otp(maker: async_sessionmaker[AsyncSession]) -> None:
+    async with maker() as seed:
+        seed.add(
+            OtpRequest(
+                phone=_RACE_PHONE,
+                code_hash=hash_code(_RACE_PHONE, _RACE_PURPOSE, _RACE_REAL_CODE),
+                purpose=_RACE_PURPOSE,
+                expires_at=datetime.now(UTC) + timedelta(seconds=300),
+            )
+        )
+        await seed.commit()
+
+
+async def _concurrent_wrong_guess(maker: async_sessionmaker[AsyncSession]) -> None:
+    async with maker() as s:
+        with contextlib.suppress(OtpVerifyError):
+            await verify_otp(
+                s, phone=_RACE_PHONE, purpose=_RACE_PURPOSE, code=_RACE_WRONG_CODE, ip=None
+            )
+        # router.py's own convention (verify_otp_route): commit even on the
+        # error path, or the attempt/burn counter never persists - an
+        # exception alone would roll the flush back and no attempt would
+        # ever accumulate (see router.py:122-126).
+        await s.commit()
+
+
+async def test_concurrent_wrong_guesses_do_not_lose_attempts(database_url: str) -> None:
+    """Real-concurrency proof for the fix: fire exactly OTP_MAX_ATTEMPTS (3)
+    genuinely concurrent wrong guesses, each its own DB transaction, against
+    the SAME active OTP row. Every one of the 3 must be counted - none may be
+    lost to a stale read - so the persisted attempts count must land on
+    exactly 3, not less. Pre-fix (plain SELECT, no `.with_for_update()`), all
+    3 transactions read attempts=0 concurrently and each independently wrote
+    back 0+1=1: this assertion fails on that code (final attempts == 1)."""
+    engine = create_async_engine(database_url, poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        await _seed_active_otp(maker)
+
+        await asyncio.gather(*(_concurrent_wrong_guess(maker) for _ in range(OTP_MAX_ATTEMPTS)))
+
+        async with maker() as check:
+            row = await check.scalar(
+                select(OtpRequest).where(
+                    OtpRequest.phone == _RACE_PHONE, OtpRequest.purpose == _RACE_PURPOSE
+                )
+            )
+            assert row is not None
+            # The core lost-update assertion: with exactly 3 concurrent wrong
+            # guesses and a cap of 3, every guess must be individually
+            # counted (no exclusion path is reachable - there is no 4th
+            # guess to possibly find the row already burned), so the only
+            # way to reach anything other than 3 is a lost update.
+            assert row.attempts == OTP_MAX_ATTEMPTS
+            assert row.expires_at <= datetime.now(UTC)  # burned at the cap
+    finally:
+        await engine.dispose()
+
+
+async def test_concurrent_wrong_guesses_beyond_cap_burn_the_code(database_url: str) -> None:
+    """5 genuinely concurrent wrong guesses (more than OTP_MAX_ATTEMPTS=3)
+    against one active OTP row: the code must still burn at the real cap
+    (attempts reaches at least 3, never fewer - the lost-update bug would
+    silently under-count instead), and once burned even the correct code is
+    rejected. Guesses that arrive after the burn correctly take the separate
+    "no active code" path rather than continuing to increment forever."""
+    engine = create_async_engine(database_url, poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    guess_count = 5
+    try:
+        await _seed_active_otp(maker)
+
+        await asyncio.gather(*(_concurrent_wrong_guess(maker) for _ in range(guess_count)))
+
+        async with maker() as check:
+            row = await check.scalar(
+                select(OtpRequest).where(
+                    OtpRequest.phone == _RACE_PHONE, OtpRequest.purpose == _RACE_PURPOSE
+                )
+            )
+            assert row is not None
+            # Never less than the cap (that would be the lost-update bug
+            # resurfacing) and never more than the number of real guesses.
+            assert OTP_MAX_ATTEMPTS <= row.attempts <= guess_count
+            assert row.expires_at <= datetime.now(UTC)  # burned
+
+        # defense-in-depth: burned means even the correct code is dead now
+        async with maker() as final_check:
+            with pytest.raises(OtpVerifyError):
+                await verify_otp(
+                    final_check,
+                    phone=_RACE_PHONE,
+                    purpose=_RACE_PURPOSE,
+                    code=_RACE_REAL_CODE,
+                    ip=None,
+                )
+    finally:
+        await engine.dispose()

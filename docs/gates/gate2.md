@@ -56,8 +56,8 @@ and dated; v0.2.0 promotable from main.
   concurrent operations, zero balance drift, zero negative balances both
   times.
 
-  - [x] `backend-storm` DOCUMENTED as the 9th required CI check — [ ] but NOT
-    yet ENFORCED via live GitHub branch protection (owner action pending)
+  - [x] `backend-storm` DOCUMENTED as the 9th required CI check
+  - [ ] `backend-storm` ENFORCED via live GitHub branch protection (owner action pending)
 
     `backend-storm` runs on every PR (`.github/workflows/ci.yml:113`) and is
     documented as the 9th required check in
@@ -193,10 +193,11 @@ documented reasoning: referral-cap TOCTOU (Task 11, Part B#1, pinned to the
 single-worker constraint), unused seeded RBAC perms (Task 12, Part B#4),
 ta/hi translation content review (Task 13, Part B#6).
 
-(BFF path-traversal hardening, Task 6, is a separate A6-audit-scoped fix —
-`docs/security/sprint1-audit.md`'s A5 finding, not a numbered Part B item —
-covered under the "10k-award storm" section above and the A5 evidence line;
-listing it here would double-count it against a different, unrelated
+(BFF path-traversal hardening, Task 6, is a separate fix for
+`docs/security/sprint1-audit.md`'s **A5** finding, not a numbered Part B
+item — its evidence lives in that doc's A5 section and in this gate's
+"Known gaps carried forward" e2e-coverage note below, not here. Listing
+Task 6 under Part B would double-count it against a different, unrelated
 6-item table.)
 
 ## Known gaps carried forward

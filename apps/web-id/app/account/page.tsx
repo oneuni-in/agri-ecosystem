@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { AccountManager, type ProfileData } from "./account-manager";
 
-const API = process.env.API_BASE_URL ?? "http://localhost:8000";
+const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const SITE = "https://id.agri.in";
 
 // Private, always-fresh account settings - never indexed (devices/page.tsx precedent).

@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // Next server proxies the FastAPI backend so browser, UI and API share one
   // origin; in prod the reverse proxy does the same job at id.agri.in.
   async rewrites() {
-    const api = process.env.API_BASE_URL ?? "http://localhost:8000";
+    const api = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
     return [
       { source: "/api/id/:path*", destination: `${api}/:path*` },
       { source: "/authorize", destination: `${api}/authorize` },

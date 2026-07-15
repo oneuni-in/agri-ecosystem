@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const API = process.env.API_BASE_URL ?? "http://localhost:8000";
+const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 /** Landing: signed-in users manage devices, everyone else signs in. */
 export default async function Home() {

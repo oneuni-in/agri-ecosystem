@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import service
 from modules.directory.models import Business, BusinessCoverage, Category
+from shared.db import soft_delete
 
 pytestmark = pytest.mark.asyncio
 
@@ -171,3 +172,24 @@ async def test_get_by_slug_bundles_and_hides(db_session: AsyncSession) -> None:
     await db_session.flush()
     assert await service.get_by_slug(db_session, business.slug) is None
     assert await service.get_by_slug(db_session, "no-such-slug") is None
+
+
+async def test_assign_categories_is_owner_scoped(db_session: AsyncSession) -> None:
+    owner, attacker = uuid.uuid4(), uuid.uuid4()
+    business = await _business(db_session, owner)
+    farm = await db_session.scalar(select(Category).where(Category.slug == "farm"))
+    assert farm is not None
+    with pytest.raises(service.BusinessNotFoundError):
+        await service.assign_categories(
+            db_session, owner_user_id=attacker, business_id=business.id, category_ids=[farm.id]
+        )
+
+
+async def test_get_by_slug_hides_soft_deleted(db_session: AsyncSession) -> None:
+    owner = uuid.uuid4()
+    business = await _business(db_session, owner)
+    result = await service.get_by_slug(db_session, business.slug)
+    assert result is not None
+    soft_delete(business)
+    await db_session.flush()
+    assert await service.get_by_slug(db_session, business.slug) is None

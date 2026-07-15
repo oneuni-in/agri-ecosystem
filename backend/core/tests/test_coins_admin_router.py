@@ -126,6 +126,59 @@ async def test_rule_edit_unknown_code_404(
     assert response.json()["detail"] == "unknown_rule"
 
 
+async def test_rule_edit_writes_real_audit_entry_with_before_after(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+) -> None:
+    """update_rule can silently change reward economics system-wide with zero
+    trace beyond the overwritten row (rules has no history table). It must
+    write a real audit.entries row carrying BEFORE and AFTER values -
+    including datetime fields (valid_from/valid_to), which must serialize to
+    JSONB-safe ISO8601 strings rather than crashing or being silently
+    dropped."""
+    http, session, state = api
+    admin_id = _admin(state, "super_admin")
+
+    original_valid_from = datetime(2026, 1, 1, tzinfo=UTC)
+    await session.execute(
+        update(Rule).where(Rule.code == "daily_visit").values(valid_from=original_valid_from)
+    )
+    await session.execute(
+        update(FeatureFlag).where(FeatureFlag.key == "coins_rules_admin").values(enabled=True)
+    )
+    await session.flush()
+    reset_flag_cache()
+
+    new_valid_from = datetime(2026, 2, 1, tzinfo=UTC)
+    new_valid_to = datetime(2026, 3, 1, tzinfo=UTC)
+    response = await http.put(
+        "/admin/coins/rules/daily_visit",
+        json={
+            "amount": 9,
+            "valid_from": new_valid_from.isoformat(),
+            "valid_to": new_valid_to.isoformat(),
+        },
+    )
+    assert response.status_code == 200
+
+    entries = (
+        await session.scalars(select(AuditEntry).where(AuditEntry.action == "coins.rule_updated"))
+    ).all()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.actor_user_id == admin_id
+    assert entry.target_type == "coins_rule"
+    assert entry.target_id == "daily_visit"
+    assert entry.meta["before"]["amount"] == 5
+    assert entry.meta["before"]["valid_from"] == original_valid_from.isoformat()
+    assert entry.meta["before"]["valid_to"] is None
+    assert entry.meta["after"]["amount"] == 9
+    # pydantic's mode="json" serializes UTC datetimes with a "Z" suffix
+    # rather than "+00:00" - assert round-trip equality, not exact string
+    # equality, so the test isn't coupled to that formatting detail.
+    assert datetime.fromisoformat(entry.meta["after"]["valid_from"]) == new_valid_from
+    assert datetime.fromisoformat(entry.meta["after"]["valid_to"]) == new_valid_to
+
+
 # --- manual adjust (dual confirm) --------------------------------------
 
 

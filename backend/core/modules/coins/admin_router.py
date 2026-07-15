@@ -164,15 +164,29 @@ async def list_rules(request: Request, session: SessionDep) -> list[RuleOut]:
 async def update_rule(
     code: str, body: RuleUpdateIn, request: Request, session: SessionDep
 ) -> RuleOut:
-    _require_role(request, SUPER_ADMIN)
+    admin_id = _require_role(request, SUPER_ADMIN)
     if not await flag_enabled("coins_rules_admin", session=session):
         raise HTTPException(status_code=403, detail="rules_admin_disabled")
     rule = await session.get(Rule, code)
     if rule is None:
         raise HTTPException(status_code=404, detail="unknown_rule")
+    # mode="json" -> datetimes become ISO8601 strings, JSONB-safe
+    changes = body.model_dump(mode="json", exclude_none=True)
+    before = {
+        field: (value.isoformat() if hasattr(value, "isoformat") else value)
+        for field, value in ((field, getattr(rule, field)) for field in changes)
+    }
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(rule, field, value)
     await session.flush()
+    await audit(
+        session,
+        action="coins.rule_updated",
+        actor_user_id=admin_id,
+        target_type="coins_rule",
+        target_id=code,
+        metadata={"before": before, "after": changes},
+    )
     return _rule_out(rule)
 
 

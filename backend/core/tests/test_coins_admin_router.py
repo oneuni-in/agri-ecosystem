@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from main import create_app
 from modules.coins import referrals, service
 from modules.coins.models import AbuseFlag, LedgerEntry, Rule
+from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.flags import FeatureFlag, reset_flag_cache
 from shared.security import register_principal_resolver
@@ -125,6 +126,59 @@ async def test_rule_edit_unknown_code_404(
     assert response.json()["detail"] == "unknown_rule"
 
 
+async def test_rule_edit_writes_real_audit_entry_with_before_after(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+) -> None:
+    """update_rule can silently change reward economics system-wide with zero
+    trace beyond the overwritten row (rules has no history table). It must
+    write a real audit.entries row carrying BEFORE and AFTER values -
+    including datetime fields (valid_from/valid_to), which must serialize to
+    JSONB-safe ISO8601 strings rather than crashing or being silently
+    dropped."""
+    http, session, state = api
+    admin_id = _admin(state, "super_admin")
+
+    original_valid_from = datetime(2026, 1, 1, tzinfo=UTC)
+    await session.execute(
+        update(Rule).where(Rule.code == "daily_visit").values(valid_from=original_valid_from)
+    )
+    await session.execute(
+        update(FeatureFlag).where(FeatureFlag.key == "coins_rules_admin").values(enabled=True)
+    )
+    await session.flush()
+    reset_flag_cache()
+
+    new_valid_from = datetime(2026, 2, 1, tzinfo=UTC)
+    new_valid_to = datetime(2026, 3, 1, tzinfo=UTC)
+    response = await http.put(
+        "/admin/coins/rules/daily_visit",
+        json={
+            "amount": 9,
+            "valid_from": new_valid_from.isoformat(),
+            "valid_to": new_valid_to.isoformat(),
+        },
+    )
+    assert response.status_code == 200
+
+    entries = (
+        await session.scalars(select(AuditEntry).where(AuditEntry.action == "coins.rule_updated"))
+    ).all()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.actor_user_id == admin_id
+    assert entry.target_type == "coins_rule"
+    assert entry.target_id == "daily_visit"
+    assert entry.meta["before"]["amount"] == 5
+    assert entry.meta["before"]["valid_from"] == original_valid_from.isoformat()
+    assert entry.meta["before"]["valid_to"] is None
+    assert entry.meta["after"]["amount"] == 9
+    # pydantic's mode="json" serializes UTC datetimes with a "Z" suffix
+    # rather than "+00:00" - assert round-trip equality, not exact string
+    # equality, so the test isn't coupled to that formatting detail.
+    assert datetime.fromisoformat(entry.meta["after"]["valid_from"]) == new_valid_from
+    assert datetime.fromisoformat(entry.meta["after"]["valid_to"]) == new_valid_to
+
+
 # --- manual adjust (dual confirm) --------------------------------------
 
 
@@ -153,6 +207,43 @@ async def test_manual_adjust_is_two_step_and_idempotent(
     assert replay.status_code == 400
     assert replay.json()["detail"] == "invalid_or_expired_token"
     assert await service.balance(session, target) == 500  # unchanged
+
+
+async def test_manual_adjust_writes_real_audit_entry_not_orphaned_stream(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+    otp_redis: Redis,
+) -> None:
+    """The confirm step must land a durable, hash-chained audit.entries row
+    (actor/target/delta/reason_note all recoverable after the handler
+    returns) instead of xadd-ing to an "audit" Redis stream nothing ever
+    consumes."""
+    http, session, state = api
+    admin_id = _admin(state, "super_admin")
+    target = uuid.uuid4()
+
+    step1 = await http.post(
+        "/admin/coins/adjust",
+        json={"user_id": str(target), "delta": 500, "reason_note": "goodwill"},
+    )
+    assert step1.status_code == 200
+    token = step1.json()["confirmation_token"]
+
+    confirmed = await http.post("/admin/coins/adjust/confirm", json={"confirmation_token": token})
+    assert confirmed.status_code == 200
+
+    entries = (
+        await session.scalars(select(AuditEntry).where(AuditEntry.action == "coins.manual_adjust"))
+    ).all()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.actor_user_id == admin_id
+    assert entry.target_type == "user"
+    assert entry.target_id == str(target)
+    assert entry.meta["delta"] == 500
+    assert entry.meta["reason_note"] == "goodwill"
+
+    # the old orphaned Redis stream must no longer receive this event
+    assert await otp_redis.xlen("audit") == 0
 
 
 async def test_manual_adjust_requires_super_admin(
@@ -215,6 +306,32 @@ async def test_abuse_list_requires_staff_or_super_admin(
     response = await http.get("/admin/coins/abuse")
     assert response.status_code == 200
     assert len(response.json()["items"]) == 1
+
+
+async def test_abuse_queue_surfaces_details(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+) -> None:
+    http, session, state = api
+    referrer, referee = uuid.uuid4(), uuid.uuid4()
+    code = await referrals.get_or_create_code(session, referrer)
+    referral = await referrals.attribute(
+        session, referee_id=referee, code=code, device_fingerprint=None, phone_prefix=None
+    )
+    assert referral is not None
+    session.add(
+        AbuseFlag(
+            referral_id=referral.id,
+            cluster_reason="device",
+            details={"cluster_size": 4, "shared_fingerprint": "abc123"},
+        )
+    )
+    await session.flush()
+
+    _admin(state, "staff")
+    response = await http.get("/admin/coins/abuse")
+    assert response.status_code == 200
+    flag = response.json()["items"][0]
+    assert flag["details"] == {"cluster_size": 4, "shared_fingerprint": "abc123"}
 
 
 async def test_void_uses_compensating_entries_and_preserves_originals(

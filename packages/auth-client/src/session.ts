@@ -5,8 +5,6 @@ export interface AgriUser {
   agriId: string;
   name: string | null;
   roles: readonly string[];
-  /** AgriCoins land in a later spec; headers render this today. */
-  coinsBalance: number;
 }
 
 /** Server-side only - lives inside the JWE session cookie. */
@@ -29,6 +27,5 @@ export function projectUser(session: SessionPayload): AgriUser {
     agriId: session.agriId,
     name: session.name,
     roles: [...session.roles],
-    coinsBalance: 0,
   };
 }

@@ -65,6 +65,17 @@ async def handle_event(session: AsyncSession, event: Event, *, now: datetime) ->
             now=now,
         )
         await referrals.maybe_reward(session, referee_id=uid, now=now)
+    elif event.type == "identity.session_resumed":
+        uid = uuid.UUID(event.payload["user_id"])
+        day = now.strftime("%Y-%m-%d")
+        await service.award(
+            session,
+            user_id=uid,
+            rule_code="daily_visit",
+            ref_id=day,
+            idempotency_key=rules.deterministic_key("daily_visit", uid, day=day),
+            now=now,
+        )
     # unknown event types: no-op (other consumers own them)
 
 

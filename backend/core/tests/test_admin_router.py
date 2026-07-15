@@ -256,6 +256,43 @@ async def test_cannot_suspend_self_or_super_admin_as_staff(
     assert (await http.post(f"/admin/users/{admin.agri_id}/suspend")).status_code == 400
 
 
+SUPER_PHONE = "+919876566666"
+STAFF_PHONE = "+919876577777"
+
+
+async def test_cannot_reactivate_super_admin_as_staff(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Reactivate must enforce the same escalation guard as suspend: a staff
+    principal must not be able to unilaterally restore a suspended
+    super_admin account, but a super_admin principal legitimately can."""
+    http, session = api
+    target = await _make_target(http, session)
+    await assign_role(session, target.id, "super_admin")
+
+    # only a super_admin can suspend a super_admin in the first place
+    await _login(http, session, phone=SUPER_PHONE)
+    super_admin = await _user(session, SUPER_PHONE)
+    await assign_role(session, super_admin.id, "super_admin")
+    suspended = await http.post(f"/admin/users/{target.agri_id}/suspend")
+    assert suspended.status_code == 200
+    http.cookies.clear()
+
+    # staff must not be able to reactivate a suspended super_admin
+    await _login(http, session, phone=STAFF_PHONE)
+    staff = await _user(session, STAFF_PHONE)
+    await assign_role(session, staff.id, "staff")
+    blocked = await http.post(f"/admin/users/{target.agri_id}/reactivate")
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"] == "super_admin_required"
+    http.cookies.clear()
+
+    # but a super_admin principal can
+    await _login(http, session, phone=SUPER_PHONE)
+    allowed = await http.post(f"/admin/users/{target.agri_id}/reactivate")
+    assert allowed.status_code == 200
+
+
 async def test_audit_rows_use_agri_ids_never_phone(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:

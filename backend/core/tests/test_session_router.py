@@ -243,3 +243,16 @@ async def test_second_login_different_device_publishes_new_device_event(
     assert event["agri_id"] == second.json()["agri_id"]
     assert event["phone"] is None
     assert PHONE not in json.dumps(event)
+
+
+async def test_me_publishes_session_resumed(
+    api: tuple[httpx.AsyncClient, AsyncSession], otp_redis: Redis
+) -> None:
+    http, session = api
+    await _login(http, session)
+    await otp_redis.flushdb()  # drain login()'s own publishes first
+    me = await http.get("/auth/me")
+    assert me.status_code == 200
+    raw = cast(list[tuple[str, dict[str, str]]], await otp_redis.xrange("identity", "-", "+"))
+    entries = _stream_entries(raw)
+    assert any(e["type"] == "identity.session_resumed" for e in entries)

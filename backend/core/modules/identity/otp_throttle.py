@@ -74,11 +74,25 @@ async def _bump_daily(redis: Redis, key: str, cap: int) -> None:
 
 
 async def assert_issue_allowed(phone: str, ip: str | None, device_fingerprint: str | None) -> None:
-    """Raise OtpRateLimited if any issue throttle blocks this request."""
+    """Raise OtpRateLimited if any issue throttle blocks this request.
+
+    The cooldown check is an atomic claim (`SET NX EX`), not a plain TTL
+    read: two concurrent callers for the same phone must not both observe
+    "no cooldown active" before either has written the key (D14 A6, High).
+    Only one `SET ... NX` can succeed; the loser is rejected here,
+    immediately, before either reaches the daily-cap checks below. The
+    claim's TTL is provisional - the shortest rung of the escalation ladder
+    - and gets overwritten with the real escalated TTL by register_issue()
+    once issuance actually succeeds. If a later check in this function
+    rejects the request, the provisional claim is deliberately left in
+    place (fail closed): the caller now also waits out the short window,
+    which is a negligible cost next to letting the race back in.
+    """
     redis = get_redis()
-    cooldown_ttl = int(await redis.ttl(_cooldown_key(phone)))
-    if cooldown_ttl > 0:
-        raise OtpRateLimited(cooldown_ttl)
+    claimed = await redis.set(_cooldown_key(phone), "1", nx=True, ex=RESEND_COOLDOWNS_SECONDS[0])
+    if not claimed:
+        cooldown_ttl = int(await redis.ttl(_cooldown_key(phone)))
+        raise OtpRateLimited(cooldown_ttl if cooldown_ttl > 0 else 1)
     try:
         await _bump_daily(redis, f"otp:day:phone:{phone}", OTP_ISSUES_PER_PHONE_PER_DAY)
     except OtpRateLimited:

@@ -14,15 +14,11 @@ const FULL: SessionPayload = {
 };
 
 describe("projectUser (non-negotiable 3)", () => {
-  it("exposes exactly agriId, name, roles, coinsBalance - nothing else", () => {
+  it("exposes exactly agriId, name, roles - nothing else", () => {
     const user = projectUser(FULL);
-    expect(Object.keys(user).sort()).toEqual(["agriId", "coinsBalance", "name", "roles"]);
+    expect(Object.keys(user).sort()).toEqual(["agriId", "name", "roles"]);
     expect(JSON.stringify(user)).not.toContain(FULL.sub);
     expect(JSON.stringify(user)).not.toContain(FULL.accessToken);
     expect(JSON.stringify(user)).not.toContain(FULL.refreshToken);
-  });
-
-  it("coins are a placeholder 0 until the coins spec lands", () => {
-    expect(projectUser(FULL).coinsBalance).toBe(0);
   });
 });

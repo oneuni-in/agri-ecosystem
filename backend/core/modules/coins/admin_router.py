@@ -10,13 +10,16 @@ principal-reading pattern already used by modules/coins/router.py.
 
 Never log request bodies (reason_note, balances) - audit events carry ids and
 amounts only, which is fine; logger.info/warning of raw bodies is not.
+(Exception: `adjust_confirm`'s durable `audit.entries.metadata` deliberately
+also carries `reason_note` - an operator-authored justification, not a
+logged request body; see shared/audit.py's PII rule for the distinction.)
 """
 
 import json
 import secrets
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
@@ -25,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import service
 from modules.coins.models import AbuseFlag, LedgerEntry, Referral, Rule
+from shared.audit import audit
 from shared.cache import get_redis
 from shared.db import get_session
 from shared.events import publish
@@ -120,6 +124,7 @@ class AbuseFlagOut(BaseModel):
     referral_id: uuid.UUID
     cluster_reason: str
     status: str
+    details: dict[str, Any]
     reviewed_by: uuid.UUID | None
     reviewed_at: datetime | None
     created_at: datetime
@@ -131,6 +136,7 @@ def _abuse_flag_out(flag: AbuseFlag) -> AbuseFlagOut:
         referral_id=flag.referral_id,
         cluster_reason=flag.cluster_reason,
         status=flag.status,
+        details=flag.details,
         reviewed_by=flag.reviewed_by,
         reviewed_at=flag.reviewed_at,
         created_at=flag.created_at,
@@ -161,15 +167,29 @@ async def list_rules(request: Request, session: SessionDep) -> list[RuleOut]:
 async def update_rule(
     code: str, body: RuleUpdateIn, request: Request, session: SessionDep
 ) -> RuleOut:
-    _require_role(request, SUPER_ADMIN)
+    admin_id = _require_role(request, SUPER_ADMIN)
     if not await flag_enabled("coins_rules_admin", session=session):
         raise HTTPException(status_code=403, detail="rules_admin_disabled")
     rule = await session.get(Rule, code)
     if rule is None:
         raise HTTPException(status_code=404, detail="unknown_rule")
+    # mode="json" -> datetimes become ISO8601 strings, JSONB-safe
+    changes = body.model_dump(mode="json", exclude_none=True)
+    before = {
+        field: (value.isoformat() if hasattr(value, "isoformat") else value)
+        for field, value in ((field, getattr(rule, field)) for field in changes)
+    }
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(rule, field, value)
     await session.flush()
+    await audit(
+        session,
+        action="coins.rule_updated",
+        actor_user_id=admin_id,
+        target_type="coins_rule",
+        target_id=code,
+        metadata={"before": before, "after": changes},
+    )
     return _rule_out(rule)
 
 
@@ -228,15 +248,13 @@ async def adjust_confirm(
         )
     except service.InsufficientBalanceError as exc:
         raise HTTPException(status_code=409, detail="insufficient_balance") from exc
-    await publish(
-        "audit",
-        "coins.manual_adjust",
-        {
-            "admin_id": admin_id,
-            "user_id": intent["user_id"],
-            "delta": delta,
-            "reason_note": intent["reason_note"],
-        },
+    await audit(
+        session,
+        action="coins.manual_adjust",
+        actor_user_id=uuid.UUID(admin_id),
+        target_type="user",
+        target_id=str(user_id),
+        metadata={"delta": delta, "reason_note": intent["reason_note"]},
     )
     return AdjustConfirmOut(balance=await service.balance(session, user_id))
 

@@ -61,7 +61,6 @@ describe("getServerUser", () => {
       agriId: "green_farmer42",
       name: "Asha",
       roles: ["user"],
-      coinsBalance: 0,
     });
   });
 

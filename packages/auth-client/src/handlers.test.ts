@@ -312,7 +312,6 @@ describe("GET /api/auth/me", () => {
       agriId: "green_farmer42",
       name: "Asha",
       roles: ["user"],
-      coinsBalance: 0,
     });
   });
 

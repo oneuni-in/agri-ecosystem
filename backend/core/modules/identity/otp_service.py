@@ -128,6 +128,7 @@ async def verify_otp(
         )
         .order_by(OtpRequest.created_at.desc())
         .limit(1)
+        .with_for_update()
     )
     supplied_hash = hash_code(normalized, purpose, code)
     if row is None:

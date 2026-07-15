@@ -138,6 +138,10 @@ async def maybe_reward(session: AsyncSession, *, referee_id: uuid.UUID, now: dat
     # replicas, serialize this section per referrer - e.g. take
     # pg_advisory_xact_lock(hashtext('coins_referrer:' || referrer_id)) (or
     # SELECT ... FOR UPDATE the referrer's referral_codes row) before the count.
+    # D14 sprint-1 audit: reviewed and explicitly deferred (see
+    # docs/security/sprint1-audit.md Part B#1) - safe today because
+    # docker-compose.dev.yml runs exactly one `worker` replica. Do NOT scale
+    # coins-worker beyond 1 replica without adding the lock above first.
     rewarded_this_month = await session.scalar(
         select(func.count())
         .select_from(Referral)

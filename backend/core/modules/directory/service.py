@@ -7,12 +7,13 @@ Never log request bodies here - business contact PII flows through this module.
 
 import re
 import uuid
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory.models import Business
+from modules.directory.models import Branch, Business, BusinessCategory, BusinessCoverage, Category
 from shared.i18n import Translated
 from shared.ownership import owned_by
 from shared.pagination import DEFAULT_PAGE_SIZE, Page, paginate
@@ -162,3 +163,183 @@ async def rename_business(
     )
     await session.flush()
     return business
+
+
+BRANCH_MUTABLE_FIELDS = {
+    "address",
+    "state",
+    "district",
+    "pincode",
+    "lat",
+    "lng",
+    "phone",
+    "whatsapp",
+    "hours",
+}
+
+
+async def add_branch(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    address: str,
+    state: str,
+    district: str,
+    pincode: str,
+    lat: Decimal | None = None,
+    lng: Decimal | None = None,
+    phone: str | None = None,
+    whatsapp: str | None = None,
+    hours: dict[str, Any] | None = None,
+) -> Branch:
+    _validate_pincode(pincode)
+    await get_owned_business(session, owner_user_id, business_id)
+    branch = Branch(
+        business_id=business_id,
+        address=address,
+        state=state,
+        district=district,
+        pincode=pincode,
+        lat=lat,
+        lng=lng,
+        phone=phone,
+        whatsapp=whatsapp,
+        hours=hours or {},
+    )
+    session.add(branch)
+    await session.flush()
+    return branch
+
+
+async def update_branch(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    branch_id: uuid.UUID,
+    patch: dict[str, Any],
+) -> Branch:
+    unknown = set(patch) - BRANCH_MUTABLE_FIELDS
+    if unknown:
+        raise ValueError(f"unknown branch fields: {sorted(unknown)}")
+    branch = await session.scalar(select(Branch).where(Branch.id == branch_id))
+    if branch is None:
+        raise BusinessNotFoundError(str(branch_id))
+    # parent-ownership gate: not the owner -> same 404 as a missing branch
+    await get_owned_business(session, owner_user_id, branch.business_id)
+    if "pincode" in patch:
+        _validate_pincode(patch["pincode"])
+    for field, value in patch.items():
+        setattr(branch, field, value)
+    await session.flush()
+    return branch
+
+
+async def set_coverage(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    pincodes: list[str],
+) -> list[str]:
+    wanted = sorted(set(pincodes))
+    if len(wanted) > MAX_COVERAGE_PINCODES:
+        raise ValueError(f"coverage capped at {MAX_COVERAGE_PINCODES} pincodes")
+    bad = [p for p in wanted if not PINCODE_RE.fullmatch(p)]
+    if bad:
+        raise ValueError(f"not 6-digit pincodes: {bad[:5]}")
+    await get_owned_business(session, owner_user_id, business_id)
+    existing = set(
+        (
+            await session.scalars(
+                select(BusinessCoverage.pincode).where(BusinessCoverage.business_id == business_id)
+            )
+        ).all()
+    )
+    stale = existing - set(wanted)
+    if stale:
+        await session.execute(
+            delete(BusinessCoverage).where(
+                BusinessCoverage.business_id == business_id,
+                BusinessCoverage.pincode.in_(stale),
+            )
+        )
+    for pincode in set(wanted) - existing:
+        session.add(BusinessCoverage(business_id=business_id, pincode=pincode))
+    await session.flush()
+    return wanted
+
+
+async def assign_categories(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    category_ids: list[uuid.UUID],
+) -> list[uuid.UUID]:
+    wanted = set(category_ids)
+    await get_owned_business(session, owner_user_id, business_id)
+    known = (
+        set((await session.scalars(select(Category.id).where(Category.id.in_(wanted)))).all())
+        if wanted
+        else set()
+    )
+    unknown = wanted - known
+    if unknown:
+        raise ValueError(f"unknown categories: {sorted(str(u) for u in unknown)}")
+    existing = set(
+        (
+            await session.scalars(
+                select(BusinessCategory.category_id).where(
+                    BusinessCategory.business_id == business_id
+                )
+            )
+        ).all()
+    )
+    stale = existing - wanted
+    if stale:
+        await session.execute(
+            delete(BusinessCategory).where(
+                BusinessCategory.business_id == business_id,
+                BusinessCategory.category_id.in_(stale),
+            )
+        )
+    for category_id in wanted - existing:
+        session.add(BusinessCategory(business_id=business_id, category_id=category_id))
+    await session.flush()
+    return sorted(wanted)
+
+
+async def list_categories(
+    session: AsyncSession, *, cursor: str | None = None, limit: int = DEFAULT_PAGE_SIZE
+) -> Page[Category]:
+    return await paginate(session, select(Category), cursor=cursor, limit=limit)
+
+
+async def get_by_slug(
+    session: AsyncSession, slug: str
+) -> tuple[Business, list[Branch], list[Category]] | None:
+    """Public detail bundle. Suspended and soft-deleted businesses are hidden."""
+    business = await session.scalar(
+        select(Business).where(Business.slug == slug, Business.status == "active")
+    )
+    if business is None:
+        return None
+    branches = list(
+        (
+            await session.scalars(
+                select(Branch).where(Branch.business_id == business.id).order_by(Branch.id)
+            )
+        ).all()
+    )
+    categories = list(
+        (
+            await session.scalars(
+                select(Category)
+                .join(BusinessCategory, BusinessCategory.category_id == Category.id)
+                .where(BusinessCategory.business_id == business.id)
+                .order_by(Category.sort_order)
+            )
+        ).all()
+    )
+    return business, branches, categories

@@ -332,6 +332,7 @@ async def reactivate_user(
     agri_id: str, principal: PrincipalDep, request: Request, session: SessionDep
 ) -> StatusOut:
     user = await _target_user(session, agri_id)
+    await _guard_suspend_target(session, user, principal)
     if user.status != "suspended":
         raise HTTPException(status_code=409, detail="not_suspended")
     user.status = "active"

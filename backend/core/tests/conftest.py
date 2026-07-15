@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
+from decimal import Decimal
 
 import pytest
 from redis.asyncio import Redis
@@ -25,6 +26,7 @@ from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import Base, reset_engine
 from shared.flags import reset_flag_cache
+from shared.geo.models import District, Pincode, State
 from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
 from shared.storage import reset_storage
@@ -168,3 +170,29 @@ async def redis_client() -> AsyncIterator[Redis]:
     await client.flushdb()
     yield client
     await client.aclose()
+
+
+@pytest.fixture
+async def tn_geo_sample(db_session: AsyncSession) -> None:
+    """Minimal TN geo rows for directory covers() tests: Coimbatore 641001
+    (the DoD pincode, coords from the committed snapshot) + Chennai 600001.
+    Full-snapshot loading is exercised by test_geo.py."""
+    state = State(lgd_code=33, name="Tamil Nadu")
+    db_session.add(state)
+    await db_session.flush()
+    district = District(lgd_code=569, state_id=state.id, name="Coimbatore")
+    db_session.add(district)
+    await db_session.flush()
+    for pincode, lat, lon in (
+        ("641001", "10.923220", "76.968600"),
+        ("600001", "13.079000", "80.287000"),
+    ):
+        db_session.add(
+            Pincode(
+                pincode=pincode,
+                district_id=district.id,
+                centroid_lat=Decimal(lat),
+                centroid_lon=Decimal(lon),
+            )
+        )
+    await db_session.flush()

@@ -217,6 +217,32 @@ async def test_abuse_list_requires_staff_or_super_admin(
     assert len(response.json()["items"]) == 1
 
 
+async def test_abuse_queue_surfaces_details(
+    api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
+) -> None:
+    http, session, state = api
+    referrer, referee = uuid.uuid4(), uuid.uuid4()
+    code = await referrals.get_or_create_code(session, referrer)
+    referral = await referrals.attribute(
+        session, referee_id=referee, code=code, device_fingerprint=None, phone_prefix=None
+    )
+    assert referral is not None
+    session.add(
+        AbuseFlag(
+            referral_id=referral.id,
+            cluster_reason="device",
+            details={"cluster_size": 4, "shared_fingerprint": "abc123"},
+        )
+    )
+    await session.flush()
+
+    _admin(state, "staff")
+    response = await http.get("/admin/coins/abuse")
+    assert response.status_code == 200
+    flag = response.json()["items"][0]
+    assert flag["details"] == {"cluster_size": 4, "shared_fingerprint": "abc123"}
+
+
 async def test_void_uses_compensating_entries_and_preserves_originals(
     api: tuple[httpx.AsyncClient, AsyncSession, dict[str, _Principal]],
     otp_redis: Redis,

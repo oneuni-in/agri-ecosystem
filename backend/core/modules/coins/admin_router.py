@@ -16,7 +16,7 @@ import json
 import secrets
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
@@ -120,6 +120,7 @@ class AbuseFlagOut(BaseModel):
     referral_id: uuid.UUID
     cluster_reason: str
     status: str
+    details: dict[str, Any]
     reviewed_by: uuid.UUID | None
     reviewed_at: datetime | None
     created_at: datetime
@@ -131,6 +132,7 @@ def _abuse_flag_out(flag: AbuseFlag) -> AbuseFlagOut:
         referral_id=flag.referral_id,
         cluster_reason=flag.cluster_reason,
         status=flag.status,
+        details=flag.details,
         reviewed_by=flag.reviewed_by,
         reviewed_at=flag.reviewed_at,
         created_at=flag.created_at,

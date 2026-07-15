@@ -8,7 +8,10 @@ concurrency and the schema needs no UPDATE grant anywhere (the app role
 physically cannot rewrite history; verify_chain() proves nobody else did).
 
 PII rule: metadata carries agri_ids and hashes - never phone numbers, message
-bodies, or addresses. Deleting the newest entry of a day is the one mutation
+bodies, or addresses. (Operator-authored structured justification, e.g.
+coins admin_router.py's `reason_note` on a manual adjustment, is business
+context, not user-submitted PII tied to an individual's contact info, and is
+fine here.) Deleting the newest entry of a day is the one mutation
 the chain alone cannot see; the grant matrix (app_rt: INSERT+SELECT only) is
 what closes that hole for the application role.
 """

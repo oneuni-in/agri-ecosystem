@@ -10,6 +10,9 @@ principal-reading pattern already used by modules/coins/router.py.
 
 Never log request bodies (reason_note, balances) - audit events carry ids and
 amounts only, which is fine; logger.info/warning of raw bodies is not.
+(Exception: `adjust_confirm`'s durable `audit.entries.metadata` deliberately
+also carries `reason_note` - an operator-authored justification, not a
+logged request body; see shared/audit.py's PII rule for the distinction.)
 """
 
 import json

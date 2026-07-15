@@ -223,3 +223,12 @@ Task 6 under Part B would double-count it against a different, unrelated
   spec's explicit scope) — recorded in `docs/security/sprint1-audit.md` for
   Sprint 2 triage; none are launch blockers per this gate's
   Critical/High-only non-negotiable.
+- `shared/events.py::publish` has no `MAXLEN`/`XTRIM`, so the `identity`
+  stream grows unbounded; `coins/worker.py` is a single-replica, serial
+  consumer of that same stream, so Task 8's `identity.session_resumed`
+  traffic (added on every `/auth/me` call) shares head-of-line ordering
+  with economically important events (`user.registered`,
+  `profile.completed`) — not a correctness bug (awards stay idempotent),
+  but an undocumented-until-now throughput/latency scaling gap; see
+  `docs/security/sprint1-audit.md`'s A3 section. Fast-follow, not fixed
+  this gate.

@@ -48,7 +48,7 @@ and dated; v0.2.0 promotable from main.
   phone number, exactly 1 succeeded — proves Task 14 Fix 2's atomic cooldown
   claim holds against a live running server, not just under pytest.
 
-- [x] 10k-award storm zero drift — AND backend-storm is a required status check
+- [x] 10k-award storm zero drift
 
   `backend/core/tests/test_coins_storm.py::test_storm_no_drift_no_negative`:
   passed against the working tree (Task 15, ~7m54s) AND independently
@@ -56,14 +56,21 @@ and dated; v0.2.0 promotable from main.
   concurrent operations, zero balance drift, zero negative balances both
   times.
 
-  `backend-storm` documented as the 9th required CI check in
-  `docs/runbooks/branch-protection.md` (Task 2, commit `143a164`). **Caveat
-  carried forward from Task 2/D13**: GitHub branch-protection/ruleset
-  enforcement is not active on this repo's free plan (known gap, unchanged
-  since Gate 1) — the check is documented and will activate automatically on
-  a Team-plan upgrade, but adding it to the live GitHub ruleset today is an
-  owner action pending as of this gate (see `branch-protection.md`'s
-  verification log, 2026-07-14 entry).
+  - [x] `backend-storm` DOCUMENTED as the 9th required CI check — [ ] but NOT
+    yet ENFORCED via live GitHub branch protection (owner action pending)
+
+    `backend-storm` runs on every PR (`.github/workflows/ci.yml:113`) and is
+    documented as the 9th required check in
+    `docs/runbooks/branch-protection.md` (Task 2, commit `143a164`).
+    **Caveat carried forward from Task 2/D13**: GitHub branch-protection/
+    ruleset enforcement is not active on this repo's free plan (known gap,
+    unchanged since Gate 1) — the check is documented and will activate
+    automatically on a Team-plan upgrade, but adding it to the live GitHub
+    ruleset today is an owner action pending as of this gate (see
+    `branch-protection.md`'s verification log, 2026-07-14 entry). Splitting
+    this into two lines rather than one blanket `[x]` so "runs in CI and is
+    documented as required" isn't conflated with "GitHub will actually block
+    a merge on it" — the latter is not yet true.
 
 - [x] migration chain verified on the COMMITTED tree (A1)
 
@@ -176,14 +183,21 @@ Informational); every Critical/High is `fixed`, all others recorded as
 `open` with severity-appropriate reasoning (not blockers per the D14
 non-negotiable, which scopes zero-tolerance to Critical/High only).
 
-## Part B deferred-items: all 7 resolved
+## Part B deferred-items: all 6 resolved
 
-Fixed now: BFF path-traversal hardening (Task 6), daily_visit award wiring
-(Task 8), AbuseFlagOut details field (Task 9), dead coinsBalance removal
-(Task 10). Explicitly deferred with documented reasoning: referral-cap
-TOCTOU (Task 11, pinned to the single-worker constraint), unused seeded RBAC
-perms (Task 12), ta/hi translation content review (Task 13) — see
-`docs/security/sprint1-audit.md`'s "Part B deferred-items decisions" table.
+The spec's Part B table is a defined 6-item set (`docs/security/sprint1-audit.md`'s
+"Part B deferred-items decisions" table, items #1-#6). Fixed now: daily_visit
+award wiring (Task 8, Part B#2), AbuseFlagOut details field (Task 9, Part B#3),
+dead coinsBalance removal (Task 10, Part B#5). Explicitly deferred with
+documented reasoning: referral-cap TOCTOU (Task 11, Part B#1, pinned to the
+single-worker constraint), unused seeded RBAC perms (Task 12, Part B#4),
+ta/hi translation content review (Task 13, Part B#6).
+
+(BFF path-traversal hardening, Task 6, is a separate A6-audit-scoped fix —
+`docs/security/sprint1-audit.md`'s A5 finding, not a numbered Part B item —
+covered under the "10k-award storm" section above and the A5 evidence line;
+listing it here would double-count it against a different, unrelated
+6-item table.)
 
 ## Known gaps carried forward
 

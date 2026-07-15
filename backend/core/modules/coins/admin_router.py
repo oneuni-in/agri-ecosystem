@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import service
 from modules.coins.models import AbuseFlag, LedgerEntry, Referral, Rule
+from shared.audit import audit
 from shared.cache import get_redis
 from shared.db import get_session
 from shared.events import publish
@@ -230,15 +231,13 @@ async def adjust_confirm(
         )
     except service.InsufficientBalanceError as exc:
         raise HTTPException(status_code=409, detail="insufficient_balance") from exc
-    await publish(
-        "audit",
-        "coins.manual_adjust",
-        {
-            "admin_id": admin_id,
-            "user_id": intent["user_id"],
-            "delta": delta,
-            "reason_note": intent["reason_note"],
-        },
+    await audit(
+        session,
+        action="coins.manual_adjust",
+        actor_user_id=uuid.UUID(admin_id),
+        target_type="user",
+        target_id=str(user_id),
+        metadata={"delta": delta, "reason_note": intent["reason_note"]},
     )
     return AdjustConfirmOut(balance=await service.balance(session, user_id))
 

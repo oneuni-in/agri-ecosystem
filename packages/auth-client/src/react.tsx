@@ -77,7 +77,14 @@ export function useAgriUser({ autoSilentSso = true }: { autoSilentSso?: boolean 
  * Login button otherwise. The coins pill is D13's live CoinsBalancePill,
  * placed by each app's own header next to this cluster - AuthCluster no
  * longer renders one itself (its `coinsBalance` field was a D10 placeholder,
- * always 0, now superseded). Drop into HeaderStack's `right` slot. */
+ * always 0, now superseded). Drop into HeaderStack's `right` slot.
+ *
+ * THIS IS THE HEADER INTEGRATION POINT (D14 A4): future header widgets
+ * (badges, alerts, balances, whatever) belong as SIBLINGS of <AuthCluster/>
+ * in the `right` slot, the way CoinsBalancePill does - never render them
+ * FROM INSIDE this component. Two D13 bugs (a duplicate coins pill, then a
+ * dead placeholder field) both came from a spec reaching into AuthCluster
+ * instead of adding a sibling; don't repeat that. */
 export function AuthCluster({ loginLabel = "Login" }: { loginLabel?: string }) {
   const { user, status, login, logout } = useAgriUser();
   if (status === "loading") return null;

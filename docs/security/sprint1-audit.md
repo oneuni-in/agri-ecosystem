@@ -203,4 +203,6 @@ coins `update_rule` zero audit trail (High). None were refuted.
 
 ## Part B deferred-items decisions
 
-<!-- Tasks 11-13 append the decision table here -->
+| # | Item | Decision | Reasoning |
+|---|---|---|---|
+| 1 | Referral 20/month cap TOCTOU under multiple workers | **Deferred explicitly.** | Safe today: exactly one `worker` (coins) replica in `docker-compose.dev.yml`, events processed serially. `pg_advisory_xact_lock(hashtext('coins_referrer:' \|\| referrer_id))` is the fix, already named in `referrals.py`'s NOTE comment (lines 133-140) — apply it on the "scale coins-worker beyond 1 replica" ticket, not before. A guard comment was added to `referrals.py` pointing back here. |

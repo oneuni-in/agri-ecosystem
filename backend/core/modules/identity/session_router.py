@@ -270,14 +270,15 @@ async def me(principal: PrincipalDep, session: SessionDep) -> MeOut:
     user = await session.scalar(select(User).where(User.id == principal.user_id))
     assert user is not None  # resolve_web_session proved existence this request
     # Best-effort, same pattern as login()'s publishes: a Redis blip must
-    # never fail a plain "who am I" read. The coins worker's daily_visit
+    # never fail a plain "who am I" read. This endpoint is called directly
+    # by web-id's SSR pages (apps/web-id/app/page.tsx,
+    # apps/web-id/app/devices/page.tsx) - every other app's client-side
+    # header mount (including web-admin/lib/api.ts's handleMe) hits the
+    # BFF's own /api/auth/me instead, served from the JWE cookie, and never
+    # reaches this backend endpoint at all. The coins worker's daily_visit
     # award is idempotent per user+day (rules.deterministic_key), so
-    # publishing on every /me call - called by web-id's SSR pages
-    # (apps/web-id/app/page.tsx, apps/web-id/app/devices/page.tsx) and
-    # web-admin/lib/api.ts, NOT by every app's client-side header mount
-    # (those hit the BFF's own /api/auth/me, served from the JWE cookie
-    # without touching this backend endpoint at all) - is safe: duplicate
-    # awards are impossible even under heavy repeat calls.
+    # publishing on every /me call from those real callers is safe:
+    # duplicate awards are impossible even under heavy repeat calls.
     # KNOWN SCALING GAP (D14, undocumented until now): shared.events.publish
     # does a bare XADD with no MAXLEN/XTRIM, so this stream grows unbounded,
     # and coins/worker.py is a single-replica, serial consumer of this SAME

@@ -116,11 +116,21 @@ async def request_verification(
             Verification.business_id == business_id, Verification.status == "pending"
         )
     )
-    if pending is not None:
-        raise ClaimError("verification_pending")
+    if pending is not None:  # friendly 409 for the common case; the savepoint
+        raise ClaimError("verification_pending")  # below maps the unique-index race to the same 409
     verification = Verification(business_id=business_id, method="document", doc_keys=doc_keys)
+    # Savepoint wraps only the insert so a lost race against the partial
+    # unique index (uq_directory_verifications_one_pending) rolls back just
+    # this insert, not the caller's transaction (submit_claim precedent).
+    sp = await session.begin_nested()
+    try:
+        session.add(verification)
+        await session.flush()
+    except IntegrityError as exc:  # lost the race to the partial unique index
+        await sp.rollback()
+        raise ClaimError("verification_pending") from exc
+    await sp.commit()
+    # Set after the savepoint commit so a lost race leaves the business untouched.
     business.verification_status = "pending"
-    session.add(verification)
-    await session.flush()
     await session.refresh(verification)
     return verification

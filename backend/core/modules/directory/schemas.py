@@ -39,6 +39,7 @@ class BusinessOut(BaseModel):
     status: str
     verification_status: str
     subscription_tier: str
+    claimable: bool
     primary_pincode: str
     description: dict[str, str] | None
     created_at: datetime
@@ -134,4 +135,23 @@ class CoversItemOut(BaseModel):
 
 class CoversOut(BaseModel):
     items: list[CoversItemOut]
+    next_cursor: str | None
+
+
+ClaimStatus = Literal["pending", "approved", "rejected"]
+
+
+class ClaimOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    claimant_user_id: uuid.UUID
+    status: str
+    evidence_count: int
+    decision_note: str | None
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class ClaimPageOut(BaseModel):
+    items: list[ClaimOut]
     next_cursor: str | None

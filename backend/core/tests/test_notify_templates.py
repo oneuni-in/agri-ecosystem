@@ -12,6 +12,12 @@ EXPECTED_CHANNELS = {
     "login_new_device": {"in_app", "sms", "email"},
     "role_changed": {"in_app"},
     "generic_announce": {"in_app", "email"},
+    # D16 claim/verification decisions (in-app only: directory events carry
+    # no email/locale - the module may not read identity's tables)
+    "claim_approved": {"in_app"},
+    "claim_rejected": {"in_app"},
+    "verification_approved": {"in_app"},
+    "verification_rejected": {"in_app"},
 }
 
 

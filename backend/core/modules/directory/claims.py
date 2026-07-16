@@ -10,6 +10,7 @@ import uuid
 
 import uuid6
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.models import Business, Claim
@@ -57,15 +58,24 @@ async def submit_claim(
             Claim.status == "pending",
         )
     )
-    if pending is not None:  # friendly 409; the partial unique index is the backstop
-        raise ClaimError("claim_pending")
+    if pending is not None:  # friendly 409 for the common case; the savepoint
+        raise ClaimError("claim_pending")  # below maps the unique-index race to the same 409
     claim = Claim(
         business_id=business_id,
         claimant_user_id=claimant_user_id,
         evidence_docs=evidence_docs,
     )
-    session.add(claim)
-    await session.flush()
+    # Savepoint wraps only the insert so a lost race against the partial
+    # unique index (uq_directory_claims_one_pending) rolls back just this
+    # insert, not the caller's transaction (record_entry precedent).
+    sp = await session.begin_nested()
+    try:
+        session.add(claim)
+        await session.flush()
+    except IntegrityError as exc:  # lost the race to the partial unique index
+        await sp.rollback()
+        raise ClaimError("claim_pending") from exc
+    await sp.commit()
     await session.refresh(claim)
     return claim
 

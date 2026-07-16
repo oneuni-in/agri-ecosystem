@@ -251,3 +251,61 @@ async def test_public_detail_exposes_claimable(
     body = detail.json()["business"]
     assert body["claimable"] is True
     assert "owner_user_id" not in body  # never leak the owner column publicly
+
+
+async def _owned_business(session: AsyncSession, owner: uuid.UUID) -> Business:
+    business = await _seeded_business(session, "Owned Dairy")
+    business.owner_user_id = owner
+    await session.flush()
+    return business
+
+
+async def test_owner_requests_verification(
+    api: tuple[httpx.AsyncClient, AsyncSession], object_store: dict[str, bytes]
+) -> None:
+    http, session = api
+    business = await _owned_business(session, USER_A)
+    response = await http.post(
+        f"/directory/businesses/{business.id}/verification", files=_files(), headers=_as(USER_A)
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["method"] == "document"
+    assert body["status"] == "pending"
+    await session.refresh(business)
+    assert business.verification_status == "pending"
+
+
+async def test_verification_is_owner_only_and_single_pending(
+    api: tuple[httpx.AsyncClient, AsyncSession], object_store: dict[str, bytes]
+) -> None:
+    http, session = api
+    business = await _owned_business(session, USER_A)
+    # non-owner -> 404 (same as missing business; IDOR)
+    attack = await http.post(
+        f"/directory/businesses/{business.id}/verification", files=_files(), headers=_as(USER_B)
+    )
+    assert attack.status_code == 404
+    first = await http.post(
+        f"/directory/businesses/{business.id}/verification", files=_files(), headers=_as(USER_A)
+    )
+    assert first.status_code == 201
+    dup = await http.post(
+        f"/directory/businesses/{business.id}/verification", files=_files(), headers=_as(USER_A)
+    )
+    assert dup.status_code == 409
+    assert dup.json()["detail"] == "verification_pending"
+
+
+async def test_verified_business_cannot_rerequest(
+    api: tuple[httpx.AsyncClient, AsyncSession], object_store: dict[str, bytes]
+) -> None:
+    http, session = api
+    business = await _owned_business(session, USER_A)
+    business.verification_status = "verified"
+    await session.flush()
+    response = await http.post(
+        f"/directory/businesses/{business.id}/verification", files=_files(), headers=_as(USER_A)
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "already_verified"

@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory.models import Business, Claim
+from modules.directory import service
+from modules.directory.models import Business, Claim, Verification
 from shared.ownership import owned_by
 from shared.pagination import DEFAULT_PAGE_SIZE, Page, paginate
 
@@ -98,3 +99,28 @@ async def list_my_claims(
         cursor=cursor,
         limit=limit,
     )
+
+
+async def request_verification(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    doc_keys: list[str],
+) -> Verification:
+    business = await service.get_owned_business(session, owner_user_id, business_id)
+    if business.verification_status == "verified":
+        raise ClaimError("already_verified")
+    pending = await session.scalar(
+        select(Verification.id).where(
+            Verification.business_id == business_id, Verification.status == "pending"
+        )
+    )
+    if pending is not None:
+        raise ClaimError("verification_pending")
+    verification = Verification(business_id=business_id, method="document", doc_keys=doc_keys)
+    business.verification_status = "pending"
+    session.add(verification)
+    await session.flush()
+    await session.refresh(verification)
+    return verification

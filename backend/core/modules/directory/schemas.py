@@ -155,3 +155,19 @@ class ClaimOut(BaseModel):
 class ClaimPageOut(BaseModel):
     items: list[ClaimOut]
     next_cursor: str | None
+
+
+class VerificationOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    method: str
+    status: str
+    notes: str | None
+    doc_count: int
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class VerificationPageOut(BaseModel):
+    items: list[VerificationOut]
+    next_cursor: str | None

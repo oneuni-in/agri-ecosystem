@@ -9,9 +9,9 @@ from typing import Annotated
 from fastapi import Depends, File, HTTPException, Path, Query, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import claims
-from modules.directory.models import Claim
-from modules.directory.schemas import ClaimOut, ClaimPageOut
+from modules.directory import claims, service
+from modules.directory.models import Claim, Verification
+from modules.directory.schemas import ClaimOut, ClaimPageOut, VerificationOut
 from shared import media, storage
 from shared.db import get_session
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
@@ -40,6 +40,19 @@ def _claim_out(claim: Claim) -> ClaimOut:
         decision_note=claim.decision_note,
         created_at=claim.created_at,
         decided_at=claim.decided_at,
+    )
+
+
+def _verification_out(v: Verification) -> VerificationOut:
+    return VerificationOut(
+        id=v.id,
+        business_id=v.business_id,
+        method=v.method,
+        status=v.status,
+        notes=v.notes,
+        doc_count=len(v.doc_keys),
+        created_at=v.created_at,
+        decided_at=v.decided_at,
     )
 
 
@@ -123,3 +136,25 @@ async def get_claim_evidence(
     except storage.StorageError as exc:
         raise HTTPException(status_code=503, detail="storage unavailable") from exc
     return Response(content=data, media_type="image/jpeg")
+
+
+@router.post("/businesses/{business_id}/verification", status_code=201)
+async def request_verification(
+    request: Request,
+    business_id: uuid.UUID,
+    session: SessionDep,
+    files: Annotated[list[UploadFile], File(description="verification documents (1-5 images)")],
+) -> VerificationOut:
+    doc_keys = await _store_evidence(files)
+    try:
+        verification = await claims.request_verification(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            doc_keys=doc_keys,
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except claims.ClaimError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    return _verification_out(verification)

@@ -22,7 +22,7 @@ export default async function ClaimPage({
 }) {
   const { slug } = await params;
   const user = await auth.getServerUser();
-  if (!user) redirect(`/api/auth/login?next=/directory/businesses/${slug}/claim`);
+  if (!user) redirect(`/api/auth/login?next=/directory/businesses/${encodeURIComponent(slug)}/claim`);
 
   const res = await fetch(`${API}/directory/businesses/${encodeURIComponent(slug)}`, {
     cache: "no-store",

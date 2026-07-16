@@ -1,5 +1,246 @@
-"""Directory module routes. Endpoints land in later specs."""
+"""Directory API (D15). Public reads (business detail by slug, covers search)
+are declared in backend/core/public_routes.txt; everything else is private
+and owner-scoped through the service layer.
 
+Principal resolution reads request.state.principal directly (populated by
+require_auth via shared.security) - the independence contract forbids
+modules.directory -> modules.identity. Never log request bodies or query
+strings: this module carries business contact PII (phones, addresses).
+"""
+
+import uuid
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from modules.directory import service
+from modules.directory.models import Branch, Business, Category
+from modules.directory.schemas import (
+    BranchCreateIn,
+    BranchOut,
+    BranchPatchIn,
+    BusinessCreateIn,
+    BusinessOut,
+    BusinessPageOut,
+    BusinessPatchIn,
+    CategoryAssignIn,
+    CategoryAssignOut,
+    CategoryOut,
+    CategoryPageOut,
+    CoverageIn,
+    CoverageOut,
+    RenameIn,
+)
+from shared.db import get_session
+from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
 
 router = SecureRouter(prefix="/directory", tags=["directory"])
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+LimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+
+def _principal_user_id(request: Request) -> uuid.UUID:
+    principal = request.state.principal  # set by require_auth (shared.security)
+    user_id = principal.user_id
+    assert isinstance(user_id, uuid.UUID)  # narrow Starlette state's Any for mypy
+    return user_id
+
+
+def _business_out(business: Business) -> BusinessOut:
+    return BusinessOut(
+        id=business.id,
+        name=business.name,
+        slug=business.slug,
+        type=business.type,
+        status=business.status,
+        verification_status=business.verification_status,
+        subscription_tier=business.subscription_tier,
+        primary_pincode=business.primary_pincode,
+        description=business.description.to_dict() if business.description else None,
+        created_at=business.created_at,
+    )
+
+
+def _branch_out(branch: Branch) -> BranchOut:
+    return BranchOut(
+        id=branch.id,
+        business_id=branch.business_id,
+        address=branch.address,
+        state=branch.state,
+        district=branch.district,
+        pincode=branch.pincode,
+        lat=branch.lat,
+        lng=branch.lng,
+        phone=branch.phone,
+        whatsapp=branch.whatsapp,
+        hours=branch.hours,
+    )
+
+
+def _category_out(category: Category) -> CategoryOut:
+    return CategoryOut(
+        id=category.id,
+        slug=category.slug,
+        name=category.name.to_dict(),
+        sort_order=category.sort_order,
+    )
+
+
+@router.post("/businesses", status_code=201)
+async def create_business(
+    request: Request, body: BusinessCreateIn, session: SessionDep
+) -> BusinessOut:
+    try:
+        business = await service.create_business(
+            session,
+            owner_user_id=_principal_user_id(request),
+            name=body.name,
+            type_=body.type,
+            primary_pincode=body.primary_pincode,
+            description=body.description,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _business_out(business)
+
+
+@router.get("/businesses")
+async def list_my_businesses(
+    request: Request,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> BusinessPageOut:
+    try:
+        page = await service.list_my_businesses(
+            session, _principal_user_id(request), cursor=cursor, limit=limit
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return BusinessPageOut(
+        items=[_business_out(b) for b in page.items], next_cursor=page.next_cursor
+    )
+
+
+@router.patch("/businesses/{business_id}")
+async def update_business(
+    request: Request, business_id: uuid.UUID, body: BusinessPatchIn, session: SessionDep
+) -> BusinessOut:
+    try:
+        business = await service.update_business(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            patch=body.model_dump(exclude_unset=True),
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _business_out(business)
+
+
+@router.post("/businesses/{business_id}/rename")
+async def rename_business(
+    request: Request, business_id: uuid.UUID, body: RenameIn, session: SessionDep
+) -> BusinessOut:
+    try:
+        business = await service.rename_business(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            new_slug=body.new_slug,
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _business_out(business)
+
+
+@router.post("/businesses/{business_id}/branches", status_code=201)
+async def add_branch(
+    request: Request, business_id: uuid.UUID, body: BranchCreateIn, session: SessionDep
+) -> BranchOut:
+    try:
+        branch = await service.add_branch(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            **body.model_dump(),
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _branch_out(branch)
+
+
+@router.patch("/branches/{branch_id}")
+async def update_branch(
+    request: Request, branch_id: uuid.UUID, body: BranchPatchIn, session: SessionDep
+) -> BranchOut:
+    try:
+        branch = await service.update_branch(
+            session,
+            owner_user_id=_principal_user_id(request),
+            branch_id=branch_id,
+            patch=body.model_dump(exclude_unset=True),
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Branch not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _branch_out(branch)
+
+
+@router.put("/businesses/{business_id}/coverage")
+async def set_coverage(
+    request: Request, business_id: uuid.UUID, body: CoverageIn, session: SessionDep
+) -> CoverageOut:
+    try:
+        pincodes = await service.set_coverage(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            pincodes=body.pincodes,
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CoverageOut(pincodes=pincodes)
+
+
+@router.put("/businesses/{business_id}/categories")
+async def assign_categories(
+    request: Request, business_id: uuid.UUID, body: CategoryAssignIn, session: SessionDep
+) -> CategoryAssignOut:
+    try:
+        category_ids = await service.assign_categories(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            category_ids=body.category_ids,
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CategoryAssignOut(category_ids=category_ids)
+
+
+@router.get("/categories")
+async def list_categories(
+    session: SessionDep, cursor: str | None = None, limit: LimitQuery = DEFAULT_PAGE_SIZE
+) -> CategoryPageOut:
+    try:
+        page = await service.list_categories(session, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return CategoryPageOut(
+        items=[_category_out(c) for c in page.items], next_cursor=page.next_cursor
+    )

@@ -152,6 +152,20 @@ jobs:
       - run: pip install -e .[dev]
       - run: pytest -q -m "slow"
 
+  # The backend job installs deps via `pip install -e .[dev]` directly and
+  # never builds backend/core/Dockerfile (api + worker share it), so a broken
+  # Dockerfile or a docker-compose.dev.yml drifted out of sync with
+  # pyproject.toml is invisible here until someone hits it in dev or staging.
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate docker-compose.dev.yml
+        run: docker compose -f docker-compose.dev.yml config --quiet
+      - name: build backend image (api + worker share this Dockerfile)
+        run: docker build ./backend/core -t agri-api:ci
+
   # B / non-negotiable 1: undeclared public route fails CI. Boots the app
   # factory and diffs the live SecureRouter registry against the committed
   # backend/core/public_routes.txt.

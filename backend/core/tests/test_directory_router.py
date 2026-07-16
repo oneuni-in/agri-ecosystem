@@ -9,12 +9,16 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
+from modules.directory import service
 from shared.db import get_session
+from shared.middleware import SlugRedirectMiddleware
 from shared.security import register_principal_resolver
+from shared.slugs import find_redirect
 
 pytestmark = pytest.mark.asyncio
 
@@ -166,3 +170,81 @@ async def test_bad_cursor_is_400(api: tuple[httpx.AsyncClient, AsyncSession]) ->
     http, _ = api
     response = await http.get("/directory/businesses?cursor=garbage", headers=_as(USER_A))
     assert response.status_code == 400
+
+
+async def test_public_detail_by_slug(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, _ = api
+    created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
+    slug = created.json()["slug"]
+    detail = await http.get(f"/directory/businesses/{slug}")  # public: NO auth header
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["business"]["name"] == "Anbu Milk Farm"
+    assert body["branches"] == []
+    assert body["categories"] == []
+    assert (await http.get("/directory/businesses/no-such-slug")).status_code == 404
+
+
+async def test_covers_endpoint_public(
+    api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+) -> None:
+    http, session = api
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        session, owner_user_id=owner, name="Near Farm", type_="vendor", primary_pincode="641001"
+    )
+    await service.set_coverage(
+        session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    response = await http.get("/directory/covers/641001")  # public: NO auth header
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["slug"] for item in body["items"]] == ["near-farm"]
+    assert body["items"][0]["distance_m"] >= 0
+    assert body["next_cursor"] is None
+    assert (await http.get("/directory/covers/641001?cursor=garbage")).status_code == 400
+    assert (await http.get("/directory/covers/notapin")).status_code == 422
+
+
+async def test_rename_serves_301_from_old_path(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
+    business_id = created.json()["id"]
+    renamed = await http.post(
+        f"/directory/businesses/{business_id}/rename",
+        json={"new_slug": "anbu-dairy"},
+        headers=_as(USER_A),
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["slug"] == "anbu-dairy"
+    # 1. the redirect row is recorded with the canonical public paths
+    assert (
+        await find_redirect(session, "/directory/businesses/anbu-milk-farm")
+        == "/directory/businesses/anbu-dairy"
+    )
+    # 2. the middleware serves that mapping as a 301. Lookup is injected here
+    #    because the app-level middleware opens its own DB session, which
+    #    cannot see this test's rolled-back transaction (same split as
+    #    test_slugs.py).
+    redirects = {"/directory/businesses/anbu-milk-farm": "/directory/businesses/anbu-dairy"}
+
+    async def lookup(path: str) -> str | None:
+        return redirects.get(path)
+
+    plain = FastAPI()
+    plain.add_middleware(SlugRedirectMiddleware, lookup=lookup)
+    client = TestClient(plain, follow_redirects=False)
+    response = client.get("/directory/businesses/anbu-milk-farm")
+    assert response.status_code == 301
+    assert response.headers["location"] == "/directory/businesses/anbu-dairy"
+    # 3. old slug 404s at the API (which is what arms the middleware); new slug 200s
+    assert (await http.get("/directory/businesses/anbu-milk-farm")).status_code == 404
+    assert (await http.get("/directory/businesses/anbu-dairy")).status_code == 200
+
+
+def test_directory_public_routes_are_registered() -> None:
+    app = create_app()
+    assert "/directory/businesses/{slug}" in app.state.public_routes
+    assert "/directory/covers/{pincode}" in app.state.public_routes

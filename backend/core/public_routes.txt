@@ -5,6 +5,8 @@
 /health
 /health/deep
 /metrics
+/directory/businesses/{slug}
+/directory/covers/{pincode}
 /auth/otp/request
 /auth/otp/verify
 /auth/login

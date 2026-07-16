@@ -40,6 +40,8 @@ EXPECTED_PUBLIC_ROUTES = [
     "/health",
     "/health/deep",
     "/metrics",
+    "/directory/businesses/{slug}",
+    "/directory/covers/{pincode}",
     "/authorize",
     "/token",
     "/oauth/revoke",

@@ -9,11 +9,13 @@ strings: this module carries business contact PII (phones, addresses).
 """
 
 import uuid
+from dataclasses import asdict
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Path, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.directory import covers as covers_module
 from modules.directory import service
 from modules.directory.models import Branch, Business, Category
 from modules.directory.schemas import (
@@ -21,6 +23,7 @@ from modules.directory.schemas import (
     BranchOut,
     BranchPatchIn,
     BusinessCreateIn,
+    BusinessDetailOut,
     BusinessOut,
     BusinessPageOut,
     BusinessPatchIn,
@@ -30,6 +33,8 @@ from modules.directory.schemas import (
     CategoryPageOut,
     CoverageIn,
     CoverageOut,
+    CoversItemOut,
+    CoversOut,
     RenameIn,
 )
 from shared.db import get_session
@@ -243,4 +248,41 @@ async def list_categories(
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return CategoryPageOut(
         items=[_category_out(c) for c in page.items], next_cursor=page.next_cursor
+    )
+
+
+# --- public reads (declared in backend/core/public_routes.txt) -------------
+
+
+@router.get("/businesses/{slug}", public=True)
+async def get_business_detail(slug: str, session: SessionDep) -> BusinessDetailOut:
+    """Public business profile (SSR source). Suspended/deleted -> 404; renamed
+    slugs 301 via SlugRedirectMiddleware reading slug_redirects."""
+    result = await service.get_by_slug(session, slug)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    business, branches, categories = result
+    return BusinessDetailOut(
+        business=_business_out(business),
+        branches=[_branch_out(b) for b in branches],
+        categories=[_category_out(c) for c in categories],
+    )
+
+
+@router.get("/covers/{pincode}", public=True)
+async def covers_search(
+    pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> CoversOut:
+    """Vendor discovery: businesses covering the pincode, nearest first.
+    Keyset + rate limit are the scraping defence (no offsets to walk)."""
+    try:
+        page = await covers_module.covers(session, pincode=pincode, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return CoversOut(
+        items=[CoversItemOut(**asdict(item)) for item in page.items],
+        next_cursor=page.next_cursor,
     )

@@ -114,6 +114,7 @@ async def test_business_claimed_awards_once_per_business(db_session: AsyncSessio
         now=NOW,
     )
     assert await service.balance(db_session, other) == 0
+    assert await service.balance(db_session, uid) == 200
 
 
 async def test_business_claimed_different_businesses_both_award(

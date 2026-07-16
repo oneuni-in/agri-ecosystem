@@ -5,9 +5,10 @@ rules-gated AgriCoins awards.
 AgriCoins are NOT money: no purchase, cash-out, or transfer path exists.
 Every award routes through modules.coins.service.award (the rules engine),
 never a direct ledger write. Awards use deterministic idempotency keys
-(modules.coins.rules.deterministic_key), so redeliveries of the same event
-are always safe - a replayed user.registered or profile.completed event
-credits the user at most once.
+(modules.coins.rules.deterministic_key) - or, for business_claim, a literal
+business-scoped key `claim:{business_id}` built here - so redeliveries of
+the same event are always safe - a replayed user.registered or
+profile.completed event credits the user at most once.
 
 Run: python -m modules.coins.worker
 Never log event payloads (they may carry balance-adjacent or PII fields).

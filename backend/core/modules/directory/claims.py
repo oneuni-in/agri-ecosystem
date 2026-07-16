@@ -145,7 +145,12 @@ async def _pending_claim_with_business(
         raise ClaimNotFoundError(str(claim_id))
     if claim.status != "pending":
         raise ClaimError("already_decided")
-    business = await session.scalar(select(Business).where(Business.id == claim.business_id))
+    business = await session.scalar(
+        # FOR UPDATE: concurrent decisions on the same business serialize
+        # here; the loser re-reads the committed owner and hits the
+        # already_owned/already_decided guards instead of double-approving.
+        select(Business).where(Business.id == claim.business_id).with_for_update()
+    )
     if business is None:
         raise ClaimNotFoundError(str(claim.business_id))
     return claim, business

@@ -1,4 +1,4 @@
-"""Directory module ORM models (D15) - mirrors migration 0016 exactly.
+"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 exactly.
 
 owner_user_id is a plain UUID value, never an FK into identity: the module
 independence contract forbids directory -> identity coupling at any layer.
@@ -141,6 +141,7 @@ class Claim(UUIDv7PKMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status = 'pending'"),
         ),
+        Index("ix_directory_claims_status_id", "status", "id"),
         {"schema": "directory"},
     )
 
@@ -178,6 +179,7 @@ class Verification(UUIDv7PKMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status = 'pending'"),
         ),
+        Index("ix_directory_verifications_status_id", "status", "id"),
         {"schema": "directory"},
     )
 

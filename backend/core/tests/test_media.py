@@ -62,6 +62,7 @@ def test_png_and_webp_normalise_to_jpeg() -> None:
         (b"\xff\xd8\xff" + b"0" * MAX_IMAGE_BYTES, "too_large"),
         (b"%PDF-1.7 not an image", "unsupported_type"),
     ],
+    ids=["empty_file", "too_large", "unsupported_type"],
 )
 def test_rejects_bad_input(payload: bytes, code: str) -> None:
     with pytest.raises(MediaError) as excinfo:

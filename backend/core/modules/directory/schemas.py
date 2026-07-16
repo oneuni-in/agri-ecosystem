@@ -190,6 +190,23 @@ class AdminClaimPageOut(BaseModel):
     next_cursor: str | None
 
 
+class AdminVerificationOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    business_name: str
+    method: str
+    status: str
+    notes: str | None
+    doc_count: int
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class AdminVerificationPageOut(BaseModel):
+    items: list[AdminVerificationOut]
+    next_cursor: str | None
+
+
 class DecisionIn(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
 

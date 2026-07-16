@@ -271,3 +271,79 @@ async def test_admin_queue_lists_and_evidence(
     assert (
         await http.get(f"/admin/directory/claims/{claim_id}/evidence/0", headers=_as(PLAIN))
     ).status_code == 403
+
+
+async def _pending_verification(
+    http: httpx.AsyncClient, session: AsyncSession, owner: uuid.UUID
+) -> tuple[str, Business]:
+    business = Business(
+        owner_user_id=owner,
+        name="Owned Dairy",
+        slug=f"owned-{uuid.uuid4().hex[:10]}",
+        type="vendor",
+        primary_pincode="641001",
+    )
+    session.add(business)
+    await session.flush()
+    await session.refresh(business)
+    created = await http.post(
+        f"/directory/businesses/{business.id}/verification",
+        files=[("files", ("doc.jpg", _jpeg(), "image/jpeg"))],
+        headers=_as(owner),
+    )
+    assert created.status_code == 201
+    return created.json()["id"], business
+
+
+async def test_verification_approve_flow(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    object_store: dict[str, bytes],
+    published: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    http, session = api
+    owner = uuid.uuid4()
+    verification_id, business = await _pending_verification(http, session, owner)
+    queue = await http.get("/admin/directory/verifications", headers=_as(ADMIN, "staff"))
+    assert [v["id"] for v in queue.json()["items"]] == [verification_id]
+    docs = await http.get(
+        f"/admin/directory/verifications/{verification_id}/docs/0", headers=_as(ADMIN, "staff")
+    )
+    assert docs.status_code == 200 and docs.content[:3] == b"\xff\xd8\xff"
+    response = await http.post(
+        f"/admin/directory/verifications/{verification_id}/approve",
+        json={"note": "docs valid"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert response.status_code == 200
+    await session.refresh(business)
+    assert business.verification_status == "verified"
+    assert published[-1][1] == "directory.verification_approved"
+    assert published[-1][2]["user_id"] == str(owner)
+    assert await verify_chain(session) == []
+
+
+async def test_verification_reject_returns_to_unverified(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    object_store: dict[str, bytes],
+    published: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    http, session = api
+    owner = uuid.uuid4()
+    verification_id, business = await _pending_verification(http, session, owner)
+    response = await http.post(
+        f"/admin/directory/verifications/{verification_id}/reject",
+        json={"note": "document unreadable"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert response.status_code == 200
+    await session.refresh(business)
+    assert business.verification_status == "unverified"
+    assert published[-1][1] == "directory.verification_rejected"
+    assert published[-1][2]["vars"]["reason"] == "document unreadable"
+    # decided twice -> 409
+    again = await http.post(
+        f"/admin/directory/verifications/{verification_id}/reject",
+        json={"note": "x again"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert again.status_code == 409

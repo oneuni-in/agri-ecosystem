@@ -102,6 +102,15 @@ async def list_my_claims(
     )
 
 
+async def get_verification(
+    session: AsyncSession, verification_id: uuid.UUID
+) -> Verification | None:
+    verification = await session.scalar(
+        select(Verification).where(Verification.id == verification_id)
+    )
+    return verification
+
+
 async def request_verification(
     session: AsyncSession,
     *,
@@ -216,6 +225,51 @@ async def list_claims(
 ) -> Page[Claim]:
     return await paginate(
         session, select(Claim).where(Claim.status == status), cursor=cursor, limit=limit
+    )
+
+
+async def decide_verification(
+    session: AsyncSession,
+    *,
+    verification_id: uuid.UUID,
+    approve: bool,
+    decided_by: uuid.UUID,
+    note: str | None,
+    now: datetime,
+) -> tuple[Verification, Business]:
+    verification = await get_verification(session, verification_id)
+    if verification is None:
+        raise ClaimNotFoundError(str(verification_id))
+    if verification.status != "pending":
+        raise ClaimError("already_decided")
+    business = await session.scalar(
+        # FOR UPDATE: same rationale as _pending_claim_with_business - serialize
+        # concurrent decisions on the same business (Task 5 review fix).
+        select(Business).where(Business.id == verification.business_id).with_for_update()
+    )
+    if business is None:
+        raise ClaimNotFoundError(str(verification.business_id))
+    verification.status = "approved" if approve else "rejected"
+    verification.notes = note
+    verification.decided_by = decided_by
+    verification.decided_at = now
+    business.verification_status = "verified" if approve else "unverified"
+    await session.flush()
+    return verification, business
+
+
+async def list_verifications(
+    session: AsyncSession,
+    *,
+    status: str,
+    cursor: str | None = None,
+    limit: int = DEFAULT_PAGE_SIZE,
+) -> Page[Verification]:
+    return await paginate(
+        session,
+        select(Verification).where(Verification.status == status),
+        cursor=cursor,
+        limit=limit,
     )
 
 

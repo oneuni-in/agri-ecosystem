@@ -17,10 +17,12 @@ from fastapi import Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import claims
-from modules.directory.models import Claim
+from modules.directory.models import Claim, Verification
 from modules.directory.schemas import (
     AdminClaimOut,
     AdminClaimPageOut,
+    AdminVerificationOut,
+    AdminVerificationPageOut,
     DecisionIn,
     RejectIn,
 )
@@ -67,6 +69,20 @@ def _admin_claim_out(claim: Claim, business_name: str) -> AdminClaimOut:
         decision_note=claim.decision_note,
         created_at=claim.created_at,
         decided_at=claim.decided_at,
+    )
+
+
+def _admin_verification_out(verification: Verification, business_name: str) -> AdminVerificationOut:
+    return AdminVerificationOut(
+        id=verification.id,
+        business_id=verification.business_id,
+        business_name=business_name,
+        method=verification.method,
+        status=verification.status,
+        notes=verification.notes,
+        doc_count=len(verification.doc_keys),
+        created_at=verification.created_at,
+        decided_at=verification.decided_at,
     )
 
 
@@ -192,4 +208,121 @@ async def reject_claim(
     out = _admin_claim_out(claim, business.name)
     await session.commit()
     await _publish_best_effort("directory.claim_rejected", payload)
+    return out
+
+
+@admin_router.get("/verifications")
+async def list_verifications(
+    request: Request,
+    session: SessionDep,
+    status: StatusQuery = "pending",
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> AdminVerificationPageOut:
+    _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        page = await claims.list_verifications(session, status=status, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    names = await claims.business_names(session, [v.business_id for v in page.items])
+    return AdminVerificationPageOut(
+        items=[_admin_verification_out(v, names.get(v.business_id, "")) for v in page.items],
+        next_cursor=page.next_cursor,
+    )
+
+
+@admin_router.get("/verifications/{verification_id}/docs/{index}")
+async def get_verification_doc(
+    request: Request,
+    verification_id: uuid.UUID,
+    index: Annotated[int, Path(ge=0)],
+    session: SessionDep,
+) -> Response:
+    _require_role(request, STAFF, SUPER_ADMIN)
+    verification = await claims.get_verification(session, verification_id)
+    if verification is None or index >= len(verification.doc_keys):
+        raise HTTPException(status_code=404, detail="Verification not found")
+    try:
+        data = await storage.get_object(verification.doc_keys[index])
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage unavailable") from exc
+    return Response(content=data, media_type="image/jpeg")
+
+
+@admin_router.post("/verifications/{verification_id}/approve")
+async def approve_verification(
+    request: Request, verification_id: uuid.UUID, body: DecisionIn, session: SessionDep
+) -> AdminVerificationOut:
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        verification, business = await claims.decide_verification(
+            session,
+            verification_id=verification_id,
+            approve=True,
+            decided_by=admin_id,
+            note=body.note,
+            now=datetime.now(UTC),
+        )
+    except claims.ClaimNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Verification not found") from exc
+    except claims.ClaimError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    # audit rides the SAME transaction as the decision (D12 contract)
+    await audit(
+        session,
+        action="directory.verification_approved",
+        actor_user_id=admin_id,
+        target_type="business_verification",
+        target_id=str(verification.id),
+        metadata={"business_id": str(business.id), "note": body.note},
+        ip=request.client.host if request.client else None,
+    )
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises
+    payload: dict[str, object] = {
+        "user_id": str(business.owner_user_id),
+        "business_id": str(business.id),
+        "vars": {"business_name": business.name},
+    }
+    out = _admin_verification_out(verification, business.name)
+    await session.commit()  # commit BEFORE announcing (identity precedent)
+    await _publish_best_effort("directory.verification_approved", payload)
+    return out
+
+
+@admin_router.post("/verifications/{verification_id}/reject")
+async def reject_verification(
+    request: Request, verification_id: uuid.UUID, body: RejectIn, session: SessionDep
+) -> AdminVerificationOut:
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        verification, business = await claims.decide_verification(
+            session,
+            verification_id=verification_id,
+            approve=False,
+            decided_by=admin_id,
+            note=body.note,
+            now=datetime.now(UTC),
+        )
+    except claims.ClaimNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Verification not found") from exc
+    except claims.ClaimError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    await audit(
+        session,
+        action="directory.verification_rejected",
+        actor_user_id=admin_id,
+        target_type="business_verification",
+        target_id=str(verification.id),
+        metadata={"business_id": str(business.id), "note": body.note},
+        ip=request.client.host if request.client else None,
+    )
+    payload: dict[str, object] = {
+        "user_id": str(business.owner_user_id),
+        "business_id": str(business.id),
+        "vars": {"business_name": business.name, "reason": body.note},
+    }
+    out = _admin_verification_out(verification, business.name)
+    await session.commit()
+    await _publish_best_effort("directory.verification_rejected", payload)
     return out

@@ -171,3 +171,28 @@ class VerificationOut(BaseModel):
 class VerificationPageOut(BaseModel):
     items: list[VerificationOut]
     next_cursor: str | None
+
+
+class AdminClaimOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    business_name: str
+    claimant_user_id: uuid.UUID
+    status: str
+    evidence_count: int
+    decision_note: str | None
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class AdminClaimPageOut(BaseModel):
+    items: list[AdminClaimOut]
+    next_cursor: str | None
+
+
+class DecisionIn(BaseModel):
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RejectIn(BaseModel):
+    note: str = Field(min_length=3, max_length=1000)  # reject always carries a reason

@@ -7,6 +7,7 @@ Never log request bodies here - evidence metadata is claimant PII-adjacent.
 """
 
 import uuid
+from datetime import datetime
 
 import uuid6
 from sqlalchemy import select
@@ -134,3 +135,91 @@ async def request_verification(
     business.verification_status = "pending"
     await session.refresh(verification)
     return verification
+
+
+async def _pending_claim_with_business(
+    session: AsyncSession, claim_id: uuid.UUID
+) -> tuple[Claim, Business]:
+    claim = await get_claim(session, claim_id)
+    if claim is None:
+        raise ClaimNotFoundError(str(claim_id))
+    if claim.status != "pending":
+        raise ClaimError("already_decided")
+    business = await session.scalar(select(Business).where(Business.id == claim.business_id))
+    if business is None:
+        raise ClaimNotFoundError(str(claim.business_id))
+    return claim, business
+
+
+async def approve_claim(
+    session: AsyncSession,
+    *,
+    claim_id: uuid.UUID,
+    decided_by: uuid.UUID,
+    note: str | None,
+    now: datetime,
+) -> tuple[Claim, Business]:
+    """Non-negotiable 4: owner + verified + verification record land in the
+    caller's single transaction - all or nothing."""
+    claim, business = await _pending_claim_with_business(session, claim_id)
+    if business.owner_user_id is not None:
+        raise ClaimError("already_owned")
+    claim.status = "approved"
+    claim.decided_by = decided_by
+    claim.decided_at = now
+    claim.decision_note = note
+    business.owner_user_id = claim.claimant_user_id
+    business.verification_status = "verified"
+    session.add(
+        Verification(
+            business_id=business.id,
+            method="claim",
+            doc_keys=claim.evidence_docs,
+            status="approved",
+            notes=note,
+            decided_by=decided_by,
+            decided_at=now,
+        )
+    )
+    await session.flush()
+    return claim, business
+
+
+async def reject_claim(
+    session: AsyncSession,
+    *,
+    claim_id: uuid.UUID,
+    decided_by: uuid.UUID,
+    note: str,
+    now: datetime,
+) -> tuple[Claim, Business]:
+    claim, business = await _pending_claim_with_business(session, claim_id)
+    claim.status = "rejected"
+    claim.decided_by = decided_by
+    claim.decided_at = now
+    claim.decision_note = note
+    await session.flush()
+    return claim, business
+
+
+async def list_claims(
+    session: AsyncSession,
+    *,
+    status: str,
+    cursor: str | None = None,
+    limit: int = DEFAULT_PAGE_SIZE,
+) -> Page[Claim]:
+    return await paginate(
+        session, select(Claim).where(Claim.status == status), cursor=cursor, limit=limit
+    )
+
+
+async def business_names(
+    session: AsyncSession, business_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    if not business_ids:
+        return {}
+    rows = await session.execute(
+        select(Business.id, Business.name).where(Business.id.in_(business_ids))
+    )
+    return {row[0]: row[1] for row in rows}

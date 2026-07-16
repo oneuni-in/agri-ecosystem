@@ -1,5 +1,5 @@
 import { Badge, buttonVariants, Card, cn, Wrap } from "@agri/ui";
-import { canonicalUrl } from "@agri/ui/seo";
+import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,22 +54,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const detail = await fetchDetail(slug);
-  if (!detail) return { title: "Business not found", robots: { index: false, follow: true } };
+  if (!detail) {
+    // Hand-built: buildMetadata has no vocabulary for a bare "not found" title
+    // plus robots.index:false without also implying noIndex's follow:true default
+    // differs from the OG-less shape wanted here — kept minimal on purpose.
+    return { title: "Business not found", robots: { index: false, follow: true } };
+  }
   const { business } = detail;
   const title = `${business.name} | Agri Directory`;
   const description = business.description?.en;
   const canonical = canonicalFor(business.slug);
-  return {
+  return buildMetadata({
     title,
     ...(description ? { description } : {}),
-    alternates: { canonical },
-    openGraph: {
-      title,
-      ...(description ? { description } : {}),
-      url: canonical,
-      type: "website",
-    },
-  };
+    canonical,
+  });
 }
 
 /**

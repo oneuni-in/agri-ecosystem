@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.models import Business
 from shared.db import soft_delete
+from shared.i18n import Translated
 from shared.slugs import ImmutableSlugError
 
 pytestmark = pytest.mark.asyncio
@@ -55,7 +56,7 @@ async def test_soft_deleted_business_is_invisible(db_session: AsyncSession) -> N
 
 async def test_description_i18n_roundtrip(db_session: AsyncSession) -> None:
     business = _business("models-i18n")
-    business.description = {"en": "Fresh milk daily", "ta": "தினமும் பசும்பால்"}
+    business.description = Translated(en="Fresh milk daily", ta="தினமும் பசும்பால்")
     db_session.add(business)
     await db_session.flush()
     db_session.expire(business)

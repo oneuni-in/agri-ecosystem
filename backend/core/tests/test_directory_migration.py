@@ -1,6 +1,8 @@
 """D15 migration: directory tables exist, categories seeded, constraints and
 defaults hold, app_rt can write (mutable owner-scoped data - no triggers)."""
 
+import uuid
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 pytestmark = pytest.mark.asyncio
 
 
-async def _insert_business(session: AsyncSession, slug: str) -> str:
-    return await session.scalar(
+async def _insert_business(session: AsyncSession, slug: str) -> uuid.UUID:
+    business_id = await session.scalar(
         text(
             "INSERT INTO directory.businesses "
             "(id, owner_user_id, name, slug, type, primary_pincode) VALUES "
@@ -18,6 +20,8 @@ async def _insert_business(session: AsyncSession, slug: str) -> str:
         ),
         {"s": slug},
     )
+    assert isinstance(business_id, uuid.UUID)
+    return business_id
 
 
 async def test_directory_tables_exist(db_session: AsyncSession) -> None:

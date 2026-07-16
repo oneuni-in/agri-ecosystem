@@ -3,6 +3,7 @@ declarative replace semantics, validation caps, public get_by_slug bundle."""
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from sqlalchemy import select
@@ -23,7 +24,7 @@ async def _business(
     )
 
 
-async def _branch_kwargs() -> dict:
+async def _branch_kwargs() -> dict[str, Any]:
     return {
         "address": "1 Mettupalayam Rd",
         "state": "Tamil Nadu",

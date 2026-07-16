@@ -15,6 +15,7 @@ from modules.directory.covers import (
     decode_covers_cursor,
     encode_covers_cursor,
 )
+from modules.directory.models import Business
 from shared.db import soft_delete
 from shared.pagination import InvalidCursorError
 
@@ -28,7 +29,7 @@ async def _covered_business(
     branch_at: tuple[float, float] | None = None,
     primary: str = "641001",
     pincode: str = "641001",
-):
+) -> Business:
     owner = uuid.uuid4()
     business = await service.create_business(
         session, owner_user_id=owner, name=name, type_="vendor", primary_pincode=primary

@@ -85,3 +85,27 @@ class VerticalOut(BaseModel):
 class VerticalPageOut(BaseModel):
     items: list[VerticalOut]
     next_cursor: str | None
+
+
+# --- admin: schema versions (D17 Task 7) ----------------------------------
+
+
+class SchemaVersionOut(BaseModel):
+    vertical_slug: str
+    version: int
+    fields: list[dict[str, Any]]
+    created_at: datetime
+
+
+class SchemaVersionListOut(BaseModel):
+    items: list[SchemaVersionOut]
+
+
+class SchemaCreateIn(BaseModel):
+    fields: list[dict[str, Any]]
+
+
+class ProductRejectIn(BaseModel):
+    # admin rejection note is always required (distinct from claims' RejectIn
+    # which allows a shorter/optional note) - min_length=1 per Task 7 brief.
+    note: str = Field(min_length=1, max_length=1000)

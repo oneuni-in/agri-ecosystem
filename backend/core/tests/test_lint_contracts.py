@@ -4,7 +4,7 @@ is mandatory in every migration, and OFFSET pagination is banned everywhere
 
 from pathlib import Path
 
-from tests.lint_checks import check_ledger_writes, check_offset_ban
+from tests.lint_checks import check_ledger_writes, check_media_fork, check_offset_ban
 
 CORE = Path(__file__).resolve().parents[1]
 VERSIONS = CORE / "alembic" / "versions"
@@ -16,6 +16,10 @@ LEDGER_ALLOWED = {
     CORE / "modules" / "coins" / "service.py",
     CORE / "modules" / "coins" / "models.py",
 }
+
+# shared.media.reencode_image is the ONE place allowed to touch PIL directly
+# (Sprint-2 rule A5, D17).
+MEDIA_ALLOWED = {CORE / "shared" / "media.py"}
 
 
 def test_every_migration_has_a_filled_threat_notes_block() -> None:
@@ -67,4 +71,31 @@ def test_no_ledger_writes_outside_service() -> None:
     assert violations == [], (
         "coins.ledger_entries may only be written by modules/coins/service.py:\n"
         + "\n".join(violations)
+    )
+
+
+def test_media_fork_ban_fires_on_fixture() -> None:
+    fixture = Path(__file__).parent / "fixtures" / "media_fork_violation.py.txt"
+    assert check_media_fork([fixture], allow={fixture}) == []  # allowlisted -> clean
+    violations = check_media_fork([fixture], allow=set())
+    # one `from PIL import Image` line and one `Image.open(` call
+    assert len(violations) == 2
+    assert all("media_fork_violation.py.txt:" in violation for violation in violations)
+
+
+def test_no_media_helper_fork() -> None:
+    violations = check_media_fork(
+        [
+            CORE / "main.py",
+            CORE / "settings.py",
+            CORE / "modules",
+            CORE / "shared",
+            CORE / "scripts",
+            VERSIONS,
+        ],
+        allow=MEDIA_ALLOWED,
+    )
+    assert violations == [], (
+        "shared.media.reencode_image is the ONE media helper (Sprint-2 A5); "
+        "no module may re-encode images itself:\n" + "\n".join(violations)
     )

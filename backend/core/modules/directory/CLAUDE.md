@@ -2,7 +2,12 @@
 # directory module
 
 Directory Engine E1: org/place profiles, branches, categories,
-verification, claims - the workhorse engine.
+verification, claims - the workhorse engine. Also hosts the catalog
+surface (D17, engine E2 in basic form) under /catalog/*: vertical
+registry, append-only spec-schema versions, schema-validated products.
+Product specs validate against the PINNED schema version on write,
+never on read; product images go through shared.media.reencode_image
+only (lint-gated) and serve from the media domain.
 
 **Spec pointer:** docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).
 

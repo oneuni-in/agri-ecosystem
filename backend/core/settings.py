@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"  # dev-only default, matches compose
     minio_secret_key: str = "minioadmin"  # dev-only default, matches compose
     minio_bucket: str = "agri-media"
+    # D17 catalog media. Dev default is the MinIO path-style bucket URL;
+    # prod supplies the R2/CDN media domain via the environment. Task 6
+    # builds the upload path - this task only needs the URL builder final.
+    media_public_base_url: str = "http://localhost:9000/agri-media"
 
     rate_limit_requests: int = 60
     rate_limit_window_seconds: int = 60

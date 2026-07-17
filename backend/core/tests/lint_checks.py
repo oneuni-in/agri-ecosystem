@@ -54,3 +54,26 @@ def check_ledger_writes(paths: Iterable[Path], *, allow: Container[Path]) -> lis
                 if any(pattern.search(line) for pattern in _LEDGER_PATTERNS):
                     violations.append(f"{file}:{lineno}: {line.strip()}")
     return violations
+
+
+# Any PIL usage outside shared/media.py is a fork of the ONE media helper
+# (Sprint-2 rule A5). Matches imports and direct calls; tests/fixtures are
+# outside the scanned scope and may build images freely.
+_MEDIA_FORK_PATTERNS = (
+    re.compile(r"^\s*(from PIL|import PIL)\b"),
+    re.compile(r"\bImage\.open\s*\("),
+)
+
+
+def check_media_fork(paths: Iterable[Path], *, allow: Container[Path]) -> list[str]:
+    """Return 'file:line: source' for PIL use outside the shared media helper."""
+    violations: list[str] = []
+    for root in paths:
+        files = [root] if root.is_file() else sorted(root.rglob("*.py"))
+        for file in files:
+            if file in allow:
+                continue
+            for lineno, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
+                if any(pattern.search(line) for pattern in _MEDIA_FORK_PATTERNS):
+                    violations.append(f"{file}:{lineno}: {line.strip()}")
+    return violations

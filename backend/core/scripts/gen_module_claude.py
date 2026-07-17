@@ -52,7 +52,12 @@ MODULES: dict[str, dict[str, str]] = {
     },
     "directory": {
         "purpose": "Directory Engine E1: org/place profiles, branches, categories,\n"
-        "verification, claims - the workhorse engine.",
+        "verification, claims - the workhorse engine. Also hosts the catalog\n"
+        "surface (D17, engine E2 in basic form) under /catalog/*: vertical\n"
+        "registry, append-only spec-schema versions, schema-validated products.\n"
+        "Product specs validate against the PINNED schema version on write,\n"
+        "never on read; product images go through shared.media.reencode_image\n"
+        "only (lint-gated) and serve from the media domain.",
         "spec": "docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).",
         "pii_note": "holds business contact data (phones, emails)",
         "extra_never": "- Never render contact details without the lead/verification\n"

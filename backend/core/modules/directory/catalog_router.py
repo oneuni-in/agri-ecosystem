@@ -163,6 +163,8 @@ async def update_product(
         )
     except catalog_service.ProductNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Product not found") from exc
+    except catalog_service.SchemaNotFoundError as exc:
+        raise HTTPException(status_code=409, detail="no_schema") from exc
     except SpecValidationError as exc:
         raise HTTPException(status_code=422, detail={"code": exc.code, "field": exc.field}) from exc
     except ValueError as exc:

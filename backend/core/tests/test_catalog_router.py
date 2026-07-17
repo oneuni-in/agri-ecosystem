@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import catalog_service, service
+from modules.directory.catalog_models import Product, Vertical
 from modules.directory.models import Business
 from shared.db import get_session
 from shared.security import register_principal_resolver
@@ -245,3 +246,35 @@ async def test_patch_status_archived_hides_from_public_list(
     after = await client.get(f"/catalog/businesses/{business.slug}/products")
     assert after.status_code == 200
     assert after.json()["items"] == []
+
+
+async def test_patch_specs_without_schema_409(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A vertical with no published spec schema can still hold a product
+    (e.g. pre-existing data from before the vertical's first schema shipped);
+    a specs patch against it must map SchemaNotFoundError to 409 'no_schema',
+    same as create_product does - not fall through to an unhandled 500."""
+    client, session = api
+    business = await _business(session, USER_A, "Seed Farm")
+    session.add(Vertical(slug="seeds", name={"en": "Seeds"}, status="active"))
+    await session.flush()
+    product = Product(
+        business_id=business.id,
+        vertical_slug="seeds",
+        schema_version=1,
+        name="Tomato Seeds",
+        slug="tomato-seeds",
+        specs={},
+    )
+    session.add(product)
+    await session.flush()
+    await session.refresh(product)
+
+    response = await client.patch(
+        f"/catalog/products/{product.id}",
+        json={"specs": {"variety": "hybrid"}},
+        headers=_as(USER_A),
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "no_schema"

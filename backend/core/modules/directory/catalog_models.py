@@ -50,8 +50,10 @@ class SpecSchema(UUIDv7PKMixin, TimestampMixin, Base):
         {"schema": "directory"},
     )
 
+    # no separate index: the composite unique constraint above already puts
+    # vertical_slug as its leading column, covering vertical_slug lookups.
     vertical_slug: Mapped[str] = mapped_column(
-        Text, ForeignKey("directory.vertical_registry.slug"), nullable=False, index=True
+        Text, ForeignKey("directory.vertical_registry.slug"), nullable=False
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     fields: Mapped[list[dict[str, Any]]] = mapped_column(postgresql.JSONB, nullable=False)

@@ -8,12 +8,16 @@ Bucket auto-creation is a dev convenience; prod buckets are provisioned.
 
 import asyncio
 import io
+import json
 from urllib.parse import urlparse
 
 import httpx
 from minio import Minio
 
 from settings import get_settings
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 _client: Minio | None = None
 
@@ -73,6 +77,43 @@ async def get_object(key: str) -> bytes:
         return await asyncio.to_thread(_get)
     except Exception as exc:
         raise StorageError("object storage read failed") from exc
+
+
+async def ensure_prefix_public_read(prefix: str) -> None:
+    """Grant anonymous s3:GetObject on {bucket}/{prefix}* (D17 product media
+    is served directly off the bucket, off the app's own API domain, NN#2).
+
+    Best-effort: dev MinIO honours a bucket policy set this way. Prod R2
+    buckets are provisioned out-of-band with their own public media domain
+    (a CDN/custom-domain binding, not a bucket policy call this code path
+    can make), so any failure here is swallowed and logged - it must never
+    fail the request that triggered it.
+    """
+
+    def _set_policy() -> None:
+        client = get_storage_client()
+        bucket = get_settings().minio_bucket
+        if not client.bucket_exists(bucket):
+            client.make_bucket(bucket)
+        policy = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"AWS": ["*"]},
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{bucket}/{prefix}*"],
+                    }
+                ],
+            }
+        )
+        client.set_bucket_policy(bucket, policy)
+
+    try:
+        await asyncio.to_thread(_set_policy)
+    except Exception:
+        logger.warning("storage: public-read policy not applied prefix=%s", prefix)
 
 
 async def check_storage() -> bool:

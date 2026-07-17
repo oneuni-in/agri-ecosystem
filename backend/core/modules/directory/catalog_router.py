@@ -8,7 +8,8 @@ strings: this module carries business contact PII (phones, addresses)."""
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request
+import uuid6
+from fastapi import Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,7 @@ from modules.directory.catalog_schemas import (
 from modules.directory.models import Business
 from modules.directory.service import BusinessNotFoundError
 from modules.directory.specs import SpecValidationError
+from shared import media, storage
 from shared.db import get_session
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
@@ -37,6 +39,21 @@ router = SecureRouter(prefix="/catalog", tags=["catalog"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+PRODUCT_MEDIA_PREFIX = "products/"
+
+# Best-effort, once-per-process: set on the first upload attempt regardless
+# of whether shared.storage.ensure_prefix_public_read actually succeeded
+# (it is itself best-effort - see that function's docstring).
+_media_prefix_ready = False
+
+
+async def _ensure_public_media() -> None:
+    global _media_prefix_ready
+    if _media_prefix_ready:
+        return
+    await storage.ensure_prefix_public_read(PRODUCT_MEDIA_PREFIX)
+    _media_prefix_ready = True
 
 
 def _principal_user_id(request: Request) -> uuid.UUID:
@@ -169,6 +186,50 @@ async def update_product(
         raise HTTPException(status_code=422, detail={"code": exc.code, "field": exc.field}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _product_out(product)
+
+
+@router.post("/products/{product_id}/images", status_code=201)
+async def upload_product_image(
+    request: Request,
+    product_id: uuid.UUID,
+    session: SessionDep,
+    file: Annotated[UploadFile, File(description="product image (jpeg/png/webp, <=5MiB)")],
+) -> ProductOut:
+    data = await file.read(media.MAX_IMAGE_BYTES + 1)
+    try:
+        jpeg, _ = media.reencode_image(data)  # THE shared helper - EXIF gone by construction
+    except media.MediaError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
+    key = f"{PRODUCT_MEDIA_PREFIX}{uuid6.uuid7().hex}.jpg"
+    await _ensure_public_media()  # once-per-process, best-effort
+    try:
+        await storage.put_object(key, jpeg, "image/jpeg")  # storage before DB (avatar precedent)
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage unavailable") from exc
+    try:
+        product = await catalog_service.add_product_image(
+            session, owner_user_id=_principal_user_id(request), product_id=product_id, key=key
+        )
+    except catalog_service.ProductNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Product not found") from exc
+    except ValueError as exc:  # image cap
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _product_out(product)
+
+
+@router.delete("/products/{product_id}/images/{index}")
+async def delete_product_image(
+    request: Request, product_id: uuid.UUID, index: int, session: SessionDep
+) -> ProductOut:
+    try:
+        product = await catalog_service.remove_product_image(
+            session, owner_user_id=_principal_user_id(request), product_id=product_id, index=index
+        )
+    except catalog_service.ProductNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Product not found") from exc
+    except ValueError as exc:  # index out of range
+        raise HTTPException(status_code=404, detail="Image not found") from exc
     return _product_out(product)
 
 

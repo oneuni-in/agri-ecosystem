@@ -1,0 +1,10 @@
+# Fixture proving the media-fork ban fires. Not a real module (.txt so
+# nothing collects or imports it).
+from io import BytesIO
+
+from PIL import Image
+
+
+def bad_reencode(data: bytes) -> bytes:
+    img = Image.open(BytesIO(data))
+    return img.tobytes()

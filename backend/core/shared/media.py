@@ -37,15 +37,23 @@ def reencode_image(data: bytes) -> tuple[bytes, str]:
     try:
         img = Image.open(BytesIO(data))
         source_format = img.format
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise MediaError("unsupported_type") from exc
+    if source_format not in _ALLOWED_FORMATS:
+        raise MediaError("unsupported_type")
+    # Image.open() only reads the header, so img.size is populated without a
+    # full decode. Check the pixel count BEFORE img.load() decodes the whole
+    # image, so oversized dimensions are rejected pre-decode (this covers the
+    # 40-80MP window Pillow's own DecompressionBombError doesn't catch, since
+    # that only fires at >=2x MAX_IMAGE_PIXELS during load()).
+    if img.width * img.height > MAX_IMAGE_PIXELS:
+        raise MediaError("too_large")
+    try:
         img.load()
     except Image.DecompressionBombError as exc:
         raise MediaError("too_large") from exc
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise MediaError("unsupported_type") from exc
-    if source_format not in _ALLOWED_FORMATS:
-        raise MediaError("unsupported_type")
-    if img.width * img.height > MAX_IMAGE_PIXELS:
-        raise MediaError("too_large")
     out = BytesIO()
     img.convert("RGB").save(out, format="JPEG", quality=85)
     return out.getvalue(), "image/jpeg"

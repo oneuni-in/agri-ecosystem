@@ -135,7 +135,9 @@ async def get_claim_evidence(
         data = await storage.get_object(claim.evidence_docs[index])
     except storage.StorageError as exc:
         raise HTTPException(status_code=503, detail="storage unavailable") from exc
-    return Response(content=data, media_type="image/jpeg")
+    return Response(
+        content=data, media_type="image/jpeg", headers={"cache-control": "private, no-store"}
+    )
 
 
 @router.post("/businesses/{business_id}/verification", status_code=201)

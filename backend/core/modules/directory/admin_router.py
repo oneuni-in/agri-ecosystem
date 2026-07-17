@@ -131,7 +131,9 @@ async def get_claim_evidence(
         data = await storage.get_object(claim.evidence_docs[index])
     except storage.StorageError as exc:
         raise HTTPException(status_code=503, detail="storage unavailable") from exc
-    return Response(content=data, media_type="image/jpeg")
+    return Response(
+        content=data, media_type="image/jpeg", headers={"cache-control": "private, no-store"}
+    )
 
 
 @admin_router.post("/claims/{claim_id}/approve")
@@ -246,7 +248,9 @@ async def get_verification_doc(
         data = await storage.get_object(verification.doc_keys[index])
     except storage.StorageError as exc:
         raise HTTPException(status_code=503, detail="storage unavailable") from exc
-    return Response(content=data, media_type="image/jpeg")
+    return Response(
+        content=data, media_type="image/jpeg", headers={"cache-control": "private, no-store"}
+    )
 
 
 @admin_router.post("/verifications/{verification_id}/approve")

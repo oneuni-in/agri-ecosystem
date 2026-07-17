@@ -38,6 +38,18 @@ def _gif() -> bytes:
     return buf.getvalue()
 
 
+def _huge_dimensions_small_bytes() -> bytes:
+    # 8000x7000 = 56MP: over MAX_IMAGE_PIXELS (40MP) but under Pillow's own
+    # open()-time DecompressionBombError threshold (2x = 80MP), so this must
+    # be caught by the header-based pixel check, not Pillow's own guard. A
+    # uniform 1-bit image compresses to well under MAX_IMAGE_BYTES as PNG -
+    # bytes pass the size check, dimensions must trip the pixel check BEFORE
+    # decode.
+    buf = BytesIO()
+    Image.new("1", (8000, 7000)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def test_reencode_strips_exif() -> None:
     source = _jpeg_with_exif()
     assert dict(Image.open(BytesIO(source)).getexif())  # premise: EXIF present
@@ -74,3 +86,11 @@ def test_rejects_gif_even_though_pillow_can_open_it() -> None:
     with pytest.raises(MediaError) as excinfo:
         reencode_image(_gif())
     assert excinfo.value.code == "unsupported_type"
+
+
+def test_rejects_huge_dimensions_before_decode() -> None:
+    payload = _huge_dimensions_small_bytes()
+    assert len(payload) < MAX_IMAGE_BYTES  # premise: bytes pass the size check
+    with pytest.raises(MediaError) as excinfo:
+        reencode_image(payload)
+    assert excinfo.value.code == "too_large"

@@ -41,9 +41,12 @@ async function forward(
   // JSON. arrayBuffer() is byte-exact for JSON responses too, so existing
   // text/JSON callers are unaffected.
   const contentType = upstream.headers.get("content-type") ?? "application/json";
+  const responseHeaders: Record<string, string> = { "content-type": contentType };
+  const cacheControl = upstream.headers.get("cache-control");
+  if (cacheControl) responseHeaders["cache-control"] = cacheControl;
   return new NextResponse(Buffer.from(await upstream.arrayBuffer()), {
     status: upstream.status,
-    headers: { "content-type": contentType },
+    headers: responseHeaders,
   });
 }
 

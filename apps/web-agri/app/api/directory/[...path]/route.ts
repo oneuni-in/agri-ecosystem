@@ -16,6 +16,8 @@ import { auth } from "@/lib/auth";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const NULL_BODY_STATUSES = new Set([204, 205, 304]);
+// 5 files x 5MiB cap + multipart overhead.
+const MAX_BODY_BYTES = 30 * 1024 * 1024;
 
 async function forward(
   req: NextRequest,
@@ -25,6 +27,12 @@ async function forward(
   const { path } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
+  }
+  if (method === "POST") {
+    const contentLength = Number(req.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+      return NextResponse.json({ detail: "payload too large" }, { status: 413 });
+    }
   }
   const token = await auth.getAccessToken();
   if (!token) return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
@@ -44,9 +52,14 @@ async function forward(
   if (NULL_BODY_STATUSES.has(upstream.status)) {
     return new NextResponse(null, { status: upstream.status });
   }
+  const responseHeaders: Record<string, string> = {
+    "content-type": upstream.headers.get("content-type") ?? "application/json",
+  };
+  const cacheControl = upstream.headers.get("cache-control");
+  if (cacheControl) responseHeaders["cache-control"] = cacheControl;
   return new NextResponse(Buffer.from(await upstream.arrayBuffer()), {
     status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
+    headers: responseHeaders,
   });
 }
 

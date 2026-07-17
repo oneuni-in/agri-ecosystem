@@ -78,9 +78,21 @@ rules_table = sa.table(
 # Strict {var} rendering: producers MUST pass business_name (and reason for
 # the rejected keys) or dispatch raises MissingVariableError.
 SEED_TEMPLATES: list[tuple[str, str, str]] = [
-    ("claim_approved", "en", "Your claim for {business_name} is approved. You now manage this verified listing."),  # noqa: E501
-    ("claim_approved", "ta", "{business_name} க்கான உங்கள் உரிமைகோரல் அங்கீகரிக்கப்பட்டது. இந்த சரிபார்க்கப்பட்ட பட்டியலை இப்போது நீங்கள் நிர்வகிக்கிறீர்கள்."),  # noqa: E501
-    ("claim_approved", "hi", "{business_name} के लिए आपका दावा स्वीकृत हो गया। अब आप इस सत्यापित लिस्टिंग का प्रबंधन करते हैं।"),  # noqa: E501
+    (
+        "claim_approved",
+        "en",
+        "Your claim for {business_name} is approved. You now manage this verified listing.",
+    ),
+    (
+        "claim_approved",
+        "ta",
+        "{business_name} க்கான உங்கள் உரிமைகோரல் அங்கீகரிக்கப்பட்டது. இந்த சரிபார்க்கப்பட்ட பட்டியலை இப்போது நீங்கள் நிர்வகிக்கிறீர்கள்.",  # noqa: E501
+    ),
+    (
+        "claim_approved",
+        "hi",
+        "{business_name} के लिए आपका दावा स्वीकृत हो गया। अब आप इस सत्यापित लिस्टिंग का प्रबंधन करते हैं।",
+    ),
     ("claim_rejected", "en", "Your claim for {business_name} was rejected: {reason}"),
     ("claim_rejected", "ta", "{business_name} க்கான உங்கள் உரிமைகோரல் நிராகரிக்கப்பட்டது: {reason}"),
     ("claim_rejected", "hi", "{business_name} के लिए आपका दावा अस्वीकृत हुआ: {reason}"),
@@ -105,9 +117,7 @@ def upgrade() -> None:
     op.create_table(
         "claims",
         pk_column(),
-        sa.Column(
-            "business_id", _uuid, sa.ForeignKey("directory.businesses.id"), nullable=False
-        ),
+        sa.Column("business_id", _uuid, sa.ForeignKey("directory.businesses.id"), nullable=False),
         sa.Column("claimant_user_id", _uuid, nullable=False, index=True),
         sa.Column(
             "status", _enum("claim_status"), nullable=False, server_default=sa.text("'pending'")
@@ -128,16 +138,12 @@ def upgrade() -> None:
         schema="directory",
         postgresql_where=sa.text("status = 'pending'"),
     )
-    op.create_index(
-        "ix_directory_claims_status_id", "claims", ["status", "id"], schema="directory"
-    )
+    op.create_index("ix_directory_claims_status_id", "claims", ["status", "id"], schema="directory")
 
     op.create_table(
         "verifications",
         pk_column(),
-        sa.Column(
-            "business_id", _uuid, sa.ForeignKey("directory.businesses.id"), nullable=False
-        ),
+        sa.Column("business_id", _uuid, sa.ForeignKey("directory.businesses.id"), nullable=False),
         sa.Column("method", _enum("verification_method"), nullable=False),
         sa.Column("doc_keys", postgresql.JSONB, nullable=False, server_default="[]"),
         sa.Column(

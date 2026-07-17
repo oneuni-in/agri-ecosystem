@@ -152,9 +152,7 @@ class Claim(UUIDv7PKMixin, TimestampMixin, Base):
     claimant_user_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False, index=True
     )
-    status: Mapped[str] = mapped_column(
-        claim_status_enum, nullable=False, server_default="pending"
-    )
+    status: Mapped[str] = mapped_column(claim_status_enum, nullable=False, server_default="pending")
     evidence_docs: Mapped[list[str]] = mapped_column(
         postgresql.JSONB, nullable=False, server_default="[]"
     )
@@ -190,9 +188,7 @@ class Verification(UUIDv7PKMixin, TimestampMixin, Base):
     doc_keys: Mapped[list[str]] = mapped_column(
         postgresql.JSONB, nullable=False, server_default="[]"
     )
-    status: Mapped[str] = mapped_column(
-        claim_status_enum, nullable=False, server_default="pending"
-    )
+    status: Mapped[str] = mapped_column(claim_status_enum, nullable=False, server_default="pending")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_by: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=True

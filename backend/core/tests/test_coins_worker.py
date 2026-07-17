@@ -123,7 +123,8 @@ async def test_business_claimed_different_businesses_both_award(
     uid = uuid.uuid4()
     for business_id in (str(uuid.uuid4()), str(uuid.uuid4())):
         await handle_event(
-            db_session, _ev("business.claimed", {"user_id": str(uid), "business_id": business_id}),
+            db_session,
+            _ev("business.claimed", {"user_id": str(uid), "business_id": business_id}),
             now=NOW,
         )
     assert await service.balance(db_session, uid) == 400

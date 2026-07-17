@@ -89,9 +89,7 @@ async def test_business_claim_rule_seeded(db_session: AsyncSession) -> None:
 
 async def test_claim_templates_seeded_all_locales(db_session: AsyncSession) -> None:
     rows = (
-        await db_session.scalars(
-            select(Template).where(Template.key.in_(EXPECTED_TEMPLATE_KEYS))
-        )
+        await db_session.scalars(select(Template).where(Template.key.in_(EXPECTED_TEMPLATE_KEYS)))
     ).all()
     seen = {(r.key, r.channel, r.locale) for r in rows}
     expected = {(k, "in_app", loc) for k in EXPECTED_TEMPLATE_KEYS for loc in ("en", "ta", "hi")}

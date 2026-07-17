@@ -91,6 +91,7 @@ def test_rejects_gif_even_though_pillow_can_open_it() -> None:
 def test_rejects_huge_dimensions_before_decode() -> None:
     payload = _huge_dimensions_small_bytes()
     assert len(payload) < MAX_IMAGE_BYTES  # premise: bytes pass the size check
-    with pytest.raises(MediaError) as excinfo:
+    # 56MP sits in Pillow's 1x-2x warning band: open() warns, our guard raises
+    with pytest.warns(Image.DecompressionBombWarning), pytest.raises(MediaError) as excinfo:
         reencode_image(payload)
     assert excinfo.value.code == "too_large"

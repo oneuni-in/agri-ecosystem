@@ -15,6 +15,7 @@ from modules.coins.admin_router import admin_router as coins_admin_router
 from modules.coins.router import router as coins_router
 from modules.content.router import router as content_router
 from modules.directory.admin_router import admin_router as directory_admin_router
+from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.router import router as directory_router
 from modules.identity.admin_router import admin_router as identity_admin_router
@@ -48,6 +49,7 @@ MODULE_ROUTERS = [
     ads_router,
     ai_router,
     billing_router,
+    catalog_router,
     coins_admin_router,
     coins_router,
     content_router,

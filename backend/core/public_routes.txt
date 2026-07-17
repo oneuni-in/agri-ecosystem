@@ -14,3 +14,7 @@
 /token
 /oauth/revoke
 /.well-known/jwks.json
+/catalog/verticals
+/catalog/products/{slug}
+/catalog/businesses/{slug}/products
+/catalog/verticals/{vertical}/products

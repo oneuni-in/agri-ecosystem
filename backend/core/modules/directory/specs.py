@@ -129,7 +129,7 @@ def _check_value(field: FieldDef, value: object) -> None:
         # bool is an int subclass - reject it explicitly
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise SpecValidationError("wrong_type", field.key)
-        if not math.isfinite(value):
+        if isinstance(value, float) and not math.isfinite(value):
             raise SpecValidationError("out_of_range", field.key)
         if (field.min is not None and value < field.min) or (
             field.max is not None and value > field.max

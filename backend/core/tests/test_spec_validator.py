@@ -135,6 +135,7 @@ def test_missing_optional_fields_are_fine() -> None:
         ({"milk_type": "cow", "fat_percent": float("nan")}, "out_of_range", "fat_percent"),
         ({"milk_type": "cow", "fat_percent": float("inf")}, "out_of_range", "fat_percent"),
         ({"milk_type": "cow", "fat_percent": float("-inf")}, "out_of_range", "fat_percent"),
+        ({"milk_type": "cow", "fat_percent": 10**400}, "out_of_range", "fat_percent"),
     ],
 )
 def test_specs_rejections(specs: object, code: str, field: str | None) -> None:

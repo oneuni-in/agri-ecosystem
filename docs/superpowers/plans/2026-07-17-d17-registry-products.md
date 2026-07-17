@@ -905,7 +905,9 @@ async def get_product_detail(slug: str, session: SessionDep) -> ProductDetailOut
 - [ ] **Step 4:** `python -m pytest tests/test_catalog_router.py tests/test_main.py -q` and `python scripts/dump_public_routes.py --check` → PASS
 - [ ] **Step 5:** format/lint/mypy/lint-imports. **Step 6:** Commit `feat(d17): catalog routers - owner writes + public SSR reads`.
 
----### Task 6: Product media — shared helper, media-domain serving, no-fork lint gate
+---
+
+### Task 6: Product media — shared helper, media-domain serving, no-fork lint gate
 
 **Files:**
 - Modify: `backend/core/settings.py` (add `media_public_base_url: str = "http://localhost:9000/agri-media"` — dev default = MinIO path-style bucket URL; prod env supplies the R2/CDN media domain)

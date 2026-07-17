@@ -54,7 +54,11 @@ def _jpeg_with_gps_exif() -> bytes:
 
 @pytest.fixture
 def object_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
-    """In-memory stand-in for MinIO wired through shared.storage."""
+    """In-memory stand-in for MinIO wired through shared.storage. Also
+    neutralises ensure_prefix_public_read (no test should make a real
+    network call) and resets the once-per-process guard so every test
+    starts cold; test_upload_attempts_public_prefix_policy_once installs
+    its own recorder and flag reset on top of this for its assertions."""
     store: dict[str, bytes] = {}
 
     async def fake_put(key: str, data: bytes, content_type: str) -> None:
@@ -65,8 +69,13 @@ def object_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
             raise storage.StorageError("missing")
         return store[key]
 
+    async def fake_ensure(prefix: str) -> None:
+        return None
+
     monkeypatch.setattr(storage, "put_object", fake_put)
     monkeypatch.setattr(storage, "get_object", fake_get)
+    monkeypatch.setattr(storage, "ensure_prefix_public_read", fake_ensure)
+    catalog_router._media_prefix_ready = False
     return store
 
 
@@ -276,6 +285,8 @@ async def test_upload_attempts_public_prefix_policy_once(
     object_store: dict[str, bytes],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The once-per-process guard must suppress the SECOND attempt, not just
+    prove the first one happens - two uploads, one recorded call."""
     client, session = api
     business = await _business(session, USER_A)
     product_id = await _product(session, USER_A, business, "Policy Milk")
@@ -290,10 +301,19 @@ async def test_upload_attempts_public_prefix_policy_once(
     monkeypatch.setattr(storage, "ensure_prefix_public_read", fake_ensure)
     catalog_router._media_prefix_ready = False
 
-    response = await client.post(
+    first = await client.post(
         f"/catalog/products/{product_id}/images",
         files={"file": ("cow.jpg", _jpeg_with_gps_exif(), "image/jpeg")},
         headers=_as(USER_A),
     )
-    assert response.status_code == 201
+    assert first.status_code == 201
+    assert calls == [catalog_router.PRODUCT_MEDIA_PREFIX]
+
+    second = await client.post(
+        f"/catalog/products/{product_id}/images",
+        files={"file": ("cow2.jpg", _jpeg_with_gps_exif(), "image/jpeg")},
+        headers=_as(USER_A),
+    )
+    assert second.status_code == 201
+    # still exactly one recorded call - the guard suppressed the repeat
     assert calls == [catalog_router.PRODUCT_MEDIA_PREFIX]

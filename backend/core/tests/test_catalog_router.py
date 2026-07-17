@@ -248,6 +248,19 @@ async def test_patch_status_archived_hides_from_public_list(
     assert after.json()["items"] == []
 
 
+async def test_patch_null_name_is_400(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    business = await _business(session, USER_A, "Null Name Dairy")
+    product_id = await _approved_product(session, USER_A, business, "Nullable Milk")
+
+    response = await client.patch(
+        f"/catalog/products/{product_id}", json={"name": None}, headers=_as(USER_A)
+    )
+    assert response.status_code == 400
+
+
 async def test_patch_specs_without_schema_409(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:

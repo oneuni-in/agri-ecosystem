@@ -171,6 +171,8 @@ async def update_product(
     product = await get_owned_product(session, owner_user_id, product_id)
     if "status" in patch and patch["status"] not in ("active", "archived"):
         raise ValueError(f"invalid product status: {patch['status']!r}")
+    if "name" in patch and patch["name"] is None:
+        raise ValueError("name cannot be null")
     if "specs" in patch:
         # a write opts into the current contract; untouched products keep
         # their old pin (the version-pinning contract, NN#1)

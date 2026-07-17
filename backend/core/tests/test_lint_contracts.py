@@ -85,7 +85,14 @@ def test_media_fork_ban_fires_on_fixture() -> None:
 
 def test_no_media_helper_fork() -> None:
     violations = check_media_fork(
-        [CORE / "main.py", CORE / "settings.py", CORE / "modules", CORE / "shared", VERSIONS],
+        [
+            CORE / "main.py",
+            CORE / "settings.py",
+            CORE / "modules",
+            CORE / "shared",
+            CORE / "scripts",
+            VERSIONS,
+        ],
         allow=MEDIA_ALLOWED,
     )
     assert violations == [], (

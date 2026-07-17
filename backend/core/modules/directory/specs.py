@@ -4,6 +4,7 @@ product specs are validated by validate_specs() on every write against the
 version being pinned. Reads never re-validate: old products keep rendering
 after a new schema version ships (non-negotiable 1)."""
 
+import math
 import re
 
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
@@ -128,6 +129,8 @@ def _check_value(field: FieldDef, value: object) -> None:
         # bool is an int subclass - reject it explicitly
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise SpecValidationError("wrong_type", field.key)
+        if not math.isfinite(value):
+            raise SpecValidationError("out_of_range", field.key)
         if (field.min is not None and value < field.min) or (
             field.max is not None and value > field.max
         ):

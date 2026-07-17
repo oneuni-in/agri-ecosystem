@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export interface MetaInput {
   title: string;
-  description: string;
+  description?: string;
   /** Absolute canonical URL — build with canonicalUrl(). */
   canonical: string;
   siteName?: string;
@@ -14,11 +14,11 @@ export interface MetaInput {
 export function buildMetadata(input: MetaInput): Metadata {
   return {
     title: input.title,
-    description: input.description,
+    ...(input.description !== undefined && { description: input.description }),
     alternates: { canonical: input.canonical },
     openGraph: {
       title: input.title,
-      description: input.description,
+      ...(input.description !== undefined && { description: input.description }),
       url: input.canonical,
       type: "website",
       ...(input.siteName !== undefined && { siteName: input.siteName }),

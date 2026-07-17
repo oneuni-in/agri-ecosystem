@@ -39,6 +39,7 @@ class BusinessOut(BaseModel):
     status: str
     verification_status: str
     subscription_tier: str
+    claimable: bool
     primary_pincode: str
     description: dict[str, str] | None
     created_at: datetime
@@ -135,3 +136,80 @@ class CoversItemOut(BaseModel):
 class CoversOut(BaseModel):
     items: list[CoversItemOut]
     next_cursor: str | None
+
+
+ClaimStatus = Literal["pending", "approved", "rejected"]
+
+
+class ClaimOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    claimant_user_id: uuid.UUID
+    status: str
+    evidence_count: int
+    decision_note: str | None
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class ClaimPageOut(BaseModel):
+    items: list[ClaimOut]
+    next_cursor: str | None
+
+
+class VerificationOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    method: str
+    status: str
+    notes: str | None
+    doc_count: int
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class VerificationPageOut(BaseModel):
+    items: list[VerificationOut]
+    next_cursor: str | None
+
+
+class AdminClaimOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    business_name: str
+    claimant_user_id: uuid.UUID
+    status: str
+    evidence_count: int
+    decision_note: str | None
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class AdminClaimPageOut(BaseModel):
+    items: list[AdminClaimOut]
+    next_cursor: str | None
+
+
+class AdminVerificationOut(BaseModel):
+    id: uuid.UUID
+    business_id: uuid.UUID
+    business_name: str
+    method: str
+    status: str
+    notes: str | None
+    doc_count: int
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class AdminVerificationPageOut(BaseModel):
+    items: list[AdminVerificationOut]
+    next_cursor: str | None
+
+
+class DecisionIn(BaseModel):
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RejectIn(BaseModel):
+    note: str = Field(min_length=3, max_length=1000)  # reject always carries a reason

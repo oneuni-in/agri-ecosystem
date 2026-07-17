@@ -53,4 +53,52 @@ def test_route_table_matches_seeded_templates() -> None:
         "identity.login_new_device": ("login_new_device", frozenset({"sms", "email"})),
         "identity.role_changed": ("role_changed", frozenset()),
         "notify.announce": ("generic_announce", frozenset({"email"})),
+        "business.claimed": ("claim_approved", frozenset()),
+        "directory.claim_rejected": ("claim_rejected", frozenset()),
+        "directory.verification_approved": ("verification_approved", frozenset()),
+        "directory.verification_rejected": ("verification_rejected", frozenset()),
     } == EVENT_ROUTES
+
+
+async def test_business_claimed_creates_in_app_notification(
+    db_session: AsyncSession, otp_redis: Redis
+) -> None:
+    user_id = uuid.uuid4()
+    event = Event(
+        id="1-0",
+        type="business.claimed",
+        payload={
+            "user_id": str(user_id),
+            "business_id": str(uuid.uuid4()),
+            "vars": {"business_name": "Anbu Seeds"},
+        },
+    )
+    await handle_event(db_session, event)
+    notification = await db_session.scalar(
+        select(Notification).where(Notification.user_id == user_id)
+    )
+    assert notification is not None
+    # Notification.body doesn't exist - body renders at read time from
+    # payload (modules/notify/models.py); assert the var flows through.
+    assert notification.payload.get("business_name") == "Anbu Seeds"
+
+
+async def test_claim_rejected_notification_carries_reason(
+    db_session: AsyncSession, otp_redis: Redis
+) -> None:
+    user_id = uuid.uuid4()
+    event = Event(
+        id="1-0",
+        type="directory.claim_rejected",
+        payload={
+            "user_id": str(user_id),
+            "business_id": str(uuid.uuid4()),
+            "vars": {"business_name": "Fake Farm", "reason": "stock photo"},
+        },
+    )
+    await handle_event(db_session, event)
+    notification = await db_session.scalar(
+        select(Notification).where(Notification.user_id == user_id)
+    )
+    assert notification is not None
+    assert notification.payload.get("reason") == "stock photo"

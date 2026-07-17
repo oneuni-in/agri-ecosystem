@@ -92,3 +92,39 @@ async def test_session_resumed_awards_again_next_day(db_session: AsyncSession) -
     next_day = NOW.replace(day=NOW.day + 1)
     await handle_event(db_session, ev, now=next_day)
     assert await service.balance(db_session, uid) == 10
+
+
+async def test_business_claimed_awards_once_per_business(db_session: AsyncSession) -> None:
+    """D16 non-negotiable 1: same business can never credit twice - not on
+    event redelivery, and not even for a different claimant user."""
+    uid = uuid.uuid4()
+    business_id = str(uuid.uuid4())
+    event = _ev("business.claimed", {"user_id": str(uid), "business_id": business_id})
+    await handle_event(db_session, event, now=NOW)
+    assert await service.balance(db_session, uid) == 200
+    # redelivery: no double credit
+    await handle_event(db_session, event, now=NOW)
+    assert await service.balance(db_session, uid) == 200
+    # different user, same business (can't happen via API - no unclaim path -
+    # but the idem key must hold anyway): no credit
+    other = uuid.uuid4()
+    await handle_event(
+        db_session,
+        _ev("business.claimed", {"user_id": str(other), "business_id": business_id}),
+        now=NOW,
+    )
+    assert await service.balance(db_session, other) == 0
+    assert await service.balance(db_session, uid) == 200
+
+
+async def test_business_claimed_different_businesses_both_award(
+    db_session: AsyncSession,
+) -> None:
+    uid = uuid.uuid4()
+    for business_id in (str(uuid.uuid4()), str(uuid.uuid4())):
+        await handle_event(
+            db_session,
+            _ev("business.claimed", {"user_id": str(uid), "business_id": business_id}),
+            now=NOW,
+        )
+    assert await service.balance(db_session, uid) == 400

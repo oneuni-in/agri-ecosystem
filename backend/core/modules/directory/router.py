@@ -63,6 +63,7 @@ def _business_out(business: Business) -> BusinessOut:
         status=business.status,
         verification_status=business.verification_status,
         subscription_tier=business.subscription_tier,
+        claimable=business.owner_user_id is None,
         primary_pincode=business.primary_pincode,
         description=business.description.to_dict() if business.description else None,
         created_at=business.created_at,

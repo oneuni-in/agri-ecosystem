@@ -13,7 +13,7 @@ from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
-STREAMS = ("identity", "notify")
+STREAMS = ("identity", "notify", "directory")
 CONSUMER_GROUP = "notify"
 
 EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
@@ -21,6 +21,12 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     "identity.login_new_device": ("login_new_device", frozenset({"sms", "email"})),
     "identity.role_changed": ("role_changed", frozenset()),
     "notify.announce": ("generic_announce", frozenset({"email"})),
+    # D16 claim/verification decisions: in-app only - directory events carry
+    # no destination (module independence), so extra channels stay empty.
+    "business.claimed": ("claim_approved", frozenset()),
+    "directory.claim_rejected": ("claim_rejected", frozenset()),
+    "directory.verification_approved": ("verification_approved", frozenset()),
+    "directory.verification_rejected": ("verification_rejected", frozenset()),
 }
 
 

@@ -1,14 +1,15 @@
-"""Directory module ORM models (D15) - mirrors migration 0016 exactly.
+"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 exactly.
 
 owner_user_id is a plain UUID value, never an FK into identity: the module
 independence contract forbids directory -> identity coupling at any layer.
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,8 +40,8 @@ class Business(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, ImmutableSlugMixi
     __tablename__ = "businesses"
     __table_args__ = {"schema": "directory"}
 
-    owner_user_id: Mapped[uuid.UUID] = mapped_column(
-        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[Translated | None] = mapped_column(TranslatedString, nullable=True)
@@ -116,3 +117,82 @@ class BusinessCoverage(UUIDv7PKMixin, TimestampMixin, Base):
         postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
     )
     pincode: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+claim_status_enum = postgresql.ENUM(
+    "pending", "approved", "rejected", name="claim_status", schema="directory", create_type=False
+)
+verification_method_enum = postgresql.ENUM(
+    "claim", "document", name="verification_method", schema="directory", create_type=False
+)
+
+
+class Claim(UUIDv7PKMixin, TimestampMixin, Base):
+    """Ownership claim on a seeded (NULL-owner) business (D16). Decided rows
+    are permanent records - no soft delete, no unclaim path (coins-farming
+    defence: the award key is claim:{business_id}, once per business ever)."""
+
+    __tablename__ = "claims"
+    __table_args__ = (
+        Index(
+            "uq_directory_claims_one_pending",
+            "business_id",
+            "claimant_user_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
+        Index("ix_directory_claims_status_id", "status", "id"),
+        {"schema": "directory"},
+    )
+
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
+    )
+    # plain UUID, never an FK into identity (module independence)
+    claimant_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(claim_status_enum, nullable=False, server_default="pending")
+    evidence_docs: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, server_default="[]"
+    )
+    decision_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=True
+    )
+
+
+class Verification(UUIDv7PKMixin, TimestampMixin, Base):
+    """Verification-lite record (D16): method='claim' rows are written by
+    claim approval; method='document' rows are owner-requested."""
+
+    __tablename__ = "verifications"
+    __table_args__ = (
+        Index(
+            "uq_directory_verifications_one_pending",
+            "business_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
+        Index("ix_directory_verifications_status_id", "status", "id"),
+        {"schema": "directory"},
+    )
+
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
+    )
+    method: Mapped[str] = mapped_column(verification_method_enum, nullable=False)
+    doc_keys: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, server_default="[]"
+    )
+    status: Mapped[str] = mapped_column(claim_status_enum, nullable=False, server_default="pending")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=True
+    )

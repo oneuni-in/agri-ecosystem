@@ -43,4 +43,18 @@ describe("buildMetadata", () => {
     });
     expect(meta.robots).toEqual({ index: false, follow: true });
   });
+
+  it("omits description when not given, while title/canonical/openGraph still work", () => {
+    const meta = buildMetadata({
+      title: "T",
+      canonical: "https://x.in/a",
+    });
+    expect(meta.description).toBeUndefined();
+    expect("description" in meta).toBe(false);
+    expect(meta.openGraph?.description).toBeUndefined();
+    expect(meta.openGraph && "description" in meta.openGraph).toBe(false);
+    expect(meta.title).toBe("T");
+    expect(meta.alternates?.canonical).toBe("https://x.in/a");
+    expect(meta.openGraph?.url).toBe("https://x.in/a");
+  });
 });

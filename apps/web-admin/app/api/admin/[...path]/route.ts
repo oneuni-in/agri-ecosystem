@@ -37,8 +37,17 @@ async function forward(
   if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
     return new NextResponse(null, { status: upstream.status });
   }
-  const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
-  return NextResponse.json(body, { status: upstream.status });
+  // Binary-safe passthrough - evidence/doc routes stream image/jpeg, not just
+  // JSON. arrayBuffer() is byte-exact for JSON responses too, so existing
+  // text/JSON callers are unaffected.
+  const contentType = upstream.headers.get("content-type") ?? "application/json";
+  const responseHeaders: Record<string, string> = { "content-type": contentType };
+  const cacheControl = upstream.headers.get("cache-control");
+  if (cacheControl) responseHeaders["cache-control"] = cacheControl;
+  return new NextResponse(Buffer.from(await upstream.arrayBuffer()), {
+    status: upstream.status,
+    headers: responseHeaders,
+  });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

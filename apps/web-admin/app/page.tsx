@@ -17,6 +17,11 @@ export default function Page() {
           Coins
         </Link>
       </p>
+      <p className="text-sm">
+        <Link href="/claims" className="text-brand underline">
+          Claims &amp; verification
+        </Link>
+      </p>
     </main>
   );
 }

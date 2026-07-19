@@ -92,6 +92,29 @@ async def _mk_business_with_coverage(
     return business
 
 
+async def _mk_inquiry(
+    session: AsyncSession,
+    business: Business,
+    *,
+    from_user_id: uuid.UUID | None = None,
+    status: str = "new",
+    message: str = "Hello",
+) -> Inquiry:
+    inquiry = Inquiry(
+        type="contact",
+        from_user_id=from_user_id,
+        business_id=business.id,
+        payload={"message": message},
+        pincode=business.primary_pincode,
+        category=None,
+        status=status,
+    )
+    session.add(inquiry)
+    await session.flush()
+    await session.refresh(inquiry)
+    return inquiry
+
+
 def _body(business_id: uuid.UUID | None, pincode: str, message: str = "Hello") -> dict[str, Any]:
     payload: dict[str, Any] = {
         "type": "contact",
@@ -226,3 +249,199 @@ async def test_contact_payload_validated(
     )
     assert resp.status_code == 422
     assert resp.json()["detail"] == "invalid_payload"
+
+
+async def test_inbox_requires_auth_and_ownership(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    owner = uuid.uuid4()
+    other = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business)
+
+    unauth = await client.get("/leads/inbox", params={"business_id": str(business.id)})
+    assert unauth.status_code == 401
+
+    owned = await client.get(
+        "/leads/inbox", params={"business_id": str(business.id)}, headers=_as(owner)
+    )
+    assert owned.status_code == 200
+    body = owned.json()
+    assert [i["id"] for i in body["items"]] == [str(inquiry.id)]
+
+    denied = await client.get(
+        "/leads/inbox", params={"business_id": str(business.id)}, headers=_as(other)
+    )
+    assert denied.status_code == 404
+
+
+async def test_inbox_newest_first_keyset(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    owner = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    first = await _mk_inquiry(db_session, business, message="one")
+    second = await _mk_inquiry(db_session, business, message="two")
+    third = await _mk_inquiry(db_session, business, message="three")
+
+    page1 = await client.get(
+        "/leads/inbox",
+        params={"business_id": str(business.id), "limit": 2},
+        headers=_as(owner),
+    )
+    assert page1.status_code == 200
+    body1 = page1.json()
+    assert [i["id"] for i in body1["items"]] == [str(third.id), str(second.id)]
+    assert body1["next_cursor"] is not None
+
+    page2 = await client.get(
+        "/leads/inbox",
+        params={
+            "business_id": str(business.id),
+            "limit": 2,
+            "cursor": body1["next_cursor"],
+        },
+        headers=_as(owner),
+    )
+    assert page2.status_code == 200
+    body2 = page2.json()
+    assert [i["id"] for i in body2["items"]] == [str(first.id)]
+    assert body2["next_cursor"] is None
+
+
+async def test_inbox_status_filter(client: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    owner = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    new_one = await _mk_inquiry(db_session, business, status="new")
+    await _mk_inquiry(db_session, business, status="responded")
+
+    resp = await client.get(
+        "/leads/inbox",
+        params={"business_id": str(business.id), "status": "new"},
+        headers=_as(owner),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert [i["id"] for i in body["items"]] == [str(new_one.id)]
+
+
+async def test_respond_flow(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    published: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    owner = uuid.uuid4()
+    submitter = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business, from_user_id=submitter)
+
+    resp = await client.post(
+        f"/leads/inquiries/{inquiry.id}/responses",
+        json={"body": "Yes, we deliver on Sundays."},
+        headers=_as(owner),
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["inquiry_id"] == str(inquiry.id)
+    assert body["business_user_id"] == str(owner)
+    assert body["body"] == "Yes, we deliver on Sundays."
+
+    await db_session.refresh(inquiry)
+    assert inquiry.status == "responded"
+
+    responded_events = [e for e in published if e[1] == "lead.responded"]
+    assert len(responded_events) == 1
+    assert responded_events[0][0] == "directory"
+    assert responded_events[0][2]["user_id"] == str(submitter)
+    assert responded_events[0][2]["inquiry_id"] == str(inquiry.id)
+    assert responded_events[0][2]["vars"] == {"business_name": business.name}
+
+    # guest inquiry (from_user_id None) -> respond publishes nothing
+    guest_inquiry = await _mk_inquiry(db_session, business, from_user_id=None)
+    resp2 = await client.post(
+        f"/leads/inquiries/{guest_inquiry.id}/responses",
+        json={"body": "Thanks for reaching out."},
+        headers=_as(owner),
+    )
+    assert resp2.status_code == 201
+    assert [e for e in published if e[1] == "lead.responded"] == responded_events
+
+
+async def test_respond_idor(client: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    owner = uuid.uuid4()
+    other = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business)
+
+    resp = await client.post(
+        f"/leads/inquiries/{inquiry.id}/responses",
+        json={"body": "Not yours to answer."},
+        headers=_as(other),
+    )
+    assert resp.status_code == 404
+
+
+async def test_close_inquiry(client: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    owner = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business)
+
+    resp = await client.post(f"/leads/inquiries/{inquiry.id}/close", headers=_as(owner))
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "closed"
+
+    await db_session.refresh(inquiry)
+    assert inquiry.status == "closed"
+
+
+async def test_mine_lists_own_with_responses(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    owner = uuid.uuid4()
+    submitter = uuid.uuid4()
+    other = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business, from_user_id=submitter)
+
+    respond = await client.post(
+        f"/leads/inquiries/{inquiry.id}/responses",
+        json={"body": "We deliver daily."},
+        headers=_as(owner),
+    )
+    assert respond.status_code == 201
+
+    mine = await client.get("/leads/mine", headers=_as(submitter))
+    assert mine.status_code == 200
+    mine_body = mine.json()
+    assert [i["id"] for i in mine_body["items"]] == [str(inquiry.id)]
+    responses = mine_body["items"][0]["responses"]
+    assert len(responses) == 1
+    assert responses[0]["body"] == "We deliver daily."
+
+    empty = await client.get("/leads/mine", headers=_as(other))
+    assert empty.status_code == 200
+    assert empty.json()["items"] == []
+
+
+async def test_inbox_stats(client: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    owner = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    responded_inquiry = await _mk_inquiry(db_session, business, from_user_id=uuid.uuid4())
+    await _mk_inquiry(db_session, business)
+
+    respond = await client.post(
+        f"/leads/inquiries/{responded_inquiry.id}/responses",
+        json={"body": "On it."},
+        headers=_as(owner),
+    )
+    assert respond.status_code == 201
+
+    resp = await client.get(
+        "/leads/inbox/stats", params={"business_id": str(business.id)}, headers=_as(owner)
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 2
+    assert body["responded"] == 1
+    assert isinstance(body["avg_response_seconds"], int)
+    assert body["avg_response_seconds"] >= 0

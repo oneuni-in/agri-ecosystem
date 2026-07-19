@@ -19,7 +19,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.covers import covers
+from modules.directory.leads_models import Inquiry
 from modules.directory.models import Business
+from modules.directory.service import BusinessNotFoundError, get_owned_business
 
 
 class LeadsError(Exception):
@@ -82,3 +84,49 @@ async def route_inquiry(
     nearest = page.items[0]
     owner = await session.scalar(select(Business.owner_user_id).where(Business.id == nearest.id))
     return RoutedBusiness(id=nearest.id, name=nearest.name, owner_user_id=owner)
+
+
+async def get_owned_inquiry(
+    session: AsyncSession, owner_user_id: uuid.UUID, inquiry_id: uuid.UUID
+) -> Inquiry:
+    """Fetch an inquiry, but only if the caller owns its business.
+
+    IDOR contract: someone else's inquiry and a missing one are the SAME 404
+    (mirrors get_owned_business's own not-yours-is-missing rule)."""
+    inquiry = await session.scalar(select(Inquiry).where(Inquiry.id == inquiry_id))
+    if inquiry is None:
+        raise InquiryNotFoundError(str(inquiry_id))
+    try:
+        await get_owned_business(session, owner_user_id, inquiry.business_id)
+    except BusinessNotFoundError:
+        raise InquiryNotFoundError(str(inquiry_id)) from None
+    return inquiry
+
+
+_STATS_SQL = text(
+    """
+    SELECT
+        count(*) AS total,
+        count(*) FILTER (WHERE i.status <> 'new') AS responded,
+        CAST(avg(EXTRACT(EPOCH FROM fr.first_at - i.created_at)) AS BIGINT)
+            AS avg_response_seconds
+    FROM leads.inquiries i
+    LEFT JOIN LATERAL (
+        SELECT min(r.created_at) AS first_at
+        FROM leads.responses r WHERE r.inquiry_id = i.id
+    ) fr ON true
+    WHERE i.business_id = :business_id
+    """
+)
+
+
+async def inbox_stats(session: AsyncSession, business_id: uuid.UUID) -> tuple[int, int, int | None]:
+    """Aggregate response-time stats for one business's inbox.
+
+    avg(...) over the lateral join averages only rows where first_at is
+    non-NULL - SQL avg ignores NULLs - which is the intended "response-time
+    stat over responded inquiries"."""
+    row = (await session.execute(_STATS_SQL, {"business_id": business_id})).one()
+    m = row._mapping
+    avg = m["avg_response_seconds"]
+    return int(m["total"]), int(m["responded"]), int(avg) if avg is not None else None

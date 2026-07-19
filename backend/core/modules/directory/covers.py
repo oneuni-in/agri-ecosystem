@@ -104,6 +104,14 @@ _CURSOR_PREDICATE = """
 
 _ORDER_LIMIT = "\nORDER BY d.distance_m, b.id\nLIMIT :lim"
 
+_CATEGORY_PREDICATE = """
+  AND EXISTS (
+      SELECT 1 FROM directory.business_categories bc
+      JOIN directory.categories cat ON cat.id = bc.category_id
+      WHERE bc.business_id = b.id AND cat.slug = :category
+  )
+"""
+
 
 async def covers(
     session: AsyncSession,
@@ -111,12 +119,16 @@ async def covers(
     pincode: str,
     cursor: str | None = None,
     limit: int = DEFAULT_PAGE_SIZE,
+    category: str | None = None,
 ) -> CoversPage:
     if limit < 1:
         raise ValueError(f"limit must be >= 1, got {limit}")
     limit = min(limit, MAX_PAGE_SIZE)
     sql = _BASE_SQL
     params: dict[str, object] = {"pincode": pincode, "lim": limit + 1}
+    if category is not None:
+        sql += _CATEGORY_PREDICATE
+        params["category"] = category
     if cursor is not None:
         cursor_distance, cursor_id = decode_covers_cursor(cursor)
         sql += _CURSOR_PREDICATE

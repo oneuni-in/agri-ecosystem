@@ -125,8 +125,10 @@ def upgrade() -> None:
     )
 
     # 0013's ALTER DEFAULT PRIVILEGES already covers new directory tables;
-    # explicit grant keeps the app_rt profile reviewable here (0018 precedent).
-    op.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "directory" TO app_rt')
+    # explicit per-table grant keeps the app_rt profile reviewable WITHOUT
+    # re-granting UPDATE/DELETE on 0018's append-only spec_schemas.
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON directory.reviews TO app_rt")
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON directory.rating_aggregates TO app_rt")
 
     op.bulk_insert(
         rules_table,

@@ -18,6 +18,8 @@ EXPECTED_CHANNELS = {
     "claim_rejected": {"in_app"},
     "verification_approved": {"in_app"},
     "verification_rejected": {"in_app"},
+    # D18 review moderation (in-app only, same rationale as claim/verification)
+    "review_approved": {"in_app"},
 }
 
 

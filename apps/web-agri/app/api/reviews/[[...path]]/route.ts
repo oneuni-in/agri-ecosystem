@@ -3,6 +3,12 @@
  * with the session's bearer token attached HERE, server-side (tokens never
  * touch JS - D10 non-negotiable). Only the backend's /reviews prefix is
  * reachable through this route by construction.
+ *
+ * Optional catch-all ([[...path]], not [...path]): the create-review POST
+ * lives at the bare backend prefix (`POST /reviews`, no sub-path) — a
+ * required catch-all never matches zero path segments, so bare
+ * `/api/reviews` 404s before this handler even runs. Confirmed against a
+ * running dev server: `POST /api/reviews` 404'd under `[...path]`.
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -13,16 +19,19 @@ const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 async function forward(
   req: NextRequest,
-  params: Promise<{ path: string[] }>,
+  params: Promise<{ path?: string[] }>,
   method: "GET" | "POST",
 ): Promise<NextResponse> {
-  const { path } = await params;
+  const { path = [] } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
   }
   const token = await auth.getAccessToken();
   if (!token) return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
-  const url = new URL(`${API}/reviews/${path.map(encodeURIComponent).join("/")}`);
+  // No trailing slash when path is empty — FastAPI would 307-redirect
+  // `/reviews/` to `/reviews`, an extra hop this proxy doesn't need to take.
+  const suffix = path.length > 0 ? `/${path.map(encodeURIComponent).join("/")}` : "";
+  const url = new URL(`${API}/reviews${suffix}`);
   url.search = req.nextUrl.search;
   const upstream = await fetch(url, {
     method,
@@ -40,7 +49,7 @@ async function forward(
   return NextResponse.json(body, { status: upstream.status });
 }
 
-type Ctx = { params: Promise<{ path: string[] }> };
+type Ctx = { params: Promise<{ path?: string[] }> };
 
 export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx.params, "GET");

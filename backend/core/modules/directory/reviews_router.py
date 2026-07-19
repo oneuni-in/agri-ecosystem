@@ -9,7 +9,6 @@ from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import reviews_service
-from modules.directory.reviews_models import Review
 from modules.directory.reviews_schemas import (
     RatingSummaryOut,
     ReviewCreateIn,
@@ -17,6 +16,7 @@ from modules.directory.reviews_schemas import (
     ReviewPageOut,
     ReviewTargetType,
 )
+from modules.directory.reviews_schemas import review_out as _review_out
 from shared.db import get_session
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
@@ -32,19 +32,6 @@ def _principal_user_id(request: Request) -> uuid.UUID:
     user_id = principal.user_id
     assert isinstance(user_id, uuid.UUID)
     return user_id
-
-
-def _review_out(review: Review) -> ReviewOut:
-    return ReviewOut(
-        id=review.id,
-        author_user_id=review.author_user_id,
-        target_type=review.target_type,
-        target_id=review.target_id,
-        rating=review.rating,
-        body=review.body.to_dict() if review.body else None,
-        moderation_status=review.moderation_status,
-        created_at=review.created_at,
-    )
 
 
 @router.post("", status_code=201)

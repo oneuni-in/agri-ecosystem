@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from modules.directory.reviews_models import Review
+
 ReviewTargetType = Literal["business", "product", "vendor"]
 
 
@@ -43,3 +45,18 @@ class RatingSummaryOut(BaseModel):
 class AdminReviewPageOut(BaseModel):
     items: list[ReviewOut]
     next_cursor: str | None
+
+
+def review_out(review: Review) -> ReviewOut:
+    """Shared serializer: reviews_router (public) and reviews_admin_router
+    (moderation) both need the identical shape."""
+    return ReviewOut(
+        id=review.id,
+        author_user_id=review.author_user_id,
+        target_type=review.target_type,
+        target_id=review.target_id,
+        rating=review.rating,
+        body=review.body.to_dict() if review.body else None,
+        moderation_status=review.moderation_status,
+        created_at=review.created_at,
+    )

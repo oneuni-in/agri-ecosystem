@@ -57,6 +57,7 @@ def test_route_table_matches_seeded_templates() -> None:
         "directory.claim_rejected": ("claim_rejected", frozenset()),
         "directory.verification_approved": ("verification_approved", frozenset()),
         "directory.verification_rejected": ("verification_rejected", frozenset()),
+        "review.approved": ("review_approved", frozenset()),
     } == EVENT_ROUTES
 
 
@@ -81,6 +82,29 @@ async def test_business_claimed_creates_in_app_notification(
     # Notification.body doesn't exist - body renders at read time from
     # payload (modules/notify/models.py); assert the var flows through.
     assert notification.payload.get("business_name") == "Anbu Seeds"
+
+
+async def test_review_approved_creates_in_app_notification(
+    db_session: AsyncSession, otp_redis: Redis
+) -> None:
+    user_id = uuid.uuid4()
+    event = Event(
+        id="1-0",
+        type="review.approved",
+        payload={
+            "user_id": str(user_id),
+            "review_id": str(uuid.uuid4()),
+            "target_type": "business",
+            "target_id": str(uuid.uuid4()),
+            "vars": {},
+        },
+    )
+    await handle_event(db_session, event)
+    notification = await db_session.scalar(
+        select(Notification).where(Notification.user_id == user_id)
+    )
+    assert notification is not None
+    assert notification.template_key == "review_approved"
 
 
 async def test_claim_rejected_notification_carries_reason(

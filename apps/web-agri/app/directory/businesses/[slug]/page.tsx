@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { LeadForm } from "./lead-form";
+import { RevealContact } from "./reveal-contact";
+
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const SITE = "https://agri.in";
 
@@ -29,7 +32,6 @@ interface BusinessDetail {
     state: string;
     district: string;
     pincode: string;
-    phone: string | null;
   }[];
   categories: { id: string; slug: string; name: LocalizedText }[];
 }
@@ -158,14 +160,12 @@ export default async function BusinessPage({
             <ul className="space-y-2">
               {branches.map((branch) => (
                 <li key={branch.id}>
-                  <Card className="p-3">
+                  <Card className="space-y-2 p-3">
                     <p className="text-[13.5px] font-semibold text-ink">{branch.address}</p>
                     <p className="text-[12.5px] text-sub">
                       {branch.district}, {branch.state} {branch.pincode}
                     </p>
-                    {branch.phone ? (
-                      <p className="text-[12.5px] text-sub">{branch.phone}</p>
-                    ) : null}
+                    <RevealContact branchId={branch.id} slug={business.slug} />
                   </Card>
                 </li>
               ))}
@@ -178,6 +178,14 @@ export default async function BusinessPage({
             {categories.map((category) => category.name.en ?? category.slug).join(" · ")}
           </p>
         ) : null}
+
+        <div className="mt-6">
+          <LeadForm
+            businessId={business.id}
+            defaultPincode={business.primary_pincode}
+            milkVertical={business.type === "vendor"}
+          />
+        </div>
       </Wrap>
     </main>
   );

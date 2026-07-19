@@ -1,0 +1,53 @@
+/**
+ * BFF proxy: browser -> same-origin /api/leads/* -> FastAPI /leads/* with
+ * the session's bearer token attached HERE, server-side (tokens never touch
+ * JS - D10 non-negotiable). Only the backend's /leads prefix is reachable
+ * through this route by construction.
+ *
+ * Guest-capable proxy (D18): leads submission is public - attach the bearer
+ * only when a session exists so logged-in submitters get attributed. Unlike
+ * /api/notify and /api/reviews, an absent session is NOT a 401 here.
+ */
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+import { auth } from "@/lib/auth";
+
+const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
+
+async function forward(
+  req: NextRequest,
+  params: Promise<{ path: string[] }>,
+  method: "GET" | "POST",
+): Promise<NextResponse> {
+  const { path } = await params;
+  if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
+    return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
+  }
+  const token = await auth.getAccessToken();
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (method === "POST") headers["content-type"] = "application/json";
+  if (token) headers.authorization = `Bearer ${token}`;
+  const url = new URL(`${API}/leads/${path.map(encodeURIComponent).join("/")}`);
+  url.search = req.nextUrl.search;
+  const upstream = await fetch(url, {
+    method,
+    headers,
+    ...(method === "POST" ? { body: await req.text() } : {}),
+    cache: "no-store",
+  });
+  if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
+    return new NextResponse(null, { status: upstream.status });
+  }
+  const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
+  return NextResponse.json(body, { status: upstream.status });
+}
+
+type Ctx = { params: Promise<{ path: string[] }> };
+
+export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "GET");
+}
+export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "POST");
+}

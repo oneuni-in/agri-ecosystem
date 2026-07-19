@@ -88,6 +88,21 @@ class BranchOut(BaseModel):
     hours: dict[str, Any]
 
 
+class PublicBranchOut(BaseModel):
+    """Branch as served on the PUBLIC detail page - contact fields are
+    structurally absent (D18.C): reveal is a separate capped endpoint."""
+
+    id: uuid.UUID
+    business_id: uuid.UUID
+    address: str
+    state: str
+    district: str
+    pincode: str
+    lat: Decimal | None
+    lng: Decimal | None
+    hours: dict[str, Any]
+
+
 class CoverageIn(BaseModel):
     pincodes: list[str] = Field(max_length=500)
 
@@ -118,7 +133,7 @@ class CategoryAssignOut(BaseModel):
 
 class BusinessDetailOut(BaseModel):
     business: BusinessOut
-    branches: list[BranchOut]
+    branches: list[PublicBranchOut]
     categories: list[CategoryOut]
 
 

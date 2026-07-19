@@ -8,16 +8,26 @@ modules.directory -> modules.identity. Never log request bodies or query
 strings: this module carries business contact PII (phones, addresses).
 """
 
+import logging
 import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import covers as covers_module
 from modules.directory import service
+from modules.directory.leads_models import ContactReveal
+from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, Category
+from modules.directory.reveal import (
+    RevealCapExceededError,
+    RevealUnavailableError,
+    claim_reveal_slot,
+)
 from modules.directory.schemas import (
     BranchCreateIn,
     BranchOut,
@@ -35,11 +45,14 @@ from modules.directory.schemas import (
     CoverageOut,
     CoversItemOut,
     CoversOut,
+    PublicBranchOut,
     RenameIn,
 )
 from shared.db import get_session
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
+
+logger = logging.getLogger(__name__)
 
 router = SecureRouter(prefix="/directory", tags=["directory"])
 
@@ -82,6 +95,22 @@ def _branch_out(branch: Branch) -> BranchOut:
         lng=branch.lng,
         phone=branch.phone,
         whatsapp=branch.whatsapp,
+        hours=branch.hours,
+    )
+
+
+def _public_branch_out(branch: Branch) -> PublicBranchOut:
+    """Same as _branch_out minus phone/whatsapp (D18.C): the public detail
+    page must not carry contact fields, not even as null."""
+    return PublicBranchOut(
+        id=branch.id,
+        business_id=branch.business_id,
+        address=branch.address,
+        state=branch.state,
+        district=branch.district,
+        pincode=branch.pincode,
+        lat=branch.lat,
+        lng=branch.lng,
         hours=branch.hours,
     )
 
@@ -265,9 +294,40 @@ async def get_business_detail(slug: str, session: SessionDep) -> BusinessDetailO
     business, branches, categories = result
     return BusinessDetailOut(
         business=_business_out(business),
-        branches=[_branch_out(b) for b in branches],
+        branches=[_public_branch_out(b) for b in branches],
         categories=[_category_out(c) for c in categories],
     )
+
+
+@router.post("/branches/{branch_id}/reveal")
+async def reveal_branch_contact(
+    request: Request, branch_id: uuid.UUID, session: SessionDep
+) -> ContactRevealOut:
+    """Login-gated, daily-capped, DPDP-logged contact reveal (D18.C).
+    Order matters: cap FIRST (never bypassed), log row SECOND, numbers LAST."""
+    user_id = _principal_user_id(request)
+    branch = await session.scalar(select(Branch).where(Branch.id == branch_id))
+    if branch is None:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    business = await session.scalar(
+        select(Business).where(Business.id == branch.business_id, Business.status == "active")
+    )
+    if business is None:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    try:
+        await claim_reveal_slot(user_id, now=datetime.now(UTC))
+    except RevealCapExceededError as exc:
+        raise HTTPException(status_code=429, detail="reveal_cap_exceeded") from exc
+    except RevealUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="reveal_unavailable") from exc
+    session.add(ContactReveal(user_id=user_id, business_id=branch.business_id, branch_id=branch.id))
+    await session.commit()
+    # IDs only - never the numbers (DPDP; scrubber is last-line defence, not licence)
+    logger.info(
+        "contact.revealed",
+        extra={"extra_fields": {"user_id": str(user_id), "branch_id": str(branch.id)}},
+    )
+    return ContactRevealOut(branch_id=branch.id, phone=branch.phone, whatsapp=branch.whatsapp)
 
 
 @router.get("/covers/{pincode}", public=True)

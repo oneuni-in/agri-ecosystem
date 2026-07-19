@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     notify_user_hourly_cap: int = 30
     notify_worker_enabled: bool = True
 
+    # Contact reveal (D18.C, anti-scraping). Public business/branch reads
+    # never carry phone/whatsapp; a logged-in user reveals a branch's
+    # numbers through a capped endpoint. The cap is the scraping defence.
+    contact_reveal_daily_cap: int = 10
+
 
 @lru_cache
 def get_settings() -> Settings:

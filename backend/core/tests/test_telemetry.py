@@ -96,6 +96,14 @@ def test_short_numbers_not_redacted() -> None:
     assert scrub("status 200 in 42ms on port 55432") == "status 200 in 42ms on port 55432"
 
 
+def test_scrub_redacts_e164_phone() -> None:
+    assert "+916374344282" not in scrub("call +916374344282 now")
+
+
+def test_scrub_redacts_wa_me_link_digits() -> None:
+    assert "916374344282" not in scrub("https://wa.me/916374344282")
+
+
 def test_uuids_survive_scrubbing() -> None:
     # digit-heavy runs inside UUIDs must not be mistaken for phone numbers:
     # request ids and entity ids (UUIDv7) have to stay greppable in logs

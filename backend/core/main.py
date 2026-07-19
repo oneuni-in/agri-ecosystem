@@ -18,6 +18,7 @@ from modules.directory.admin_router import admin_router as directory_admin_route
 from modules.directory.catalog_admin_router import admin_router as catalog_admin_router
 from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
+from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
 from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.oauth_keys import get_signing_key
@@ -67,6 +68,7 @@ MODULE_ROUTERS = [
     leads_router,
     market_data_router,
     notify_router,
+    reviews_router,
     search_router,
 ]
 

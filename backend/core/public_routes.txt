@@ -18,3 +18,5 @@
 /catalog/products/{slug}
 /catalog/businesses/{slug}/products
 /catalog/verticals/{vertical}/products
+/reviews
+/reviews/summary

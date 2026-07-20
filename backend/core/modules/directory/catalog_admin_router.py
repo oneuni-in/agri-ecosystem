@@ -205,11 +205,17 @@ async def approve_product(
         ip=request.client.host if request.client else None,
     )
     # capture EVERYTHING needed after commit BEFORE committing - ORM
-    # attributes expire at commit and async lazy-refresh raises
+    # attributes expire at commit and async lazy-refresh raises. A business's
+    # `sites` snapshot field is partly computed from its approved+active
+    # products (search_sync.business_snapshot), so approving a business's
+    # FIRST product in a vertical must republish the BUSINESS too, or it
+    # never enters that vertical's site (D19 review finding 2).
     payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
     out = _product_out(product)
     await session.commit()  # commit BEFORE announcing (admin_router precedent)
     await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
     return out
 
 
@@ -236,9 +242,14 @@ async def reject_product(
     # capture EVERYTHING needed after commit BEFORE committing - ORM
     # attributes expire at commit and async lazy-refresh raises. A
     # previously-approved product rejected here must tombstone in the
-    # search index (snapshot: null) - the contract is unconditional.
+    # search index (snapshot: null) - the contract is unconditional. Also
+    # republish the BUSINESS: rejecting a business's last approved product in
+    # a vertical must drop it from that vertical's `sites` list, or it lingers
+    # there forever (D19 review finding 2, mirror of the approve-side fix).
     payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
     out = _product_out(product)
     await session.commit()  # commit BEFORE announcing (admin_router precedent)
     await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
     return out

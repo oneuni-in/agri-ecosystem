@@ -51,6 +51,27 @@ async def _geo_context(
     return district, state, {"lat": float(lat), "lng": float(lon)}
 
 
+async def business_product_ids(session: AsyncSession, business_id: uuid.UUID) -> list[uuid.UUID]:
+    """A business's own, non-soft-deleted product ids - used by routes that
+    change snapshot-visible business fields (coverage, verification,
+    district/state via branch geo, categories, slug) to also republish each
+    product's event. Without this, a product's denormalized parent fields
+    (covered_pincodes, verified, district, state, business_name/slug) go
+    stale forever once set, since business writes only ever republished
+    `business.*` (see D19 review finding 1). Callers pass every id straight
+    to `product_event_payload`, which is a no-op tombstone-republish for any
+    id that isn't currently visible (still pending, etc.) - harmless."""
+    return list(
+        (
+            await session.execute(
+                select(Product.id).where(
+                    Product.business_id == business_id, Product.deleted_at.is_(None)
+                )
+            )
+        ).scalars()
+    )
+
+
 async def business_snapshot(session: AsyncSession, business_id: uuid.UUID) -> dict[str, Any] | None:
     """None when the business isn't publicly visible; otherwise a PII-free dict."""
     biz = await session.get(Business, business_id)

@@ -89,8 +89,14 @@ export default async function SearchPage({
 
   const params = new URLSearchParams({ site: "milk", q });
   if (loc?.pincode) {
+    // `pincode` alone drives the geo-sort BOOST (nearest first) - it must
+    // NOT also set `covered=true`. `covered` is a hard Meili filter, and
+    // most businesses never call PUT /coverage (it's optional), so an
+    // implicit filter here would make them invisible to every visitor with
+    // a location set (D19 review finding 3). `covered` stays available on
+    // the backend for a future explicit "only vendors who deliver here"
+    // toggle - just not applied by default.
     params.set("pincode", loc.pincode);
-    params.set("covered", "true");
   }
   if (cursor) params.set("cursor", cursor);
 

@@ -49,6 +49,18 @@ async def bus_redis(redis_client: Redis, monkeypatch: pytest.MonkeyPatch) -> Asy
     yield redis_client
 
 
+async def test_sites_tuple_matches_directory_search_sync() -> None:
+    """indexing.SITES is a deliberate, by-hand copy of
+    modules/directory/search_sync.py's SITES (module independence forbids
+    modules/search from importing modules/directory in application code) -
+    this is the trip-wire that catches drift between the two. Importing
+    modules.directory from a *test* is not an import-linter violation; only
+    modules/search's own source is contract-checked."""
+    from modules.directory import search_sync
+
+    assert indexing.SITES == search_sync.SITES
+
+
 async def test_upsert_on_snapshot(meili: None) -> None:
     await indexing.ensure_indexes()
     await indexing.apply_event(

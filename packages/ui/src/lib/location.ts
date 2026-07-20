@@ -75,11 +75,23 @@ export function parseLocationResponse(body: unknown): LocContext | null {
   return { pincode, district, state, source: source as LocSource };
 }
 
-/** Full `Set-Cookie`-ready string: `agri_loc=%7B...%7D; Path=/; Max-Age=...; SameSite=Lax`. */
+/**
+ * Full `Set-Cookie`-ready string: `agri_loc=%7B...%7D; Path=/; Max-Age=...;
+ * SameSite=Lax[; Secure]`. `SameSite=Lax` and non-`HttpOnly` are deliberate
+ * (SSR and client JS both need to read this cookie directly); `Secure` is
+ * added whenever the page itself is loaded over https, since the cookie
+ * carries district/pincode and shouldn't be replayable over plain http.
+ * Guarded via `typeof window` (not a bare reference) so this stays callable
+ * under the plain-node unit test environment this file is tested in.
+ */
 export function serializeLocCookie(loc: LocContext): string {
   const payload = { p: loc.pincode, d: loc.district, s: loc.state, src: loc.source };
   const value = encodeURIComponent(JSON.stringify(payload));
-  return [`${LOC_COOKIE}=${value}`, "Path=/", "Max-Age=31536000", "SameSite=Lax"].join("; ");
+  const parts = [`${LOC_COOKIE}=${value}`, "Path=/", "Max-Age=31536000", "SameSite=Lax"];
+  if (typeof window !== "undefined" && window.location.protocol === "https:") {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
 }
 
 /**

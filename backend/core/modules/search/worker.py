@@ -42,14 +42,18 @@ async def process_once(consumers: list[EventConsumer], *, count: int = 50) -> bo
                 await consumer.ack(event)
             except Exception:
                 logger.exception(
-                    "search worker: event failed; leaving for redelivery/DLQ",
+                    "search worker: event failed; left unacked, no retry path",
                     extra={"extra_fields": {"event_type": event.type}},
                 )
-                # no ack -> eligible for redelivery; poison after
-                # MAX_DELIVERIES -> DLQ via reap_poison above (same known bus
-                # limitation as modules/coins/worker.py: no idle-redelivery
-                # sweep of its own, but a stalled event here cannot corrupt
-                # the index - the next successful pass replaces it in full).
+                # No ack -> the event stays in this consumer's PEL, but there
+                # is no safety net behind that: EventConsumer.read only reads
+                # `>` (new messages), with no XAUTOCLAIM/idle-sweep of the
+                # PEL, so times_delivered never increments and reap_poison
+                # never claims it. The event is simply lost - not redelivered,
+                # not DLQ'd, not alerted on - until an operator notices and
+                # runs scripts/reindex_search.py. Implementing a redelivery
+                # sweep is out of scope here (shared-bus concern, see
+                # modules/coins/worker.py's identical limitation).
     return did_work
 
 

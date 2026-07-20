@@ -71,6 +71,30 @@ describe("parseLocCookie / serializeLocCookie", () => {
     expect(serialized).not.toMatch(/eyJ[\w-]{10,}/);
   });
 
+  it("omits Secure when there is no window (plain-node / non-browser call)", () => {
+    expect(serializeLocCookie(FULL)).not.toContain("Secure");
+  });
+
+  it("adds Secure when the page is loaded over https", () => {
+    const originalWindow = (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = { location: { protocol: "https:" } };
+    try {
+      expect(serializeLocCookie(FULL)).toContain("Secure");
+    } finally {
+      (globalThis as { window?: unknown }).window = originalWindow;
+    }
+  });
+
+  it("omits Secure when the page is loaded over plain http", () => {
+    const originalWindow = (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = { location: { protocol: "http:" } };
+    try {
+      expect(serializeLocCookie(FULL)).not.toContain("Secure");
+    } finally {
+      (globalThis as { window?: unknown }).window = originalWindow;
+    }
+  });
+
   it("serialized value is URL-encoded JSON starting with %7B (never JWT/JWE-shaped)", () => {
     const serialized = serializeLocCookie(FULL);
     expect(serialized.startsWith(`${LOC_COOKIE}=%7B`)).toBe(true);

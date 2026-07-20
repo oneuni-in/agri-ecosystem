@@ -72,6 +72,19 @@ async def _publish_best_effort(event_type: str, payload: dict[str, object]) -> N
         )
 
 
+async def _product_payloads(
+    session: AsyncSession, business_id: uuid.UUID
+) -> list[dict[str, object]]:
+    """Every one of a business's own products, as fat event payloads - call
+    BEFORE commit alongside `business_event_payload` so a business-level
+    write that changes snapshot-visible fields also republishes its products
+    (see search_sync.business_product_ids; D19 review finding 1)."""
+    return [
+        await search_sync.product_event_payload(session, product_id)
+        for product_id in await search_sync.business_product_ids(session, business_id)
+    ]
+
+
 def _principal_user_id(request: Request) -> uuid.UUID:
     principal = request.state.principal  # set by require_auth (shared.security)
     user_id = principal.user_id
@@ -194,9 +207,12 @@ async def update_business(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
     out = _business_out(business)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -216,9 +232,12 @@ async def rename_business(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
     out = _business_out(business)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -239,9 +258,12 @@ async def add_branch(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     # a branch's geo/contact rows feed the parent business's snapshot
     payload = await search_sync.business_event_payload(session, business_id)
+    product_payloads = await _product_payloads(session, business_id)
     out = _branch_out(branch)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -261,9 +283,12 @@ async def update_branch(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = await search_sync.business_event_payload(session, branch.business_id)
+    product_payloads = await _product_payloads(session, branch.business_id)
     out = _branch_out(branch)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -283,9 +308,12 @@ async def set_coverage(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = await search_sync.business_event_payload(session, business_id)
+    product_payloads = await _product_payloads(session, business_id)
     out = CoverageOut(pincodes=pincodes)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -305,9 +333,12 @@ async def assign_categories(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = await search_sync.business_event_payload(session, business_id)
+    product_payloads = await _product_payloads(session, business_id)
     out = CategoryAssignOut(category_ids=category_ids)
     await session.commit()
     await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 

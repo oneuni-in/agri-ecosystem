@@ -239,6 +239,6 @@ async def test_cursor_max_depth_boundary_rejected(api: httpx.AsyncClient) -> Non
     assert resp2.json()["detail"] == "invalid_cursor"
 
 
-def test_search_public_route_registered() -> None:
+async def test_search_public_route_registered() -> None:
     app = create_app()
     assert "/search" in app.state.public_routes

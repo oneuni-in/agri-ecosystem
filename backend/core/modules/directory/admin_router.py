@@ -96,6 +96,20 @@ async def _publish_best_effort(event_type: str, payload: dict[str, object]) -> N
         )
 
 
+async def _product_payloads(
+    session: AsyncSession, business_id: uuid.UUID
+) -> list[dict[str, object]]:
+    """Every one of a business's own products, as fat event payloads - call
+    BEFORE commit alongside `business_event_payload` so an admin decision
+    that changes snapshot-visible business fields (verified, ...) also
+    republishes its products (see search_sync.business_product_ids; D19
+    review finding 1)."""
+    return [
+        await search_sync.product_event_payload(session, product_id)
+        for product_id in await search_sync.business_product_ids(session, business_id)
+    ]
+
+
 @admin_router.get("/claims")
 async def list_claims(
     request: Request,
@@ -171,10 +185,13 @@ async def approve_claim(
         "vars": {"business_name": business.name},
     }
     search_payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
     out = _admin_claim_out(claim, business.name)
     await session.commit()  # commit BEFORE announcing (identity precedent)
     await _publish_best_effort("business.claimed", payload)
     await _publish_best_effort("business.updated", search_payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -291,10 +308,13 @@ async def approve_verification(
         "vars": {"business_name": business.name},
     }
     search_payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
     out = _admin_verification_out(verification, business.name)
     await session.commit()  # commit BEFORE announcing (identity precedent)
     await _publish_best_effort("directory.verification_approved", payload)
     await _publish_best_effort("business.updated", search_payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out
 
 
@@ -334,8 +354,11 @@ async def reject_verification(
     # both re-publish, even though a reject rarely flips the visible
     # `verified` boolean (pending/unverified both read as False)
     search_payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
     out = _admin_verification_out(verification, business.name)
     await session.commit()
     await _publish_best_effort("directory.verification_rejected", payload)
     await _publish_best_effort("business.updated", search_payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
     return out

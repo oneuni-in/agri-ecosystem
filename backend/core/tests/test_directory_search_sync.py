@@ -692,3 +692,131 @@ async def test_product_moderation_reject_tombstones_search_doc(
     assert stream == "directory"
     assert payload["doc_id"] == f"product_{product.id.hex}"
     assert payload["snapshot"] is None  # tombstone: no longer visible
+
+
+# --- D19 review fast-follows: business writes must republish products ------
+
+
+async def test_set_coverage_republishes_products(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """D19 review finding 1: coverage is a business-level write, but products
+    denormalize `covered_pincodes` from their parent business - changing
+    coverage must republish every one of the business's own products too, or
+    they keep serving a stale (usually empty) covered_pincodes list forever
+    (invisible under the `covered` filter until a full reindex)."""
+    http, session = api
+    owner = uuid.uuid4()
+    biz = await _business(session, owner)
+    product = await catalog_service.create_product(
+        session,
+        owner_user_id=owner,
+        business_id=biz.id,
+        vertical_slug="milk",
+        name="A2 Milk",
+        specs={"milk_type": "a2"},
+    )
+    await catalog_service.moderate_product(session, product_id=product.id, approve=True)
+    captured_events.clear()
+
+    resp = await http.put(
+        f"/directory/businesses/{biz.id}/coverage",
+        json={"pincodes": ["641001", "641002"]},
+        headers=_as(owner),
+    )
+    assert resp.status_code == 200
+
+    matches = [e for e in captured_events if e[1] == "product.updated"]
+    assert len(matches) == 1
+    payload = matches[0][2]
+    assert payload["doc_id"] == f"product_{product.id.hex}"
+    assert set(payload["snapshot"]["covered_pincodes"]) == {"641001", "641002"}
+
+
+async def test_verification_approve_republishes_products_verified(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """D19 review finding 1: verification approval flips the business's
+    `verified` boolean, which every one of its products denormalizes -
+    approving must republish the products too, or they show unverified
+    forever even after their business gets the checkmark."""
+    http, session = api
+    from modules.directory.models import Business
+
+    owner = uuid.uuid4()
+    business = Business(
+        owner_user_id=owner,
+        name="Verified Products Dairy",
+        slug=f"owned-{uuid.uuid4().hex[:10]}",
+        type="vendor",
+        primary_pincode="641001",
+    )
+    session.add(business)
+    await session.flush()
+    product = await catalog_service.create_product(
+        session,
+        owner_user_id=owner,
+        business_id=business.id,
+        vertical_slug="milk",
+        name="A2 Milk",
+        specs={"milk_type": "a2"},
+    )
+    await catalog_service.moderate_product(session, product_id=product.id, approve=True)
+
+    created = await http.post(
+        f"/directory/businesses/{business.id}/verification",
+        files=[("files", ("doc.jpg", _jpeg(), "image/jpeg"))],
+        headers=_as(owner),
+    )
+    assert created.status_code == 201
+    verification_id = created.json()["id"]
+    admin = uuid.uuid4()
+    captured_events.clear()
+    approve = await http.post(
+        f"/admin/directory/verifications/{verification_id}/approve",
+        json={"note": "docs valid"},
+        headers=_as(admin, "staff"),
+    )
+    assert approve.status_code == 200
+
+    matches = [e for e in captured_events if e[1] == "product.updated"]
+    assert len(matches) == 1
+    payload = matches[0][2]
+    assert payload["doc_id"] == f"product_{product.id.hex}"
+    assert payload["snapshot"]["verified"] is True
+
+
+async def test_product_approve_puts_business_into_milk_site(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """D19 review finding 2: business_snapshot's `sites` is partly computed
+    from the business's own approved+active products - approving a
+    business's FIRST product in a vertical must republish the BUSINESS too,
+    or an uncategorized vendor (no `dairy` category, so CATEGORY_SITES can't
+    mask the gap) never enters that vertical's site."""
+    http, session = api
+    owner = uuid.uuid4()
+    biz = await _business(session, owner, name="Uncategorized Dairy")
+    product = await catalog_service.create_product(
+        session,
+        owner_user_id=owner,
+        business_id=biz.id,
+        vertical_slug="milk",
+        name="A2 Milk",
+        specs={"milk_type": "a2"},
+    )
+    captured_events.clear()
+    admin = uuid.uuid4()
+    approve = await http.post(
+        f"/admin/catalog/products/{product.id}/approve", headers=_as(admin, "staff")
+    )
+    assert approve.status_code == 200
+
+    matches = [e for e in captured_events if e[1] == "business.updated"]
+    assert len(matches) == 1
+    payload = matches[0][2]
+    assert payload["doc_id"] == f"business_{biz.id.hex}"
+    assert "milk" in payload["snapshot"]["sites"]

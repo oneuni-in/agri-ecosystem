@@ -35,7 +35,7 @@ interface AdminReview {
 
 function bodyText(body: ReviewBody | null): string {
   if (!body) return "—";
-  return body.en ?? body.ta ?? body.hi ?? "—";
+  return body.en?.trim() || body.ta?.trim() || body.hi?.trim() || "—";
 }
 
 /** Badge's variant union (sponsored/verified/cert) is fixed marketing

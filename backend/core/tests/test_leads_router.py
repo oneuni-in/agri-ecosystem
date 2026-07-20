@@ -11,11 +11,12 @@ from typing import Any
 import httpx
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import service
-from modules.directory.leads_models import Inquiry
+from modules.directory.leads_models import Inquiry, InquiryResponse
 from modules.directory.models import Business, BusinessCoverage
 from shared.db import get_session
 from shared.security import register_principal_resolver
@@ -365,6 +366,34 @@ async def test_respond_flow(
     )
     assert resp2.status_code == 201
     assert [e for e in published if e[1] == "lead.responded"] == responded_events
+
+
+async def test_respond_to_closed_409(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    published: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    owner = uuid.uuid4()
+    submitter = uuid.uuid4()
+    business = await _mk_business(db_session, owner=owner)
+    inquiry = await _mk_inquiry(db_session, business, from_user_id=submitter)
+
+    closed = await client.post(f"/leads/inquiries/{inquiry.id}/close", headers=_as(owner))
+    assert closed.status_code == 200
+
+    resp = await client.post(
+        f"/leads/inquiries/{inquiry.id}/responses",
+        json={"body": "Too late."},
+        headers=_as(owner),
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "inquiry_closed"
+
+    row = await db_session.scalar(
+        select(InquiryResponse).where(InquiryResponse.inquiry_id == inquiry.id)
+    )
+    assert row is None
+    assert [e for e in published if e[1] == "lead.responded"] == []
 
 
 async def test_respond_idor(client: httpx.AsyncClient, db_session: AsyncSession) -> None:

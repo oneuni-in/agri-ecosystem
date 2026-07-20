@@ -30,6 +30,8 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     # D18: in-app only, same rationale as the D16 claim/verification routes
     # above - directory events carry no destination.
     "review.approved": ("review_approved", frozenset()),
+    "lead.created": ("lead_received", frozenset()),
+    "lead.responded": ("lead_response", frozenset()),
 }
 
 

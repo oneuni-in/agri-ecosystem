@@ -131,6 +131,15 @@ async def test_rating_bounds(api: tuple[httpx.AsyncClient, AsyncSession]) -> Non
     assert too_high.status_code == 422
 
 
+async def test_bad_locale_body_400(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, session = api
+    b = await _business(session, USER_A)
+    body = _review_body("business", b.id)
+    body["body"] = {"xx": "hi"}
+    resp = await http.post("/reviews", json=body, headers=_as(USER_B))
+    assert resp.status_code == 400
+
+
 async def test_unknown_target_404(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     http, _ = api
     resp = await http.post(
@@ -243,7 +252,7 @@ async def test_summary_math(api: tuple[httpx.AsyncClient, AsyncSession]) -> None
     assert unknown_body["rating_count"] == 0
 
 
-def test_reviews_public_routes_are_registered() -> None:
+async def test_reviews_public_routes_are_registered() -> None:
     app = create_app()
     assert "/reviews" in app.state.public_routes
     assert "/reviews/summary" in app.state.public_routes

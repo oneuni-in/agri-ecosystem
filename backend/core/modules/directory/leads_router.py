@@ -179,6 +179,8 @@ async def respond_to_inquiry(
         inquiry = await leads_service.get_owned_inquiry(session, user_id, inquiry_id)
     except leads_service.InquiryNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Inquiry not found") from exc
+    if inquiry.status == "closed":
+        raise HTTPException(status_code=409, detail="inquiry_closed")
     response = InquiryResponse(inquiry_id=inquiry.id, business_user_id=user_id, body=body.body)
     session.add(response)
     if inquiry.status == "new":

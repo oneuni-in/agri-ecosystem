@@ -121,10 +121,17 @@ async def recompute_aggregate(
         )
     ).one()
     agg = await session.scalar(
-        select(RatingAggregate).where(
+        # FOR UPDATE: serializes concurrent recomputes for the same target
+        # (D16 claims.py precedent). The rare concurrent-first-INSERT race
+        # (two callers both see agg is None and both try to insert) stays as
+        # documented debt - it's caught by the aggregate's unique index, not
+        # by this lock, and isn't exercised by any test in this repo.
+        select(RatingAggregate)
+        .where(
             RatingAggregate.target_type == target_type,
             RatingAggregate.target_id == target_id,
         )
+        .with_for_update()
     )
     if not count:
         if agg is not None:
@@ -155,7 +162,15 @@ async def list_for_moderation(
 
 
 async def moderate(session: AsyncSession, *, review_id: uuid.UUID, approve: bool) -> Review:
-    review = await session.scalar(select(Review).where(Review.id == review_id))
+    review = await session.scalar(
+        # FOR UPDATE: serializes concurrent approve/reject decisions on the
+        # same review (D16 claims.py _pending_claim_with_business precedent).
+        # Without this, two racing decisions can both read "pending" and both
+        # succeed - worst case: approve + reject both land, awarding coins
+        # and a review_approved notification for a review that ends up
+        # rejected.
+        select(Review).where(Review.id == review_id).with_for_update()
+    )
     if review is None:
         raise ReviewNotFoundError(str(review_id))
     if review.moderation_status != "pending":

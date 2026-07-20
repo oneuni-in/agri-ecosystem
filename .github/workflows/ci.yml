@@ -88,10 +88,22 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      meilisearch:
+        image: getmeili/meilisearch:v1.13
+        env:
+          MEILI_ENV: development
+        ports:
+          - "7700:7700"
+        options: >-
+          --health-cmd "wget --no-verbose --spider http://127.0.0.1:7700/health"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@localhost:5432/agri
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
+      MEILISEARCH_URL: http://localhost:7700
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

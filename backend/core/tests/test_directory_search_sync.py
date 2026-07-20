@@ -481,6 +481,7 @@ async def test_assign_categories_publishes_updated(
 async def test_claim_approve_publishes_claimed_and_updated(
     api: tuple[httpx.AsyncClient, AsyncSession],
     captured_events: list[tuple[str, str, dict[str, Any]]],
+    object_store: dict[str, bytes],
 ) -> None:
     http, session = api
     from modules.directory.models import Business
@@ -517,6 +518,7 @@ async def test_claim_approve_publishes_claimed_and_updated(
 async def test_verification_approve_publishes_updated(
     api: tuple[httpx.AsyncClient, AsyncSession],
     captured_events: list[tuple[str, str, dict[str, Any]]],
+    object_store: dict[str, bytes],
 ) -> None:
     http, session = api
     from modules.directory.models import Business
@@ -553,6 +555,7 @@ async def test_verification_approve_publishes_updated(
 async def test_verification_reject_publishes_updated(
     api: tuple[httpx.AsyncClient, AsyncSession],
     captured_events: list[tuple[str, str, dict[str, Any]]],
+    object_store: dict[str, bytes],
 ) -> None:
     """Unconditional per the D19 contract ("verification approve/reject"),
     even though a reject rarely flips the visible `verified` boolean."""
@@ -737,6 +740,7 @@ async def test_set_coverage_republishes_products(
 async def test_verification_approve_republishes_products_verified(
     api: tuple[httpx.AsyncClient, AsyncSession],
     captured_events: list[tuple[str, str, dict[str, Any]]],
+    object_store: dict[str, bytes],
 ) -> None:
     """D19 review finding 1: verification approval flips the business's
     `verified` boolean, which every one of its products denormalizes -

@@ -24,6 +24,7 @@ from modules.identity.rbac import reset_permission_cache
 from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
 from modules.search.client import get_meili, reset_meili
 from settings import get_settings
+from shared import storage
 from shared.cache import reset_redis
 from shared.db import Base, reset_engine
 from shared.flags import reset_flag_cache
@@ -217,3 +218,27 @@ async def tn_geo_sample(db_session: AsyncSession) -> None:
             )
         )
     await db_session.flush()
+
+
+@pytest.fixture
+def object_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
+    """In-memory stand-in for MinIO wired through shared.storage.
+
+    Any test that drives an upload route needs this: CI's backend job runs
+    postgres/redis/meilisearch only, so a real put_object there fails the
+    request with 503. Test modules predating this fixture keep their own
+    local copy, which shadows this one.
+    """
+    store: dict[str, bytes] = {}
+
+    async def fake_put(key: str, data: bytes, content_type: str) -> None:
+        store[key] = data
+
+    async def fake_get(key: str) -> bytes:
+        if key not in store:
+            raise storage.StorageError("missing")
+        return store[key]
+
+    monkeypatch.setattr(storage, "put_object", fake_put)
+    monkeypatch.setattr(storage, "get_object", fake_get)
+    return store

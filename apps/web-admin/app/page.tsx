@@ -22,6 +22,11 @@ export default function Page() {
           Claims &amp; verification
         </Link>
       </p>
+      <p className="text-sm">
+        <Link href="/reviews" className="text-brand underline">
+          Reviews
+        </Link>
+      </p>
     </main>
   );
 }

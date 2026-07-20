@@ -62,6 +62,21 @@ async def require_auth(
     request.state.principal = principal
 
 
+async def optional_auth(
+    request: Request, session: Annotated[AsyncSession, Depends(get_session)]
+) -> None:
+    """Attribute the caller when credentials are present; never 401.
+
+    For guest-capable routes (declared public=True): a logged-in caller gets
+    request.state.principal set exactly as require_auth would, an anonymous
+    caller proceeds without one. Routes must treat the principal as optional."""
+    if _principal_resolver is None:
+        return
+    principal = await _principal_resolver(request, session)
+    if principal is not None:
+        request.state.principal = principal
+
+
 class RateLimiter:
     """Fixed-window rate limiter: Redis-backed, in-memory fallback for dev."""
 

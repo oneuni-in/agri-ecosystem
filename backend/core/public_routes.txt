@@ -18,3 +18,6 @@
 /catalog/products/{slug}
 /catalog/businesses/{slug}/products
 /catalog/verticals/{vertical}/products
+/leads/inquiries
+/reviews
+/reviews/summary

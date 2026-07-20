@@ -57,7 +57,15 @@ MODULES: dict[str, dict[str, str]] = {
         "registry, append-only spec-schema versions, schema-validated products.\n"
         "Product specs validate against the PINNED schema version on write,\n"
         "never on read; product images go through shared.media.reencode_image\n"
-        "only (lint-gated) and serve from the media domain.",
+        "only (lint-gated) and serve from the media domain. Also hosts D18's\n"
+        "reviews engine under /reviews + /admin/reviews: UGC pending-default\n"
+        "moderation with cached rating aggregates, and a leads engine under\n"
+        "/leads: guest submission (optional_auth), coverage(pincode) x\n"
+        "category routing, owner inbox/responses/stats. Contact reveal\n"
+        "(/directory/branches/{id}/reveal) is daily-capped, fail-closed, and\n"
+        "appends to an append-only leads.contact_reveals DPDP log. Emits\n"
+        "review.approved, lead.created, lead.responded on the directory\n"
+        "event stream.",
         "spec": "docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).",
         "pii_note": "holds business contact data (phones, emails)",
         "extra_never": "- Never render contact details without the lead/verification\n"

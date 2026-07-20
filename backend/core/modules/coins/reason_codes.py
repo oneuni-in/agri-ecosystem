@@ -10,6 +10,7 @@ REASON_LABEL_KEYS: dict[str, str] = {
     "redeem": "coins.reason.redeem",
     "manual_adjust": "coins.reason.manual_adjust",
     "compensation": "coins.reason.compensation",
+    "review_approved": "coins.reason.review_approved",
 }
 
 

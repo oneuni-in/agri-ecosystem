@@ -7,7 +7,15 @@ surface (D17, engine E2 in basic form) under /catalog/*: vertical
 registry, append-only spec-schema versions, schema-validated products.
 Product specs validate against the PINNED schema version on write,
 never on read; product images go through shared.media.reencode_image
-only (lint-gated) and serve from the media domain.
+only (lint-gated) and serve from the media domain. Also hosts D18's
+reviews engine under /reviews + /admin/reviews: UGC pending-default
+moderation with cached rating aggregates, and a leads engine under
+/leads: guest submission (optional_auth), coverage(pincode) x
+category routing, owner inbox/responses/stats. Contact reveal
+(/directory/branches/{id}/reveal) is daily-capped, fail-closed, and
+appends to an append-only leads.contact_reveals DPDP log. Emits
+review.approved, lead.created, lead.responded on the directory
+event stream.
 
 **Spec pointer:** docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).
 

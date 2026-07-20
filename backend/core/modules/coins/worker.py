@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import referrals, rules, service
+from modules.coins.rules import CapExceededError
 from shared.db import get_sessionmaker
 from shared.events import Event, EventConsumer
 from shared.telemetry import get_logger
@@ -92,6 +93,27 @@ async def handle_event(session: AsyncSession, event: Event, *, now: datetime) ->
             idempotency_key=f"claim:{business_id}",
             now=now,
         )
+    elif event.type == "review.approved":
+        # review_approved: idem key review:{review_id} (spec) makes replay
+        # safe; the 5/week cap is data (coins.rules.weekly_cap=5) enforced by
+        # check_numeric_caps inside award() - cap-hit is a normal outcome,
+        # not a retryable fault, so it must not poison the stream.
+        uid = uuid.UUID(str(event.payload["user_id"]))
+        review_id = str(event.payload["review_id"])
+        try:
+            await service.award(
+                session,
+                user_id=uid,
+                rule_code="review_approved",
+                ref_id=review_id,
+                idempotency_key=f"review:{review_id}",
+                now=now,
+            )
+        except CapExceededError:
+            logger.info(
+                "review_approved weekly cap reached",
+                extra={"extra_fields": {"user_id": str(uid)}},
+            )
     # unknown event types: no-op (other consumers own them)
 
 

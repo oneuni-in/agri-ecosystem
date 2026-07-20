@@ -39,6 +39,7 @@ async def record_entry(
     ref_type: str,
     ref_id: str | None,
     idempotency_key: str,
+    now: datetime | None = None,
 ) -> LedgerEntry:
     if delta == 0:
         raise ValueError("delta must be non-zero")
@@ -51,6 +52,15 @@ async def record_entry(
         ref_id=ref_id,
         idempotency_key=idempotency_key,
     )
+    if now is not None:
+        # award() passes the caller's logical `now` through so the ledger row
+        # (and therefore rules.check_numeric_caps's weekly/daily window math,
+        # which reads created_at back) is consistent with the same clock the
+        # rest of the rules engine uses - not Postgres' real wall-clock
+        # server_default, which would desync from a redelivered/backfilled
+        # event's logical time. Other callers (redeem, admin adjust) omit
+        # `now` and keep the unchanged server_default now() behavior.
+        entry.created_at = now
     # One savepoint wraps the ledger insert AND the balance update so that a
     # rejected redeem (or a duplicate key) discards BOTH and never poisons the
     # caller's transaction. The savepoint is only released (kept) on success.
@@ -148,4 +158,5 @@ async def award(
         ref_type="rule",
         ref_id=ref_id,
         idempotency_key=idempotency_key,
+        now=now,
     )

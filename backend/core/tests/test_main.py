@@ -53,6 +53,9 @@ EXPECTED_PUBLIC_ROUTES = [
     "/auth/otp/request",
     "/auth/otp/verify",
     "/auth/login",
+    "/leads/inquiries",
+    "/reviews",
+    "/reviews/summary",
 ]
 
 

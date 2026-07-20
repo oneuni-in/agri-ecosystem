@@ -1,7 +1,7 @@
 """Worker dispatch: identity events award coins idempotently (no Redis needed)."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -128,3 +128,116 @@ async def test_business_claimed_different_businesses_both_award(
             now=NOW,
         )
     assert await service.balance(db_session, uid) == 400
+
+
+async def test_review_approved_awards_coins(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    rid = uuid.uuid4()
+    await handle_event(
+        db_session,
+        _ev(
+            "review.approved",
+            {
+                "user_id": str(uid),
+                "review_id": str(rid),
+                "target_type": "business",
+                "target_id": str(uuid.uuid4()),
+                "vars": {},
+            },
+        ),
+        now=NOW,
+    )
+    assert await service.balance(db_session, uid) == 20
+
+
+async def test_review_approved_replay_is_idempotent(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    rid = uuid.uuid4()
+    event = _ev(
+        "review.approved",
+        {
+            "user_id": str(uid),
+            "review_id": str(rid),
+            "target_type": "business",
+            "target_id": str(uuid.uuid4()),
+            "vars": {},
+        },
+    )
+    await handle_event(db_session, event, now=NOW)
+    await handle_event(db_session, event, now=NOW)  # redelivery, same review_id
+    assert await service.balance(db_session, uid) == 20
+
+
+async def test_review_approved_weekly_cap_five(db_session: AsyncSession) -> None:
+    """D18 non-negotiable 2: at most 5 review_approved awards per user per
+    rolling week - the 6th distinct review within 7 days must not award, and
+    must not raise (CapExceededError is a normal outcome, swallowed by the
+    worker)."""
+    uid = uuid.uuid4()
+    for _ in range(5):
+        await handle_event(
+            db_session,
+            _ev(
+                "review.approved",
+                {
+                    "user_id": str(uid),
+                    "review_id": str(uuid.uuid4()),
+                    "target_type": "business",
+                    "target_id": str(uuid.uuid4()),
+                    "vars": {},
+                },
+            ),
+            now=NOW,
+        )
+    assert await service.balance(db_session, uid) == 100
+    await handle_event(
+        db_session,
+        _ev(
+            "review.approved",
+            {
+                "user_id": str(uid),
+                "review_id": str(uuid.uuid4()),
+                "target_type": "business",
+                "target_id": str(uuid.uuid4()),
+                "vars": {},
+            },
+        ),
+        now=NOW,
+    )
+    assert await service.balance(db_session, uid) == 100  # capped, no exception escapes
+
+
+async def test_review_approved_award_resumes_next_week(db_session: AsyncSession) -> None:
+    uid = uuid.uuid4()
+    for _ in range(5):
+        await handle_event(
+            db_session,
+            _ev(
+                "review.approved",
+                {
+                    "user_id": str(uid),
+                    "review_id": str(uuid.uuid4()),
+                    "target_type": "business",
+                    "target_id": str(uuid.uuid4()),
+                    "vars": {},
+                },
+            ),
+            now=NOW,
+        )
+    assert await service.balance(db_session, uid) == 100
+    later = NOW + timedelta(days=8)
+    await handle_event(
+        db_session,
+        _ev(
+            "review.approved",
+            {
+                "user_id": str(uid),
+                "review_id": str(uuid.uuid4()),
+                "target_type": "business",
+                "target_id": str(uuid.uuid4()),
+                "vars": {},
+            },
+        ),
+        now=later,
+    )
+    assert await service.balance(db_session, uid) == 120

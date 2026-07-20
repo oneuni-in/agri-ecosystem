@@ -820,3 +820,44 @@ async def test_product_approve_puts_business_into_milk_site(
     payload = matches[0][2]
     assert payload["doc_id"] == f"business_{biz.id.hex}"
     assert "milk" in payload["snapshot"]["sites"]
+
+
+async def test_owner_archive_product_republishes_business_out_of_milk_site(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """D19 review finding 2's owner-facing twin: PATCH /catalog/products/{id}
+    accepts `status` ("active"/"archived") as a mutable field, and that
+    status is an input to business_snapshot's `sites` computation just like
+    moderation is - an uncategorized vendor (no `dairy` category, so
+    CATEGORY_SITES can't mask it) archiving their last approved milk product
+    must republish the BUSINESS, or it stays in search_milk forever."""
+    http, session = api
+    owner = uuid.uuid4()
+    biz = await _business(session, owner, name="Archiving Dairy")
+    product = await catalog_service.create_product(
+        session,
+        owner_user_id=owner,
+        business_id=biz.id,
+        vertical_slug="milk",
+        name="A2 Milk",
+        specs={"milk_type": "a2"},
+    )
+    await catalog_service.moderate_product(session, product_id=product.id, approve=True)
+
+    # sanity: business is in the milk site while the product is active+approved
+    snap = await search_sync.business_snapshot(session, biz.id)
+    assert snap is not None
+    assert "milk" in snap["sites"]
+
+    captured_events.clear()
+    resp = await http.patch(
+        f"/catalog/products/{product.id}", json={"status": "archived"}, headers=_as(owner)
+    )
+    assert resp.status_code == 200
+
+    matches = [e for e in captured_events if e[1] == "business.updated"]
+    assert len(matches) == 1
+    payload = matches[0][2]
+    assert payload["doc_id"] == f"business_{biz.id.hex}"
+    assert "milk" not in payload["snapshot"]["sites"]

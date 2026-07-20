@@ -208,10 +208,20 @@ async def update_product(
         raise HTTPException(status_code=422, detail={"code": exc.code, "field": exc.field}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises. `status` is
+    # a mutable patch field ("active"/"archived"), and business_snapshot's
+    # `sites` is partly computed from the business's own approved+active
+    # products (mirror of the approve/reject fix in catalog_admin_router.py,
+    # D19 review finding 2 owner-facing twin) - an owner archiving/
+    # unarchiving their last/first product in a vertical must republish the
+    # BUSINESS too, or it never leaves/enters that vertical's site.
     payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
     out = _product_out(product)
     await session.commit()
     await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
     return out
 
 

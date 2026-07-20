@@ -10,6 +10,9 @@ from typing import Any
 
 from .client import get_meili
 
+# Kept identical to modules/directory/search_sync.py SITES - module
+# independence (import-linter) forbids importing that constant, so any
+# change here must be mirrored there by hand.
 SITES = ("agri", "milk")
 
 SEARCHABLE_ATTRIBUTES = [

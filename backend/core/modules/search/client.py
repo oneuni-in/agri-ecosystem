@@ -42,7 +42,11 @@ class MeiliClient:
         await self.wait_for_task(task["taskUid"])
 
     async def upsert_documents(self, uid: str, docs: list[dict[str, Any]]) -> int:
-        task = await self._request("PUT", f"/indexes/{uid}/documents", docs)
+        # POST = full replace; documents are always complete snapshots (fat
+        # events) - never send partial docs through this client. PUT would be
+        # Meili's partial-merge endpoint, which leaves fields omitted from a
+        # later doc stale.
+        task = await self._request("POST", f"/indexes/{uid}/documents", docs)
         return int(task["taskUid"])
 
     async def delete_documents(self, uid: str, ids: list[str]) -> int:

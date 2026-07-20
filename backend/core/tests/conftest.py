@@ -22,6 +22,7 @@ from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
 from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
+from modules.search.client import get_meili, reset_meili
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import Base, reset_engine
@@ -61,6 +62,7 @@ def _reset_state() -> Iterator[None]:
     reset_permission_cache()
     MockEmailDriver.reset()
     MockNotifySmsDriver.reset()
+    reset_meili()
 
 
 @pytest.fixture(scope="session")
@@ -170,6 +172,23 @@ async def redis_client() -> AsyncIterator[Redis]:
     await client.flushdb()
     yield client
     await client.aclose()
+
+
+MEILI_TEST_INDEXES = ("search_agri", "search_milk")
+
+
+@pytest.fixture
+async def meili() -> AsyncIterator[None]:
+    """Real dev Meilisearch, skipping visibly when unreachable. Test indexes
+    are disposable state (ADR-0007) - wiped before AND after each test."""
+    client = get_meili()
+    if not await client.health():
+        pytest.skip("meilisearch unreachable")
+    for uid in MEILI_TEST_INDEXES:
+        await client.delete_index(uid)
+    yield
+    for uid in MEILI_TEST_INDEXES:
+        await client.delete_index(uid)
 
 
 @pytest.fixture

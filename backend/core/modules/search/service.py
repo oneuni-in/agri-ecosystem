@@ -39,8 +39,9 @@ def _query_hash(
     kind: str | None,
     vertical: str | None,
     covered: bool,
+    limit: int,
 ) -> str:
-    raw = "|".join([site, q, pincode or "", kind or "", vertical or "", str(covered)])
+    raw = "|".join([site, q, pincode or "", kind or "", vertical or "", str(covered), str(limit)])
     return hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 
@@ -51,8 +52,18 @@ def encode_search_cursor(start: int, qhash: str) -> str:
 def decode_search_cursor(cursor: str, qhash: str) -> int:
     try:
         data = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+        # A cursor is base64 JSON we minted; anything that decodes to valid
+        # JSON but isn't the {"s", "h"} object we wrote (e.g. base64 of a
+        # bare `123` or `null`) must still be a 400, not a TypeError on
+        # `data["s"]` escaping as an unhandled 500.
+        if not isinstance(data, dict):
+            raise InvalidSearchCursor(cursor)
         start = int(data["s"])
-        if data["h"] != qhash or start < 0 or start > MAX_DEPTH:
+        # >= not >: encode_search_cursor only ever mints next_start < MAX_DEPTH
+        # (see run_search), so a legitimately-issued cursor's start is always
+        # in [0, MAX_DEPTH); start == MAX_DEPTH is already outside anything we
+        # would issue and must be rejected at the boundary, not one past it.
+        if data["h"] != qhash or start < 0 or start >= MAX_DEPTH:
             raise InvalidSearchCursor(cursor)
         return start
     except (ValueError, KeyError, binascii.Error) as exc:
@@ -71,7 +82,7 @@ async def run_search(
     cursor: str | None = None,
     limit: int = 20,
 ) -> dict[str, Any]:
-    qhash = _query_hash(site, q, pincode, kind, vertical, covered)
+    qhash = _query_hash(site, q, pincode, kind, vertical, covered, limit)
     start = decode_search_cursor(cursor, qhash) if cursor else 0
     filters: list[str] = []
     if kind:

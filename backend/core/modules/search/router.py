@@ -8,7 +8,7 @@ SecureRouter like every other route here. The bespoke cursor lives in
 service.py - see its docstring for why shared.pagination doesn't apply.
 """
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
@@ -60,12 +60,20 @@ async def search(
     site: str,
     q: Annotated[str, Query(max_length=200)] = "",
     pincode: Annotated[str | None, Query(pattern=r"^\d{6}$")] = None,
-    kind: str | None = None,
-    vertical: str | None = None,
+    kind: Literal["business", "product"] | None = None,
+    vertical: Annotated[str | None, Query(pattern=r"^[a-z0-9-]+$")] = None,
     covered: bool = False,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> SearchPage:
+    """`kind`/`vertical` are allowlisted here (Literal / slug-charset pattern),
+    not escaped-and-interpolated: both values are spliced verbatim into a
+    Meili filter expression in service.py, and Meili's filter grammar accepts
+    boolean composition - an unconstrained value could smuggle in an ` OR
+    covered_pincodes = "..."` (or `_geoRadius(...)`) clause and turn the
+    filterable-but-not-displayed fields into a hit-presence oracle on this
+    public, unauthenticated endpoint. FastAPI's own 422 on a bad value is the
+    intended failure mode, not a 200 with leaked hits."""
     if site not in SITES:
         raise HTTPException(status_code=404, detail="unknown_site")
     try:

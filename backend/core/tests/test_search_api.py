@@ -4,6 +4,8 @@
 exercised over HTTP through the app, mirroring the httpx.ASGITransport
 harness in tests/test_directory_router.py."""
 
+import base64
+import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -13,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.search import indexing
+from modules.search import service as search_service
 from shared.db import get_session
 from shared.events import Event
 
@@ -178,6 +181,62 @@ async def test_unknown_site_404(api: httpx.AsyncClient, meili: None) -> None:
     resp = await api.get("/search", params={"site": "bogus", "q": "anything"})
     assert resp.status_code == 404
     assert resp.json()["detail"] == "unknown_site"
+
+
+async def test_kind_filter_injection_rejected(api: httpx.AsyncClient) -> None:
+    """kind is a closed Literal set (search_sync only ever emits "business"/
+    "product"); an attempt to smuggle an ` OR ...` clause into the Meili
+    filter expression must 422, not 200 with hits leaked via a boolean
+    filter-injection oracle over covered_pincodes/_geo (filterable but never
+    displayed). No meili fixture needed - this never reaches run_search."""
+    resp = await api.get(
+        "/search",
+        params={"site": "milk", "q": "x", "kind": 'business" OR covered_pincodes = "641001'},
+    )
+    assert resp.status_code == 422
+
+
+async def test_vertical_filter_injection_rejected(api: httpx.AsyncClient) -> None:
+    """vertical is constrained to the slug charset; anything outside
+    [a-z0-9-] (quotes, spaces, `=`) must 422 rather than reach the Meili
+    filter string verbatim."""
+    resp = await api.get(
+        "/search",
+        params={"site": "milk", "q": "x", "vertical": 'milk" OR _geoRadius(0,0,999999999)'},
+    )
+    assert resp.status_code == 422
+
+
+async def test_cursor_bare_json_scalar_rejected(api: httpx.AsyncClient) -> None:
+    """A cursor that is valid base64 + valid JSON but not the {"s", "h"}
+    object we mint (e.g. base64 of a bare `123`) must 400, not crash the
+    endpoint with an unhandled TypeError on data["s"]."""
+    bogus = base64.urlsafe_b64encode(json.dumps(123).encode()).decode()
+    resp = await api.get("/search", params={"site": "milk", "q": "x", "cursor": bogus})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "invalid_cursor"
+
+    bogus_null = base64.urlsafe_b64encode(json.dumps(None).encode()).decode()
+    resp2 = await api.get("/search", params={"site": "milk", "q": "x", "cursor": bogus_null})
+    assert resp2.status_code == 400
+    assert resp2.json()["detail"] == "invalid_cursor"
+
+
+async def test_cursor_max_depth_boundary_rejected(api: httpx.AsyncClient) -> None:
+    """encode_search_cursor only ever mints next_start < MAX_DEPTH, so a
+    legitimate cursor's start is always in [0, MAX_DEPTH). start == MAX_DEPTH
+    is already outside anything we'd issue and must 400 at the boundary, not
+    only once past it."""
+    qhash = search_service._query_hash("milk", "x", None, None, None, False, 20)
+    at_depth = search_service.encode_search_cursor(search_service.MAX_DEPTH, qhash)
+    resp = await api.get("/search", params={"site": "milk", "q": "x", "cursor": at_depth})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "invalid_cursor"
+
+    past_depth = search_service.encode_search_cursor(search_service.MAX_DEPTH + 1, qhash)
+    resp2 = await api.get("/search", params={"site": "milk", "q": "x", "cursor": past_depth})
+    assert resp2.status_code == 400
+    assert resp2.json()["detail"] == "invalid_cursor"
 
 
 def test_search_public_route_registered() -> None:

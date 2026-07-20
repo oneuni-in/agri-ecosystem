@@ -170,9 +170,17 @@ async def business_event_payload(session: AsyncSession, business_id: uuid.UUID) 
 
 async def product_event_payload(session: AsyncSession, product_id: uuid.UUID) -> dict[str, Any]:
     """Fat event payload for product.* events - always carries doc_id, even
-    when snapshot is null (the indexer needs the id to delete the doc)."""
+    when snapshot is null (the indexer needs the id to delete the doc).
+
+    Callers may pass the id of a row that is invisible-but-real (soft-deleted,
+    pending, suspended parent, ...) - e.g. the D19 full-reindex script walks
+    every product id including soft-deleted ones so the worker can tombstone
+    them. `include_deleted=True` here mirrors the `product_snapshot`/
+    `business_snapshot` visibility check, which already treats a soft-deleted
+    row as present-but-not-visible rather than absent; the assert below is
+    only for a truly nonexistent id, which callers should never pass."""
     snap = await product_snapshot(session, product_id)
-    prod = await session.get(Product, product_id)
+    prod = await session.get(Product, product_id, execution_options={"include_deleted": True})
     assert prod is not None
     return {
         "doc_id": f"product_{product_id.hex}",

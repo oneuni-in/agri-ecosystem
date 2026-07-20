@@ -59,6 +59,11 @@ async def test_reindex_publishes_for_all_rows(
         name="A2 Milk 500ml",
         specs={"milk_type": "a2"},
     )
+    # A real reindex run opens a brand-new session with nothing preloaded;
+    # without this, session.get() below would short-circuit through the
+    # identity map (these rows were just created in db_session) instead of
+    # actually round-tripping through the soft-delete-aware SELECT path.
+    db_session.expunge_all()
 
     count = await reindex_search.run(db_session)
 
@@ -69,12 +74,11 @@ async def test_reindex_publishes_for_all_rows(
     assert biz_events[str(live.id)]["snapshot"] is not None
     assert biz_events[str(gone.id)]["snapshot"] is None  # soft-deleted -> tombstone
 
-    prod_events = [(t, p) for _, t, p in recorder if t == "product.updated"]
+    prod_events = [p for _, t, p in recorder if t == "product.updated"]
     assert len(prod_events) == 1
-    prod_type, prod_payload = prod_events[0]
-    assert prod_payload["product_id"] == str(product.id)
-    assert prod_payload["business_id"] == str(live.id)
-    assert prod_payload["doc_id"] == f"product_{product.id.hex}"
+    assert prod_events[0]["product_id"] == str(product.id)
+    assert prod_events[0]["business_id"] == str(live.id)
+    assert prod_events[0]["doc_id"] == f"product_{product.id.hex}"
 
 
 async def test_reindex_tolerates_soft_deleted_product(
@@ -106,6 +110,7 @@ async def test_reindex_tolerates_soft_deleted_product(
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
     product.deleted_at = datetime.now(UTC)
     await db_session.flush()
+    db_session.expunge_all()  # force a real round trip, not an identity-map hit
 
     count = await reindex_search.run(db_session)
 
@@ -141,6 +146,7 @@ async def test_product_event_payload_tolerates_soft_delete_directly(
     )
     product.deleted_at = datetime.now(UTC)
     await db_session.flush()
+    db_session.expunge_all()  # force a real round trip, not an identity-map hit
 
     payload = await search_sync.product_event_payload(db_session, product.id)
 

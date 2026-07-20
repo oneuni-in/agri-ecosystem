@@ -3,7 +3,7 @@ normalizer (backend/core/scripts/normalize_vendor_seed.py) - no DB.
 
 Covers normalize_row, validate_pincode (valid / not-in-geo / wrong-district),
 looks_like_pii (phone/email shapes), dedupe, and confirms the shipped
-starter CSVs (data/seeds/coimbatore/*.csv - a hand-authored ~15-row sample,
+starter CSVs (data/seeds/coimbatore/*.csv - a ~15-row starter sample,
 NOT real vendor data, see README.md) actually parse and validate against
 the D27 import-CSV contract end to end."""
 
@@ -219,9 +219,9 @@ class TestDedupe:
 
 
 class TestStarterSeed:
-    """The four data/seeds/coimbatore/*.csv files are a hand-authored ~15
-    row STARTER SAMPLE, not real vendor data (see README.md) - but they
-    must be well-formed against the same contract the normalizer emits."""
+    """The four data/seeds/coimbatore/*.csv files are a ~15-row STARTER
+    SAMPLE, not real vendor data (see README.md) - but they must be
+    well-formed against the same contract the normalizer emits."""
 
     def _rows(self, name: str) -> list[dict[str, str]]:
         with (SEED_DIR / name).open(newline="", encoding="utf-8") as fh:

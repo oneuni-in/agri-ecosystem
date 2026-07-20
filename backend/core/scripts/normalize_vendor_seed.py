@@ -6,8 +6,9 @@ contract:
 **No real vendor dataset exists in this repo.** Bulk data is an owner
 input that arrives before D27. This script is the TOOL the owner's raw
 sheet will be run through; `data/seeds/coimbatore/*.csv` currently ships
-only a small (~15 row) hand-authored STARTER SAMPLE in the exact output
-shape this script produces (see `data/seeds/coimbatore/README.md`).
+only a small (~15 row) STARTER SAMPLE - itself produced by running this
+script over a sample raw sheet, not hand-typed (see
+`data/seeds/coimbatore/README.md`).
 
 Output contract (columns the D27 loader consumes - `ref` is a stable
 string key joining rows across the four files; D27 mints UUIDv7 ids from

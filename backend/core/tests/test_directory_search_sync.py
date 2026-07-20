@@ -550,6 +550,44 @@ async def test_verification_approve_publishes_updated(
     assert "business.updated" in types
 
 
+async def test_verification_reject_publishes_updated(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """Unconditional per the D19 contract ("verification approve/reject"),
+    even though a reject rarely flips the visible `verified` boolean."""
+    http, session = api
+    from modules.directory.models import Business
+
+    owner = uuid.uuid4()
+    business = Business(
+        owner_user_id=owner,
+        name="Rejected Verification Dairy",
+        slug=f"owned-{uuid.uuid4().hex[:10]}",
+        type="vendor",
+        primary_pincode="641001",
+    )
+    session.add(business)
+    await session.flush()
+    created = await http.post(
+        f"/directory/businesses/{business.id}/verification",
+        files=[("files", ("doc.jpg", _jpeg(), "image/jpeg"))],
+        headers=_as(owner),
+    )
+    assert created.status_code == 201
+    verification_id = created.json()["id"]
+    admin = uuid.uuid4()
+    reject = await http.post(
+        f"/admin/directory/verifications/{verification_id}/reject",
+        json={"note": "document unreadable"},
+        headers=_as(admin, "staff"),
+    )
+    assert reject.status_code == 200
+    types = [e[1] for e in captured_events]
+    assert "directory.verification_rejected" in types
+    assert "business.updated" in types
+
+
 def _jpeg() -> bytes:
     from io import BytesIO
 
@@ -614,3 +652,43 @@ async def test_update_product_and_moderation_approve_publish_updated(
     matches = [e for e in captured_events if e[1] == "product.updated"]
     assert len(matches) == 1
     assert matches[0][2]["snapshot"] is not None  # now approved -> visible
+
+
+async def test_product_moderation_reject_tombstones_search_doc(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    captured_events: list[tuple[str, str, dict[str, Any]]],
+) -> None:
+    """Unconditional per the D19 contract ("product moderation approve/
+    reject"). This is the real bug the reviewer caught: a previously-APPROVED
+    (and therefore search-visible) product that gets rejected must re-publish
+    with snapshot=None so the indexer tombstones the stale document - without
+    this event, the doc would linger in the index forever."""
+    http, session = api
+    owner = uuid.uuid4()
+    biz = await _business(session, owner)
+    product = await catalog_service.create_product(
+        session,
+        owner_user_id=owner,
+        business_id=biz.id,
+        vertical_slug="milk",
+        name="Recalled Milk",
+        specs={"milk_type": "cow"},
+    )
+    admin = uuid.uuid4()
+    approved = await http.post(
+        f"/admin/catalog/products/{product.id}/approve", headers=_as(admin, "staff")
+    )
+    assert approved.status_code == 200
+    captured_events.clear()  # isolate the reject's own event
+    rejected = await http.post(
+        f"/admin/catalog/products/{product.id}/reject",
+        json={"note": "recalled by FSSAI"},
+        headers=_as(admin, "staff"),
+    )
+    assert rejected.status_code == 200
+    matches = [e for e in captured_events if e[1] == "product.updated"]
+    assert len(matches) == 1
+    stream, event_type, payload = matches[0]
+    assert stream == "directory"
+    assert payload["doc_id"] == f"product_{product.id.hex}"
+    assert payload["snapshot"] is None  # tombstone: no longer visible

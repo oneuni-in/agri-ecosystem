@@ -330,7 +330,12 @@ async def reject_verification(
         "business_id": str(business.id),
         "vars": {"business_name": business.name, "reason": body.note},
     }
+    # unconditional per the D19 event contract - "verification approve/reject"
+    # both re-publish, even though a reject rarely flips the visible
+    # `verified` boolean (pending/unverified both read as False)
+    search_payload = await search_sync.business_event_payload(session, business.id)
     out = _admin_verification_out(verification, business.name)
     await session.commit()
     await _publish_best_effort("directory.verification_rejected", payload)
+    await _publish_best_effort("business.updated", search_payload)
     return out

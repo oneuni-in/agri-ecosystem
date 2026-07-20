@@ -233,4 +233,12 @@ async def reject_product(
         metadata={"business_id": str(product.business_id), "note": body.note},
         ip=request.client.host if request.client else None,
     )
-    return _product_out(product)
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises. A
+    # previously-approved product rejected here must tombstone in the
+    # search index (snapshot: null) - the contract is unconditional.
+    payload = await search_sync.product_event_payload(session, product.id)
+    out = _product_out(product)
+    await session.commit()  # commit BEFORE announcing (admin_router precedent)
+    await _publish_best_effort("product.updated", payload)
+    return out

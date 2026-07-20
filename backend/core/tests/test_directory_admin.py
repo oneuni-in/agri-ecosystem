@@ -345,8 +345,13 @@ async def test_verification_reject_returns_to_unverified(
     assert response.status_code == 200
     await session.refresh(business)
     assert business.verification_status == "unverified"
-    assert published[-1][1] == "directory.verification_rejected"
-    assert published[-1][2]["vars"]["reason"] == "document unreadable"
+    # unconditional per the D19 event contract - reject also re-publishes
+    # business.updated alongside the existing notify-scoped event
+    types = [e[1] for e in published]
+    assert "directory.verification_rejected" in types
+    assert "business.updated" in types
+    notify_event = next(e for e in published if e[1] == "directory.verification_rejected")
+    assert notify_event[2]["vars"]["reason"] == "document unreadable"
     # decided twice -> 409
     again = await http.post(
         f"/admin/directory/verifications/{verification_id}/reject",

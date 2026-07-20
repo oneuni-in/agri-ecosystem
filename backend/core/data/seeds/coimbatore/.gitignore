@@ -1,0 +1,13 @@
+# rejects.csv is a run byproduct of normalize_vendor_seed.py - it holds
+# the RAW, UNREDACTED vendor-sheet rows the normalizer rejected, verbatim,
+# including exactly the phone/email-shaped text that got them rejected in
+# the first place (see looks_like_pii() / _PII_CHECKED_FIELDS in
+# backend/core/scripts/normalize_vendor_seed.py).
+#
+# This directory's whole design point is PII-free BY CONSTRUCTION - not
+# by discipline ("remember not to commit it"). Once someone runs the
+# tool against the owner's real vendor sheet before D27, a plain
+# `git add -A` must not be able to smuggle real phone numbers/emails into
+# git history. Do not remove this entry: regenerate rejects.csv locally,
+# inspect it, then delete it - never commit it.
+rejects.csv

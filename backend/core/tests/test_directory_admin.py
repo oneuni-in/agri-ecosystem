@@ -166,18 +166,21 @@ async def test_approve_sets_owner_verified_verification_audit_event(
     assert entry.target_id == claim_id
     assert entry.meta["business_id"] == str(business.id)
     assert await verify_chain(session) == []
-    # event published for coins + notify, business-scoped payload
-    assert published == [
-        (
-            "directory",
-            "business.claimed",
-            {
-                "user_id": str(CLAIMANT),
-                "business_id": str(business.id),
-                "vars": {"business_name": "Anbu Seeds"},
-            },
-        )
-    ]
+    # event published for coins + notify, business-scoped payload; a second,
+    # search-scoped business.updated rides alongside it (D19 Task 1)
+    assert published[0] == (
+        "directory",
+        "business.claimed",
+        {
+            "user_id": str(CLAIMANT),
+            "business_id": str(business.id),
+            "vars": {"business_name": "Anbu Seeds"},
+        },
+    )
+    assert published[1][0] == "directory"
+    assert published[1][1] == "business.updated"
+    assert published[1][2]["business_id"] == str(business.id)
+    assert published[1][2]["snapshot"] is not None  # now owned+verified -> visible
 
 
 async def test_approve_is_single_shot_and_conflict_safe(
@@ -212,7 +215,8 @@ async def test_approve_is_single_shot_and_conflict_safe(
     )
     assert competing.status_code == 409
     assert competing.json()["detail"] == "already_owned"
-    assert len(published) == 1  # exactly one business.claimed
+    # exactly one business.claimed + its paired business.updated - no retries
+    assert [e[1] for e in published] == ["business.claimed", "business.updated"]
 
 
 async def test_reject_requires_note_and_notifies_with_reason(
@@ -317,8 +321,11 @@ async def test_verification_approve_flow(
     assert response.status_code == 200
     await session.refresh(business)
     assert business.verification_status == "verified"
-    assert published[-1][1] == "directory.verification_approved"
-    assert published[-1][2]["user_id"] == str(owner)
+    types = [e[1] for e in published]
+    assert "directory.verification_approved" in types
+    assert "business.updated" in types
+    notify_event = next(e for e in published if e[1] == "directory.verification_approved")
+    assert notify_event[2]["user_id"] == str(owner)
     assert await verify_chain(session) == []
 
 
@@ -338,8 +345,13 @@ async def test_verification_reject_returns_to_unverified(
     assert response.status_code == 200
     await session.refresh(business)
     assert business.verification_status == "unverified"
-    assert published[-1][1] == "directory.verification_rejected"
-    assert published[-1][2]["vars"]["reason"] == "document unreadable"
+    # unconditional per the D19 event contract - reject also re-publishes
+    # business.updated alongside the existing notify-scoped event
+    types = [e[1] for e in published]
+    assert "directory.verification_rejected" in types
+    assert "business.updated" in types
+    notify_event = next(e for e in published if e[1] == "directory.verification_rejected")
+    assert notify_event[2]["vars"]["reason"] == "document unreadable"
     # decided twice -> 409
     again = await http.post(
         f"/admin/directory/verifications/{verification_id}/reject",

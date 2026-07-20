@@ -5,7 +5,14 @@
       "hint": "🎤 Press the mic and speak in Tamil, Hindi or English — no typing needed",
       "micLabel": "Speak to search",
       "camLabel": "Search by photo",
-      "inputLabel": "Search"
+      "inputLabel": "Search",
+      "results": {
+        "empty": "No results — try a different search",
+        "kindBusiness": "Business",
+        "kindProduct": "Product",
+        "verified": "✔ Verified",
+        "loadMore": "Load more"
+      }
     },
     "pincode": {
       "title": "Milk near you — all options, one place",
@@ -13,6 +20,15 @@
       "find": "Find milk",
       "gps": "📍 Or use my location",
       "inputLabel": "Enter pincode"
+    },
+    "location": {
+      "set": "Set location",
+      "title": "Set your location",
+      "close": "Close",
+      "apply": "Apply",
+      "gps": "📍 Use my location",
+      "pincodeLabel": "Enter pincode",
+      "find": "Find"
     },
     "nav": {
       "home": "Home",

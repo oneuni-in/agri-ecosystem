@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     # numbers through a capped endpoint. The cap is the scraping defence.
     contact_reveal_daily_cap: int = 10
 
+    # Location resolution (D19). GeoIP is optional, state-level, advisory-only
+    # infrastructure: an empty path means the feature is off (no mmdb file is
+    # committed to this repo; the owner provisions one on the VPS later).
+    # trust_forwarded_for gates whether the caller may read X-Forwarded-For
+    # for the client IP - only safe behind a trusted reverse proxy.
+    geoip_mmdb_path: str = ""
+    trust_forwarded_for: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

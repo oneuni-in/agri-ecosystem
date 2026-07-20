@@ -22,11 +22,14 @@ from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
 from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
+from modules.search.client import get_meili, reset_meili
 from settings import get_settings
+from shared import storage
 from shared.cache import reset_redis
 from shared.db import Base, reset_engine
 from shared.flags import reset_flag_cache
 from shared.geo.models import District, Pincode, State
+from shared.geoip import reset_geoip
 from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
 from shared.storage import reset_storage
@@ -61,6 +64,8 @@ def _reset_state() -> Iterator[None]:
     reset_permission_cache()
     MockEmailDriver.reset()
     MockNotifySmsDriver.reset()
+    reset_meili()
+    reset_geoip()
 
 
 @pytest.fixture(scope="session")
@@ -172,6 +177,23 @@ async def redis_client() -> AsyncIterator[Redis]:
     await client.aclose()
 
 
+MEILI_TEST_INDEXES = ("search_agri", "search_milk")
+
+
+@pytest.fixture
+async def meili() -> AsyncIterator[None]:
+    """Real dev Meilisearch, skipping visibly when unreachable. Test indexes
+    are disposable state (ADR-0007) - wiped before AND after each test."""
+    client = get_meili()
+    if not await client.health():
+        pytest.skip("meilisearch unreachable")
+    for uid in MEILI_TEST_INDEXES:
+        await client.delete_index(uid)
+    yield
+    for uid in MEILI_TEST_INDEXES:
+        await client.delete_index(uid)
+
+
 @pytest.fixture
 async def tn_geo_sample(db_session: AsyncSession) -> None:
     """Minimal TN geo rows for directory covers() tests: Coimbatore 641001
@@ -196,3 +218,27 @@ async def tn_geo_sample(db_session: AsyncSession) -> None:
             )
         )
     await db_session.flush()
+
+
+@pytest.fixture
+def object_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
+    """In-memory stand-in for MinIO wired through shared.storage.
+
+    Any test that drives an upload route needs this: CI's backend job runs
+    postgres/redis/meilisearch only, so a real put_object there fails the
+    request with 503. Test modules predating this fixture keep their own
+    local copy, which shadows this one.
+    """
+    store: dict[str, bytes] = {}
+
+    async def fake_put(key: str, data: bytes, content_type: str) -> None:
+        store[key] = data
+
+    async def fake_get(key: str) -> bytes:
+        if key not in store:
+            raise storage.StorageError("missing")
+        return store[key]
+
+    monkeypatch.setattr(storage, "put_object", fake_put)
+    monkeypatch.setattr(storage, "get_object", fake_get)
+    return store

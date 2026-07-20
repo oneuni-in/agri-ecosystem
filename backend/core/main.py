@@ -23,6 +23,7 @@ from modules.directory.reviews_admin_router import admin_router as reviews_admin
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
 from modules.identity.admin_router import admin_router as identity_admin_router
+from modules.identity.location_router import location_router as identity_location_router
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.profile_router import profile_router as identity_profile_router
@@ -74,6 +75,7 @@ MODULE_ROUTERS = [
     reviews_admin_router,
     reviews_router,
     search_router,
+    identity_location_router,
 ]
 
 

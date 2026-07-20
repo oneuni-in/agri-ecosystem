@@ -11,8 +11,9 @@ enforced): a version-create is a race between admins publishing
 concurrently, hardened with a savepoint + IntegrityError->409 mapping
 (claims.submit_claim precedent) rather than trusting the max-version read
 alone. Every decision writes an audit entry IN the caller's transaction
-(D12); no post-commit event publish here (events deferred to D19). Never log
-request bodies or query strings."""
+(D12). Product approval additionally publishes a post-commit, best-effort
+product.updated search snapshot event (D19 Task 1) - schema version writes
+still publish nothing. Never log request bodies or query strings."""
 
 import uuid
 from typing import Annotated, Literal
@@ -21,7 +22,7 @@ from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import catalog_service
+from modules.directory import catalog_service, search_sync
 from modules.directory.catalog_models import Product, SpecSchema
 from modules.directory.catalog_schemas import (
     ProductOut,
@@ -35,9 +36,13 @@ from modules.directory.catalog_schemas import (
 from modules.directory.specs import SpecValidationError
 from shared.audit import audit
 from shared.db import get_session
+from shared.events import publish
 from shared.flags import flag_enabled
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 admin_router = SecureRouter(prefix="/admin/catalog", tags=["catalog-admin"])
 
@@ -45,8 +50,19 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
 StatusQuery = Literal["pending", "approved", "rejected"]
 
+EVENT_STREAM = "directory"
 STAFF = "staff"
 SUPER_ADMIN = "super_admin"
+
+
+async def _publish_best_effort(event_type: str, payload: dict[str, object]) -> None:
+    try:
+        await publish(EVENT_STREAM, event_type, payload)
+    except Exception:  # a Redis blip must never roll back an admin decision
+        logger.warning(
+            "catalog admin: event publish failed",
+            extra={"extra_fields": {"event_type": event_type}},
+        )
 
 
 def _require_role(request: Request, *allowed: str) -> uuid.UUID:
@@ -188,7 +204,19 @@ async def approve_product(
         metadata={"business_id": str(product.business_id)},
         ip=request.client.host if request.client else None,
     )
-    return _product_out(product)
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises. A business's
+    # `sites` snapshot field is partly computed from its approved+active
+    # products (search_sync.business_snapshot), so approving a business's
+    # FIRST product in a vertical must republish the BUSINESS too, or it
+    # never enters that vertical's site (D19 review finding 2).
+    payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
+    out = _product_out(product)
+    await session.commit()  # commit BEFORE announcing (admin_router precedent)
+    await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
+    return out
 
 
 @admin_router.post("/products/{product_id}/reject")
@@ -211,4 +239,17 @@ async def reject_product(
         metadata={"business_id": str(product.business_id), "note": body.note},
         ip=request.client.host if request.client else None,
     )
-    return _product_out(product)
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises. A
+    # previously-approved product rejected here must tombstone in the
+    # search index (snapshot: null) - the contract is unconditional. Also
+    # republish the BUSINESS: rejecting a business's last approved product in
+    # a vertical must drop it from that vertical's `sites` list, or it lingers
+    # there forever (D19 review finding 2, mirror of the approve-side fix).
+    payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
+    out = _product_out(product)
+    await session.commit()  # commit BEFORE announcing (admin_router precedent)
+    await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
+    return out

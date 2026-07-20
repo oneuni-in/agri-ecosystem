@@ -126,8 +126,10 @@ async def test_claim_to_coins_badge_and_notification(
     assert business.owner_user_id == CLAIMANT
     assert business.verification_status == "verified"
 
-    # 5. the published event drives BOTH consumers; replay proves idempotency
-    assert len(published) == 1
+    # 5. the published event drives BOTH consumers; replay proves idempotency.
+    # A second, search-scoped business.updated rides alongside it (D19 Task 1)
+    # but the coins/notify consumers only care about business.claimed.
+    assert [e[1] for e in published] == ["business.claimed", "business.updated"]
     stream, event_type, payload = published[0]
     assert (stream, event_type) == ("directory", "business.claimed")
     event = Event(id="1-0", type=event_type, payload=payload)

@@ -20,22 +20,35 @@ export const metadata: Metadata = buildMetadata({
   noIndex: true,
 });
 
-/** Wire shape of `GET /search` (D19). Only these fields may ever reach the UI. */
+/**
+ * Wire shape of `GET /search` (D19) — mirrors `SearchHit` in
+ * `backend/core/modules/search/router.py:28` field-for-field, including
+ * nullability. Everything but `id`/`kind`/`name` is `| None` on the wire
+ * (Pydantic `extra="ignore"`, `ConfigDict`), so every field here must stay
+ * nullable to match — a `resp.json() as SearchResponse` cast is unchecked,
+ * it does not enforce this shape at runtime, only at compile time.
+ *
+ * `description` is the one field that isn't a plain scalar: it's a
+ * locale-keyed map (`{"en": "...", "ta": "..."}` or similar), not a
+ * string — rendering it directly crashes React ("Objects are not valid
+ * as a React child"). Extract a single locale via `pickDescription()`
+ * below before it ever reaches JSX.
+ */
 interface SearchHit {
   id: string;
-  kind: "business" | "product";
+  kind: string;
   name: string;
-  slug: string;
+  slug: string | null;
   business_name: string | null;
   business_slug: string | null;
-  description: string | null;
-  categories: string[];
+  description: Record<string, string> | null;
+  categories: string[] | null;
   vertical: string | null;
   district: string | null;
   state: string | null;
-  verified: boolean;
+  verified: boolean | null;
   price_display: string | null;
-  sites: string[];
+  sites: string[] | null;
 }
 
 interface SearchResponse {
@@ -46,6 +59,22 @@ interface SearchResponse {
 function placeLabel(hit: SearchHit): string | null {
   if (hit.district && hit.state) return `${hit.district}, ${hit.state}`;
   return hit.district ?? hit.state ?? null;
+}
+
+/**
+ * Locale-keyed description -> single displayable string, defensively.
+ * `resp.json()` is trusted only up to a cast, never a runtime check, so a
+ * missing/malformed shape (not an object, no "en" key, "en" not a string)
+ * must render nothing rather than throw — same D16 precedent as
+ * `apps/web-agri/app/directory/businesses/[slug]/page.tsx` (`.description.en`),
+ * just guarded since this cast is less trusted than that route's.
+ * No locale routing exists yet (D02 decision), so "en" is always the
+ * request locale in practice.
+ */
+function pickDescription(description: SearchHit["description"]): string | null {
+  if (!description || typeof description !== "object") return null;
+  const en = description.en;
+  return typeof en === "string" && en.length > 0 ? en : null;
 }
 
 export default async function SearchPage({
@@ -96,6 +125,7 @@ export default async function SearchPage({
         <ul className="flex flex-col gap-3" data-testid="search-results">
           {page.items.map((hit) => {
             const place = placeLabel(hit);
+            const description = pickDescription(hit.description);
             return (
               <li key={`${hit.kind}-${hit.id}`}>
                 <Card className="flex flex-col gap-1.5 p-4">
@@ -112,8 +142,8 @@ export default async function SearchPage({
                     <p className="text-[12.5px] text-sub">{hit.business_name}</p>
                   ) : null}
 
-                  {hit.description ? (
-                    <p className="line-clamp-2 text-[13px] text-sub">{hit.description}</p>
+                  {description ? (
+                    <p className="line-clamp-2 text-[13px] text-sub">{description}</p>
                   ) : null}
 
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-sub">

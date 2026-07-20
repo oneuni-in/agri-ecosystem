@@ -16,7 +16,7 @@ from typing import Annotated, Literal
 from fastapi import Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import claims
+from modules.directory import claims, search_sync
 from modules.directory.models import Claim, Verification
 from modules.directory.schemas import (
     AdminClaimOut,
@@ -170,9 +170,11 @@ async def approve_claim(
         "business_id": str(business.id),
         "vars": {"business_name": business.name},
     }
+    search_payload = await search_sync.business_event_payload(session, business.id)
     out = _admin_claim_out(claim, business.name)
     await session.commit()  # commit BEFORE announcing (identity precedent)
     await _publish_best_effort("business.claimed", payload)
+    await _publish_best_effort("business.updated", search_payload)
     return out
 
 
@@ -288,9 +290,11 @@ async def approve_verification(
         "business_id": str(business.id),
         "vars": {"business_name": business.name},
     }
+    search_payload = await search_sync.business_event_payload(session, business.id)
     out = _admin_verification_out(verification, business.name)
     await session.commit()  # commit BEFORE announcing (identity precedent)
     await _publish_best_effort("directory.verification_approved", payload)
+    await _publish_best_effort("business.updated", search_payload)
     return out
 
 

@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import covers as covers_module
-from modules.directory import service
+from modules.directory import search_sync, service
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, Category
@@ -49,6 +49,7 @@ from modules.directory.schemas import (
     RenameIn,
 )
 from shared.db import get_session
+from shared.events import publish
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
 
@@ -58,6 +59,17 @@ router = SecureRouter(prefix="/directory", tags=["directory"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+EVENT_STREAM = "directory"
+
+
+async def _publish_best_effort(event_type: str, payload: dict[str, object]) -> None:
+    try:
+        await publish(EVENT_STREAM, event_type, payload)
+    except Exception:  # a Redis blip must never roll back a directory write
+        logger.warning(
+            "directory: event publish failed", extra={"extra_fields": {"event_type": event_type}}
+        )
 
 
 def _principal_user_id(request: Request) -> uuid.UUID:
@@ -139,7 +151,13 @@ async def create_business(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _business_out(business)
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises
+    payload = await search_sync.business_event_payload(session, business.id)
+    out = _business_out(business)
+    await session.commit()  # commit BEFORE announcing (admin_router precedent)
+    await _publish_best_effort("business.created", payload)
+    return out
 
 
 @router.get("/businesses")
@@ -175,7 +193,11 @@ async def update_business(
         raise HTTPException(status_code=404, detail="Business not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _business_out(business)
+    payload = await search_sync.business_event_payload(session, business.id)
+    out = _business_out(business)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.post("/businesses/{business_id}/rename")
@@ -193,7 +215,11 @@ async def rename_business(
         raise HTTPException(status_code=404, detail="Business not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _business_out(business)
+    payload = await search_sync.business_event_payload(session, business.id)
+    out = _business_out(business)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.post("/businesses/{business_id}/branches", status_code=201)
@@ -211,7 +237,12 @@ async def add_branch(
         raise HTTPException(status_code=404, detail="Business not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _branch_out(branch)
+    # a branch's geo/contact rows feed the parent business's snapshot
+    payload = await search_sync.business_event_payload(session, business_id)
+    out = _branch_out(branch)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.patch("/branches/{branch_id}")
@@ -229,7 +260,11 @@ async def update_branch(
         raise HTTPException(status_code=404, detail="Branch not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _branch_out(branch)
+    payload = await search_sync.business_event_payload(session, branch.business_id)
+    out = _branch_out(branch)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.put("/businesses/{business_id}/coverage")
@@ -247,7 +282,11 @@ async def set_coverage(
         raise HTTPException(status_code=404, detail="Business not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return CoverageOut(pincodes=pincodes)
+    payload = await search_sync.business_event_payload(session, business_id)
+    out = CoverageOut(pincodes=pincodes)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.put("/businesses/{business_id}/categories")
@@ -265,7 +304,11 @@ async def assign_categories(
         raise HTTPException(status_code=404, detail="Business not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return CategoryAssignOut(category_ids=category_ids)
+    payload = await search_sync.business_event_payload(session, business_id)
+    out = CategoryAssignOut(category_ids=category_ids)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    return out
 
 
 @router.get("/categories")

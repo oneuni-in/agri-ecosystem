@@ -13,7 +13,7 @@ from fastapi import Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import catalog_service
+from modules.directory import catalog_service, search_sync
 from modules.directory.catalog_models import Product, Vertical
 from modules.directory.catalog_schemas import (
     ProductCreateIn,
@@ -32,13 +32,29 @@ from modules.directory.service import BusinessNotFoundError
 from modules.directory.specs import SpecValidationError
 from shared import media, storage
 from shared.db import get_session
+from shared.events import publish
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 router = SecureRouter(prefix="/catalog", tags=["catalog"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+EVENT_STREAM = "directory"
+
+
+async def _publish_best_effort(event_type: str, payload: dict[str, object]) -> None:
+    try:
+        await publish(EVENT_STREAM, event_type, payload)
+    except Exception:  # a Redis blip must never roll back a catalog write
+        logger.warning(
+            "catalog: event publish failed", extra={"extra_fields": {"event_type": event_type}}
+        )
+
 
 PRODUCT_MEDIA_PREFIX = "products/"
 
@@ -145,7 +161,13 @@ async def create_product(
         raise HTTPException(status_code=409, detail="no_schema") from exc
     except SpecValidationError as exc:
         raise HTTPException(status_code=422, detail={"code": exc.code, "field": exc.field}) from exc
-    return _product_out(product)
+    # capture EVERYTHING needed after commit BEFORE committing - ORM
+    # attributes expire at commit and async lazy-refresh raises
+    payload = await search_sync.product_event_payload(session, product.id)
+    out = _product_out(product)
+    await session.commit()  # commit BEFORE announcing (admin_router precedent)
+    await _publish_best_effort("product.created", payload)
+    return out
 
 
 @router.get("/my/products")
@@ -186,7 +208,11 @@ async def update_product(
         raise HTTPException(status_code=422, detail={"code": exc.code, "field": exc.field}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _product_out(product)
+    payload = await search_sync.product_event_payload(session, product.id)
+    out = _product_out(product)
+    await session.commit()
+    await _publish_best_effort("product.updated", payload)
+    return out
 
 
 @router.post("/products/{product_id}/images", status_code=201)

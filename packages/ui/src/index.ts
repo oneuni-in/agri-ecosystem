@@ -15,6 +15,11 @@ export type { CardProps } from "./components/card";
 export { CategoryTile, tintClass } from "./components/category-tile";
 export type { Tint } from "./components/category-tile";
 export { ListingCard, PriceUnit } from "./components/listing-card";
+export {
+  DEFAULT_LIVE_LOCATION_STRINGS,
+  LiveLocationPill,
+} from "./components/live-location-pill";
+export type { LiveLocationPillStrings } from "./components/live-location-pill";
 export { Modal } from "./components/modal";
 export { ToastProvider, useToast } from "./components/toast";
 export { EmptyState } from "./components/empty-state";
@@ -33,6 +38,13 @@ export type { SearchBarProps } from "./components/search-bar";
 export { Skeleton } from "./components/skeleton";
 export { cn } from "./lib/cn";
 export { fetchCoinsBalance } from "./lib/coins-balance";
+export {
+  LOC_COOKIE,
+  locLabel,
+  parseLocCookie,
+  serializeLocCookie,
+} from "./lib/location";
+export type { LocContext, LocSource } from "./lib/location";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";

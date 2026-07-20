@@ -14,6 +14,15 @@
       "gps": "📍 Or use my location",
       "inputLabel": "Enter pincode"
     },
+    "location": {
+      "set": "Set location",
+      "title": "Set your location",
+      "close": "Close",
+      "apply": "Apply",
+      "gps": "📍 Use my location",
+      "pincodeLabel": "Enter pincode",
+      "find": "Find"
+    },
     "nav": {
       "home": "Home",
       "categories": "Categories",

@@ -56,6 +56,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/leads/inquiries",
     "/reviews",
     "/reviews/summary",
+    "/search",
 ]
 
 

@@ -21,3 +21,6 @@
 /leads/inquiries
 /reviews
 /reviews/summary
+# /search: unified cross-site search facade (D19); Meili-backed, no PII (see
+# modules/search/indexing.py DISPLAYED_ATTRIBUTES allowlist).
+/search

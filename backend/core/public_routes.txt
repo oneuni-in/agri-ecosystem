@@ -21,6 +21,9 @@
 /leads/inquiries
 /reviews
 /reviews/summary
+# /identity/location: anonymous location context (D19 Task 7) - profile ->
+# GPS -> pincode -> IP -> none resolution; no data written, rate-limited.
+/identity/location
 # /search: unified cross-site search facade (D19); Meili-backed, no PII (see
 # modules/search/indexing.py DISPLAYED_ATTRIBUTES allowlist).
 /search

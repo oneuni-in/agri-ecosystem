@@ -57,6 +57,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/reviews",
     "/reviews/summary",
     "/search",
+    "/identity/location",
 ]
 
 

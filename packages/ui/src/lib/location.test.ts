@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { LOC_COOKIE, type LocContext, locLabel, parseLocCookie, serializeLocCookie } from "./location";
+import {
+  LOC_COOKIE,
+  type LocContext,
+  locLabel,
+  parseLocationResponse,
+  parseLocCookie,
+  serializeLocCookie,
+} from "./location";
 
 const FULL: LocContext = {
   pincode: "641001",
@@ -67,6 +74,50 @@ describe("parseLocCookie / serializeLocCookie", () => {
   it("serialized value is URL-encoded JSON starting with %7B (never JWT/JWE-shaped)", () => {
     const serialized = serializeLocCookie(FULL);
     expect(serialized.startsWith(`${LOC_COOKIE}=%7B`)).toBe(true);
+  });
+});
+
+describe("parseLocationResponse", () => {
+  it("accepts a full, well-shaped body", () => {
+    expect(
+      parseLocationResponse({
+        pincode: "641001",
+        district: "Coimbatore",
+        state: "Tamil Nadu",
+        source: "gps",
+      }),
+    ).toEqual(FULL);
+  });
+
+  it("accepts null pincode/district/state fields", () => {
+    expect(
+      parseLocationResponse({ pincode: null, district: null, state: null, source: "none" }),
+    ).toEqual({ pincode: null, district: null, state: null, source: "none" });
+  });
+
+  it("rejects a non-object body", () => {
+    expect(parseLocationResponse(null)).toBeNull();
+    expect(parseLocationResponse(undefined)).toBeNull();
+    expect(parseLocationResponse("not an object")).toBeNull();
+    expect(parseLocationResponse(["not", "an", "object"])).toBeNull();
+  });
+
+  it("rejects a wrong-shaped pincode/district/state field", () => {
+    expect(
+      parseLocationResponse({ pincode: 641001, district: "X", state: "Y", source: "gps" }),
+    ).toBeNull();
+    expect(
+      parseLocationResponse({ pincode: "641001", district: undefined, state: "Y", source: "gps" }),
+    ).toBeNull();
+  });
+
+  it("rejects an unknown source value", () => {
+    expect(
+      parseLocationResponse({ pincode: "641001", district: "X", state: "Y", source: "bogus" }),
+    ).toBeNull();
+    expect(
+      parseLocationResponse({ pincode: "641001", district: "X", state: "Y", source: 1 }),
+    ).toBeNull();
   });
 });
 

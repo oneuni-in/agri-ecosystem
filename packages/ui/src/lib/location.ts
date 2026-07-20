@@ -55,6 +55,26 @@ export function parseLocCookie(cookieValue: string | undefined): LocContext | nu
   return { pincode: p, district: d, state: s, source: src as LocSource };
 }
 
+/**
+ * Validates an untrusted `GET /identity/location` (or `/api/identity/location`
+ * BFF proxy) JSON body — same trust boundary as `parseLocCookie`, but the
+ * wire shape uses full field names (`pincode`/`district`/`state`/`source`)
+ * rather than the cookie's short keys. Returns `null` for anything
+ * malformed so callers never mistake a broken response for a real answer.
+ */
+export function parseLocationResponse(body: unknown): LocContext | null {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
+  const obj = body as Record<string, unknown>;
+  const { pincode, district, state, source } = obj;
+
+  if (!isNullableString(pincode) || !isNullableString(district) || !isNullableString(state)) {
+    return null;
+  }
+  if (typeof source !== "string" || !SOURCES.has(source)) return null;
+
+  return { pincode, district, state, source: source as LocSource };
+}
+
 /** Full `Set-Cookie`-ready string: `agri_loc=%7B...%7D; Path=/; Max-Age=...; SameSite=Lax`. */
 export function serializeLocCookie(loc: LocContext): string {
   const payload = { p: loc.pincode, d: loc.district, s: loc.state, src: loc.source };

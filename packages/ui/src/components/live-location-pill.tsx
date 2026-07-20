@@ -22,6 +22,7 @@ import {
   type LocContext,
   LOC_COOKIE,
   locLabel,
+  parseLocationResponse,
   parseLocCookie,
   serializeLocCookie,
 } from "../lib/location";
@@ -51,33 +52,30 @@ export const DEFAULT_LIVE_LOCATION_STRINGS: LiveLocationPillStrings = {
   find: "Find",
 };
 
-interface LocationResponse {
-  pincode: string | null;
-  district: string | null;
-  state: string | null;
-  source: LocContext["source"];
-}
-
 function readCookieValue(): string | undefined {
   if (typeof document === "undefined") return undefined;
   const match = document.cookie.match(new RegExp(`(?:^|; )${LOC_COOKIE}=([^;]*)`));
   return match?.[1];
 }
 
-function isLocationResponse(body: unknown): body is LocationResponse {
-  return typeof body === "object" && body !== null && "source" in body;
-}
-
+/**
+ * Fetches and validates a location lookup. Returns `null` on ANY failure —
+ * network error, non-2xx, or a malformed body (`parseLocationResponse`) —
+ * so callers never mistake a failed request for a real "we don't know"
+ * answer. A real "we don't know" answer is a well-shaped body with
+ * `source: "none"`, which IS applied by callers; only a failed REQUEST
+ * must never overwrite the user's existing location.
+ */
 async function fetchLocation(
   endpoint: string,
   query: string,
   fetchImpl: typeof fetch,
-): Promise<LocationResponse | null> {
+): Promise<LocContext | null> {
   try {
     const res = await fetchImpl(`${endpoint}${query}`, { credentials: "include" });
     if (!res.ok) return null;
     const body: unknown = await res.json();
-    return isLocationResponse(body) ? body : null;
+    return parseLocationResponse(body);
   } catch {
     return null; // network blip — caller keeps whatever it already had
   }
@@ -113,14 +111,8 @@ export function LiveLocationPill({
 
     let cancelled = false;
     const query = initial?.pincode ? `?pincode=${encodeURIComponent(initial.pincode)}` : "";
-    fetchLocation(contextEndpoint, query, fetchImpl).then((body) => {
-      if (cancelled || !body) return;
-      const next: LocContext = {
-        pincode: body.pincode ?? null,
-        district: body.district ?? null,
-        state: body.state ?? null,
-        source: body.source ?? "none",
-      };
+    fetchLocation(contextEndpoint, query, fetchImpl).then((next) => {
+      if (cancelled || !next) return;
       setLoc(next);
       document.cookie = serializeLocCookie(next);
     });
@@ -161,13 +153,13 @@ export function LiveLocationPill({
       const pincode = pincodeDraft.trim();
       if (pincode.length !== 6) return;
       fetchLocation(contextEndpoint, `?pincode=${encodeURIComponent(pincode)}`, fetchImpl).then(
-        (body) => {
-          apply({
-            pincode: body?.pincode ?? pincode,
-            district: body?.district ?? null,
-            state: body?.state ?? null,
-            source: body?.source ?? "pincode",
-          });
+        (next) => {
+          // A failed REQUEST (network/non-2xx/malformed body) must never
+          // persist the user's unvalidated typed digits — the server is
+          // the validator. An unknown pincode is still a real answer
+          // (source "none") and IS applied; only `null` here is refused.
+          if (!next) return;
+          apply(next);
         },
       );
     },
@@ -180,14 +172,9 @@ export function LiveLocationPill({
       (position) => {
         const { latitude, longitude } = position.coords;
         fetchLocation(contextEndpoint, `?lat=${latitude}&lng=${longitude}`, fetchImpl).then(
-          (body) => {
-            if (!body) return;
-            apply({
-              pincode: body.pincode ?? null,
-              district: body.district ?? null,
-              state: body.state ?? null,
-              source: body.source ?? "gps",
-            });
+          (next) => {
+            if (!next) return;
+            apply(next);
           },
         );
       },
@@ -201,7 +188,7 @@ export function LiveLocationPill({
     <Modal
       key={applyGen}
       trigger={
-        <LocationPill className={className}>
+        <LocationPill className={className} aria-label={locLabel(loc) ?? strings.set}>
           📍 <span className="max-sm:hidden">{locLabel(loc) ?? strings.set}</span> ▾
         </LocationPill>
       }
@@ -217,7 +204,7 @@ export function LiveLocationPill({
             value={pincodeDraft}
             onChange={(e) => setPincodeDraft(e.target.value.replace(/\D/g, ""))}
           />
-          <Button type="submit" variant="brand">
+          <Button type="submit" variant="brand" disabled={pincodeDraft.trim().length !== 6}>
             {strings.apply}
           </Button>
         </form>

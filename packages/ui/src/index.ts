@@ -41,6 +41,7 @@ export { fetchCoinsBalance } from "./lib/coins-balance";
 export {
   LOC_COOKIE,
   locLabel,
+  parseLocationResponse,
   parseLocCookie,
   serializeLocCookie,
 } from "./lib/location";

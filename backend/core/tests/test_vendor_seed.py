@@ -84,10 +84,20 @@ class TestLooksLikePii:
             "+91 98765 43210",
             "987-654-3210 available",
             "reach us on 09876543210",
+            "call 987.654.3210 for orders",  # dot-separated
+            "call 987/654/3210 for orders",  # slash-separated
+            "call +91-987.654/3210 for orders",  # mixed separators
+            "whatsapp only (987) 654-3210",  # parens + hyphen mixed
         ],
     )
     def test_phone_shapes_are_flagged(self, value: str) -> None:
         assert looks_like_pii(value) is True
+
+    def test_price_with_slash_is_not_flagged(self) -> None:
+        # A slash is legitimate in "₹32/500ml" price_display strings -
+        # only flag when the digit run either side actually clears 10.
+        assert looks_like_pii("₹32/500ml") is False
+        assert looks_like_pii("₹58/L (bulk)") is False
 
     @pytest.mark.parametrize(
         "value",
@@ -151,6 +161,10 @@ class TestNormalizeRow:
         _, reason = normalize_row(_row(category_slugs="butchery"), GEO)
         assert reason is not None and reason.startswith("invalid_category")
 
+    def test_rejects_report_all_unknown_categories_not_just_first(self) -> None:
+        _, reason = normalize_row(_row(category_slugs="butchery;fishery;dairy"), GEO)
+        assert reason == "invalid_category:butchery,fishery"
+
     def test_rejects_pincode_not_in_geo(self) -> None:
         _, reason = normalize_row(_row(primary_pincode="999999", pincode="999999"), GEO)
         assert reason is not None and reason.startswith("pincode_not_found")
@@ -170,6 +184,26 @@ class TestNormalizeRow:
     def test_rejects_phone_in_name(self) -> None:
         _, reason = normalize_row(_row(name="Sri Balaji Dairy 9876543210"), GEO)
         assert reason == "pii_detected:name"
+
+    def test_rejects_phone_in_price_display(self) -> None:
+        _, reason = normalize_row(_row(price_display="₹32/500ml, call 9876543210 for bulk"), GEO)
+        assert reason == "pii_detected:price_display"
+
+    def test_rejects_phone_in_state(self) -> None:
+        _, reason = normalize_row(_row(state="Tamil Nadu (call 9876543210)"), GEO)
+        assert reason == "pii_detected:state"
+
+    def test_rejects_email_in_district(self) -> None:
+        _, reason = normalize_row(_row(district="Coimbatore vendor@example.com"), GEO)
+        assert reason == "pii_detected:district"
+
+    def test_rejects_dot_separated_phone_in_address(self) -> None:
+        _, reason = normalize_row(_row(address="Shop 4, RS Puram, 987.654.3210"), GEO)
+        assert reason == "pii_detected:address"
+
+    def test_rejects_slash_separated_phone_in_address(self) -> None:
+        _, reason = normalize_row(_row(address="Shop 4, RS Puram, 987/654/3210"), GEO)
+        assert reason == "pii_detected:address"
 
     def test_rejects_invalid_milk_enum_value(self) -> None:
         _, reason = normalize_row(_row(milk_type="camel"), GEO)
@@ -284,5 +318,14 @@ class TestStarterSeed:
             assert not looks_like_pii(row["description_ta"])
         for row in self._rows("branches.csv"):
             assert not looks_like_pii(row["address"])
+            assert not looks_like_pii(row["state"])
+            assert not looks_like_pii(row["district"])
         for row in self._rows("products.csv"):
             assert not looks_like_pii(row["name"])
+            assert not looks_like_pii(row["price_display"])
+
+    def test_rejects_csv_is_gitignored(self) -> None:
+        # rejects.csv holds raw, unredacted PII (see script docstring) -
+        # this directory must never be able to commit it silently.
+        gitignore = (SEED_DIR / ".gitignore").read_text(encoding="utf-8")
+        assert "rejects.csv" in gitignore

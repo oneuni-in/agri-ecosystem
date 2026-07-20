@@ -22,9 +22,12 @@ it, `ref` itself is never a database id):
 Deliberately absent: phone/whatsapp/email columns anywhere in the output.
 Contact data enters only via the D16 claim flow, so the seed is PII-free
 by construction - looks_like_pii() actively rejects any row that smuggles
-contact-shaped text into a free-text field (name/address/description/
-product name); rejected rows are written to rejects.csv with a reason,
-never silently dropped.
+contact-shaped text into ANY free-text field this script emits (name,
+address, state, district, description_en/ta, product name,
+price_display - see _PII_CHECKED_FIELDS); rejected rows are written to
+rejects.csv (gitignored - see the .gitignore in data/seeds/coimbatore/,
+never committed - it holds the raw PII verbatim) with a reason, never
+silently dropped.
 
 Raw input format (this script's OWN contract - there is no owner sheet
 yet, so this is the mapping layer to revisit once the real sheet's
@@ -114,10 +117,16 @@ MILK_SPEC_FIELDS: list[dict[str, object]] = [
 ]
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[A-Za-z]{2,}")
-# A run of digits (allowing spaces/hyphens/parens/leading +) at least 10
-# digits long once separators are stripped - long enough to catch a phone
-# number, short enough not to trip on a 6-digit pincode embedded in text.
-_PHONE_CANDIDATE_RE = re.compile(r"\+?[\d][\d\s\-()]{8,}\d")
+# Deliberately format-agnostic: rather than enumerate every separator a
+# phone number might be written with (space/hyphen/dot/slash/parens/+ -
+# and scraped vendor listings use all of them), match any contiguous run
+# of digits-and-common-phone-punctuation, then gate on DIGIT COUNT alone
+# (>=10 once separators are stripped). Counting digits is much harder to
+# evade than matching a fixed set of formats - a fixed-format regex is
+# exactly what let "987.654.3210" and "987/654/3210" slip through review.
+# The {6,} floor is just a cheap pre-filter (a bare 6-digit pincode run
+# stops here - digit count still has to clear 10 to actually flag).
+_PHONE_RUN_RE = re.compile(r"[+()./\-\s\d]{6,}")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 BUSINESS_FIELDS = (
@@ -133,10 +142,25 @@ BRANCH_FIELDS = ("business_ref", "address", "state", "district", "pincode", "lat
 COVERAGE_FIELDS = ("business_ref", "pincode")
 PRODUCT_FIELDS = ("business_ref", "vertical_slug", "name", "specs_json", "price_display")
 
-# Free-text fields checked for smuggled contact info. Structured fields
-# (pincodes/lat/lng/type/category) are intentionally excluded - they're
-# expected to contain digits and would false-positive constantly.
-_PII_CHECKED_FIELDS = ("name", "address", "description_en", "description_ta", "product_name")
+# Every free-text field this script emits into an output CSV, checked
+# for smuggled contact info - "reject PII in ANY field" means every
+# column that isn't a closed enum/structured value. state/district are
+# raw pass-through text (not validated against an allowlist) so a
+# careless raw sheet could smuggle contact info through them just as
+# easily as through address; price_display ships verbatim into
+# products.csv. Structured fields (pincodes/lat/lng/type/category_slugs)
+# are intentionally excluded - they're expected to contain digits and
+# would false-positive constantly.
+_PII_CHECKED_FIELDS = (
+    "name",
+    "address",
+    "state",
+    "district",
+    "description_en",
+    "description_ta",
+    "product_name",
+    "price_display",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,15 +193,14 @@ def load_geo(path: Path) -> dict[str, GeoPincode]:
 
 def looks_like_pii(value: str) -> bool:
     """True if value contains an email address or a phone-number-shaped
-    run of digits (>=10 digits once separators are stripped)."""
+    run of digits (>=10 digits once separators are stripped, regardless
+    of which punctuation - space/hyphen/dot/slash/parens - was used to
+    format them)."""
     if not value:
         return False
     if _EMAIL_RE.search(value):
         return True
-    for match in _PHONE_CANDIDATE_RE.finditer(value):
-        if len(re.sub(r"\D", "", match.group())) >= 10:
-            return True
-    return False
+    return any(len(re.sub(r"\D", "", run)) >= 10 for run in _PHONE_RUN_RE.findall(value))
 
 
 def validate_pincode(
@@ -231,6 +254,9 @@ def _build_product(
         if pack_size:
             specs["pack_size"] = pack_size
     else:
+        # TODO(D27): once a second vertical is seeded, give it the same
+        # treatment as milk below (a *_SPEC_FIELDS constant + a
+        # validate_specs() call) instead of shipping unvalidated specs.
         specs = {}
 
     if vertical_slug == "milk":
@@ -268,9 +294,12 @@ def normalize_row(
     text_values = {
         "name": name,
         "address": raw.get("address", ""),
+        "state": raw.get("state", ""),
+        "district": raw.get("district", ""),
         "description_en": raw.get("description_en", ""),
         "description_ta": raw.get("description_ta", ""),
         "product_name": raw.get("product_name", ""),
+        "price_display": raw.get("price_display", ""),
     }
     for field_name in _PII_CHECKED_FIELDS:
         if looks_like_pii(text_values[field_name]):
@@ -285,7 +314,7 @@ def normalize_row(
         return None, "missing_category"
     unknown = [c for c in categories if c not in valid_categories]
     if unknown:
-        return None, f"invalid_category:{unknown[0]}"
+        return None, f"invalid_category:{','.join(unknown)}"
 
     primary_pincode = raw.get("primary_pincode", "").strip()
     reject = validate_pincode(primary_pincode, geo)

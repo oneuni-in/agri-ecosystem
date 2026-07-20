@@ -28,9 +28,12 @@ python -m scripts.normalize_vendor_seed <path/to/raw_sheet.csv> --out data/seeds
 ```
 
 This overwrites `businesses.csv` / `branches.csv` / `coverage.csv` /
-`products.csv` in place and additionally writes `rejects.csv` (not
-committed — regenerate and inspect locally) listing every rejected raw
-row with a machine-readable reason (`pincode_not_found`,
+`products.csv` in place and additionally writes `rejects.csv` — **gitignored
+by this directory's own `.gitignore`, enforced, not discipline** — it
+holds the raw, unredacted rejected rows verbatim (including the
+phone/email-shaped text that got them rejected), so it must never enter
+git history. Regenerate and inspect locally, then discard it. Each
+rejected row carries a machine-readable reason (`pincode_not_found`,
 `pincode_outside_service_area`, `invalid_type:...`, `invalid_category:...`,
 `pii_detected:<field>`, `invalid_specs:<code>:<field>`, `duplicate`, ...).
 
@@ -55,10 +58,12 @@ contract**, on any of the four files, deliberately. Contact data enters
 the system only through the D16 claim flow once a real owner claims
 their listing — so this seed (and the tool that produces it) is
 PII-free by construction, not by discipline. The normalizer actively
-scans every free-text field (`name`, `address`, `description_en`,
-`description_ta`, `product_name`) with `looks_like_pii()` and rejects
-any row that looks like it smuggled in a phone number or email address,
-rather than silently stripping it.
+scans every free-text field it emits (`name`, `address`, `state`,
+`district`, `description_en`, `description_ta`, `product_name`,
+`price_display`) with `looks_like_pii()` and rejects any row that looks
+like it smuggled in a phone number (any punctuation style — space,
+hyphen, dot, slash, parens) or an email address, rather than silently
+stripping it.
 
 ## Validation the normalizer enforces
 

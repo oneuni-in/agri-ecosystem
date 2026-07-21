@@ -157,3 +157,16 @@ class ServedAdOut(BaseModel):
 
 class AdServeOut(BaseModel):
     ad: ServedAdOut | None
+
+
+class BeaconIn(BaseModel):
+    """Wire contract for both tracking beacons (impressions/clicks). No
+    location - beacons are joined to serve-side geo data later in analysis."""
+
+    placement_id: uuid.UUID
+    creative_id: uuid.UUID
+    slot_key: str
+
+
+class BeaconOut(BaseModel):
+    status: Literal["ok", "duplicate"]

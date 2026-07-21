@@ -9,12 +9,14 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads import service
-from modules.ads.models import Creative, Placement
-from modules.ads.schemas import AdServeOut, ServedAdOut
+from modules.ads.models import Click, Creative, Impression, Placement
+from modules.ads.schemas import AdServeOut, BeaconIn, BeaconOut, ServedAdOut
 from settings import get_settings
+from shared.cache import get_redis
 from shared.db import get_session
 from shared.flags import flag_enabled
 from shared.security import SecureRouter
@@ -81,3 +83,41 @@ async def serve(
             target_url=creative.target_url,
         )
     )
+
+
+@router.post("/impressions", public=True)
+async def impression_beacon(body: BeaconIn, request: Request, session: SessionDep) -> BeaconOut:
+    return await _track(body, request, session, kind="imp")
+
+
+@router.post("/clicks", public=True)
+async def click_beacon(body: BeaconIn, request: Request, session: SessionDep) -> BeaconOut:
+    return await _track(body, request, session, kind="clk")
+
+
+async def _track(
+    body: BeaconIn, request: Request, session: AsyncSession, *, kind: str
+) -> BeaconOut:
+    await _require_flag(session)
+    exists = await session.scalar(select(Placement.id).where(Placement.id == body.placement_id))
+    if exists is None:
+        raise HTTPException(status_code=404, detail="unknown_placement")
+    now = datetime.now(UTC)
+    viewer = _viewer(request, now)
+    fresh = await get_redis().set(
+        f"ads:dedupe:{kind}:{viewer}:{body.placement_id}", "1", nx=True, ex=60
+    )
+    if not fresh:
+        return BeaconOut(status="duplicate")
+    model = Impression if kind == "imp" else Click
+    session.add(
+        model(
+            placement_id=body.placement_id,
+            creative_id=body.creative_id,
+            slot_key=body.slot_key,
+            viewer_hash=viewer,
+            occurred_at=now,
+        )
+    )
+    await session.commit()
+    return BeaconOut(status="ok")

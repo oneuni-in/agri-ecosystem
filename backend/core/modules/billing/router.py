@@ -107,7 +107,15 @@ async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, s
     )
     # capture happened inside process_webhook_event; commit, then best-effort
     # publish (D16 choreography).
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # lost a concurrent-duplicate-delivery race: the unique
+        # provider_event_id index is the arbiter, and the whole tx
+        # (including the state transitions above) rolled back with it - so
+        # one-effect still holds. Do not publish; the winning delivery's
+        # commit already did.
+        return {"status": "duplicate"}
     await publish_pending(pending)
     return {"status": "ok"}
 

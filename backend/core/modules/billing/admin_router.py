@@ -87,7 +87,10 @@ async def cancel_subscription(
         metadata={"business_id": str(sub.business_id), "tier": sub.tier},
         ip=request.client.host if request.client else None,
     )
-    out = subscription_out(sub)  # capture BEFORE commit (attributes expire)
+    # capture BEFORE commit - not for attribute-expiry (sessionmaker uses
+    # expire_on_commit=False), but for the D16 choreography discipline: build
+    # the response from in-tx state, commit, then best-effort publish.
+    out = subscription_out(sub)
     await session.commit()
     await publish_pending(pending)
     return out

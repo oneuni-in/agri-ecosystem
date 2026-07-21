@@ -199,6 +199,8 @@ async def process_webhook_event(
         )
         if invoice is None:
             return ("unmatched", [])
+        # the local status enum has no 'expired'; void is the terminal
+        # non-paid mapping.
         invoice.status = "paid" if event_type == "invoice.paid" else "void"
         return ("processed", [])
 

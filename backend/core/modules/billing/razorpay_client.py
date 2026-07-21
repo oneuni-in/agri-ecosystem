@@ -58,7 +58,11 @@ class RazorpayClient:
                 raise RazorpayError(f"razorpay {method} {path}: {type(exc).__name__}") from exc
         if response.status_code >= 400:
             raise RazorpayError(f"razorpay {method} {path} -> {response.status_code}")
-        return cast(dict[str, Any], response.json())
+        try:
+            return cast(dict[str, Any], response.json())
+        except ValueError as exc:
+            # 2xx but not JSON - never include the body (may carry secrets).
+            raise RazorpayError(f"razorpay {method} {path}: invalid json") from exc
 
     async def create_subscription(
         self, *, plan_id: str, total_count: int = 120, notes: dict[str, str] | None = None

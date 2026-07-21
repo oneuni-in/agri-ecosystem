@@ -59,6 +59,17 @@ async def test_request_and_error_mapping(monkeypatch: pytest.MonkeyPatch) -> Non
         await client.fetch_subscription("missing")
 
 
+async def test_non_json_2xx_raises_razorpay_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not json")
+
+    transport = httpx.MockTransport(handler)
+    client = RazorpayClient("key_id", "key_secret", transport=transport)
+    _enable_billing(monkeypatch)
+    with pytest.raises(RazorpayError, match="invalid json"):
+        await client.fetch_subscription("sub_1")
+
+
 def test_scrub_payload_strips_instrument_and_contact_fields() -> None:
     payload = {
         "event": "subscription.charged",

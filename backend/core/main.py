@@ -39,6 +39,7 @@ from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
 from modules.notify.worker import run_worker
+from modules.ops.admin_router import admin_router as ops_admin_router
 from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
@@ -81,6 +82,7 @@ MODULE_ROUTERS = [
     leads_engine_router,
     market_data_router,
     notify_router,
+    ops_admin_router,
     reviews_admin_router,
     reviews_router,
     search_router,

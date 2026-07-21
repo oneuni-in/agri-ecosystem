@@ -21,6 +21,7 @@ from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.leads_router import router as leads_engine_router
 from modules.directory.lookups import business_ref, owned_business_refs
+from modules.directory.moderation_sources import register_directory_moderation_sources
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
@@ -177,6 +178,9 @@ def create_app() -> FastAPI:
     register_business_resolver(business_ref)
     register_owned_businesses_resolver(owned_business_refs)
     register_contact_resolver(notify_contact)
+    # D21: unified moderation queue - owning modules register their sources
+    # (same dependency-inversion pattern as the resolvers above).
+    register_directory_moderation_sources()
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

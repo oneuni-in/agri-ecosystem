@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from modules.ads.router import router as ads_router
 from modules.ai.router import router as ai_router
+from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.router import router as billing_router
 from modules.coins.admin_router import admin_router as coins_admin_router
 from modules.coins.router import router as coins_router
@@ -61,6 +62,7 @@ MODULE_ROUTERS = [
     ads_router,
     ai_router,
     billing_router,
+    billing_admin_router,
     catalog_router,
     catalog_admin_router,
     coins_admin_router,

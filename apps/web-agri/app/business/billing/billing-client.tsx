@@ -6,7 +6,8 @@
  * redirect to Razorpay's hosted short_url - no payment JS ever loads here.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { Button, Card, EmptyState, Skeleton } from "@agri/ui";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { ApiError, getJson } from "@/lib/api";
 
@@ -35,6 +36,14 @@ function rupees(paise: number): string {
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
 
+function AlertNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-card border border-alert-line bg-alert-bg p-3 text-[13px] font-semibold text-ink">
+      {children}
+    </div>
+  );
+}
+
 export function BillingClient() {
   const [subscription, setSubscription] = useState<SubscriptionView | null>(null);
   const [businessName, setBusinessName] = useState<string | null>(null);
@@ -43,22 +52,29 @@ export function BillingClient() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const loadInvoices = useCallback(async (after: string | null) => {
-    const query = after ? `?cursor=${encodeURIComponent(after)}` : "";
-    const body = await getJson(`/api/billing/invoices${query}`);
-    setInvoices((existing) => [...existing, ...(body.items as unknown as InvoiceView[])]);
-    setCursor((body.next_cursor as string | null) ?? null);
+  const loadInvoices = useCallback(async (after: string | null, append: boolean) => {
+    if (append) setLoadingMore(true);
+    try {
+      const query = after ? `?cursor=${encodeURIComponent(after)}` : "";
+      const body = await getJson(`/api/billing/invoices${query}`);
+      const newItems = (body.items as InvoiceView[] | undefined) ?? [];
+      setInvoices((existing) => (append ? [...existing, ...newItems] : newItems));
+      setCursor((body.next_cursor as string | null | undefined) ?? null);
+    } finally {
+      if (append) setLoadingMore(false);
+    }
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
         const body = await getJson("/api/billing/subscription");
-        setSubscription(body.subscription as unknown as SubscriptionView | null);
-        setBusinessName((body.business_name as string | null) ?? null);
-        setTiers(body.tiers as unknown as TierView[]);
-        await loadInvoices(null);
+        setSubscription((body.subscription as SubscriptionView | null | undefined) ?? null);
+        setBusinessName((body.business_name as string | null | undefined) ?? null);
+        setTiers((body.tiers as TierView[] | undefined) ?? []);
+        await loadInvoices(null, false);
       } catch (caught) {
         setError(caught instanceof ApiError ? caught.detail : "request_failed");
       } finally {
@@ -67,17 +83,27 @@ export function BillingClient() {
     })();
   }, [loadInvoices]);
 
-  if (loading) return <p className="mt-4 text-[13px] text-sub">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="mt-4 space-y-4">
+        <Skeleton width="100%" height="76px" />
+        <div className="space-y-2">
+          <Skeleton width="100%" height="48px" />
+          <Skeleton width="100%" height="48px" />
+        </div>
+      </div>
+    );
+  }
   if (error) {
     return (
-      <p className="mt-4 rounded-card border border-alert-line bg-alert-bg p-3 text-[13px] font-semibold text-ink">
-        Could not load billing: {error}
-      </p>
+      <div className="mt-4">
+        <AlertNotice>Could not load billing: {error}</AlertNotice>
+      </div>
     );
   }
   return (
     <div className="mt-4 space-y-4">
-      <section className="rounded-card border border-line bg-card p-4">
+      <Card className="p-4">
         {subscription ? (
           <>
             <p className="text-[13px] font-extrabold text-ink">
@@ -100,18 +126,15 @@ export function BillingClient() {
             </p>
           </>
         )}
-      </section>
+      </Card>
       <section>
         <h2 className="text-[15px] font-extrabold text-ink">Invoices</h2>
         {invoices.length === 0 ? (
-          <p className="mt-2 text-[13px] text-sub">No invoices yet.</p>
+          <EmptyState className="mt-2" icon="🧾" title="No invoices yet." />
         ) : (
-          <ul className="mt-2 space-y-2">
+          <div className="mt-2 space-y-2">
             {invoices.map((invoice) => (
-              <li
-                key={invoice.id}
-                className="flex items-center justify-between rounded-card border border-line bg-card p-3"
-              >
+              <Card key={invoice.id} className="flex items-center justify-between p-3">
                 <span className="text-[13px] text-ink">
                   {new Date(invoice.created_at).toLocaleDateString("en-IN")}
                 </span>
@@ -119,18 +142,20 @@ export function BillingClient() {
                 <span className="text-[13px] font-extrabold text-ink">
                   {rupees(invoice.amount_paise)}
                 </span>
-              </li>
+              </Card>
             ))}
-          </ul>
+          </div>
         )}
         {cursor ? (
-          <button
+          <Button
             type="button"
-            onClick={() => void loadInvoices(cursor)}
-            className="mt-3 rounded-card border border-line px-3 py-2 text-[13px] font-semibold text-ink"
+            variant="ghost"
+            className="mt-3"
+            disabled={loadingMore}
+            onClick={() => void loadInvoices(cursor, true)}
           >
-            Load more
-          </button>
+            {loadingMore ? "Loading..." : "Load more"}
+          </Button>
         ) : null}
       </section>
     </div>

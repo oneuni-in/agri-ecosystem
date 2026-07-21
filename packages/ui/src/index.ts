@@ -46,6 +46,8 @@ export {
   serializeLocCookie,
 } from "./lib/location";
 export type { LocContext, LocSource } from "./lib/location";
+export { isSafeTargetUrl, parseServedAd } from "./lib/sponsored";
+export type { ServedAd } from "./lib/sponsored";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";
@@ -63,5 +65,6 @@ export type {
 export { PincodeHero } from "./composites/pincode-hero";
 export { ProductCard, ProductGrid } from "./composites/product-card";
 export { CardsRow, Section, Wrap } from "./composites/section";
+export { SponsoredAd } from "./composites/sponsored-ad";
 export { TodayCard, TodayStrip } from "./composites/today-strip";
 export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";

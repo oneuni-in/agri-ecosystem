@@ -40,6 +40,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/health",
     "/health/deep",
     "/metrics",
+    "/ads/serve",
     "/billing/webhook/razorpay",
     "/catalog/verticals",
     "/catalog/products/{slug}",

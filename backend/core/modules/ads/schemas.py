@@ -139,3 +139,21 @@ class PlacementStatusIn(BaseModel):
 def copy_to_json(ad_copy: dict[str, CopyBlock]) -> dict[str, dict[str, str]]:
     """CreativeIn.ad_copy (validated CopyBlock models) -> plain JSONB-ready dict."""
     return {locale: block.model_dump() for locale, block in ad_copy.items()}
+
+
+class ServedAdOut(BaseModel):
+    """Wire contract for a served ad. `label` is always the literal
+    "sponsored" - non-negotiable 1, enforced at the type level."""
+
+    placement_id: uuid.UUID
+    creative_id: uuid.UUID
+    slot_key: str
+    label: Literal["sponsored"]
+    title: str
+    body: str
+    media_urls: list[str]
+    target_url: str
+
+
+class AdServeOut(BaseModel):
+    ad: ServedAdOut | None

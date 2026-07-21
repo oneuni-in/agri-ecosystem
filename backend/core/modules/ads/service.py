@@ -1,9 +1,20 @@
 """Ads service (D21): validation + (Task 8) serving eligibility."""
 
+import hashlib
+import random
 import re
+import uuid
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from modules.ads.models import Campaign, Creative, Placement
+from settings import get_settings
+from shared.cache import get_redis
 
 SLOT_KEYS: frozenset[str] = frozenset({"directory_browse"})
 MAX_TARGET_URL = 2048
@@ -41,3 +52,107 @@ class GeoTargetIn(BaseModel):
         if bad:
             raise ValueError(f"invalid pincodes: {bad!r}")
         return value
+
+
+def viewer_hash(ip: str, user_agent: str, *, now: datetime) -> str:
+    """Daily-rotating pseudonym: same viewer collapses within a UTC day (for
+    freq-cap + dedupe) but is unlinkable across days (privacy: no durable
+    tracking identifier, DPDP-minimal)."""
+    secret = get_settings().ads_beacon_secret
+    raw = f"{secret}:{now:%Y%m%d}:{ip}:{user_agent}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def geo_matches(
+    geo_target: dict[str, Any],
+    *,
+    pincode: str,
+    district_lgd: int | None,
+    state_lgd: int | None,
+) -> bool:
+    """{} = everywhere. Otherwise ANY declared rung matching the resolved
+    chain is a hit; nothing else matches (non-negotiable 2)."""
+    if not geo_target:
+        return True
+    pincodes = geo_target.get("pincodes") or []
+    if pincode in pincodes:
+        return True
+    district = geo_target.get("district")
+    if district is not None and district_lgd is not None and district == district_lgd:
+        return True
+    state = geo_target.get("state")
+    return state is not None and state_lgd is not None and state == state_lgd
+
+
+async def eligible_placements(
+    session: AsyncSession, *, slot_key: str, pincode: str, today: date
+) -> list[tuple[Placement, Creative]]:
+    """Active placement + active in-flight campaign + latest APPROVED creative
+    + geo match. Row volume per slot is tiny in v1 - geo filtering in Python
+    keeps the JSONB semantics in one testable function."""
+    from shared.geo.service import district_for_pincode
+
+    district = await district_for_pincode(session, pincode)
+    district_lgd = district.lgd_code if district else None
+    state_lgd = None
+    if district is not None:
+        from shared.geo.models import State
+
+        state = await session.get(State, district.state_id)
+        state_lgd = state.lgd_code if state else None
+
+    rows = (
+        await session.execute(
+            select(Placement, Creative)
+            .join(Campaign, Campaign.id == Placement.campaign_id)
+            .join(Creative, Creative.campaign_id == Campaign.id)
+            .where(
+                Placement.slot_key == slot_key,
+                Placement.status == "active",
+                Campaign.status == "active",
+                Campaign.flight_start <= today,
+                Campaign.flight_end >= today,
+                Creative.moderation_status == "approved",
+            )
+            .order_by(Creative.id.desc())
+        )
+    ).all()
+    seen: set[uuid.UUID] = set()
+    out: list[tuple[Placement, Creative]] = []
+    for placement, creative in rows:
+        if placement.id in seen:  # newest approved creative per placement
+            continue
+        if geo_matches(
+            placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
+        ):
+            seen.add(placement.id)
+            out.append((placement, creative))
+    return out
+
+
+def pick_weighted(
+    candidates: list[tuple[Placement, Creative]], rand: random.Random
+) -> tuple[Placement, Creative]:
+    weights = [p.weight for p, _ in candidates]
+    return rand.choices(candidates, weights=weights, k=1)[0]
+
+
+def _seconds_to_utc_midnight(now: datetime) -> int:
+    midnight = datetime.combine(now.date() + timedelta(days=1), time(0), tzinfo=UTC)
+    return max(int((midnight - now).total_seconds()), 60)
+
+
+def _freq_key(viewer: str, placement_id: uuid.UUID, now: datetime) -> str:
+    return f"ads:freq:{viewer}:{placement_id}:{now:%Y%m%d}"
+
+
+async def under_freq_cap(viewer: str, placement_id: uuid.UUID, *, cap: int, now: datetime) -> bool:
+    count = await get_redis().get(_freq_key(viewer, placement_id, now))
+    return int(count or 0) < cap
+
+
+async def record_serve(viewer: str, placement_id: uuid.UUID, *, now: datetime) -> None:
+    key = _freq_key(viewer, placement_id, now)
+    redis = get_redis()
+    await redis.incr(key)
+    await redis.expire(key, _seconds_to_utc_midnight(now))

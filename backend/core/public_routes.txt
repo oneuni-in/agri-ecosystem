@@ -33,3 +33,8 @@
 # billing_enabled flag is off. Body is never logged; stored payloads are
 # scrubbed of card/contact fields.
 /billing/webhook/razorpay
+# /ads/*: sponsored-placement serving + tracking beacons (D21) - anonymous
+# visitors see ads, so no auth. 404s entirely while ads_enabled is off.
+# Serve carries label="sponsored" (non-negotiable 1); beacons are deduped
+# per viewer_hash (daily-rotating, no durable identifier).
+/ads/serve

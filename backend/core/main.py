@@ -8,6 +8,7 @@ import httpx
 from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
+from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.router import router as ads_router
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
@@ -61,6 +62,7 @@ from shared.telemetry import configure_logging, get_logger
 logger = get_logger(__name__)
 
 MODULE_ROUTERS = [
+    ads_admin_router,
     ads_router,
     ai_router,
     billing_router,

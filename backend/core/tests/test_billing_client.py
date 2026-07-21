@@ -20,7 +20,10 @@ def _enable_billing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(flags._cache, "billing_enabled", (time.monotonic(), True))
 
 
-async def test_flag_off_blocks_every_live_call() -> None:
+async def test_flag_off_blocks_every_live_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    # seed False so the check never needs a DB - keeps this a pure unit test
+    # (the fail-closed unknown-flag default is covered in test_flags.py)
+    monkeypatch.setitem(flags._cache, "billing_enabled", (time.monotonic(), False))
     client = RazorpayClient("key", "secret")
     with pytest.raises(BillingDisabledError):
         await client.fetch_subscription("sub_1")

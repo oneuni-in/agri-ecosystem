@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from main import create_app
 from shared.audit import AuditEntry
 from shared.db import get_session
-from shared.flags import flag_enabled
+from shared.flags import FeatureFlag, flag_enabled
 from shared.security import register_principal_resolver
 
 pytestmark = pytest.mark.asyncio
@@ -91,6 +91,31 @@ async def test_super_admin_toggle_200_with_cache_reset(
     # (without the reset, it would be stale for up to 30s)
     is_enabled = await flag_enabled("ads_enabled", session=db_session)
     assert is_enabled is True
+
+
+async def test_toggle_response_updated_at_is_post_toggle(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Response updated_at must be strictly newer than pre-toggle timestamp."""
+    # Get pre-toggle flag state
+    flag_before = await db_session.get(FeatureFlag, "ads_enabled")
+    assert flag_before is not None
+    pre_toggle_updated_at = flag_before.updated_at
+
+    # Toggle the flag
+    r = await api.put(
+        "/admin/ops/flags/ads_enabled",
+        json={"enabled": True},
+        headers=_as(ADMIN_ID, "super_admin"),
+    )
+    assert r.status_code == 200
+    body = r.json()
+
+    # Verify response updated_at is strictly newer
+    from datetime import datetime
+
+    response_updated_at = datetime.fromisoformat(body["updated_at"])
+    assert response_updated_at > pre_toggle_updated_at
 
 
 async def test_toggle_creates_audit_entry(api: httpx.AsyncClient, db_session: AsyncSession) -> None:

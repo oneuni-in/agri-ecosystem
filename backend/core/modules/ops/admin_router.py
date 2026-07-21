@@ -180,9 +180,8 @@ async def toggle_flag(
     if flag is None:
         raise HTTPException(status_code=404, detail="unknown_flag")
     flag.enabled = body.enabled
-    # access attributes before flush to ensure they're loaded
-    updated_at = flag.updated_at
     await session.flush()
+    await session.refresh(flag)  # refresh server-side-computed columns (updated_at)
     await audit(
         session,
         action="ops.flag_changed",
@@ -192,12 +191,7 @@ async def toggle_flag(
         metadata={"enabled": body.enabled},
         ip=request.client.host if request.client else None,
     )
-    out = FlagOut(
-        key=flag.key,
-        enabled=flag.enabled,
-        description=flag.description,
-        updated_at=updated_at,
-    )
+    out = _flag_out(flag)
     await session.commit()
     reset_flag_cache()  # this process serves the new state immediately
     return out

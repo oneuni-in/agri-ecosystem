@@ -32,6 +32,7 @@ from shared.geo.models import District, Pincode, State
 from shared.geoip import reset_geoip
 from shared.lookups import reset_lookup_resolvers
 from shared.metrics import reset_metrics
+from shared.moderation import reset_moderation_sources
 from shared.security import rate_limiter, reset_principal_resolver
 from shared.storage import reset_storage
 
@@ -68,6 +69,7 @@ def _reset_state() -> Iterator[None]:
     MockNotifySmsDriver.reset()
     reset_meili()
     reset_geoip()
+    reset_moderation_sources()
 
 
 @pytest.fixture(scope="session")

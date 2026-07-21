@@ -9,6 +9,7 @@ dependency and records the route for the boot-time log.
 
 import inspect
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
@@ -75,6 +76,21 @@ async def optional_auth(
     principal = await _principal_resolver(request, session)
     if principal is not None:
         request.state.principal = principal
+
+
+def require_role(request: Request, *allowed: str) -> uuid.UUID:
+    """Fail-closed role gate for admin routers that cannot import
+    modules.identity (import-linter independence). Returns the acting
+    admin's user_id for audit. D21 extracts this from the four per-router
+    _require_role copies; new code uses this one."""
+    principal = getattr(request.state, "principal", None)
+    if principal is None:
+        raise HTTPException(status_code=403, detail="missing_role")
+    roles = getattr(principal, "roles", ())
+    if not any(role in roles for role in allowed):
+        raise HTTPException(status_code=403, detail="missing_role")
+    user_id = principal.user_id
+    return user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(str(user_id))
 
 
 class RateLimiter:

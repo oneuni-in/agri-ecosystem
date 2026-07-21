@@ -215,3 +215,39 @@ async def test_my_subscription_and_invoices(
     page_two = await client.get(f"/billing/invoices?limit=2&cursor={cursor}", headers=_as(OWNER))
     assert len(page_two.json()["items"]) == 1
     assert page_two.json()["next_cursor"] is None
+
+
+async def test_invoices_invalid_cursor_400(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    client, session, fake = api
+    await _enable_billing(session)
+    await _seed_business(session)
+    response = await client.get("/billing/invoices?cursor=%%%garbage", headers=_as(OWNER))
+    assert response.status_code == 400
+
+
+async def test_invoices_stranger_gets_empty_page(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    client, session, fake = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    sub = Subscription(business_id=business.id, tier="pro", razorpay_sub_id="sub_idor")
+    session.add(sub)
+    await session.flush()
+    session.add(
+        Invoice(
+            subscription_id=sub.id,
+            amount_paise=149900,
+            status="paid",
+            razorpay_invoice_id="inv_idor_0",
+        )
+    )
+    await session.flush()
+
+    response = await client.get("/billing/invoices", headers=_as(STRANGER))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == []
+    assert body["next_cursor"] is None

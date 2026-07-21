@@ -16,6 +16,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.billing import razorpay_client
@@ -144,7 +145,15 @@ async def create_subscription(
     # subscription.charged webhook - the 3-state enum has no pre-charge state
     # by design (see the D20 spec §3); reconciliation treats the pair
     # (remote created/authenticated, local active+NULL) as consistent.
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        # lost a create race: the partial unique index (one live sub per
+        # business) is the arbiter - same answer as the pre-check
+        raise HTTPException(status_code=409, detail="subscription already exists") from exc
+    # the remote Razorpay sub created above is orphaned for the race loser -
+    # benign, since reconciliation is no-charge-before-checkout and the
+    # customer never opens the loser's checkout URL.
     return SubscriptionCreateOut(
         subscription=subscription_out(sub), checkout_url=remote.get("short_url")
     )

@@ -18,13 +18,26 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.billing.models import PaymentEvent
+from modules.billing import razorpay_client
+from modules.billing.models import Invoice, PaymentEvent, Subscription
 from modules.billing.sanitize import scrub_payload
+from modules.billing.schemas import (
+    InvoicePage,
+    MySubscriptionOut,
+    SubscriptionCreateIn,
+    SubscriptionCreateOut,
+    invoice_out,
+    subscription_out,
+    tier_list,
+)
 from modules.billing.service import process_webhook_event, publish_pending
+from modules.billing.tiers import TIERS, plan_id_for
 from settings import get_settings
 from shared.db import get_session
 from shared.flags import flag_enabled
+from shared.lookups import resolve_business, resolve_owned_businesses
 from shared.metrics import BILLING_WEBHOOK_REJECTED
+from shared.pagination import InvalidCursorError, paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
 
@@ -96,3 +109,90 @@ async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, s
     await session.commit()
     await publish_pending(pending)
     return {"status": "ok"}
+
+
+@router.post("/subscriptions", status_code=201)
+async def create_subscription(
+    body: SubscriptionCreateIn, request: Request, session: SessionDep
+) -> SubscriptionCreateOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    if body.tier not in TIERS:
+        raise HTTPException(status_code=422, detail="unknown tier")
+    ref = await resolve_business(session, body.business_id)
+    if ref is None or ref.owner_user_id != user_id:
+        # not-yours == not-found: ownership must not be an oracle
+        raise HTTPException(status_code=404, detail="business not found")
+    live = await session.scalar(
+        select(Subscription).where(
+            Subscription.business_id == body.business_id, Subscription.status != "canceled"
+        )
+    )
+    if live is not None:
+        raise HTTPException(status_code=409, detail="subscription already exists")
+    plan_id = plan_id_for(body.tier, get_settings())
+    if not plan_id:
+        raise HTTPException(status_code=503, detail="billing not configured")
+    remote = await razorpay_client.get_client().create_subscription(
+        plan_id=plan_id, notes={"business_id": str(body.business_id)}
+    )
+    sub = Subscription(
+        business_id=body.business_id, tier=body.tier, razorpay_sub_id=str(remote["id"])
+    )
+    session.add(sub)
+    # local status is `active` with current_period_end NULL until the first
+    # subscription.charged webhook - the 3-state enum has no pre-charge state
+    # by design (see the D20 spec §3); reconciliation treats the pair
+    # (remote created/authenticated, local active+NULL) as consistent.
+    await session.commit()
+    return SubscriptionCreateOut(
+        subscription=subscription_out(sub), checkout_url=remote.get("short_url")
+    )
+
+
+@router.get("/subscription")
+async def my_subscription(request: Request, session: SessionDep) -> MySubscriptionOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    owned = await resolve_owned_businesses(session, user_id)
+    for ref in owned:
+        sub = await session.scalar(
+            select(Subscription).where(
+                Subscription.business_id == ref.id, Subscription.status != "canceled"
+            )
+        )
+        if sub is not None:
+            return MySubscriptionOut(
+                subscription=subscription_out(sub), business_name=ref.name, tiers=tier_list()
+            )
+    return MySubscriptionOut(
+        subscription=None,
+        business_name=owned[0].name if owned else None,
+        tiers=tier_list(),
+    )
+
+
+@router.get("/invoices")
+async def my_invoices(
+    request: Request,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: int = 20,
+) -> InvoicePage:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    owned_ids = [ref.id for ref in await resolve_owned_businesses(session, user_id)]
+    if not owned_ids:
+        return InvoicePage(items=[], next_cursor=None)
+    query = (
+        select(Invoice)
+        .join(Subscription, Invoice.subscription_id == Subscription.id)
+        .where(Subscription.business_id.in_(owned_ids))
+    )
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return InvoicePage(
+        items=[invoice_out(invoice) for invoice in page.items], next_cursor=page.next_cursor
+    )

@@ -127,6 +127,8 @@ async def set_campaign_status(
 @admin_router.post("/creatives", status_code=201)
 async def create_creative(request: Request, body: CreativeIn, session: SessionDep) -> CreativeOut:
     admin_id = require_role(request, STAFF, SUPER_ADMIN)
+    if await session.get(Campaign, body.campaign_id) is None:
+        raise HTTPException(status_code=422, detail="unknown_campaign")
     creative = Creative(
         campaign_id=body.campaign_id,
         media_keys=list(body.media_keys),
@@ -200,6 +202,8 @@ async def create_placement(
     admin_id = require_role(request, STAFF, SUPER_ADMIN)
     if body.slot_key not in SLOT_KEYS:
         raise HTTPException(status_code=422, detail="unknown_slot_key")
+    if await session.get(Campaign, body.campaign_id) is None:
+        raise HTTPException(status_code=422, detail="unknown_campaign")
     placement = Placement(
         campaign_id=body.campaign_id,
         slot_key=body.slot_key,

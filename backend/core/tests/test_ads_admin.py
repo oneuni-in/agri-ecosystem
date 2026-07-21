@@ -206,6 +206,16 @@ async def test_creative_copy_missing_en_422(api: httpx.AsyncClient) -> None:
     assert r.status_code == 422
 
 
+async def test_creative_unknown_campaign_422(api: httpx.AsyncClient) -> None:
+    r = await api.post(
+        "/admin/ads/creatives",
+        json=_creative_body(str(uuid.uuid4())),
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "unknown_campaign"
+
+
 async def test_creative_list_filters_by_campaign(api: httpx.AsyncClient) -> None:
     campaign_id = await _create_campaign(api)
     other_campaign_id = await _create_campaign(api)
@@ -256,6 +266,20 @@ async def test_placement_unknown_slot_422(api: httpx.AsyncClient) -> None:
     )
     assert r.status_code == 422
     assert r.json()["detail"] == "unknown_slot_key"
+
+
+async def test_placement_unknown_campaign_422(api: httpx.AsyncClient) -> None:
+    r = await api.post(
+        "/admin/ads/placements",
+        json={
+            "campaign_id": str(uuid.uuid4()),
+            "slot_key": "directory_browse",
+            "weight": 1,
+        },
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "unknown_campaign"
 
 
 async def test_placement_geo_target_unknown_key_422(api: httpx.AsyncClient) -> None:

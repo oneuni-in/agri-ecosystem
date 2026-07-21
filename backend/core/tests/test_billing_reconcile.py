@@ -3,11 +3,13 @@ mismatch; flag off means zero live calls."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.billing.models import Subscription
+from modules.billing.models import Invoice, Subscription
+from modules.billing.razorpay_client import RazorpayError
 from modules.billing.reconcile import run_reconciliation
 from shared.flags import FeatureFlag, reset_flag_cache
 from tests.fixtures.billing import FakeRazorpay
@@ -68,3 +70,68 @@ async def test_period_end_drift_detected(db_session: AsyncSession) -> None:
         "current_end": int((local_end + timedelta(days=3)).timestamp()),
     }
     assert await run_reconciliation(db_session, client=fake) == 1
+
+
+async def test_invoice_paid_status_drift_detected(db_session: AsyncSession) -> None:
+    await _enable_billing(db_session)
+    sub = _sub("sub_inv_drift")
+    db_session.add(sub)
+    await db_session.flush()
+    inv = Invoice(
+        subscription_id=sub.id,
+        amount_paise=49900,
+        status="issued",
+        razorpay_invoice_id="inv_drift",
+    )
+    db_session.add(inv)
+    await db_session.flush()
+    fake = FakeRazorpay()
+    fake.subs["sub_inv_drift"] = {"id": "sub_inv_drift", "status": "active", "current_end": None}
+    fake.invoices["inv_drift"] = {"id": "inv_drift", "status": "paid"}
+
+    assert await run_reconciliation(db_session, client=fake) == 1
+
+
+async def test_invoice_paid_parity_is_consistent(db_session: AsyncSession) -> None:
+    await _enable_billing(db_session)
+    sub = _sub("sub_inv_ok")
+    db_session.add(sub)
+    await db_session.flush()
+    inv = Invoice(
+        subscription_id=sub.id,
+        amount_paise=49900,
+        status="paid",
+        razorpay_invoice_id="inv_ok",
+    )
+    db_session.add(inv)
+    await db_session.flush()
+    fake = FakeRazorpay()
+    fake.subs["sub_inv_ok"] = {"id": "sub_inv_ok", "status": "active", "current_end": None}
+    fake.invoices["inv_ok"] = {"id": "inv_ok", "status": "paid"}
+
+    assert await run_reconciliation(db_session, client=fake) == 0
+
+
+async def test_invoice_fetch_failure_is_not_drift(db_session: AsyncSession) -> None:
+    await _enable_billing(db_session)
+    sub = _sub("sub_inv_fail")
+    db_session.add(sub)
+    await db_session.flush()
+    inv = Invoice(
+        subscription_id=sub.id,
+        amount_paise=49900,
+        status="issued",
+        razorpay_invoice_id="inv_fail",
+    )
+    db_session.add(inv)
+    await db_session.flush()
+
+    class RaisingFakeRazorpay(FakeRazorpay):
+        async def fetch_invoice(self, invoice_id: str) -> dict[str, Any]:
+            self.calls.append(("fetch_invoice", invoice_id))
+            raise RazorpayError("boom")
+
+    fake = RaisingFakeRazorpay()
+    fake.subs["sub_inv_fail"] = {"id": "sub_inv_fail", "status": "active", "current_end": None}
+
+    assert await run_reconciliation(db_session, client=fake) == 0

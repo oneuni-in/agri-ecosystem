@@ -1,7 +1,8 @@
 """Nightly local-vs-Razorpay drift detection (D20). State drift is the
-threat: a webhook we never received, a manual dashboard change, a bug. Every
-mismatch logs ids only + bumps billing_reconcile_mismatch_total; the script
-wrapper exits non-zero so the scheduler pages."""
+threat: a webhook we never received, a manual dashboard change, a bug.
+Compares subscriptions and invoice paid-status. Every mismatch logs ids
+only + bumps billing_reconcile_mismatch_total; the script wrapper exits
+non-zero so the scheduler pages."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.billing.models import Subscription
+from modules.billing.models import Invoice, Subscription
 from modules.billing.razorpay_client import RazorpayError
 from shared.metrics import BILLING_RECONCILE_MISMATCH
 from shared.telemetry import get_logger
@@ -67,6 +68,43 @@ async def run_reconciliation(session: AsyncSession, *, client: Any) -> int:
                     "extra_fields": {
                         "subscription_id": str(sub.id),
                         "local_status": sub.status,
+                        "remote_status": remote_status,
+                    }
+                },
+            )
+
+    invoices = (
+        await session.scalars(
+            select(Invoice).where(
+                Invoice.status != "void", Invoice.razorpay_invoice_id.is_not(None)
+            )
+        )
+    ).all()
+    for inv in invoices:
+        assert inv.razorpay_invoice_id is not None  # narrowed by the query
+        try:
+            remote = await client.fetch_invoice(inv.razorpay_invoice_id)
+        except RazorpayError as exc:
+            logger.warning(
+                "billing.reconcile_fetch_failed",
+                extra={
+                    "extra_fields": {
+                        "invoice_id": str(inv.id),
+                        "exc_type": type(exc).__name__,
+                    }
+                },
+            )
+            continue
+        remote_status = str(remote.get("status"))
+        if (inv.status == "paid") != (remote_status == "paid"):
+            mismatches += 1
+            BILLING_RECONCILE_MISMATCH.inc()
+            logger.warning(
+                "billing.reconcile_invoice_mismatch",
+                extra={
+                    "extra_fields": {
+                        "invoice_id": str(inv.id),
+                        "local_status": inv.status,
                         "remote_status": remote_status,
                     }
                 },

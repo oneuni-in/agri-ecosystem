@@ -60,6 +60,11 @@ def test_route_table_matches_seeded_templates() -> None:
         "review.approved": ("review_approved", frozenset()),
         "lead.created": ("lead_received", frozenset()),
         "lead.responded": ("lead_response", frozenset()),
+        # D20 billing/dunning routes (backend/core/modules/notify/consumers.py)
+        "billing.payment_failed": ("dunning_payment_failed", frozenset({"email"})),
+        "billing.dunning_reminder": ("dunning_reminder", frozenset({"email"})),
+        "billing.subscription_canceled": ("subscription_canceled", frozenset({"email"})),
+        "billing.subscription_activated": ("subscription_activated", frozenset({"email"})),
     } == EVENT_ROUTES
 
 

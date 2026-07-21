@@ -9,6 +9,7 @@ from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
 from modules.ads.admin_router import admin_router as ads_admin_router
+from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
@@ -183,6 +184,7 @@ def create_app() -> FastAPI:
     # D21: unified moderation queue - owning modules register their sources
     # (same dependency-inversion pattern as the resolvers above).
     register_directory_moderation_sources()
+    register_ads_moderation_sources()
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

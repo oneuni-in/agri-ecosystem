@@ -13,18 +13,24 @@ import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ops.schemas import (
     DecisionIn,
+    FlagOut,
+    FlagsOut,
+    FlagToggleIn,
     ModerationSummaryOut,
     ModItemOut,
     ModQueuePageOut,
     ModRejectIn,
     item_out,
 )
+from shared.audit import audit
 from shared.db import get_session
 from shared.events import publish
+from shared.flags import FeatureFlag, reset_flag_cache
 from shared.moderation import (
     DecisionConflictError,
     ItemNotFoundError,
@@ -145,3 +151,53 @@ async def reject_item(
     return await _decide(
         request, session, type_key=type_key, item_id=item_id, note=body.note, approve=False
     )
+
+
+def _flag_out(flag: FeatureFlag) -> FlagOut:
+    return FlagOut(
+        key=flag.key,
+        enabled=flag.enabled,
+        description=flag.description,
+        updated_at=flag.updated_at,
+    )
+
+
+@admin_router.get("/ops/flags")
+async def list_flags(request: Request, session: SessionDep) -> FlagsOut:
+    require_role(request, SUPER_ADMIN)
+    flags = (await session.scalars(select(FeatureFlag).order_by(FeatureFlag.key))).all()
+    return FlagsOut(items=[_flag_out(f) for f in flags])
+
+
+@admin_router.put("/ops/flags/{key}")
+async def toggle_flag(
+    request: Request, key: str, body: FlagToggleIn, session: SessionDep
+) -> FlagOut:
+    """Kill switch: toggles EXISTING flags only. A flag flip is a
+    business-level act (PRE-FLAG-FLIP checklist) - super_admin, audited."""
+    admin_id = require_role(request, SUPER_ADMIN)
+    flag = await session.get(FeatureFlag, key, with_for_update=True)
+    if flag is None:
+        raise HTTPException(status_code=404, detail="unknown_flag")
+    flag.enabled = body.enabled
+    # access attributes before flush to ensure they're loaded
+    updated_at = flag.updated_at
+    await session.flush()
+    await audit(
+        session,
+        action="ops.flag_changed",
+        actor_user_id=admin_id,
+        target_type="feature_flag",
+        target_id=key,
+        metadata={"enabled": body.enabled},
+        ip=request.client.host if request.client else None,
+    )
+    out = FlagOut(
+        key=flag.key,
+        enabled=flag.enabled,
+        description=flag.description,
+        updated_at=updated_at,
+    )
+    await session.commit()
+    reset_flag_cache()  # this process serves the new state immediately
+    return out

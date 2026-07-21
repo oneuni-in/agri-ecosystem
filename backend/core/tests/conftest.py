@@ -30,6 +30,7 @@ from shared.db import Base, reset_engine
 from shared.flags import reset_flag_cache
 from shared.geo.models import District, Pincode, State
 from shared.geoip import reset_geoip
+from shared.lookups import reset_lookup_resolvers
 from shared.metrics import reset_metrics
 from shared.security import rate_limiter, reset_principal_resolver
 from shared.storage import reset_storage
@@ -61,6 +62,7 @@ def _reset_state() -> Iterator[None]:
     MockDriver.reset()
     reset_oauth_keys()
     reset_principal_resolver()
+    reset_lookup_resolvers()
     reset_permission_cache()
     MockEmailDriver.reset()
     MockNotifySmsDriver.reset()

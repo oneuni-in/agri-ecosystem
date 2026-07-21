@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from modules.ads.router import router as ads_router
 from modules.ai.router import router as ai_router
+from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.router import router as billing_router
 from modules.coins.admin_router import admin_router as coins_admin_router
 from modules.coins.router import router as coins_router
@@ -19,11 +20,13 @@ from modules.directory.catalog_admin_router import admin_router as catalog_admin
 from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.leads_router import router as leads_engine_router
+from modules.directory.lookups import business_ref, owned_business_refs
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
 from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.location_router import location_router as identity_location_router
+from modules.identity.lookups import notify_contact
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.profile_router import profile_router as identity_profile_router
@@ -40,6 +43,11 @@ from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
 from shared.db import check_database
+from shared.lookups import (
+    register_business_resolver,
+    register_contact_resolver,
+    register_owned_businesses_resolver,
+)
 from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
@@ -54,6 +62,7 @@ MODULE_ROUTERS = [
     ads_router,
     ai_router,
     billing_router,
+    billing_admin_router,
     catalog_router,
     catalog_admin_router,
     coins_admin_router,
@@ -160,6 +169,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     init_sentry(get_settings())
     register_principal_resolver(resolve_principal)  # D09: real session auth
+    # D20: dependency-inverted cross-module lookups (same pattern as the
+    # principal resolver) - directory owns business refs, identity owns
+    # notify contacts; billing consumes both through shared.lookups.
+    register_business_resolver(business_ref)
+    register_owned_businesses_resolver(owned_business_refs)
+    register_contact_resolver(notify_contact)
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

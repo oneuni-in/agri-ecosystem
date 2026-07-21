@@ -23,6 +23,11 @@ EXPECTED_CHANNELS = {
     # D18 leads (in-app only, same rationale as claim/verification)
     "lead_received": {"in_app"},
     "lead_response": {"in_app"},
+    # D20 billing
+    "dunning_payment_failed": {"in_app", "email"},
+    "dunning_reminder": {"in_app", "email"},
+    "subscription_canceled": {"in_app", "email"},
+    "subscription_activated": {"in_app", "email"},
 }
 
 

@@ -15,5 +15,18 @@ allowBuilds:
 
 # security-audit floors (pnpm audit --audit-level high is a CI gate);
 # tmp <0.2.6 (GHSA-ph9p-34f9-6g65) comes in through @lhci/cli
+# brace-expansion 1.x/2.x (GHSA-3jxr-9vmj-r5cp) via minimatch everywhere;
+# js-yaml 4.x <4.3.0 (GHSA-52cp-r559-cp3m) via @redocly/openapi-core;
+# postcss/body-parser are patch-level floors for the moderate/low findings.
+# uuid <11.1.1 (moderate, GHSA in v3/v5/v6 buf path) is NOT floored: the fix
+# is a major jump for transitive users and the gate only fails on high.
 overrides:
   tmp: ">=0.2.6"
+  # replacement ranges stay within-major: an open ">=" floor lets pnpm pick
+  # the newest major (minimatch@3 + brace-expansion@4 = "expand is not a
+  # function" at eslint startup)
+  "brace-expansion@1": ">=1.1.16 <2"
+  "brace-expansion@2": ">=2.1.2 <3"
+  "js-yaml@4": ">=4.3.0 <5"
+  postcss: ">=8.5.10 <9"
+  body-parser: ">=1.20.6 <2"

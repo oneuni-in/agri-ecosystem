@@ -13,7 +13,7 @@ from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
-STREAMS = ("identity", "notify", "directory")
+STREAMS = ("identity", "notify", "directory", "billing")
 CONSUMER_GROUP = "notify"
 
 EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
@@ -32,6 +32,14 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     "review.approved": ("review_approved", frozenset()),
     "lead.created": ("lead_received", frozenset()),
     "lead.responded": ("lead_response", frozenset()),
+    # D20 billing/dunning: money events DO carry a destination - billing
+    # resolves the owner's verified email + locale at emit time through
+    # shared.lookups (identity's registered adapter), so email rides along
+    # with in-app. subscription_renewed is deliberately unrouted (silent).
+    "billing.payment_failed": ("dunning_payment_failed", frozenset({"email"})),
+    "billing.dunning_reminder": ("dunning_reminder", frozenset({"email"})),
+    "billing.subscription_canceled": ("subscription_canceled", frozenset({"email"})),
+    "billing.subscription_activated": ("subscription_activated", frozenset({"email"})),
 }
 
 

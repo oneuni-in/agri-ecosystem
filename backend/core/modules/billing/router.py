@@ -1,5 +1,215 @@
-"""Billing module routes. Endpoints land in later specs."""
+# backend/core/modules/billing/router.py
+"""Billing routes (D20) - the money path. 🔍 human line review required.
 
+EVERYTHING here is gated by the billing_enabled DB flag at request time
+(404 while dark - the flag flips without a deploy, unlike the env-mounted
+MSG91 webhook). The webhook is public by design: Razorpay cannot log in.
+Its gate is the HMAC signature over the raw body + event-id dedupe
+(replay = one effect). Bodies are never logged."""
+
+import hashlib
+import hmac
+import json
+import uuid
+from datetime import UTC, datetime
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from modules.billing import razorpay_client
+from modules.billing.models import Invoice, PaymentEvent, Subscription
+from modules.billing.sanitize import scrub_payload
+from modules.billing.schemas import (
+    InvoicePage,
+    MySubscriptionOut,
+    SubscriptionCreateIn,
+    SubscriptionCreateOut,
+    invoice_out,
+    subscription_out,
+    tier_list,
+)
+from modules.billing.service import process_webhook_event, publish_pending
+from modules.billing.tiers import TIERS, plan_id_for
+from settings import get_settings
+from shared.db import get_session
+from shared.flags import flag_enabled
+from shared.lookups import resolve_business, resolve_owned_businesses
+from shared.metrics import BILLING_WEBHOOK_REJECTED
+from shared.pagination import InvalidCursorError, paginate
 from shared.security import SecureRouter
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 router = SecureRouter(prefix="/billing", tags=["billing"])
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def _require_flag(session: AsyncSession) -> None:
+    """flag off -> this surface does not exist (404, never 403)."""
+    if not await flag_enabled("billing_enabled", session=session):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _principal_user_id(request: Request) -> uuid.UUID:
+    principal = request.state.principal  # set by require_auth (shared.security)
+    return uuid.UUID(str(principal.user_id))
+
+
+@router.post("/webhook/razorpay", public=True)
+async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, str]:
+    await _require_flag(session)
+    body = await request.body()
+    secret = get_settings().razorpay_webhook_secret
+    signature = request.headers.get("x-razorpay-signature", "")
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not secret or not signature or not hmac.compare_digest(expected, signature):
+        BILLING_WEBHOOK_REJECTED.labels(reason="signature").inc()
+        raise HTTPException(status_code=400, detail="invalid signature")
+
+    event_id = request.headers.get("x-razorpay-event-id", "")
+    if not event_id:
+        BILLING_WEBHOOK_REJECTED.labels(reason="missing_event_id").inc()
+        raise HTTPException(status_code=400, detail="missing event id")
+    duplicate = await session.scalar(
+        select(PaymentEvent.id).where(PaymentEvent.provider_event_id == event_id)
+    )
+    if duplicate is not None:
+        return {"status": "duplicate"}  # replay: one effect (unique index backstops races)
+
+    try:
+        payload = json.loads(body)
+    except ValueError as exc:
+        BILLING_WEBHOOK_REJECTED.labels(reason="malformed").inc()
+        raise HTTPException(status_code=400, detail="malformed body") from exc
+    if not isinstance(payload, dict):
+        BILLING_WEBHOOK_REJECTED.labels(reason="malformed").inc()
+        raise HTTPException(status_code=400, detail="malformed body")
+
+    event_type = str(payload.get("event") or "")
+    outcome, pending = await process_webhook_event(
+        session,
+        event_type=event_type,
+        payload=payload,
+        now=datetime.now(UTC),
+        settings=get_settings(),
+    )
+    session.add(
+        PaymentEvent(
+            provider_event_id=event_id,
+            event_type=event_type,
+            payload=scrub_payload(payload),
+            outcome=outcome,
+        )
+    )
+    # capture happened inside process_webhook_event; commit, then best-effort
+    # publish (D16 choreography).
+    try:
+        await session.commit()
+    except IntegrityError:
+        # lost a concurrent-duplicate-delivery race: the unique
+        # provider_event_id index is the arbiter, and the whole tx
+        # (including the state transitions above) rolled back with it - so
+        # one-effect still holds. Do not publish; the winning delivery's
+        # commit already did.
+        return {"status": "duplicate"}
+    await publish_pending(pending)
+    return {"status": "ok"}
+
+
+@router.post("/subscriptions", status_code=201)
+async def create_subscription(
+    body: SubscriptionCreateIn, request: Request, session: SessionDep
+) -> SubscriptionCreateOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    if body.tier not in TIERS:
+        raise HTTPException(status_code=422, detail="unknown tier")
+    ref = await resolve_business(session, body.business_id)
+    if ref is None or ref.owner_user_id != user_id:
+        # not-yours == not-found: ownership must not be an oracle
+        raise HTTPException(status_code=404, detail="business not found")
+    live = await session.scalar(
+        select(Subscription).where(
+            Subscription.business_id == body.business_id, Subscription.status != "canceled"
+        )
+    )
+    if live is not None:
+        raise HTTPException(status_code=409, detail="subscription already exists")
+    plan_id = plan_id_for(body.tier, get_settings())
+    if not plan_id:
+        raise HTTPException(status_code=503, detail="billing not configured")
+    remote = await razorpay_client.get_client().create_subscription(
+        plan_id=plan_id, notes={"business_id": str(body.business_id)}
+    )
+    sub = Subscription(
+        business_id=body.business_id, tier=body.tier, razorpay_sub_id=str(remote["id"])
+    )
+    session.add(sub)
+    # local status is `active` with current_period_end NULL until the first
+    # subscription.charged webhook - the 3-state enum has no pre-charge state
+    # by design (see the D20 spec §3); reconciliation treats the pair
+    # (remote created/authenticated, local active+NULL) as consistent.
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        # lost a create race: the partial unique index (one live sub per
+        # business) is the arbiter - same answer as the pre-check
+        raise HTTPException(status_code=409, detail="subscription already exists") from exc
+    # the remote Razorpay sub created above is orphaned for the race loser -
+    # benign, since reconciliation is no-charge-before-checkout and the
+    # customer never opens the loser's checkout URL.
+    return SubscriptionCreateOut(
+        subscription=subscription_out(sub), checkout_url=remote.get("short_url")
+    )
+
+
+@router.get("/subscription")
+async def my_subscription(request: Request, session: SessionDep) -> MySubscriptionOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    owned = await resolve_owned_businesses(session, user_id)
+    for ref in owned:
+        sub = await session.scalar(
+            select(Subscription).where(
+                Subscription.business_id == ref.id, Subscription.status != "canceled"
+            )
+        )
+        if sub is not None:
+            return MySubscriptionOut(
+                subscription=subscription_out(sub), business_name=ref.name, tiers=tier_list()
+            )
+    return MySubscriptionOut(
+        subscription=None,
+        business_name=owned[0].name if owned else None,
+        tiers=tier_list(),
+    )
+
+
+@router.get("/invoices")
+async def my_invoices(
+    request: Request,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: int = 20,
+) -> InvoicePage:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    owned_ids = [ref.id for ref in await resolve_owned_businesses(session, user_id)]
+    if not owned_ids:
+        return InvoicePage(items=[], next_cursor=None)
+    query = (
+        select(Invoice)
+        .join(Subscription, Invoice.subscription_id == Subscription.id)
+        .where(Subscription.business_id.in_(owned_ids))
+    )
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return InvoicePage(
+        items=[invoice_out(invoice) for invoice in page.items], next_cursor=page.next_cursor
+    )

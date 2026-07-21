@@ -100,6 +100,21 @@ class Settings(BaseSettings):
     geoip_mmdb_path: str = ""
     trust_forwarded_for: bool = False
 
+    # Billing (D20). Razorpay KYC is on hold: every credential defaults empty
+    # and the billing_enabled DB flag (seeded false in D03) is the master
+    # kill switch - flag off means 404s everywhere and zero live calls.
+    # Dunning timers are config: retry offsets are CUMULATIVE hours from
+    # past_due_since; after the last offset a grace window runs before
+    # cancellation.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    razorpay_plan_id_growth: str = ""  # filled after KYC + plan creation
+    razorpay_plan_id_pro: str = ""
+    dunning_retry_hours: str = "24,72,168"
+    dunning_grace_days: int = 7
+    billing_worker_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

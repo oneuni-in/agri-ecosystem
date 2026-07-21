@@ -95,6 +95,20 @@ NOTIFY_DROPPED = Counter(
     registry=registry,
 )
 
+# Billing webhook rejections (D20): forgery/replay telemetry. Reasons are a
+# small fixed set - never ids or payload fragments.
+BILLING_WEBHOOK_REJECTED = Counter(
+    "billing_webhook_rejected_total",
+    "Razorpay webhooks rejected before processing",
+    ["reason"],
+    registry=registry,
+)
+BILLING_RECONCILE_MISMATCH = Counter(
+    "billing_reconcile_mismatch_total",
+    "Local vs Razorpay state mismatches found by the nightly reconciliation",
+    registry=registry,
+)
+
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
     REQUESTS.labels(method, route, str(status)).inc()
@@ -120,5 +134,10 @@ def reset_metrics() -> None:
         AUDIT_CHAIN_BREAKS,
         NOTIFY_SENT,
         NOTIFY_DROPPED,
+        BILLING_WEBHOOK_REJECTED,
+        # BILLING_RECONCILE_MISMATCH intentionally excluded: unlabeled Counters
+        # have no working .clear() (D07 trap, same reason COINS_BALANCE_DRIFT
+        # above is excluded) - AttributeError: 'Counter' object has no
+        # attribute '_lock'.
     ):
         metric.clear()

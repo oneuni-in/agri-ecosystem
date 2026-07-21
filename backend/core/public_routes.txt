@@ -27,3 +27,9 @@
 # /search: unified cross-site search facade (D19); Meili-backed, no PII (see
 # modules/search/indexing.py DISPLAYED_ATTRIBUTES allowlist).
 /search
+# /billing/webhook/razorpay: Razorpay server-to-server callback (D20) -
+# cannot authenticate as a user. Gated by HMAC-SHA256 over the raw body
+# (razorpay_webhook_secret) + event-id dedupe; 404s entirely while the
+# billing_enabled flag is off. Body is never logged; stored payloads are
+# scrubbed of card/contact fields.
+/billing/webhook/razorpay

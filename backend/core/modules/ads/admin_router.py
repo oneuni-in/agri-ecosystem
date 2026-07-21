@@ -12,10 +12,11 @@ No events publish here - ads CRUD is silent; only creative moderation
 decisions emit, and that lands in Task 7."""
 
 import uuid
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads.models import Campaign, Creative, Placement
@@ -30,6 +31,8 @@ from modules.ads.schemas import (
     PlacementOut,
     PlacementPageOut,
     PlacementStatusIn,
+    StatRowOut,
+    StatsOut,
     StatusIn,
     copy_to_json,
 )
@@ -268,4 +271,40 @@ async def list_placements(
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return PlacementPageOut(
         items=[PlacementOut.model_validate(p) for p in page.items], next_cursor=page.next_cursor
+    )
+
+
+@admin_router.get("/stats")
+async def placement_stats(
+    request: Request,
+    session: SessionDep,
+    placement_id: uuid.UUID,
+    date_from: date,
+    date_to: date,
+) -> StatsOut:
+    require_role(request, STAFF, SUPER_ADMIN)
+    if date_to < date_from or (date_to - date_from).days > 90:
+        raise HTTPException(status_code=422, detail="bad_range")
+    bounds = {
+        "p": placement_id,
+        "lo": datetime.combine(date_from, time(0), tzinfo=UTC),
+        "hi": datetime.combine(date_to + timedelta(days=1), time(0), tzinfo=UTC),
+    }
+    rows: dict[date, dict[str, int]] = {}
+    for name, table in (("impressions", "ads.impressions"), ("clicks", "ads.clicks")):
+        result = await session.execute(
+            text(
+                f"SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day, count(*) AS n "
+                f"FROM {table} WHERE placement_id = :p "
+                f"AND occurred_at >= :lo AND occurred_at < :hi GROUP BY day"
+            ),
+            bounds,
+        )
+        for day, n in result:
+            rows.setdefault(day, {"impressions": 0, "clicks": 0})[name] = n
+    return StatsOut(
+        rows=[
+            StatRowOut(day=d, impressions=v["impressions"], clicks=v["clicks"])
+            for d, v in sorted(rows.items())
+        ]
     )

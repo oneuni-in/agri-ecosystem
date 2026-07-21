@@ -170,3 +170,17 @@ class BeaconIn(BaseModel):
 
 class BeaconOut(BaseModel):
     status: Literal["ok", "duplicate"]
+
+
+class StatRowOut(BaseModel):
+    """One day's impression and click counts for a placement."""
+
+    day: date
+    impressions: int
+    clicks: int
+
+
+class StatsOut(BaseModel):
+    """Per-placement daily impression/click stats."""
+
+    rows: list[StatRowOut]

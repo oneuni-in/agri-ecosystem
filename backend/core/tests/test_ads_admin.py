@@ -6,6 +6,7 @@ silent)."""
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, date, datetime, time, timedelta
 
 import httpx
 import pytest
@@ -13,6 +14,7 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
+from modules.ads.models import Click, Impression
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
 from shared.security import register_principal_resolver
@@ -338,3 +340,133 @@ async def test_placement_list_filters_by_slot_key(api: httpx.AsyncClient) -> Non
     body = r.json()
     assert len(body["items"]) == 1
     assert body["items"][0]["slot_key"] == "directory_browse"
+
+
+async def _create_placement(api: httpx.AsyncClient) -> str:
+    campaign_id = await _create_campaign(api)
+    r = await api.post(
+        "/admin/ads/placements",
+        json={"campaign_id": campaign_id, "slot_key": "directory_browse", "weight": 1},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 201, r.text
+    placement_id: str = r.json()["id"]
+    return placement_id
+
+
+# ---------------------------------------------------------------------------
+# stats
+
+
+async def test_stats_happy(api: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    placement_id_str = await _create_placement(api)
+    placement_id = uuid.UUID(placement_id_str)
+    creative_id = uuid.uuid4()
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    # Seed impressions at today and tomorrow
+    today_midnight = datetime.combine(today, time(0), tzinfo=UTC)
+    tomorrow_midnight = datetime.combine(tomorrow, time(0), tzinfo=UTC)
+
+    for _ in range(5):
+        db_session.add(
+            Impression(
+                placement_id=placement_id,
+                creative_id=creative_id,
+                slot_key="directory_browse",
+                viewer_hash="hash1",
+                pincode=None,
+                occurred_at=today_midnight + timedelta(hours=2),
+            )
+        )
+    for _ in range(3):
+        db_session.add(
+            Impression(
+                placement_id=placement_id,
+                creative_id=creative_id,
+                slot_key="directory_browse",
+                viewer_hash="hash2",
+                pincode=None,
+                occurred_at=tomorrow_midnight + timedelta(hours=3),
+            )
+        )
+
+    # Seed clicks at today and tomorrow
+    for _ in range(2):
+        db_session.add(
+            Click(
+                placement_id=placement_id,
+                creative_id=creative_id,
+                slot_key="directory_browse",
+                viewer_hash="hash1",
+                pincode=None,
+                occurred_at=today_midnight + timedelta(hours=2, minutes=30),
+            )
+        )
+    for _ in range(1):
+        db_session.add(
+            Click(
+                placement_id=placement_id,
+                creative_id=creative_id,
+                slot_key="directory_browse",
+                viewer_hash="hash2",
+                pincode=None,
+                occurred_at=tomorrow_midnight + timedelta(hours=4),
+            )
+        )
+    await db_session.commit()
+
+    r = await api.get(
+        f"/admin/ads/stats?placement_id={placement_id_str}&date_from={today}&date_to={tomorrow}",
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["rows"]) == 2
+    assert body["rows"][0]["day"] == str(today)
+    assert body["rows"][0]["impressions"] == 5
+    assert body["rows"][0]["clicks"] == 2
+    assert body["rows"][1]["day"] == str(tomorrow)
+    assert body["rows"][1]["impressions"] == 3
+    assert body["rows"][1]["clicks"] == 1
+
+
+async def test_stats_range_too_wide_422(api: httpx.AsyncClient) -> None:
+    placement_id_str = await _create_placement(api)
+    today = date.today()
+    date_from = today
+    date_to = date_from + timedelta(days=91)
+
+    r = await api.get(
+        f"/admin/ads/stats?placement_id={placement_id_str}&date_from={date_from}&date_to={date_to}",
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "bad_range"
+
+
+async def test_stats_date_to_before_date_from_422(api: httpx.AsyncClient) -> None:
+    placement_id_str = await _create_placement(api)
+    today = date.today()
+    date_from = today
+    date_to = today - timedelta(days=1)
+
+    r = await api.get(
+        f"/admin/ads/stats?placement_id={placement_id_str}&date_from={date_from}&date_to={date_to}",
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "bad_range"
+
+
+async def test_stats_non_staff_403(api: httpx.AsyncClient) -> None:
+    placement_id_str = await _create_placement(api)
+    today = date.today()
+
+    r = await api.get(
+        f"/admin/ads/stats?placement_id={placement_id_str}&date_from={today}&date_to={today}",
+        headers=_as(ADMIN, "user"),
+    )
+    assert r.status_code == 403

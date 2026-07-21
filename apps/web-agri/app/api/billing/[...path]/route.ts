@@ -4,7 +4,9 @@
  * touch JS - D10 non-negotiable). Auth-required (unlike /api/leads): no
  * session -> 401 without touching the backend. The backend's flag gate
  * still applies - while billing_enabled is off every proxied call 404s.
- * The Razorpay webhook is NOT reachable here (it lives on the API origin).
+ * Only user-facing surfaces are forwardable: an allowlist on path[0]
+ * rejects everything else (webhook, admin/*, ...) with 404 before the
+ * bearer token is ever attached.
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -12,6 +14,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
+
+// Only these top-level billing paths are user-facing; everything else
+// (webhook/razorpay, admin/*, ...) must never be reachable through the
+// browser-authenticated proxy.
+const ALLOWED_FIRST_SEGMENTS = new Set(["subscription", "subscriptions", "invoices"]);
 
 async function forward(
   req: NextRequest,
@@ -21,6 +28,10 @@ async function forward(
   const { path } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
+  }
+  const [firstSegment] = path;
+  if (!firstSegment || !ALLOWED_FIRST_SEGMENTS.has(firstSegment)) {
+    return NextResponse.json({ detail: "not_found" }, { status: 404 });
   }
   const token = await auth.getAccessToken();
   if (!token) {

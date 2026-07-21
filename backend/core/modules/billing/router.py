@@ -71,6 +71,9 @@ async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, s
     except ValueError as exc:
         BILLING_WEBHOOK_REJECTED.labels(reason="malformed").inc()
         raise HTTPException(status_code=400, detail="malformed body") from exc
+    if not isinstance(payload, dict):
+        BILLING_WEBHOOK_REJECTED.labels(reason="malformed").inc()
+        raise HTTPException(status_code=400, detail="malformed body")
 
     event_type = str(payload.get("event") or "")
     outcome, pending = await process_webhook_event(

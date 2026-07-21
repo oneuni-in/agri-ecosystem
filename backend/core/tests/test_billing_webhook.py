@@ -169,3 +169,52 @@ async def test_unknown_subscription_records_unmatched_200(
         select(PaymentEvent).where(PaymentEvent.provider_event_id == "evt_unmatched")
     )
     assert event is not None and event.outcome == "unmatched"
+
+
+async def test_non_dict_json_body_rejected_400(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_billing(session)
+    raw = b"[]"
+    signature = hmac.new(SECRET.encode(), raw, hashlib.sha256).hexdigest()
+    headers = {
+        "x-razorpay-signature": signature,
+        "x-razorpay-event-id": "evt_non_dict",
+        "content-type": "application/json",
+    }
+    response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 400
+    assert await session.scalar(select(func.count(PaymentEvent.id))) == 0
+
+
+async def test_missing_event_id_rejected_400(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_billing(session)
+    raw, headers = _signed(_charged_body())
+    del headers["x-razorpay-event-id"]
+    response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 400
+    assert await session.scalar(select(func.count(PaymentEvent.id))) == 0
+
+
+async def test_empty_webhook_secret_rejects(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "")
+    get_settings.cache_clear()
+    app = create_app()
+
+    async def _session_override() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _session_override
+    await _enable_billing(db_session)
+    raw, headers = _signed(_charged_body())
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 400
+    assert await db_session.scalar(select(func.count(PaymentEvent.id))) == 0

@@ -4,11 +4,13 @@ recovers to active. Clock injected everywhere - no sleeps."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.billing.models import Invoice, Subscription
+from modules.billing.razorpay_client import RazorpayError
 from modules.billing.service import (
     apply_charge_failed,
     apply_subscription_charged,
@@ -119,6 +121,51 @@ async def test_full_dunning_walk_to_cancellation(db_session: AsyncSession) -> No
     assert sub.status == "canceled"
     assert ("cancel", "sub_000001") in fake.calls
     assert [event_type for event_type, _ in pending] == ["billing.subscription_canceled"]
+
+
+async def test_dunning_cancel_provider_error_isolated_per_sub(db_session: AsyncSession) -> None:
+    """A provider error canceling one due sub must not abort the tick for the
+    rest of the batch: the failing sub stays past_due for retry next tick,
+    other due subs still advance normally."""
+    await _enable_billing(db_session)
+    settings = get_settings()
+    sub_a = await _make_sub(db_session, razorpay_id="sub_a")
+    sub_b = await _make_sub(db_session, razorpay_id="sub_b")
+
+    class FlakyCancelRazorpay(FakeRazorpay):
+        async def cancel_subscription(self, sub_id: str) -> dict[str, Any]:
+            if sub_id == "sub_a":
+                self.calls.append(("cancel", sub_id))
+                raise RazorpayError("boom")
+            return await super().cancel_subscription(sub_id)
+
+    fake = FlakyCancelRazorpay()
+    fake.subs["sub_a"] = {"id": "sub_a", "status": "halted", "current_end": None}
+    fake.subs["sub_b"] = {"id": "sub_b", "status": "halted", "current_end": None}
+
+    await apply_charge_failed(db_session, sub_a, now=T0, settings=settings)
+    await apply_charge_failed(db_session, sub_b, now=T0, settings=settings)
+
+    # sub_a: exhaustion + grace already elapsed -> cancellation is due now.
+    sub_a.dunning_attempt = len(dunning_offsets(settings))
+    sub_a.next_retry_at = T0
+    await db_session.flush()
+    # sub_b: left at its first reminder offset, due for a normal tick.
+
+    processed, pending = await run_due_dunning(
+        db_session, now=T0 + timedelta(hours=25), client=fake, settings=settings
+    )
+
+    assert processed == 2
+    assert ("cancel", "sub_a") in fake.calls
+    # sub_a: provider cancel failed - stays past_due, untouched retry time
+    # means the (already-past) next_retry_at still picks it up next tick.
+    assert sub_a.status == "past_due"
+    assert sub_a.next_retry_at == T0
+    # sub_b: unaffected by sub_a's failure - advances normally.
+    assert sub_b.status == "past_due"
+    assert sub_b.dunning_attempt == 1
+    assert [event_type for event_type, _ in pending] == ["billing.dunning_reminder"]
 
 
 async def test_remote_recovery_during_dunning_tick(db_session: AsyncSession) -> None:

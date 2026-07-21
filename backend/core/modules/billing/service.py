@@ -273,10 +273,22 @@ async def run_due_dunning(
             continue
         if sub.dunning_attempt >= len(offsets):
             # grace elapsed - cancel at the provider first, then locally. A
-            # provider error aborts the tick for this sub; the next tick
-            # retries (next_retry_at is already in the past).
+            # provider error skips just this sub; next_retry_at is already in
+            # the past, so the next tick retries the cancellation.
             if sub.razorpay_sub_id:
-                await client.cancel_subscription(sub.razorpay_sub_id)
+                try:
+                    await client.cancel_subscription(sub.razorpay_sub_id)
+                except RazorpayError as exc:
+                    logger.warning(
+                        "billing.dunning_cancel_failed",
+                        extra={
+                            "extra_fields": {
+                                "subscription_id": str(sub.id),
+                                "exc_type": type(exc).__name__,
+                            }
+                        },
+                    )
+                    continue
             pending.extend(await apply_subscription_cancelled(session, sub, now=now))
             continue
         note = await _pending_notification(

@@ -18,13 +18,8 @@ export default function Page() {
         </Link>
       </p>
       <p className="text-sm">
-        <Link href="/claims" className="text-brand underline">
-          Claims &amp; verification
-        </Link>
-      </p>
-      <p className="text-sm">
-        <Link href="/reviews" className="text-brand underline">
-          Reviews
+        <Link href="/ops" className="text-brand underline">
+          Ops Console
         </Link>
       </p>
     </main>

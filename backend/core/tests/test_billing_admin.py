@@ -92,6 +92,11 @@ async def test_flag_off_admin_routes_404(
     client, session, fake = api
     response = await client.get("/billing/admin/subscriptions", headers=_as(ADMIN, "super_admin"))
     assert response.status_code == 404
+    cancel = await client.post(
+        f"/billing/admin/subscriptions/{uuid.uuid4()}/cancel", headers=_as(ADMIN, "super_admin")
+    )
+    assert cancel.status_code == 404
+    assert fake.calls == []
 
 
 async def test_role_gate(api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay]) -> None:

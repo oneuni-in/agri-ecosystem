@@ -163,6 +163,12 @@ export function OpsManager() {
 
   const config = queueConfig(active);
 
+  // Keep tab chips in sync without a refetch: a decision (or a 409 drop)
+  // means one fewer pending item of that type, floored at 0.
+  const handleDecided = (typeKey: string) => {
+    setCounts((prev) => ({ ...prev, [typeKey]: Math.max(0, (prev[typeKey] ?? 0) - 1) }));
+  };
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-4">
       <h1 className="text-xl font-bold text-ink">Ops console</h1>
@@ -186,7 +192,13 @@ export function OpsManager() {
           </button>
         ))}
       </div>
-      <ModerationQueue key={active} typeKey={active} renderItem={config.renderItem} mediaUrl={config.mediaUrl} />
+      <ModerationQueue
+        key={active}
+        typeKey={active}
+        renderItem={config.renderItem}
+        mediaUrl={config.mediaUrl}
+        onDecided={handleDecided}
+      />
       <FlagsPanel />
     </main>
   );

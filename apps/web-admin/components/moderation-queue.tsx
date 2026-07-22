@@ -105,10 +105,15 @@ export function ModerationQueue({
   typeKey,
   renderItem,
   mediaUrl,
+  onDecided,
 }: {
   typeKey: string;
   renderItem: (item: ModItem) => ReactNode;
   mediaUrl?: ((item: ModItem, index: number) => string) | undefined;
+  /** Fired after an item leaves the list - decided or 409-dropped - so the
+   * caller can keep an out-of-band pending count (e.g. a tab chip) in sync
+   * without this component needing to know anything about summaries. */
+  onDecided?: ((typeKey: string) => void) | undefined;
 }) {
   const { toast } = useToast();
   const [items, setItems] = useState<ModItem[]>([]);
@@ -151,10 +156,12 @@ export function ModerationQueue({
       const payload = note ? { note } : {};
       await postJson(`/moderation/${item.type_key}/${item.id}/${action}`, payload);
       setItems((prev) => prev.filter((existing) => existing.id !== item.id));
+      onDecided?.(item.type_key);
       toast({ title: action === "approve" ? "Approved" : "Rejected" });
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setItems((prev) => prev.filter((existing) => existing.id !== item.id));
+        onDecided?.(item.type_key);
         toast({ title: "Already decided elsewhere - removed from queue" });
       } else {
         toast({ title: error instanceof ApiError ? error.detail : "Decision failed" });

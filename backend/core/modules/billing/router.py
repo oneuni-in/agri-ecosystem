@@ -74,8 +74,17 @@ async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, s
     if not event_id:
         BILLING_WEBHOOK_REJECTED.labels(reason="missing_event_id").inc()
         raise HTTPException(status_code=400, detail="missing event id")
+    # A6b-1: dedupe on a hash of the SIGNED body, never the unsigned
+    # x-razorpay-event-id header. Razorpay signs only the body, so an attacker
+    # who captures one valid (body, signature) can re-POST it with a fresh
+    # event-id and still pass the signature check above; keying replay on the
+    # header would let that replay re-run the state machine (e.g. flip a
+    # past_due sub back to active with no real payment). The body hash is a
+    # tamper-proof idempotency key — Razorpay resends the identical body (same
+    # hash) on its own retries, so legitimate one-effect semantics are preserved.
+    dedupe_key = hashlib.sha256(body).hexdigest()
     duplicate = await session.scalar(
-        select(PaymentEvent.id).where(PaymentEvent.provider_event_id == event_id)
+        select(PaymentEvent.id).where(PaymentEvent.provider_event_id == dedupe_key)
     )
     if duplicate is not None:
         return {"status": "duplicate"}  # replay: one effect (unique index backstops races)
@@ -99,7 +108,7 @@ async def razorpay_webhook(request: Request, session: SessionDep) -> dict[str, s
     )
     session.add(
         PaymentEvent(
-            provider_event_id=event_id,
+            provider_event_id=dedupe_key,
             event_type=event_type,
             payload=scrub_payload(payload),
             outcome=outcome,

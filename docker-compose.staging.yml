@@ -33,6 +33,37 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  # D22 A3-2: the coins-award and search-index workers are standalone
+  # `python -m` processes (the notify worker runs in-process in the api
+  # lifespan, these two do not). docker-compose.dev.yml starts both; staging
+  # MUST too, or business/product/claim/review events accumulate unconsumed —
+  # zero coins awarded and a permanently stale Meilisearch index — while the
+  # api itself looks healthy. Same api image, app_rt DATABASE_URL from
+  # secrets/staging.env, different command.
+  worker:
+    image: ghcr.io/oneuni-in/agri-api:${TAG:-dev}
+    env_file: secrets/staging.env
+    command: ["python", "-m", "modules.coins.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  search-worker:
+    image: ghcr.io/oneuni-in/agri-api:${TAG:-dev}
+    env_file: secrets/staging.env
+    command: ["python", "-m", "modules.search.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+
   web-milk:
     image: ghcr.io/oneuni-in/agri-web-milk:${TAG:-dev}
     ports:

@@ -39,9 +39,7 @@ async def run(args: argparse.Namespace) -> None:
     async with sessionmaker() as session:
         owner = await session.scalar(select(User).where(User.phone == args.phone))
         if owner is None:
-            raise SystemExit(
-                f"no user with phone {args.phone!r} - sign up at :3003/login first"
-            )
+            raise SystemExit(f"no user with phone {args.phone!r} - sign up at :3003/login first")
 
         business = await service.create_business(
             session,
@@ -70,9 +68,7 @@ async def run(args: argparse.Namespace) -> None:
             business_id=business.id,
             pincodes=[args.pincode],
         )
-        category = await session.scalar(
-            select(Category).where(Category.slug == args.category)
-        )
+        category = await session.scalar(select(Category).where(Category.slug == args.category))
         if category is not None:
             await service.assign_categories(
                 session,
@@ -94,16 +90,12 @@ async def run(args: argparse.Namespace) -> None:
                     price_display=price,
                 )
                 # products default to pending; approve so the public catalog lists them
-                await catalog_service.moderate_product(
-                    session, product_id=product.id, approve=True
-                )
+                await catalog_service.moderate_product(session, product_id=product.id, approve=True)
                 product_ids.append(product.id)
 
         # capture payloads BEFORE commit (ORM attrs expire on commit)
         payload = await business_event_payload(session, business.id)
-        product_payloads = [
-            await product_event_payload(session, pid) for pid in product_ids
-        ]
+        product_payloads = [await product_event_payload(session, pid) for pid in product_ids]
         slug = business.slug
         await session.commit()
 
@@ -113,11 +105,13 @@ async def run(args: argparse.Namespace) -> None:
         for pp in product_payloads:
             await publish("directory", "product.created", pp)
     except Exception as exc:  # noqa: BLE001 - dev helper, never fatal
-        print(f"(search publish failed, rows still created: {exc})")
+        print(f"(search publish failed, rows still created: {exc})")  # noqa: T201 - CLI output
 
-    print(f"created business: {slug}  (+{len(product_payloads)} products)")
-    print(f"public page:      http://localhost:3002/directory/businesses/{slug}")
-    print(f"products API:     curl http://localhost:8000/catalog/businesses/{slug}/products")
+    print(f"created business: {slug}  (+{len(product_payloads)} products)")  # noqa: T201 - CLI output
+    print(f"public page:      http://localhost:3002/directory/businesses/{slug}")  # noqa: T201
+    print(  # noqa: T201 - CLI output
+        f"products API:     curl http://localhost:8000/catalog/businesses/{slug}/products"
+    )
 
 
 def main() -> None:

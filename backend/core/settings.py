@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     dunning_grace_days: int = 7
     billing_worker_enabled: bool = True
 
+    # D21 ads
+    ads_worker_enabled: bool = True
+    ads_beacon_secret: str = "dev-ads-beacon-secret"  # dev-only default
+    ads_freq_cap_per_day: int = 3
+
 
 @lru_cache
 def get_settings() -> Settings:

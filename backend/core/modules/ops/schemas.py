@@ -1,0 +1,60 @@
+"""Ops Console wire schemas (D21)."""
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+from shared.moderation import ModItem
+
+
+class ModItemOut(BaseModel):
+    type_key: str
+    id: uuid.UUID
+    created_at: datetime
+    title: str
+    summary: str
+    payload: dict[str, object]
+
+
+def item_out(item: ModItem) -> ModItemOut:
+    return ModItemOut(
+        type_key=item.type_key,
+        id=item.id,
+        created_at=item.created_at,
+        title=item.title,
+        summary=item.summary,
+        payload=item.payload,
+    )
+
+
+class ModQueuePageOut(BaseModel):
+    items: list[ModItemOut]
+    next_cursor: str | None = None
+
+
+class ModerationSummaryOut(BaseModel):
+    counts: dict[str, int]
+
+
+class DecisionIn(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ModRejectIn(BaseModel):
+    note: str = Field(min_length=1, max_length=500)
+
+
+class FlagOut(BaseModel):
+    key: str
+    enabled: bool
+    description: str
+    updated_at: datetime
+
+
+class FlagsOut(BaseModel):
+    items: list[FlagOut]
+
+
+class FlagToggleIn(BaseModel):
+    enabled: bool

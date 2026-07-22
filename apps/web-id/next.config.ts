@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source (no build step), so Next must
   // compile them alongside the app.
   transpilePackages: ["@agri/ui", "@agri/types", "@agri/auth-client", "@agri/observability"],
+  // @agri/ui is a barrel of "use client" components; without this, every
+  // component in the barrel lands in each app's client graph regardless of
+  // use (D21 lighthouse regression: web-milk shipped SponsoredAd it never
+  // renders). Rewrites barrel imports to direct module imports at build time.
+  experimental: {
+    optimizePackageImports: ["@agri/ui"],
+  },
   eslint: {
     // Linting is its own turbo task (`pnpm lint`, --max-warnings 0). Running
     // it again inside `next build` would double the work and hide which task

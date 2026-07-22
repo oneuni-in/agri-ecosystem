@@ -8,6 +8,8 @@ import httpx
 from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
+from modules.ads.admin_router import admin_router as ads_admin_router
+from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
@@ -21,6 +23,7 @@ from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.leads_router import router as leads_engine_router
 from modules.directory.lookups import business_ref, owned_business_refs
+from modules.directory.moderation_sources import register_directory_moderation_sources
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
@@ -39,6 +42,7 @@ from modules.leads.router import router as leads_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
 from modules.notify.worker import run_worker
+from modules.ops.admin_router import admin_router as ops_admin_router
 from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
@@ -59,6 +63,7 @@ from shared.telemetry import configure_logging, get_logger
 logger = get_logger(__name__)
 
 MODULE_ROUTERS = [
+    ads_admin_router,
     ads_router,
     ai_router,
     billing_router,
@@ -81,6 +86,7 @@ MODULE_ROUTERS = [
     leads_engine_router,
     market_data_router,
     notify_router,
+    ops_admin_router,
     reviews_admin_router,
     reviews_router,
     search_router,
@@ -175,6 +181,10 @@ def create_app() -> FastAPI:
     register_business_resolver(business_ref)
     register_owned_businesses_resolver(owned_business_refs)
     register_contact_resolver(notify_contact)
+    # D21: unified moderation queue - owning modules register their sources
+    # (same dependency-inversion pattern as the resolvers above).
+    register_directory_moderation_sources()
+    register_ads_moderation_sources()
     app = FastAPI(title="agri core", lifespan=lifespan)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before

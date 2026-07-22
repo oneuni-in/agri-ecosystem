@@ -8,6 +8,7 @@ import { LeadForm } from "./lead-form";
 import { RevealContact } from "./reveal-contact";
 import { ReviewForm } from "./review-form";
 import { ReviewsSection, type RatingSummary, type ReviewItem } from "./reviews-section";
+import { SponsoredSlot } from "./sponsored-slot";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const SITE = "https://agri.in";
@@ -211,6 +212,10 @@ export default async function BusinessPage({
             {categories.map((category) => category.name.en ?? category.slug).join(" · ")}
           </p>
         ) : null}
+
+        <div className="mt-6">
+          <SponsoredSlot />
+        </div>
 
         <div className="mt-6">
           <LeadForm

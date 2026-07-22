@@ -91,6 +91,7 @@ modules = [
     "modules.search",
     "modules.billing",
     "modules.ai",
+    "modules.ops",
 ]
 
 [[tool.importlinter.contracts]]
@@ -113,6 +114,7 @@ source_modules = [
     "modules.search",
     "modules.billing",
     "modules.ai",
+    "modules.ops",
     "shared",
 ]
 forbidden_modules = ["modules.notify.drivers"]

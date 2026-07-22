@@ -124,6 +124,17 @@ MODULES: dict[str, dict[str, str]] = {
         "extra_never": "- Never handle raw card data (Razorpay hosted flows only);\n"
         "  the `billing_enabled` flag is the master kill switch.",
     },
+    "ops": {
+        "purpose": "Ops Console backend: unified moderation queue fan-in\n"
+        "(shared/moderation registry) + feature-flag switches.",
+        "spec": "Sprint2 spec pack D21.",
+        "pii_note": "fans other modules' pending items into one queue",
+        "extra_never": "- Never decide or commit on a source's behalf - the\n"
+        "  registered ModerationSource owns its FOR UPDATE service and audit()\n"
+        "  call; this module only sequences commit -> best-effort publish.\n"
+        "- Never flip a flag outside the super_admin gate; a flag flip is a\n"
+        "  business-level act.",
+    },
     "ai": {
         "purpose": "AI features: content generation at scale, assistants.",
         "spec": "docs/Execution schedule v5.MD SS4.3 (SEO page factory copy).",

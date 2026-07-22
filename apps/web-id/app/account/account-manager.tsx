@@ -137,24 +137,17 @@ export function AccountManager({ initial }: { initial: ProfileData }) {
       <Card className="space-y-2 p-4">
         <p className="text-sm font-semibold text-ink">{t("location")}</p>
         <p className="text-sm text-sub">{t("pincodeHint")}</p>
-        {/* PincodeInput is a self-contained pinbox (mx-auto, own max-width, its
-            own inert "Find" button) - it isn't a plain <input>, so it doesn't
-            compose safely as a flex sibling next to another flex-1 Button.
-            Stacked instead of the brief's single flex row. */}
+        {/* The pinbox's own "Find" button resolves the pincode (district/state
+            come back from the server) — no separate save button needed. */}
         <PincodeInput
           aria-label={t("location")}
           findLabel={t("pincodeFind")}
           value={pincode}
           disabled={busy}
+          findDisabled={busy || pincode.length !== 6}
+          onFind={() => void apply({ pincode })}
           onChange={(event) => setPincode(event.target.value)}
         />
-        <Button
-          variant="brand"
-          disabled={busy || pincode.length !== 6}
-          onClick={() => void apply({ pincode })}
-        >
-          {t("save")}
-        </Button>
         {profile.district ? (
           <p className="text-sm text-sub">
             {profile.district}, {profile.state} {profile.pincode}

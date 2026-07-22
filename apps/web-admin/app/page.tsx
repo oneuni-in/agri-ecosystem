@@ -22,6 +22,11 @@ export default function Page() {
           Ops Console
         </Link>
       </p>
+      <p className="text-sm">
+        <Link href="/ads" className="text-brand underline">
+          Ads
+        </Link>
+      </p>
     </main>
   );
 }

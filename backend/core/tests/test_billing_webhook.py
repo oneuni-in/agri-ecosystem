@@ -140,14 +140,52 @@ async def test_charged_processes_and_replay_is_one_effect(
     assert sub.current_period_end == first_period_end  # one effect, not two
 
 
+async def test_replay_with_forged_event_id_cannot_reactivate(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A6b-1: the replay dedupe key must derive from the SIGNED body, not the
+    unsigned x-razorpay-event-id header. Razorpay signs only the body, so a
+    captured valid (body, signature) can be re-POSTed with a fresh event-id and
+    still pass signature verification. If dedupe keyed on the header, that replay
+    would re-run the state machine and reactivate a lapsed subscription with no
+    real payment. It must remain one effect."""
+    client, session = api
+    await _enable_billing(session)
+    sub = await _seed_sub(session)
+    raw, headers = _signed(_charged_body())
+
+    first = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert first.status_code == 200 and first.json()["status"] == "ok"
+
+    # the subscription later lapses to past_due (missed renewal / dunning)
+    await session.refresh(sub)
+    sub.status = "past_due"
+    sub.dunning_attempt = 2
+    await session.flush()
+
+    # attacker replays the SAME signed body with a fresh, forged event-id header
+    forged = dict(headers)
+    forged["x-razorpay-event-id"] = "evt_forged_by_attacker"
+    replay = await client.post("/billing/webhook/razorpay", content=raw, headers=forged)
+
+    assert replay.status_code == 200 and replay.json()["status"] == "duplicate"
+    assert await session.scalar(select(func.count(PaymentEvent.id))) == 1
+    await session.refresh(sub)
+    assert sub.status == "past_due"  # NOT reactivated without a real payment
+    assert sub.dunning_attempt == 2  # dunning counter not reset
+
+
 async def test_stored_payload_is_scrubbed(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     client, session = api
     await _enable_billing(session)
     await _seed_sub(session)
     raw, headers = _signed(_charged_body("evt_scrub"))
     await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    # dedupe key is the signed-body hash (A6b-1), not the unsigned header id
     event = await session.scalar(
-        select(PaymentEvent).where(PaymentEvent.provider_event_id == "evt_scrub")
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw).hexdigest()
+        )
     )
     assert event is not None and event.outcome == "processed"
     dumped = json.dumps(event.payload)
@@ -166,7 +204,9 @@ async def test_unknown_subscription_records_unmatched_200(
     response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
     assert response.status_code == 200
     event = await session.scalar(
-        select(PaymentEvent).where(PaymentEvent.provider_event_id == "evt_unmatched")
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw).hexdigest()
+        )
     )
     assert event is not None and event.outcome == "unmatched"
 

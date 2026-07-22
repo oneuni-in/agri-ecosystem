@@ -22,6 +22,13 @@ allowBuilds:
 # is a major jump for transitive users and the gate only fails on high.
 overrides:
   tmp: ">=0.2.6"
+  # fast-uri <=3.1.3 (GHSA-v2hh-gcrm-f6hx, host confusion via backslash
+  # authority) via ajv/schema-utils chains everywhere webpack appears;
+  # sharp <0.35.0 (GHSA-f88m-g3jw-g9cj, inherited libvips CVEs) via next's
+  # image optimizer - 0.35 is the patched line, sharp keeps its allowBuilds
+  # entry above so the native binary refetches on install.
+  fast-uri: ">=3.1.4 <4"
+  sharp: ">=0.35.0 <0.36"
   # replacement ranges stay within-major: an open ">=" floor lets pnpm pick
   # the newest major (minimatch@3 + brace-expansion@4 = "expand is not a
   # function" at eslint startup)

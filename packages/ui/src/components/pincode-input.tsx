@@ -6,6 +6,11 @@ export interface PincodeInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "inputMode" | "maxLength"> {
   findLabel: string;
   className?: string;
+  /** Click handler for the "Find" button. When omitted the button stays inert
+   * (legacy behaviour: some callers resolve via a separate submit button). */
+  onFind?: () => void;
+  /** Disable the "Find" button independently of the input. */
+  findDisabled?: boolean;
 }
 
 /**
@@ -13,7 +18,13 @@ export interface PincodeInputProps
  * White 16px container, 18px/700 numeric input with .15em tracking, solid
  * brand "Find" button (`.pinbox`).
  */
-export function PincodeInput({ findLabel, className, ...inputProps }: PincodeInputProps) {
+export function PincodeInput({
+  findLabel,
+  className,
+  onFind,
+  findDisabled,
+  ...inputProps
+}: PincodeInputProps) {
   return (
     <div
       className={cn(
@@ -31,7 +42,9 @@ export function PincodeInput({ findLabel, className, ...inputProps }: PincodeInp
       />
       <button
         type="button"
-        className="min-h-[44px] rounded-btn bg-brand px-[22px] text-[15px] font-extrabold text-white"
+        onClick={onFind}
+        disabled={findDisabled}
+        className="min-h-[44px] rounded-btn bg-brand px-[22px] text-[15px] font-extrabold text-white disabled:opacity-50"
       >
         {findLabel}
       </button>

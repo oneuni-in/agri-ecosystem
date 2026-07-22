@@ -26,7 +26,6 @@ import {
   parseLocCookie,
   serializeLocCookie,
 } from "../lib/location";
-import { Button } from "./button";
 import { Modal } from "./modal";
 import { GpsPill, LocationPill } from "./pills";
 import { PincodeInput } from "./pincode-input";
@@ -147,23 +146,27 @@ export function LiveLocationPill({
     [fetchImpl, isAuthed, onChanged, profileEndpoint],
   );
 
+  const resolvePincode = useCallback(() => {
+    const pincode = pincodeDraft.trim();
+    if (pincode.length !== 6) return;
+    fetchLocation(contextEndpoint, `?pincode=${encodeURIComponent(pincode)}`, fetchImpl).then(
+      (next) => {
+        // A failed REQUEST (network/non-2xx/malformed body) must never
+        // persist the user's unvalidated typed digits — the server is
+        // the validator. An unknown pincode is still a real answer
+        // (source "none") and IS applied; only `null` here is refused.
+        if (!next) return;
+        apply(next);
+      },
+    );
+  }, [apply, contextEndpoint, fetchImpl, pincodeDraft]);
+
   const submitPincode = useCallback(
     (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const pincode = pincodeDraft.trim();
-      if (pincode.length !== 6) return;
-      fetchLocation(contextEndpoint, `?pincode=${encodeURIComponent(pincode)}`, fetchImpl).then(
-        (next) => {
-          // A failed REQUEST (network/non-2xx/malformed body) must never
-          // persist the user's unvalidated typed digits — the server is
-          // the validator. An unknown pincode is still a real answer
-          // (source "none") and IS applied; only `null` here is refused.
-          if (!next) return;
-          apply(next);
-        },
-      );
+      resolvePincode();
     },
-    [apply, contextEndpoint, fetchImpl, pincodeDraft],
+    [resolvePincode],
   );
 
   const useGps = useCallback(() => {
@@ -202,11 +205,10 @@ export function LiveLocationPill({
             aria-label={strings.pincodeLabel}
             placeholder={strings.pincodeLabel}
             value={pincodeDraft}
+            findDisabled={pincodeDraft.trim().length !== 6}
+            onFind={resolvePincode}
             onChange={(e) => setPincodeDraft(e.target.value.replace(/\D/g, ""))}
           />
-          <Button type="submit" variant="brand" disabled={pincodeDraft.trim().length !== 6}>
-            {strings.apply}
-          </Button>
         </form>
         <GpsPill type="button" className="w-full justify-center" onClick={useGps}>
           {strings.gps}

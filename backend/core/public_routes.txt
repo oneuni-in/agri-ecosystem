@@ -19,6 +19,7 @@
 /catalog/businesses/{slug}/products
 /catalog/verticals/{vertical}/products
 /leads/inquiries
+/leads/pincode-interest
 /reviews
 /reviews/summary
 # /identity/location: anonymous location context (D19 Task 7) - profile ->

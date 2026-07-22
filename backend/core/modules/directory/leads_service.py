@@ -19,9 +19,10 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.covers import covers
-from modules.directory.leads_models import Inquiry
+from modules.directory.leads_models import Inquiry, PincodeInterest
 from modules.directory.models import Business
 from modules.directory.service import BusinessNotFoundError, get_owned_business
+from shared.geo.service import district_for_pincode
 
 
 class LeadsError(Exception):
@@ -130,3 +131,27 @@ async def inbox_stats(session: AsyncSession, business_id: uuid.UUID) -> tuple[in
     m = row._mapping
     avg = m["avg_response_seconds"]
     return int(m["total"]), int(m["responded"]), int(avg) if avg is not None else None
+
+
+async def record_pincode_interest(
+    session: AsyncSession,
+    *,
+    pincode: str,
+    contact: str | None,
+    milk_type: str | None,
+    from_user_id: uuid.UUID | None,
+) -> PincodeInterest:
+    """Persist a warm-empty-state demand row. Derives district from geo when
+    the pincode is TN (non-TN → district stays None). No coverage routing —
+    this row exists BECAUSE there is no covering vendor."""
+    district = await district_for_pincode(session, pincode)
+    row = PincodeInterest(
+        pincode=pincode,
+        district=district.name if district is not None else None,
+        contact=contact,
+        milk_type=milk_type,
+        from_user_id=from_user_id,
+    )
+    session.add(row)
+    await session.flush()
+    return row

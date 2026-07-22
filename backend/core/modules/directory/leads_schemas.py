@@ -96,3 +96,16 @@ class ContactRevealOut(BaseModel):
     branch_id: uuid.UUID
     phone: str | None
     whatsapp: str | None
+
+
+class PincodeInterestCreateIn(BaseModel):
+    pincode: str = Field(pattern=PINCODE_PATTERN)
+    contact: str | None = Field(default=None, max_length=120)
+    milk_type: str | None = Field(default=None, max_length=40)
+
+
+class PincodeInterestOut(BaseModel):
+    id: uuid.UUID
+    pincode: str
+    district: str | None
+    created_at: datetime

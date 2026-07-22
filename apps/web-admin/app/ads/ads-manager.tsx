@@ -25,6 +25,7 @@ import { ApiError, getJson, postJson } from "@/lib/api";
 
 const CAMPAIGN_STATUSES = ["draft", "active", "paused", "archived"] as const;
 const SLOT_KEYS = ["directory_browse"] as const;
+const PINCODE_RE = /^\d{6}$/;
 
 type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 type PlacementStatus = "active" | "paused";
@@ -104,6 +105,10 @@ function CreateCampaignForm({ onCreated }: { onCreated: (campaign: Campaign) => 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!businessId.trim() || !name.trim() || !flightStart || !flightEnd) return;
+    if (flightStart >= flightEnd) {
+      toast({ title: "Flight start must be before flight end" });
+      return;
+    }
     setSubmitting(true);
     try {
       const body = await postJson("/ads/campaigns", {
@@ -559,6 +564,11 @@ function CreatePlacementForm({
       .split(",")
       .map((pincode) => pincode.trim())
       .filter((pincode) => pincode.length > 0);
+    const badPincodes = pincodeList.filter((pincode) => !PINCODE_RE.test(pincode));
+    if (badPincodes.length > 0) {
+      toast({ title: `Pincodes must be 6 digits — invalid: ${badPincodes.join(", ")}` });
+      return;
+    }
     if (pincodeList.length > 0) geoTarget.pincodes = pincodeList;
 
     setSubmitting(true);

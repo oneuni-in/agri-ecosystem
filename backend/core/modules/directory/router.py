@@ -22,7 +22,7 @@ from modules.directory import covers as covers_module
 from modules.directory import search_sync, service
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
-from modules.directory.models import Branch, Business, Category
+from modules.directory.models import Branch, Business, BusinessCoverage, Category
 from modules.directory.reveal import (
     RevealCapExceededError,
     RevealUnavailableError,
@@ -366,10 +366,18 @@ async def get_business_detail(slug: str, session: SessionDep) -> BusinessDetailO
     if result is None:
         raise HTTPException(status_code=404, detail="Business not found")
     business, branches, categories = result
+    pincodes = (
+        await session.scalars(
+            select(BusinessCoverage.pincode)
+            .where(BusinessCoverage.business_id == business.id)
+            .order_by(BusinessCoverage.pincode)
+        )
+    ).all()
     return BusinessDetailOut(
         business=_business_out(business),
         branches=[_public_branch_out(b) for b in branches],
         categories=[_category_out(c) for c in categories],
+        coverage_pincodes=list(pincodes),
     )
 
 

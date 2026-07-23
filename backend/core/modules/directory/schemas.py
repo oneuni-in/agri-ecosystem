@@ -135,6 +135,7 @@ class BusinessDetailOut(BaseModel):
     business: BusinessOut
     branches: list[PublicBranchOut]
     categories: list[CategoryOut]
+    coverage_pincodes: list[str]
 
 
 class CoversItemOut(BaseModel):

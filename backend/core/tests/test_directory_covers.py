@@ -144,3 +144,50 @@ async def test_tampered_cursor_rejected(db_session: AsyncSession, tn_geo_sample:
 def test_cursor_roundtrip() -> None:
     last_id = uuid.uuid4()
     assert decode_covers_cursor(encode_covers_cursor(12345, last_id)) == (12345, last_id)
+
+
+async def test_covers_returns_nearest_branch_coords(
+    db_session: AsyncSession, tn_geo_sample: None
+) -> None:
+    await _covered_business(db_session, "Near", branch_at=(10.9232, 76.9686))
+    await _covered_business(db_session, "Branchless", primary="600001")  # centroid fallback
+    page = await covers(db_session, pincode="641001")
+    near, branchless = page.items
+    assert near.name == "Near"
+    assert near.lat is not None and near.lng is not None
+    assert float(near.lat) == pytest.approx(10.9232, abs=1e-4)
+    assert float(near.lng) == pytest.approx(76.9686, abs=1e-4)
+    # centroid-fallback businesses are list-only: distance yes, coords no
+    assert branchless.distance_m > 300_000
+    assert branchless.lat is None and branchless.lng is None
+
+
+async def test_covers_picks_coords_of_nearest_branch(
+    db_session: AsyncSession, tn_geo_sample: None
+) -> None:
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="TwoBranch",
+        type_="vendor",
+        primary_pincode="641001",
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    for lat in ("11.2832", "10.9232"):  # far (~40km) first, near (~0km) second
+        await service.add_branch(
+            db_session,
+            owner_user_id=owner,
+            business_id=business.id,
+            address="1 Main Rd",
+            state="Tamil Nadu",
+            district="Coimbatore",
+            pincode="641001",
+            lat=Decimal(lat),
+            lng=Decimal("76.9686"),
+        )
+    page = await covers(db_session, pincode="641001")
+    assert page.items[0].name == "TwoBranch"
+    assert float(page.items[0].lat) == pytest.approx(10.9232, abs=1e-4)  # type: ignore[arg-type]

@@ -17,6 +17,7 @@ enforced explicitly on both businesses and branches.
 import base64
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +38,8 @@ class CoversItem:
     subscription_tier: str
     primary_pincode: str
     distance_m: int
+    lat: Decimal | None
+    lng: Decimal | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +81,7 @@ WITH q AS (
     FROM geo.pincodes WHERE pincode = :pincode
 )
 SELECT b.id, b.name, b.slug, b.type, b.verification_status,
-       b.subscription_tier, b.primary_pincode, d.distance_m
+       b.subscription_tier, b.primary_pincode, d.distance_m, nb.lat, nb.lng
 FROM directory.businesses b
 JOIN directory.business_coverage c
   ON c.business_id = b.id AND c.pincode = :pincode
@@ -94,6 +97,15 @@ CROSS JOIN LATERAL (
         {UNLOCATABLE_M}
     )) AS BIGINT) AS distance_m
 ) d
+LEFT JOIN LATERAL (
+    SELECT br.lat, br.lng
+    FROM directory.branches br
+    WHERE br.business_id = b.id
+      AND br.lat IS NOT NULL AND br.lng IS NOT NULL
+      AND br.deleted_at IS NULL
+    ORDER BY {_BRANCH_DISTANCE}
+    LIMIT 1
+) nb ON TRUE
 WHERE b.status = 'active' AND b.deleted_at IS NULL
 """
 
@@ -144,6 +156,8 @@ async def covers(
             subscription_tier=m["subscription_tier"],
             primary_pincode=m["primary_pincode"],
             distance_m=int(m["distance_m"]),
+            lat=m["lat"],
+            lng=m["lng"],
         )
         for m in (row._mapping for row in rows[:limit])
     ]

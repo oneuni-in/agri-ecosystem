@@ -146,6 +146,8 @@ class CoversItemOut(BaseModel):
     subscription_tier: str
     primary_pincode: str
     distance_m: int
+    lat: Decimal | None
+    lng: Decimal | None
 
 
 class CoversOut(BaseModel):

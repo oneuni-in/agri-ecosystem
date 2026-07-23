@@ -80,8 +80,8 @@ function businessJsonLd(
       ? {
           geo: {
             "@type": "GeoCoordinates",
-            latitude: firstBranch.lat,
-            longitude: firstBranch.lng,
+            latitude: Number(firstBranch.lat),
+            longitude: Number(firstBranch.lng),
           },
         }
       : {}),

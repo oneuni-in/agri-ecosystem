@@ -9,8 +9,9 @@ export interface PublicBranch {
   state: string;
   district: string;
   pincode: string;
-  lat: number | null;
-  lng: number | null;
+  // Backend serializes Decimal as JSON string on the wire
+  lat: string | null;
+  lng: string | null;
   hours: Record<string, unknown>;
 }
 

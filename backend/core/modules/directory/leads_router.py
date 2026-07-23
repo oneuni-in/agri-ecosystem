@@ -25,6 +25,8 @@ from modules.directory.leads_schemas import (
     MilkSubscriptionPayloadIn,
     MyInquiryOut,
     MyInquiryPageOut,
+    PincodeInterestCreateIn,
+    PincodeInterestOut,
     ResponseCreateIn,
     ResponseOut,
 )
@@ -267,3 +269,31 @@ async def my_inquiries(
         ],
         next_cursor=page.next_cursor,
     )
+
+
+@router.post(
+    "/pincode-interest",
+    public=True,
+    status_code=201,
+    dependencies=[Depends(optional_auth)],
+)
+async def create_pincode_interest(
+    request: Request, body: PincodeInterestCreateIn, session: SessionDep
+) -> PincodeInterestOut:
+    principal = getattr(request.state, "principal", None)
+    row = await leads_service.record_pincode_interest(
+        session,
+        pincode=body.pincode,
+        contact=body.contact,
+        milk_type=body.milk_type,
+        from_user_id=principal.user_id if principal is not None else None,
+    )
+    out = PincodeInterestOut(
+        id=row.id, pincode=row.pincode, district=row.district, created_at=row.created_at
+    )
+    await session.commit()  # commit BEFORE announcing (repo-wide ordering rule)
+    await _publish_best_effort(
+        "pincode_interest.created",
+        {"pincode": row.pincode, "district": row.district, "milk_type": row.milk_type},
+    )
+    return out

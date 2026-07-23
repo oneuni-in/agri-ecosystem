@@ -74,3 +74,24 @@ class ContactReveal(UUIDv7PKMixin, TimestampMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
     business_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
     branch_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
+
+
+class PincodeInterest(UUIDv7PKMixin, TimestampMixin, Base):
+    """Warm empty-state demand capture (D23). Unlike Inquiry this has NO
+    business_id — it exists precisely when no vendor covers the pincode
+    (tn_no_vendors) or the pincode is non-TN (out_of_area). Feeds seeding
+    priority; never routed to a vendor inbox."""
+
+    __tablename__ = "pincode_interest"
+    __table_args__ = (
+        Index("ix_leads_pincode_interest_pincode_id", "pincode", "id"),
+        {"schema": "leads"},
+    )
+
+    pincode: Mapped[str] = mapped_column(Text, nullable=False)
+    district: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact: Mapped[str | None] = mapped_column(Text, nullable=True)
+    from_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+    milk_type: Mapped[str | None] = mapped_column(Text, nullable=True)

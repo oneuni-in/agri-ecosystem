@@ -9,11 +9,12 @@ import uuid
 from typing import Annotated
 
 import uuid6
-from fastapi import Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, File, HTTPException, Path, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import catalog_service, search_sync
+from modules.directory import milk_home as milk_home_module
 from modules.directory.catalog_models import Product, Vertical
 from modules.directory.catalog_schemas import (
     ProductCreateIn,
@@ -27,6 +28,7 @@ from modules.directory.catalog_schemas import (
     VerticalPageOut,
     media_url,
 )
+from modules.directory.milk_home_schemas import MilkHomeOut, milk_home_out
 from modules.directory.models import Business
 from modules.directory.service import BusinessNotFoundError
 from modules.directory.specs import SpecValidationError
@@ -346,3 +348,23 @@ async def list_vertical_products(
         items=[_public_product_out(p, businesses[p.business_id]) for p in page.items],
         next_cursor=page.next_cursor,
     )
+
+
+@router.get("/milk/home/{pincode}", public=True)
+async def milk_home(
+    pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
+    session: SessionDep,
+    type: str | None = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> MilkHomeOut:
+    """Pincode-first milk blend (D23): vendors + brands + schema-driven
+    filters + computed price banner, with a 3-way empty-state scope.
+    Public + keyset-only + rate-limited (pincode-enumeration defence)."""
+    try:
+        result = await milk_home_module.milk_home(
+            session, pincode=pincode, milk_type=type, cursor=cursor, limit=limit
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return milk_home_out(pincode, result)

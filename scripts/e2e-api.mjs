@@ -1,7 +1,9 @@
 /**
  * Playwright webServer command for the FastAPI side: run migrations, then
- * uvicorn with the E2E peek flag. Uses the venv python locally (Windows dev
- * box) and plain `python` on CI (the job pip-installs into the runner env).
+ * seed the deterministic D23 milk-home fixture (idempotent — safe on repeat
+ * runs / reuseExistingServer), then uvicorn with the E2E peek flag. Uses the
+ * venv python locally (Windows dev box) and plain `python` on CI (the job
+ * pip-installs into the runner env).
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -21,6 +23,34 @@ const migrate = spawnSync(python, ["-m", "alembic", "upgrade", "head"], {
   stdio: "inherit",
 });
 if (migrate.status !== 0) process.exit(migrate.status ?? 1);
+
+// geo.states/districts/pincodes ship empty from 0004_geo_v1 (see THREAT/NOTES
+// in that migration) — district_for_pincode() resolves nothing without this,
+// so every pincode would fall through to scope="out_of_area" regardless of
+// vendor coverage. Must run after migrate (needs the schema) and before the
+// milk seed (coverage/distance + district resolution both depend on geo).
+// Idempotent: shared/geo/loader.py upserts on natural keys (lgd_code /
+// pincode) via on_conflict_do_update, so re-running against an already-loaded
+// DB is safe.
+const geo = spawnSync(python, ["scripts/load_geo.py"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (geo.status !== 0) process.exit(geo.status ?? 1);
+
+// D23: deterministic milk vendor covering 641001 for the web-milk 'covered'
+// empty-state branch (e2e/milk-home.spec.ts). Must run after migrations
+// (needs the schema) and before the milk tests navigate; running it here —
+// before uvicorn even starts — is simpler than a separate webServer entry
+// with a bogus health URL, and this script already owns the migrate-then-run
+// sequencing for the API's boot. Idempotent (checks by business name).
+const seed = spawnSync(python, ["scripts/seed_e2e_milk.py"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (seed.status !== 0) process.exit(seed.status ?? 1);
 
 const server = spawn(
   python,

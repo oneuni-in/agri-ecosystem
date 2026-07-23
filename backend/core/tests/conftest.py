@@ -8,6 +8,7 @@ import asyncio
 import os
 import subprocess
 import sys
+import uuid
 from collections.abc import AsyncIterator, Iterator
 from decimal import Decimal
 
@@ -18,6 +19,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from modules.directory import catalog_service, service
+from modules.directory.models import Business
 from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
@@ -222,6 +225,105 @@ async def tn_geo_sample(db_session: AsyncSession) -> None:
             )
         )
     await db_session.flush()
+
+
+@pytest.fixture
+async def seed_milk_vendor(db_session: AsyncSession, tn_geo_sample: None) -> Business:
+    """A `vendor` business covering 641001 with two APPROVED, active milk
+    products (D23 milk-home tests need real listings, not mocks). Mirrors
+    scripts/make_business.py's create_business -> add_branch -> set_coverage
+    -> catalog_service.create_product -> moderate_product(approve=True)
+    sequence; owner_user_id is a bare UUID (directory.Business.owner_user_id
+    is never an FK into identity - same convention as test_directory_covers.py
+    and test_catalog_service.py)."""
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="Sri Balaji Dairy Farm",
+        type_="vendor",
+        primary_pincode="641001",
+    )
+    await service.add_branch(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        address="12 Gandhipuram Main Road, Coimbatore",
+        state="Tamil Nadu",
+        district="Coimbatore",
+        pincode="641001",
+        lat=Decimal("10.923220"),
+        lng=Decimal("76.968600"),
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    for name, specs, price in (
+        (
+            "Fresh Cow Milk",
+            {"milk_type": "cow", "fat_percent": 4.2, "pack_size": "500ml"},
+            "₹32/500ml",
+        ),
+        (
+            "Buffalo Milk",
+            {"milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"},
+            "₹68/1l",
+        ),
+    ):
+        product = await catalog_service.create_product(
+            db_session,
+            owner_user_id=owner,
+            business_id=business.id,
+            vertical_slug="milk",
+            name=name,
+            specs=specs,
+            price_display=price,
+        )
+        await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
+    return business
+
+
+@pytest.fixture
+async def seed_milk_vendor_unapproved(db_session: AsyncSession, tn_geo_sample: None) -> Business:
+    """A `vendor` business covering 641001 (so `covers()` returns it - the
+    `business_ids` list is non-empty) whose only milk product is left in the
+    default `pending` moderation state (never moderated). Exercises
+    milk_home()'s SECOND `tn_no_vendors` branch: covering businesses exist,
+    but none has a qualifying (approved+active) milk product - distinct from
+    the `seed_milk_vendor`-absent case where `covers()` itself is empty."""
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="Unmoderated Dairy Co",
+        type_="vendor",
+        primary_pincode="641001",
+    )
+    await service.add_branch(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        address="45 Trichy Road, Coimbatore",
+        state="Tamil Nadu",
+        district="Coimbatore",
+        pincode="641001",
+        lat=Decimal("10.923220"),
+        lng=Decimal("76.968600"),
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    await catalog_service.create_product(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        vertical_slug="milk",
+        name="Unapproved Cow Milk",
+        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        price_display="₹30/500ml",
+    )
+    # deliberately NOT moderated - stays at the default `pending` state
+    return business
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-# D24 — Vendor Profiles + Tracked Contact + Map (design)
+ # D24 — Vendor Profiles + Tracked Contact + Map (design)
 
 Date: 2026-07-23 · Branch: `feat/d24-vendor-profiles` · PR → dev: `feat(d24): vendor profiles`
 Source spec: `docs/Sprint/sprint3_D23-D32.md` (SPEC D24).

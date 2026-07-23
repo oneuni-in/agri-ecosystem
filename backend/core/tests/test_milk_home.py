@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -133,9 +134,11 @@ async def test_milk_home_covered_excludes_unapproved_product(
     db_session: AsyncSession, seed_milk_vendor: Business
 ) -> None:
     # Add a second, UNAPPROVED (pending) product to the same seeded business.
-    # If the moderation_status/status/deleted_at predicates were silently
-    # dropped from milk_home()'s product query, this product would leak into
-    # the card and/or skew the price bands.
+    # This proves only the `moderation_status == "approved"` predicate is
+    # load-bearing here - it says nothing about the `status == "active"` or
+    # `deleted_at IS NULL` predicates, which are covered separately by
+    # test_milk_home_excludes_archived_product and
+    # test_milk_home_excludes_soft_deleted_product below.
     assert seed_milk_vendor.owner_user_id is not None
     await catalog_service.create_product(
         db_session,
@@ -154,6 +157,72 @@ async def test_milk_home_covered_excludes_unapproved_product(
     assert result.scope == "covered"
     names = {p.name for card in result.vendors for p in card.products}
     assert "Unapproved A2 Milk" not in names
+    assert all(b.milk_type != "a2" for b in result.bands)
+
+
+@pytest.mark.asyncio
+async def test_milk_home_excludes_archived_product(
+    db_session: AsyncSession, seed_milk_vendor: Business
+) -> None:
+    # Add a third product, approved but with status="archived" (a real value
+    # of the product_status enum - see catalog_models.py). This is the only
+    # predicate in milk_home()'s product query that guards against archived
+    # listings, so this proves `Product.status == "active"` is load-bearing:
+    # dropping it from the query would leak this product into the card.
+    assert seed_milk_vendor.owner_user_id is not None
+    product = await catalog_service.create_product(
+        db_session,
+        owner_user_id=seed_milk_vendor.owner_user_id,
+        business_id=seed_milk_vendor.id,
+        vertical_slug="milk",
+        name="Archived A2 Milk",
+        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        price_display="₹999/1l",
+    )
+    await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
+    product.status = "archived"
+    await db_session.flush()
+
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    names = {p.name for card in result.vendors for p in card.products}
+    assert "Archived A2 Milk" not in names
+    assert all(b.milk_type != "a2" for b in result.bands)
+
+
+@pytest.mark.asyncio
+async def test_milk_home_excludes_soft_deleted_product(
+    db_session: AsyncSession, seed_milk_vendor: Business
+) -> None:
+    # Add a fourth product, approved and active, but with deleted_at set to a
+    # real (non-null) timestamp. Note: shared/db.py's global do_orm_execute
+    # listener already injects a `deleted_at IS NULL` loader criteria for
+    # every SoftDeleteMixin select, so this exclusion is enforced twice over -
+    # this test proves the *behavior*, not that milk_home()'s local
+    # `Product.deleted_at.is_(None)` predicate specifically is load-bearing
+    # (removing just that local predicate would not change this outcome).
+    assert seed_milk_vendor.owner_user_id is not None
+    product = await catalog_service.create_product(
+        db_session,
+        owner_user_id=seed_milk_vendor.owner_user_id,
+        business_id=seed_milk_vendor.id,
+        vertical_slug="milk",
+        name="Deleted A2 Milk",
+        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        price_display="₹999/1l",
+    )
+    await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
+    product.deleted_at = datetime.now(UTC)
+    await db_session.flush()
+
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    names = {p.name for card in result.vendors for p in card.products}
+    assert "Deleted A2 Milk" not in names
     assert all(b.milk_type != "a2" for b in result.bands)
 
 
@@ -209,7 +278,6 @@ async def test_milk_home_filters_match_schema(db_session: AsyncSession) -> None:
     result = await milk_home_mod.milk_home(
         db_session, pincode="641001", milk_type=None, cursor=None, limit=20
     )
-    from modules.directory import catalog_service
     from modules.directory.specs import parse_fields
 
     schema = await catalog_service.active_schema(db_session, "milk")

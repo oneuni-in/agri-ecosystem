@@ -13,6 +13,9 @@ import {
   type RatingSummary,
 } from "@/lib/business";
 
+import { LeadForm } from "./lead-form";
+import { RevealContact } from "./reveal-contact";
+import { ReviewForm } from "./review-form";
 import { ReviewsSection } from "./reviews-section";
 
 const SITE = "https://milk.in";
@@ -210,6 +213,7 @@ export default async function VendorProfilePage({
                       {branch.district}, {branch.state} {branch.pincode}
                     </p>
                     <BranchHours branch={branch} />
+                    <RevealContact branchId={branch.id} slug={business.slug} />
                   </Card>
                 </li>
               ))}
@@ -217,7 +221,19 @@ export default async function VendorProfilePage({
           </section>
         ) : null}
 
+        <div className="mt-6">
+          <LeadForm
+            businessId={business.id}
+            defaultPincode={business.primary_pincode}
+            milkVertical={business.type === "vendor"}
+          />
+        </div>
+
         <ReviewsSection summary={summary} items={reviews} />
+
+        <div className="mt-6">
+          <ReviewForm businessId={business.id} slug={business.slug} />
+        </div>
       </Wrap>
     </main>
   );

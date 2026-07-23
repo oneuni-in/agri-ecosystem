@@ -24,6 +24,21 @@ const migrate = spawnSync(python, ["-m", "alembic", "upgrade", "head"], {
 });
 if (migrate.status !== 0) process.exit(migrate.status ?? 1);
 
+// geo.states/districts/pincodes ship empty from 0004_geo_v1 (see THREAT/NOTES
+// in that migration) — district_for_pincode() resolves nothing without this,
+// so every pincode would fall through to scope="out_of_area" regardless of
+// vendor coverage. Must run after migrate (needs the schema) and before the
+// milk seed (coverage/distance + district resolution both depend on geo).
+// Idempotent: shared/geo/loader.py upserts on natural keys (lgd_code /
+// pincode) via on_conflict_do_update, so re-running against an already-loaded
+// DB is safe.
+const geo = spawnSync(python, ["scripts/load_geo.py"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (geo.status !== 0) process.exit(geo.status ?? 1);
+
 // D23: deterministic milk vendor covering 641001 for the web-milk 'covered'
 // empty-state branch (e2e/milk-home.spec.ts). Must run after migrations
 // (needs the schema) and before the milk tests navigate; running it here —

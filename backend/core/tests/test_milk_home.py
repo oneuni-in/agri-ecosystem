@@ -1,11 +1,14 @@
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.directory import catalog_service, service
 from modules.directory import milk_home as milk_home_mod
 from modules.directory.milk_home import PriceBand, ProductLike, compute_price_banner
+from modules.directory.models import Business
 
 
 @dataclass
@@ -93,6 +96,112 @@ async def test_milk_home_covered(db_session: AsyncSession, seed_milk_vendor: obj
     assert result.seller_count >= 1
     assert len(result.vendors) >= 1
     assert result.bands, "price banner computed from real listings"
+
+
+@pytest.mark.asyncio
+async def test_milk_home_tn_no_vendors_when_no_qualifying_product(
+    db_session: AsyncSession, seed_milk_vendor_unapproved: Business
+) -> None:
+    # seed_milk_vendor_unapproved: covers() returns the business (business_ids
+    # non-empty), but its only product is left `pending` (never moderated) -
+    # by_biz ends up empty. This is the SECOND tn_no_vendors branch, distinct
+    # from the covers()-empty case in test_milk_home_tn_no_vendors above.
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "tn_no_vendors"
+    assert result.district is not None
+    assert result.vendors == [] and result.brands == []
+
+
+@pytest.mark.asyncio
+async def test_milk_home_filter_zero_matches_keeps_covered_scope(
+    db_session: AsyncSession, seed_milk_vendor: object
+) -> None:
+    # seed_milk_vendor only stocks "cow" and "buffalo" milk_type products.
+    # "a2" is a valid schema option the vendor does NOT stock: filtering must
+    # drop the card, never flip the scope away from 'covered'.
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type="a2", cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    assert result.vendors == [] and result.brands == []
+
+
+@pytest.mark.asyncio
+async def test_milk_home_covered_excludes_unapproved_product(
+    db_session: AsyncSession, seed_milk_vendor: Business
+) -> None:
+    # Add a second, UNAPPROVED (pending) product to the same seeded business.
+    # If the moderation_status/status/deleted_at predicates were silently
+    # dropped from milk_home()'s product query, this product would leak into
+    # the card and/or skew the price bands.
+    assert seed_milk_vendor.owner_user_id is not None
+    await catalog_service.create_product(
+        db_session,
+        owner_user_id=seed_milk_vendor.owner_user_id,
+        business_id=seed_milk_vendor.id,
+        vertical_slug="milk",
+        name="Unapproved A2 Milk",
+        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        price_display="₹999/1l",
+    )
+    # deliberately not moderated - stays `pending`
+
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    names = {p.name for card in result.vendors for p in card.products}
+    assert "Unapproved A2 Milk" not in names
+    assert all(b.milk_type != "a2" for b in result.bands)
+
+
+@pytest.mark.asyncio
+async def test_milk_home_excludes_lab_businesses(
+    db_session: AsyncSession, tn_geo_sample: None
+) -> None:
+    # A `lab` business with an approved milk product must not appear in
+    # either vendors or brands - it is excluded from the milk home entirely.
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="Coimbatore Dairy Test Lab",
+        type_="lab",
+        primary_pincode="641001",
+    )
+    await service.add_branch(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        address="9 Race Course Road, Coimbatore",
+        state="Tamil Nadu",
+        district="Coimbatore",
+        pincode="641001",
+        lat=Decimal("10.923220"),
+        lng=Decimal("76.968600"),
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    product = await catalog_service.create_product(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        vertical_slug="milk",
+        name="Lab Test Milk Sample",
+        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        price_display="₹35/500ml",
+    )
+    await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
+
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    ids = {c.id for c in (*result.vendors, *result.brands)}
+    assert business.id not in ids
 
 
 @pytest.mark.asyncio

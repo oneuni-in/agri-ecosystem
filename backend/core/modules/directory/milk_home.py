@@ -23,6 +23,7 @@ from shared.geo.service import district_for_pincode
 
 _RUPEE_RE = re.compile(r"₹\s*(\d+)")
 _VENDOR_TYPES = {"vendor", "farm"}
+_BRAND_TYPES = {"shop"}
 Scope = Literal["covered", "tn_no_vendors", "out_of_area"]
 
 
@@ -197,6 +198,8 @@ async def milk_home(
     vendors: list[MilkCard] = []
     brands: list[MilkCard] = []
     for item in page.items:
+        if item.type not in _VENDOR_TYPES and item.type not in _BRAND_TYPES:
+            continue  # lab (or any future non-milk-home type) - excluded entirely
         biz_products = by_biz.get(item.id)
         if not biz_products:
             continue  # covering business with no milk products -> not a card

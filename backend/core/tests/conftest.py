@@ -284,6 +284,49 @@ async def seed_milk_vendor(db_session: AsyncSession, tn_geo_sample: None) -> Bus
 
 
 @pytest.fixture
+async def seed_milk_vendor_unapproved(db_session: AsyncSession, tn_geo_sample: None) -> Business:
+    """A `vendor` business covering 641001 (so `covers()` returns it - the
+    `business_ids` list is non-empty) whose only milk product is left in the
+    default `pending` moderation state (never moderated). Exercises
+    milk_home()'s SECOND `tn_no_vendors` branch: covering businesses exist,
+    but none has a qualifying (approved+active) milk product - distinct from
+    the `seed_milk_vendor`-absent case where `covers()` itself is empty."""
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="Unmoderated Dairy Co",
+        type_="vendor",
+        primary_pincode="641001",
+    )
+    await service.add_branch(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        address="45 Trichy Road, Coimbatore",
+        state="Tamil Nadu",
+        district="Coimbatore",
+        pincode="641001",
+        lat=Decimal("10.923220"),
+        lng=Decimal("76.968600"),
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    await catalog_service.create_product(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        vertical_slug="milk",
+        name="Unapproved Cow Milk",
+        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        price_display="₹30/500ml",
+    )
+    # deliberately NOT moderated - stays at the default `pending` state
+    return business
+
+
+@pytest.fixture
 def object_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
     """In-memory stand-in for MinIO wired through shared.storage.
 

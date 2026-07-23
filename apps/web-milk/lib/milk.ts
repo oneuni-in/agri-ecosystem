@@ -71,7 +71,8 @@ export function priceBannerText(banner: NonNullable<MilkHome["price_banner"]>): 
     const unit = b.unit ? `/${b.unit}` : "";
     return `${milkTypeMeta(b.milk_type).en} ${range}${unit}`;
   });
-  return `${parts.join(" · ")} · ${banner.seller_count} sellers found`;
+  const sellerText = `${banner.seller_count} sellers found`;
+  return parts.length > 0 ? `${parts.join(" · ")} · ${sellerText}` : sellerText;
 }
 
 /** Server-side public read — direct to backend (NOT the BFF proxy), with

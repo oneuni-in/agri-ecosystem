@@ -1,28 +1,47 @@
+"use client";
+
 import { Badge, buttonVariants, Card, cn } from "@agri/ui";
+import Link from "next/link";
 
 import { milkTypeMeta, type MilkCard } from "@/lib/milk";
 
 /**
  * ListingCard anatomy (design-system.md §2, `.card.lc`): badge row → title +
- * meta → optional price-tag → Call/WA action row. Call/WA lead every vendor
- * card, forms never do (UX law 4) — but D23 has no reveal/tracked-contact
- * flow yet (that's D24), so the actions render as plain, non-focusable
- * `<span>`s sharing the exact `.abtn` recipe (`buttonVariants`) rather than a
- * real `<button>`/`<a>` that would silently do nothing on tap.
+ * meta → optional price-tag → Call/WA action row. D24 wires the D23
+ * placeholder actions: Call/WhatsApp now link to the vendor profile, where
+ * the D18 capped reveal flow lives (numbers are NEVER in list payloads).
  *
- * `MilkCard` carries no rating, so the meta line is `distance away` only —
- * the `★ rating ·` segment from the mockup's generic ListingCard doesn't
- * apply here.
+ * Selection (map↔list sync, D24.D): `selected`/`onSelect` come from the
+ * VendorResults island. Container click selects; profile navigation happens
+ * only via the explicit action links so a selection tap never navigates.
  */
-export function VendorCard({ card }: { card: MilkCard }) {
+export function VendorCard({
+  card,
+  selected = false,
+  onSelect,
+}: {
+  card: MilkCard;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
+}) {
   const km = (card.distance_m / 1000).toFixed(1);
   const priceLine = card.products
     .filter((p) => p.price_display)
     .map((p) => `${p.price_display} ${milkTypeMeta(p.milk_type ?? "").en}`.trim())
     .join(" · ");
+  const profileHref = `/directory/businesses/${card.slug}`;
 
   return (
-    <Card className="flex flex-col gap-1.5 p-4">
+    <Card
+      data-testid={`vendor-card-${card.slug}`}
+      data-card-id={card.id}
+      data-selected={selected}
+      onClick={onSelect ? () => onSelect(card.id) : undefined}
+      className={cn(
+        "flex flex-col gap-1.5 p-4",
+        selected && "outline outline-[3px] outline-accent outline-offset-2",
+      )}
+    >
       {card.verification_status === "verified" ? (
         <Badge variant="verified">✔ Verified</Badge>
       ) : null}
@@ -30,10 +49,20 @@ export function VendorCard({ card }: { card: MilkCard }) {
       <p className="text-[12.5px] text-sub">{km} km away</p>
       {priceLine ? <p className="text-[15px] font-extrabold text-ink">{priceLine}</p> : null}
       <div className="mt-1 flex gap-2">
-        <span className={cn(buttonVariants({ variant: "call" }), "cursor-default")}>
+        <Link
+          href={profileHref}
+          className={cn(buttonVariants({ variant: "call" }), "no-underline")}
+          onClick={(event) => event.stopPropagation()}
+        >
           📞 Call
-        </span>
-        <span className={cn(buttonVariants({ variant: "wa" }), "cursor-default")}>WhatsApp</span>
+        </Link>
+        <Link
+          href={profileHref}
+          className={cn(buttonVariants({ variant: "wa" }), "no-underline")}
+          onClick={(event) => event.stopPropagation()}
+        >
+          WhatsApp
+        </Link>
       </div>
     </Card>
   );

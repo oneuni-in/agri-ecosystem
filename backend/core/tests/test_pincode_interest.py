@@ -38,7 +38,7 @@ async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
 
 
 @pytest.mark.asyncio
-async def test_pincode_interest_row_roundtrips(db_session):
+async def test_pincode_interest_row_roundtrips(db_session: AsyncSession) -> None:
     row = PincodeInterest(
         pincode="641001",
         district="Coimbatore",
@@ -59,7 +59,9 @@ async def test_pincode_interest_row_roundtrips(db_session):
 
 
 @pytest.mark.asyncio
-async def test_post_pincode_interest_anonymous_tn(client, tn_geo_sample):
+async def test_post_pincode_interest_anonymous_tn(
+    client: httpx.AsyncClient, tn_geo_sample: None
+) -> None:
     resp = await client.post(
         "/leads/pincode-interest",
         json={"pincode": "641001", "contact": "+919876500001", "milk_type": "cow"},
@@ -71,13 +73,15 @@ async def test_post_pincode_interest_anonymous_tn(client, tn_geo_sample):
 
 
 @pytest.mark.asyncio
-async def test_post_pincode_interest_non_tn_has_null_district(client, tn_geo_sample):
+async def test_post_pincode_interest_non_tn_has_null_district(
+    client: httpx.AsyncClient, tn_geo_sample: None
+) -> None:
     resp = await client.post("/leads/pincode-interest", json={"pincode": "110001"})
     assert resp.status_code == 201
     assert resp.json()["district"] is None  # non-TN: geo cannot resolve a district
 
 
 @pytest.mark.asyncio
-async def test_post_pincode_interest_bad_pincode_422(client):
+async def test_post_pincode_interest_bad_pincode_422(client: httpx.AsyncClient) -> None:
     resp = await client.post("/leads/pincode-interest", json={"pincode": "64100"})
     assert resp.status_code == 422

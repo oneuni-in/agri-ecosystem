@@ -352,3 +352,49 @@ async def test_http_milk_home_covered(client: httpx.AsyncClient, seed_milk_vendo
 async def test_http_milk_home_bad_pincode_422(client: httpx.AsyncClient) -> None:
     resp = await client.get("/catalog/milk/home/64100")
     assert resp.status_code == 422  # Path pattern ^\d{6}$
+
+
+@pytest.mark.asyncio
+async def test_milk_home_cards_carry_branch_coords(
+    db_session: AsyncSession, tn_geo_sample: None
+) -> None:
+    owner = uuid.uuid4()
+    business = await service.create_business(
+        db_session,
+        owner_user_id=owner,
+        name="Geo Dairy",
+        type_="vendor",
+        primary_pincode="641001",
+    )
+    await service.set_coverage(
+        db_session, owner_user_id=owner, business_id=business.id, pincodes=["641001"]
+    )
+    await service.add_branch(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        address="1 Main Rd",
+        state="Tamil Nadu",
+        district="Coimbatore",
+        pincode="641001",
+        lat=Decimal("10.923220"),
+        lng=Decimal("76.968600"),
+    )
+    product = await catalog_service.create_product(
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
+        vertical_slug="milk",
+        name="Cow Milk",
+        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "1l"},
+        price_display="₹55/L",
+    )
+    await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
+
+    result = await milk_home_mod.milk_home(
+        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+    )
+    assert result.scope == "covered"
+    card = result.vendors[0]
+    assert card.lat is not None and float(card.lat) == pytest.approx(10.92322, abs=1e-4)
+    assert card.lng is not None and float(card.lng) == pytest.approx(76.9686, abs=1e-4)

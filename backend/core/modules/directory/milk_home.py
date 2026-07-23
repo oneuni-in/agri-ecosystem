@@ -9,6 +9,7 @@ import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Literal, Protocol
 
 from sqlalchemy import select
@@ -84,6 +85,8 @@ class MilkCard:
     verification_status: str
     subscription_tier: str
     distance_m: int
+    lat: Decimal | None
+    lng: Decimal | None
     products: list[Product]
 
 
@@ -215,6 +218,8 @@ async def milk_home(
             verification_status=item.verification_status,
             subscription_tier=item.subscription_tier,
             distance_m=item.distance_m,
+            lat=item.lat,
+            lng=item.lng,
             products=biz_products,
         )
         (vendors if item.type in _VENDOR_TYPES else brands).append(card)

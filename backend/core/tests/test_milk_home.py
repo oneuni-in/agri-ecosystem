@@ -1,15 +1,45 @@
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import httpx
 import pytest
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from main import create_app
 from modules.directory import catalog_service, service
 from modules.directory import milk_home as milk_home_mod
 from modules.directory.milk_home import PriceBand, ProductLike, compute_price_banner
 from modules.directory.models import Business
+from shared.db import get_session
+from shared.security import register_principal_resolver
+
+
+class _Principal:
+    def __init__(self, user_id: uuid.UUID) -> None:
+        self.user_id = user_id
+        self.roles = ("user",)
+
+
+@pytest.fixture
+async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app()
+
+    async def _session_override() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    async def _resolver(request: Request, session: AsyncSession) -> object | None:
+        header = request.headers.get("x-test-user")
+        return _Principal(uuid.UUID(header)) if header else None
+
+    app.dependency_overrides[get_session] = _session_override
+    register_principal_resolver(_resolver)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="https://api.test") as http:
+        yield http
 
 
 @dataclass
@@ -285,3 +315,40 @@ async def test_milk_home_filters_match_schema(db_session: AsyncSession) -> None:
     options = next(f.options for f in parse_fields(schema.fields) if f.key == "milk_type")
     assert options is not None
     assert result.filters == ["all", *options]
+
+
+@pytest.mark.asyncio
+async def test_http_milk_home_out_of_area(client: httpx.AsyncClient) -> None:
+    resp = await client.get("/catalog/milk/home/110001")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scope"] == "out_of_area"
+    assert body["location"] is None
+    assert body["filters"][0] == "all"
+
+
+@pytest.mark.asyncio
+async def test_http_milk_home_tn_no_vendors(client: httpx.AsyncClient, tn_geo_sample: None) -> None:
+    resp = await client.get("/catalog/milk/home/600001")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scope"] == "tn_no_vendors"
+    assert body["location"]["district"] is not None
+    assert body["vendors"] == [] and body["brands"] == []
+
+
+@pytest.mark.asyncio
+async def test_http_milk_home_covered(client: httpx.AsyncClient, seed_milk_vendor: object) -> None:
+    resp = await client.get("/catalog/milk/home/641001")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scope"] == "covered"
+    assert len(body["vendors"]) >= 1
+    assert body["price_banner"]["seller_count"] >= 1
+    assert body["price_banner"]["lines"], "banner computed from listings"
+
+
+@pytest.mark.asyncio
+async def test_http_milk_home_bad_pincode_422(client: httpx.AsyncClient) -> None:
+    resp = await client.get("/catalog/milk/home/64100")
+    assert resp.status_code == 422  # Path pattern ^\d{6}$

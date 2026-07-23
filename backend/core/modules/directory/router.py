@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import covers as covers_module
-from modules.directory import search_sync, service
+from modules.directory import leads_service, search_sync, service
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, BusinessCoverage, Category
@@ -403,7 +403,21 @@ async def reveal_branch_contact(
     except RevealUnavailableError as exc:
         raise HTTPException(status_code=503, detail="reveal_unavailable") from exc
     session.add(ContactReveal(user_id=user_id, business_id=branch.business_id, branch_id=branch.id))
+    inquiry = await leads_service.record_reveal_inquiry(
+        session, user_id=user_id, business_id=branch.business_id, pincode=branch.pincode
+    )
+    event_payload: dict[str, object] | None = None
+    if inquiry is not None and business.owner_user_id is not None:
+        # capture BEFORE commit — ORM attributes expire at commit
+        event_payload = {
+            "user_id": str(business.owner_user_id),
+            "inquiry_id": str(inquiry.id),
+            "business_id": str(business.id),
+            "vars": {"business_name": business.name, "inquiry_type": "contact"},
+        }
     await session.commit()
+    if event_payload is not None:
+        await _publish_best_effort("lead.created", event_payload)
     # IDs only - never the numbers (DPDP; scrubber is last-line defence, not licence)
     logger.info(
         "contact.revealed",

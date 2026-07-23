@@ -14,6 +14,7 @@ business_coverage directly and does not require a geo.pincodes entry."""
 
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -155,3 +156,39 @@ async def record_pincode_interest(
     session.add(row)
     await session.flush()
     return row
+
+
+async def record_reveal_inquiry(
+    session: AsyncSession, *, user_id: uuid.UUID, business_id: uuid.UUID, pincode: str
+) -> Inquiry | None:
+    """Attribution lead for a contact reveal (D24.B): the reveal IS a contact
+    intent, so it lands in the vendor inbox / response stats like any lead.
+    Deduped per (user, business, UTC day) so repeat reveals don't spam the
+    inbox. Direct insert, NOT route_inquiry(): the business is already known
+    and its branch pincode may legitimately sit outside its coverage list.
+    The payload must never carry the revealed number (DPDP)."""
+    midnight = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    existing = await session.scalar(
+        select(Inquiry.id).where(
+            Inquiry.from_user_id == user_id,
+            Inquiry.business_id == business_id,
+            Inquiry.type == "contact",
+            Inquiry.payload["source"].astext == "contact_reveal",
+            Inquiry.created_at >= midnight,
+        )
+    )
+    if existing is not None:
+        return None
+    inquiry = Inquiry(
+        type="contact",
+        from_user_id=user_id,
+        business_id=business_id,
+        payload={
+            "message": "Contact number revealed via profile page.",
+            "source": "contact_reveal",
+        },
+        pincode=pincode,
+    )
+    session.add(inquiry)
+    await session.flush()
+    return inquiry

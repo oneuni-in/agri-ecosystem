@@ -1,11 +1,57 @@
-export default function Page() {
+import { PincodeHero } from "@agri/ui";
+import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
+import type { Metadata } from "next";
+
+import { PincodeHeroFinder } from "./pincode-hero";
+
+const SITE = "https://milk.in";
+// Static hero — no per-visitor data on this page, so it stays ISR-cacheable.
+export const revalidate = 3600;
+
+export const metadata: Metadata = buildMetadata({
+  title: "Milk near you — all options, one place | Milk.in",
+  description:
+    "Enter your pincode to find cow, buffalo, A2 and organic milk vendors, brands and farm-fresh delivery near you across Tamil Nadu.",
+  canonical: canonicalUrl(SITE, "/"),
+  siteName: "Milk.in",
+});
+
+/**
+ * WebSite + Organization — hand-built (no webSite/organization builder in
+ * `@agri/ui/seo`; follows the hand-built-JSON-LD precedent in
+ * `apps/web-agri/app/directory/businesses/[slug]/page.tsx` and
+ * `apps/web-milk/app/[pincode]/page.tsx`). `<` escaped so it can never close
+ * the script tag.
+ */
+function homeJsonLd(): string {
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "WebSite", name: "Milk.in", url: SITE },
+      { "@type": "Organization", name: "Milk.in", url: SITE },
+    ],
+  };
+  return JSON.stringify(graph).replaceAll("<", "\\u003c");
+}
+
+/**
+ * "Milk.in's homepage IS a pincode box" — the whole page above the
+ * (untouched) site header is the `.pin-hero` pattern: `PincodeHero` is the
+ * shared `@agri/ui` shell (title/subtitle/padding, already used for this
+ * exact pattern in `apps/web-agri/app/demo/page.tsx`); `PincodeHeroFinder`
+ * supplies the interactive pincode box + GPS pill.
+ */
+export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-2 p-8">
-      <h1 className="text-3xl font-extrabold">Milk.in</h1>
-      <p className="text-sm">
-        @agri/web-milk · port 3000 · data-theme=&quot;theme-milk&quot;
-      </p>
-      <p className="text-sm">D01-A scaffold. UI lands in D02.</p>
+    <main className="bg-header-gradient">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd() }} />
+      <PincodeHero
+        className="mx-auto max-w-[720px]"
+        title="Milk near you — all options, one place"
+        subtitle="உங்கள் பகுதியில் உள்ள எல்லா பால் · brands, local vendors, farm-fresh delivery"
+      >
+        <PincodeHeroFinder />
+      </PincodeHero>
     </main>
   );
 }

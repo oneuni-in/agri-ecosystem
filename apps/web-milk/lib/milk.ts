@@ -71,7 +71,7 @@ export function priceBannerText(banner: NonNullable<MilkHome["price_banner"]>): 
     const unit = b.unit ? `/${b.unit}` : "";
     return `${milkTypeMeta(b.milk_type).en} ${range}${unit}`;
   });
-  const sellerText = `${banner.seller_count} sellers found`;
+  const sellerText = `${banner.seller_count} ${banner.seller_count === 1 ? "seller" : "sellers"} found`;
   return parts.length > 0 ? `${parts.join(" · ")} · ${sellerText}` : sellerText;
 }
 

@@ -34,7 +34,7 @@ export function NotifyMe({ pincode, district }: { pincode: string; district?: st
 
   if (status === "done") {
     return (
-      <p className="text-[14px] font-bold text-ink" data-testid="notify-done">
+      <p className="text-[14px] font-bold text-ink" data-testid="notify-done" role="status">
         🎉 Thanks — we&apos;ll tell you the moment milk vendors reach {place}.
       </p>
     );

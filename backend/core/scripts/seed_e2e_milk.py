@@ -19,17 +19,20 @@ Run:
 """
 
 import asyncio
+from decimal import Decimal
 
 from sqlalchemy import select
 
 from modules.directory import catalog_service, service
-from modules.directory.models import Business
+from modules.directory.models import Branch, Business
 from modules.identity import service as identity_service
 from shared.db import get_sessionmaker
 
 _OWNER_PHONE = "+919000000023"
 _BUSINESS_NAME = "E2E Milk Vendor"
 _PINCODE = "641001"
+_BRANCH_LAT = Decimal("10.923220")  # 641001 centroid — deterministic map pin
+_BRANCH_LNG = Decimal("76.968600")
 _PRODUCTS = [
     ("Fresh Cow Milk", {"milk_type": "cow", "fat_percent": 4.2, "pack_size": "1l"}, "₹55/L"),
     ("Buffalo Milk", {"milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"}, "₹70/L"),
@@ -41,7 +44,14 @@ async def run() -> None:
     async with sessionmaker() as session:
         existing = await session.scalar(select(Business).where(Business.name == _BUSINESS_NAME))
         if existing is not None:
-            print("seed_e2e_milk: already present, nothing to do")  # noqa: T201
+            branch = await session.scalar(select(Branch).where(Branch.business_id == existing.id))
+            if branch is not None and branch.lat is None:
+                branch.lat = _BRANCH_LAT
+                branch.lng = _BRANCH_LNG
+                await session.commit()
+                print("seed_e2e_milk: backfilled branch coords")  # noqa: T201
+            else:
+                print("seed_e2e_milk: already present, nothing to do")  # noqa: T201
             return
 
         owner = await identity_service.get_by_phone(session, _OWNER_PHONE)
@@ -64,6 +74,8 @@ async def run() -> None:
             state="Tamil Nadu",
             district="Coimbatore",
             pincode=_PINCODE,
+            lat=_BRANCH_LAT,
+            lng=_BRANCH_LNG,
             # seed dev contact numbers so the D18 contact-reveal flow returns
             # something (real listings get these via the D16 claim flow)
             phone="+919876500023",

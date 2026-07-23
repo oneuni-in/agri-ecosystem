@@ -2,6 +2,7 @@
 
 import { Badge, buttonVariants, Card, cn } from "@agri/ui";
 import Link from "next/link";
+import type { KeyboardEvent } from "react";
 
 import { milkTypeMeta, type MilkCard } from "@/lib/milk";
 
@@ -31,12 +32,24 @@ export function VendorCard({
     .join(" · ");
   const profileHref = `/directory/businesses/${card.slug}`;
 
+  const handleKeyDown = onSelect
+    ? (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+          if (event.key === " ") event.preventDefault();
+          onSelect(card.id);
+        }
+      }
+    : undefined;
+
   return (
     <Card
       data-testid={`vendor-card-${card.slug}`}
       data-card-id={card.id}
       data-selected={selected}
       onClick={onSelect ? () => onSelect(card.id) : undefined}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onKeyDown={handleKeyDown}
       className={cn(
         "flex flex-col gap-1.5 p-4",
         selected && "outline outline-[3px] outline-accent outline-offset-2",

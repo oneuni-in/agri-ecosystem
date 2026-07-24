@@ -28,7 +28,7 @@ BUSINESS_PATH = "/directory/businesses/{slug}"
 # The only owner-editable business columns. slug (rename endpoint),
 # verification_status (D16 claim flow), subscription_tier (billing) and
 # owner_user_id are one-way doors from this API's point of view.
-MUTABLE_FIELDS = {"name", "type", "primary_pincode", "description"}
+MUTABLE_FIELDS = {"name", "type", "primary_pincode", "description", "delivery_windows"}
 
 
 class BusinessNotFoundError(Exception):

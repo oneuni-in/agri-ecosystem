@@ -5,12 +5,26 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 BusinessType = Literal["vendor", "shop", "lab", "farm"]
+Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 PINCODE_PATTERN = r"^\d{6}$"
 SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
+class DeliveryWindowIn(BaseModel):
+    days: list[Weekday] = Field(min_length=1, max_length=7)
+    open: str = Field(pattern=TIME_PATTERN)
+    close: str = Field(pattern=TIME_PATTERN)
+
+    @model_validator(mode="after")
+    def _open_before_close(self) -> "DeliveryWindowIn":
+        if self.open >= self.close:  # HH:MM strings compare lexicographically
+            raise ValueError("open must be before close (overnight windows unsupported)")
+        return self
 
 
 class BusinessCreateIn(BaseModel):
@@ -25,6 +39,7 @@ class BusinessPatchIn(BaseModel):
     type: BusinessType | None = None
     primary_pincode: str | None = Field(default=None, pattern=PINCODE_PATTERN)
     description: dict[str, str] | None = None
+    delivery_windows: list[DeliveryWindowIn] | None = Field(default=None, max_length=7)
 
 
 class RenameIn(BaseModel):
@@ -51,6 +66,7 @@ class BusinessOut(BaseModel):
     claimable: bool
     primary_pincode: str
     description: dict[str, str] | None
+    delivery_windows: list[dict[str, Any]] | None
     created_at: datetime
 
 

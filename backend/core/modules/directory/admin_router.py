@@ -101,6 +101,7 @@ def _admin_business_out(business: Business) -> BusinessOut:
         claimable=business.owner_user_id is None,
         primary_pincode=business.primary_pincode,
         description=business.description.to_dict() if business.description else None,
+        delivery_windows=business.delivery_windows,
         created_at=business.created_at,
     )
 

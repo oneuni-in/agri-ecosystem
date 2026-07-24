@@ -11,10 +11,11 @@ strings: this module carries business contact PII (phones, addresses).
 import logging
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
-from typing import Annotated
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Path, Query, Request
+from pydantic import BeforeValidator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,9 +30,12 @@ from modules.directory.reveal import (
     claim_reveal_slot,
 )
 from modules.directory.schemas import (
+    AnalyticsResponseOut,
+    AnalyticsSectionOut,
     BranchCreateIn,
     BranchOut,
     BranchPatchIn,
+    BusinessAnalyticsOut,
     BusinessCreateIn,
     BusinessDetailOut,
     BusinessOut,
@@ -45,6 +49,7 @@ from modules.directory.schemas import (
     CoverageOut,
     CoversItemOut,
     CoversOut,
+    PincodeCountOut,
     PublicBranchOut,
     RenameIn,
     TierSelectionIn,
@@ -63,6 +68,11 @@ router = SecureRouter(prefix="/directory", tags=["directory"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+# Literal[int, ...] alone rejects a string query value outright (pydantic
+# validates Literal by identity, no int coercion) - BeforeValidator(int)
+# coerces "30" -> 30 before the Literal membership check runs, so days=14
+# still 422s but days=30/7/90 (sent as query strings) do not.
+DaysQuery = Annotated[Literal[7, 30, 90], BeforeValidator(int)]
 
 EVENT_STREAM = "directory"
 
@@ -369,6 +379,39 @@ async def select_tier(
     )
     await session.commit()
     return out
+
+
+@router.get("/businesses/{business_id}/analytics")
+async def business_analytics(
+    request: Request,
+    business_id: uuid.UUID,
+    session: SessionDep,
+    days: DaysQuery = 30,
+) -> BusinessAnalyticsOut:
+    """Analytics-lite (D26.D): request-time SQL over inquiries + profile
+    views. Owner-only - the same 404 IDOR contract as every vendor write."""
+    try:
+        await service.get_owned_business(session, _principal_user_id(request), business_id)
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    since = datetime.now(UTC) - timedelta(days=days)
+    data = await analytics.business_analytics(session, business_id=business_id, since=since)
+    return BusinessAnalyticsOut(
+        days=days,
+        views=AnalyticsSectionOut(
+            total=data.views.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.views.by_pincode],
+        ),
+        reveals=AnalyticsSectionOut(
+            total=data.reveals.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.reveals.by_pincode],
+        ),
+        leads=AnalyticsSectionOut(
+            total=data.leads.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.leads.by_pincode],
+        ),
+        response=AnalyticsResponseOut(**asdict(data.response)),
+    )
 
 
 @router.get("/categories")

@@ -268,3 +268,27 @@ class ViewBeaconIn(BaseModel):
 
 class ViewBeaconOut(BaseModel):
     status: str
+
+
+class PincodeCountOut(BaseModel):
+    pincode: str
+    count: int
+
+
+class AnalyticsSectionOut(BaseModel):
+    total: int
+    by_pincode: list[PincodeCountOut]
+
+
+class AnalyticsResponseOut(BaseModel):
+    total: int
+    responded: int
+    avg_response_seconds: int | None
+
+
+class BusinessAnalyticsOut(BaseModel):
+    days: int
+    views: AnalyticsSectionOut
+    reveals: AnalyticsSectionOut
+    leads: AnalyticsSectionOut
+    response: AnalyticsResponseOut

@@ -1,0 +1,157 @@
+import { expect, request, test, type APIRequestContext, type Page } from "@playwright/test";
+
+import { fillOtp, peekOtp, randomPhone, resetOtpThrottle } from "./helpers";
+
+const MILK = "http://localhost:3000";
+const API = "http://127.0.0.1:8000";
+const VENDOR_PHONE = "+919000000023"; // seed_e2e_milk.py owner
+
+/** Cookie-authenticated API context for the seed vendor owner: the same
+ * OTP → /auth/login progressive flow the browser uses, driven over HTTP.
+ * (The vendor console UI is D26 — D25's vendor side is the D18 inbox API.) */
+async function vendorApi(): Promise<APIRequestContext> {
+  const bootstrap = await request.newContext({ baseURL: API });
+  await resetOtpThrottle(VENDOR_PHONE);
+  const requested = await bootstrap.post("/auth/otp/request", {
+    data: { phone: VENDOR_PHONE, purpose: "login" },
+  });
+  expect(requested.ok()).toBeTruthy();
+  const code = await peekOtp(VENDOR_PHONE);
+  const verify = await bootstrap.post("/auth/otp/verify", {
+    data: { phone: VENDOR_PHONE, purpose: "login", code },
+  });
+  expect(verify.ok()).toBeTruthy();
+  const { otp_proof } = (await verify.json()) as { otp_proof: string };
+  const login = await bootstrap.post("/auth/login", { data: { otp_proof } });
+  expect(login.ok()).toBeTruthy();
+  // agri_sid is Secure; the request-context jar won't replay it over plain
+  // http://127.0.0.1, so carry it as an explicit header instead.
+  const state = await bootstrap.storageState();
+  const sid = state.cookies.find((c) => c.name === "agri_sid")?.value;
+  expect(sid).toBeTruthy();
+  await bootstrap.dispose();
+  return request.newContext({
+    baseURL: API,
+    extraHTTPHeaders: { cookie: `agri_sid=${sid}` },
+  });
+}
+
+/** Same convention as e2e/vendor-profile.spec.ts: wait out hydration + the
+ * silent-SSO probe before interacting — otherwise the mount-time pincode
+ * prefill effect can overwrite a value typed too early. */
+async function waitForHeaderSettled(page: Page): Promise<void> {
+  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
+}
+
+/** Hydration-resilient variant of helpers.completeLoginUi: when this spec is
+ * the first to touch /login, dev-JIT can hydrate the island AFTER the first
+ * fill — the typed value then never reaches React state and Send OTP stays
+ * SSR-disabled. Refill until the button reacts (proof hydration attached). */
+async function completeLoginResilient(page: Page, phone: string): Promise<void> {
+  const input = page.getByLabel(/mobile number/i);
+  const send = page.getByRole("button", { name: /send otp/i });
+  await input.waitFor({ timeout: 30_000 });
+  await expect(async () => {
+    await input.fill("");
+    await input.fill(phone);
+    await expect(send).toBeEnabled({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  await send.click();
+  await expect(page.getByText(/6-digit code/i)).toBeVisible();
+  await fillOtp(page, await peekOtp(`+91${phone}`));
+  // fresh phones are always new users (progressive account): skip the handle
+  // step, pick a language — that finish()es into the authorize resume.
+  await page.getByRole("button", { name: /skip for now/i }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: /english/i }).click({ timeout: 20_000 });
+}
+
+async function seededBusinessId(ctx: APIRequestContext): Promise<string> {
+  const home = await ctx.get(`${API}/catalog/milk/home/641001`);
+  expect(home.ok()).toBeTruthy();
+  const data = (await home.json()) as { vendors: { slug: string }[] };
+  expect(data.vendors.length).toBeGreaterThan(0);
+  const biz = await ctx.get(`${API}/directory/businesses/${data.vendors[0].slug}`);
+  expect(biz.ok()).toBeTruthy();
+  return ((await biz.json()) as { business: { id: string } }).business.id;
+}
+
+test.describe("D25 post my need", () => {
+  test("post → routes to covering vendor → respond → user notified → fulfil", async ({
+    page,
+  }) => {
+    const phone = randomPhone();
+    await resetOtpThrottle(phone);
+
+    // 1. Guest fills the icon-first form at 641001, then goes through OTP —
+    //    the draft survives the login round-trip (progressive account, D07/D11).
+    await page.goto(`${MILK}/post-need`);
+    await waitForHeaderSettled(page);
+    await page.getByTestId("milk-type-cow").click();
+    await page.getByTestId("schedule-daily").click();
+    await page.getByTestId("time-morning").click();
+    await page.getByTestId("need-pincode").fill("641001");
+    await page.getByTestId("post-need-login").click(); // guest CTA → web-id OTP
+    await completeLoginResilient(page, phone);
+    await page.waitForURL(/post-need/, { timeout: 30_000 });
+    await expect(page.getByTestId("need-pincode")).toHaveValue("641001"); // draft restored
+    // dev-JIT can make the first authed submit slow (D24 lesson) — generous timeout
+    await page.getByTestId("post-need-submit").click();
+    const posted = page.getByTestId("need-posted");
+    await expect(posted).toBeVisible({ timeout: 30_000 });
+    await expect(posted).toContainText(/sent to [1-9]/i); // routed_count >= 1 (non-negotiable 1)
+
+    // 2. Vendor sees it in the D18 inbox and responds via API.
+    const vendor = await vendorApi();
+    const businessId = await seededBusinessId(vendor);
+    const inbox = await vendor.get(`/leads/inbox?business_id=${businessId}&status=new`);
+    expect(inbox.ok()).toBeTruthy();
+    const { items } = (await inbox.json()) as {
+      items: { id: string; type: string; pincode: string }[];
+    };
+    const routed = items.find((i) => i.type === "milk_subscription" && i.pincode === "641001");
+    expect(routed).toBeTruthy();
+    const respond = await vendor.post(`/leads/inquiries/${routed!.id}/responses`, {
+      data: { body: "We deliver daily at 6am. Fresh cow milk." },
+    });
+    expect(respond.status()).toBe(201);
+
+    // 3. User sees the response + per-vendor status in My needs.
+    await page.goto(`${MILK}/my-needs`);
+    await expect(page.getByTestId("need-response").first()).toContainText(/6am/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("need-card").first()).toContainText(/responded/i);
+
+    // 4. D12 notification landed (notify worker consumes lead.responded).
+    await expect(async () => {
+      await page.goto(`${MILK}/notifications`);
+      await expect(page.getByText(/replied to your enquiry/i).first()).toBeVisible({
+        timeout: 3_000,
+      });
+    }).toPass({ timeout: 30_000 }); // worker polls every ~2s
+
+    // 5. Accept the vendor — both-side status closes out (non-negotiable 2).
+    await page.goto(`${MILK}/my-needs`);
+    await page.getByTestId("accept-vendor").first().click();
+    await expect(page.getByTestId("need-status").first()).toContainText(/fulfilled/i, {
+      timeout: 20_000,
+    });
+
+    await vendor.dispose();
+  });
+
+  test("no covering vendor → warm fallback, nothing routed", async ({ page }) => {
+    const phone = randomPhone();
+    await resetOtpThrottle(phone);
+    await page.goto(`${MILK}/post-need`);
+    await waitForHeaderSettled(page);
+    await page.getByTestId("milk-type-cow").click();
+    await page.getByTestId("need-pincode").fill("600001"); // TN + geocoded, zero coverage
+    await page.getByTestId("post-need-login").click();
+    await completeLoginResilient(page, phone);
+    await page.waitForURL(/post-need/, { timeout: 30_000 });
+    await expect(page.getByTestId("need-pincode")).toHaveValue("600001"); // draft restored
+    await page.getByTestId("post-need-submit").click();
+    await expect(page.getByTestId("need-no-coverage")).toBeVisible({ timeout: 30_000 });
+  });
+});

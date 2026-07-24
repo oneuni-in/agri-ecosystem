@@ -5,10 +5,10 @@ business's primary_pincode; UNLOCATABLE_M sentinel when neither resolves so
 every covering business still appears (last). Distances are integer metres so
 the (distance_m, id) keyset comparison is exact.
 
-Keyset, not offset: the cursor encodes (distance_m, last_id) and the page
-predicate is a strict lexicographic step - deep-offset enumeration is
-structurally impossible (THREAT: covers() scraping; rate limit is the other
-half of that defence).
+Keyset, not offset: the cursor encodes (tier_rank, distance_m, last_id) and
+the page predicate is a strict lexicographic step - deep-offset enumeration
+is structurally impossible (THREAT: covers() scraping; rate limit is the
+other half of that defence).
 
 Raw SQL bypasses the ORM soft-delete filter, so deleted_at IS NULL is
 enforced explicitly on both businesses and branches.
@@ -48,16 +48,18 @@ class CoversPage:
     next_cursor: str | None
 
 
-def encode_covers_cursor(distance_m: int, last_id: uuid.UUID) -> str:
-    raw = f"{distance_m}:{last_id.hex}".encode()
+def encode_covers_cursor(tier_rank: int, distance_m: int, last_id: uuid.UUID) -> str:
+    raw = f"{tier_rank}:{distance_m}:{last_id.hex}".encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-def decode_covers_cursor(cursor: str) -> tuple[int, uuid.UUID]:
+def decode_covers_cursor(cursor: str) -> tuple[int, int, uuid.UUID]:
     try:
         padded = cursor + "=" * (-len(cursor) % 4)
-        distance, _, id_hex = base64.urlsafe_b64decode(padded).decode().partition(":")
-        return int(distance), uuid.UUID(hex=id_hex)
+        parts = base64.urlsafe_b64decode(padded).decode().split(":")
+        if len(parts) != 3:  # pre-D26 2-field cursors land here too
+            raise ValueError(f"expected 3 fields, got {len(parts)}")
+        return int(parts[0]), int(parts[1]), uuid.UUID(hex=parts[2])
     except (ValueError, TypeError) as exc:
         raise InvalidCursorError(f"malformed cursor: {cursor!r}") from exc
 
@@ -75,13 +77,16 @@ def _haversine_m(lat1: str, lon1: str, lat2: str, lon2: str) -> str:
 _BRANCH_DISTANCE = _haversine_m("q.lat", "q.lon", "br.lat", "br.lng")
 _PRIMARY_DISTANCE = _haversine_m("q.lat", "q.lon", "p.centroid_lat", "p.centroid_lon")
 
+_TIER_RANK = "CASE WHEN b.subscription_tier = 'premium' THEN 0 ELSE 1 END"
+
 _BASE_SQL = f"""
 WITH q AS (
     SELECT centroid_lat AS lat, centroid_lon AS lon
     FROM geo.pincodes WHERE pincode = :pincode
 )
 SELECT b.id, b.name, b.slug, b.type, b.verification_status,
-       b.subscription_tier, b.primary_pincode, d.distance_m, nb.lat, nb.lng
+       b.subscription_tier, b.primary_pincode, d.distance_m, nb.lat, nb.lng,
+       {_TIER_RANK} AS tier_rank
 FROM directory.businesses b
 JOIN directory.business_coverage c
   ON c.business_id = b.id AND c.pincode = :pincode
@@ -109,12 +114,14 @@ LEFT JOIN LATERAL (
 WHERE b.status = 'active' AND b.deleted_at IS NULL
 """
 
-_CURSOR_PREDICATE = """
-  AND (d.distance_m > :cursor_distance
-       OR (d.distance_m = :cursor_distance AND b.id > :cursor_id))
+_CURSOR_PREDICATE = f"""
+  AND ({_TIER_RANK} > :cursor_tier
+       OR ({_TIER_RANK} = :cursor_tier AND d.distance_m > :cursor_distance)
+       OR ({_TIER_RANK} = :cursor_tier AND d.distance_m = :cursor_distance
+           AND b.id > :cursor_id))
 """
 
-_ORDER_LIMIT = "\nORDER BY d.distance_m, b.id\nLIMIT :lim"
+_ORDER_LIMIT = "\nORDER BY tier_rank, d.distance_m, b.id\nLIMIT :lim"
 
 _CATEGORY_PREDICATE = """
   AND EXISTS (
@@ -142,9 +149,13 @@ async def covers(
         sql += _CATEGORY_PREDICATE
         params["category"] = category
     if cursor is not None:
-        cursor_distance, cursor_id = decode_covers_cursor(cursor)
+        cursor_tier, cursor_distance, cursor_id = decode_covers_cursor(cursor)
         sql += _CURSOR_PREDICATE
-        params |= {"cursor_distance": cursor_distance, "cursor_id": cursor_id}
+        params |= {
+            "cursor_tier": cursor_tier,
+            "cursor_distance": cursor_distance,
+            "cursor_id": cursor_id,
+        }
     rows = (await session.execute(text(sql + _ORDER_LIMIT), params)).all()
     items = [
         CoversItem(
@@ -162,6 +173,12 @@ async def covers(
         for m in (row._mapping for row in rows[:limit])
     ]
     next_cursor = (
-        encode_covers_cursor(items[-1].distance_m, items[-1].id) if len(rows) > limit else None
+        encode_covers_cursor(
+            0 if items[-1].subscription_tier == "premium" else 1,
+            items[-1].distance_m,
+            items[-1].id,
+        )
+        if len(rows) > limit
+        else None
     )
     return CoversPage(items=items, next_cursor=next_cursor)

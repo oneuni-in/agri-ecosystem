@@ -92,6 +92,12 @@ class Settings(BaseSettings):
     # numbers through a capped endpoint. The cap is the scraping defence.
     contact_reveal_daily_cap: int = 10
 
+    # Post-my-need (D25). The daily cap is the spam brake (fail-closed like
+    # the reveal cap); the fanout limit bounds vendor-inbox flooding per
+    # posted need.
+    need_post_daily_cap: int = 5
+    need_fanout_limit: int = 10
+
     # Location resolution (D19). GeoIP is optional, state-level, advisory-only
     # infrastructure: an empty path means the feature is off (no mmdb file is
     # committed to this repo; the owner provisions one on the VPS later).

@@ -7,7 +7,9 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException, Query, Request
+import uuid6
+from fastapi import Depends, HTTPException, Query, Request, UploadFile
+from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +27,7 @@ from modules.directory.needs_schemas import (
     NeedPayloadIn,
     NeedRouteOut,
 )
+from shared import media, storage
 from shared.db import get_session
 from shared.events import publish
 from shared.pagination import InvalidCursorError, paginate
@@ -229,3 +232,74 @@ async def close_need(request: Request, need_id: uuid.UUID, session: SessionDep) 
     return await _transition_need(
         request, session, need_id, status="closed", accepted_business_id=None
     )
+
+
+_MIME_BY_EXT = {ext: mime for mime, ext in media.AUDIO_EXTENSIONS.items()}
+
+
+def _voice_response(key: str, data: bytes) -> Response:
+    ext = key.rsplit(".", 1)[-1]
+    return Response(
+        content=data,
+        media_type=_MIME_BY_EXT.get(ext, "application/octet-stream"),
+        headers={"cache-control": "private, no-store"},
+    )
+
+
+@router.post("/needs/{need_id}/voice", status_code=201)
+async def upload_need_voice(
+    request: Request, need_id: uuid.UUID, session: SessionDep, file: UploadFile
+) -> dict[str, str]:
+    user_id = _principal_user_id(request)
+    try:
+        need = await needs_service.get_owned_need(session, user_id, need_id)
+    except needs_service.NeedNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Need not found") from exc
+    if need.status != "open":
+        raise HTTPException(status_code=409, detail="need_closed")
+    data = await file.read(media.MAX_AUDIO_BYTES + 1)
+    try:
+        blob, mime = media.validate_audio(data)
+    except media.MediaError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
+    key = f"needs/{uuid6.uuid7().hex}.{media.AUDIO_EXTENSIONS[mime]}"
+    try:
+        await storage.put_object(key, blob, mime)  # store BEFORE the DB points at it
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage_unavailable") from exc
+    need.voice_key = key
+    await session.commit()
+    return {"status": "stored"}
+
+
+@router.get("/needs/{need_id}/voice")
+async def get_need_voice(request: Request, need_id: uuid.UUID, session: SessionDep) -> Response:
+    user_id = _principal_user_id(request)
+    try:
+        need = await needs_service.get_owned_need(session, user_id, need_id)
+    except needs_service.NeedNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Need not found") from exc
+    if need.voice_key is None:
+        raise HTTPException(status_code=404, detail="no_voice_note")
+    data = await storage.get_object(need.voice_key)
+    return _voice_response(need.voice_key, data)
+
+
+@router.get("/inquiries/{inquiry_id}/voice")
+async def get_inquiry_voice(
+    request: Request, inquiry_id: uuid.UUID, session: SessionDep
+) -> Response:
+    """Routed vendor's playback path: ownership via the D18 inquiry IDOR
+    contract, then follow need_id to the blob."""
+    user_id = _principal_user_id(request)
+    try:
+        inquiry = await leads_service.get_owned_inquiry(session, user_id, inquiry_id)
+    except leads_service.InquiryNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Inquiry not found") from exc
+    if inquiry.need_id is None:
+        raise HTTPException(status_code=404, detail="no_voice_note")
+    need = await session.get(Need, inquiry.need_id)
+    if need is None or need.voice_key is None:
+        raise HTTPException(status_code=404, detail="no_voice_note")
+    data = await storage.get_object(need.voice_key)
+    return _voice_response(need.voice_key, data)

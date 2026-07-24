@@ -14,15 +14,18 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Path, Query, Request, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import claims, search_sync
-from modules.directory.models import Claim, Verification
+from modules.directory.models import Business, Claim, Verification
 from modules.directory.schemas import (
     AdminClaimOut,
     AdminClaimPageOut,
+    AdminTierIn,
     AdminVerificationOut,
     AdminVerificationPageOut,
+    BusinessOut,
     DecisionIn,
     RejectIn,
 )
@@ -83,6 +86,22 @@ def _admin_verification_out(verification: Verification, business_name: str) -> A
         doc_count=len(verification.doc_keys),
         created_at=verification.created_at,
         decided_at=verification.decided_at,
+    )
+
+
+def _admin_business_out(business: Business) -> BusinessOut:
+    return BusinessOut(
+        id=business.id,
+        name=business.name,
+        slug=business.slug,
+        type=business.type,
+        status=business.status,
+        verification_status=business.verification_status,
+        subscription_tier=business.subscription_tier,
+        claimable=business.owner_user_id is None,
+        primary_pincode=business.primary_pincode,
+        description=business.description.to_dict() if business.description else None,
+        created_at=business.created_at,
     )
 
 
@@ -358,6 +377,39 @@ async def reject_verification(
     out = _admin_verification_out(verification, business.name)
     await session.commit()
     await _publish_best_effort("directory.verification_rejected", payload)
+    await _publish_best_effort("business.updated", search_payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
+    return out
+
+
+@admin_router.post("/businesses/{business_id}/tier")
+async def set_business_tier(
+    request: Request, business_id: uuid.UUID, body: AdminTierIn, session: SessionDep
+) -> BusinessOut:
+    """THE subscription_tier write path (D26). Owner surfaces only record
+    intent; ops flips the real tier here (and billing will, at launch,
+    through the flag-flip runbook's sync)."""
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    business = await session.scalar(select(Business).where(Business.id == business_id))
+    if business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    business.subscription_tier = body.tier
+    await session.flush()
+    await audit(
+        session,
+        action="directory.tier_set",
+        actor_user_id=admin_id,
+        target_type="business",
+        target_id=str(business.id),
+        metadata={"tier": body.tier},
+        ip=request.client.host if request.client else None,
+    )
+    # tier is snapshot-visible (covers/search carry it): republish
+    search_payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
+    out = _admin_business_out(business)
+    await session.commit()
     await _publish_best_effort("business.updated", search_payload)
     for product_payload in product_payloads:
         await _publish_best_effort("product.updated", product_payload)

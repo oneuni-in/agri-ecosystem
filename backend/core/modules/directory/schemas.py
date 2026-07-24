@@ -240,3 +240,7 @@ class DecisionIn(BaseModel):
 
 class RejectIn(BaseModel):
     note: str = Field(min_length=3, max_length=1000)  # reject always carries a reason
+
+
+class AdminTierIn(BaseModel):
+    tier: Literal["free", "premium"]

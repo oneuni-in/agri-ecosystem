@@ -2,6 +2,7 @@ import { Badge, Card, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import {
   fetchBusiness,
@@ -17,6 +18,7 @@ import { LeadForm } from "./lead-form";
 import { RevealContact } from "./reveal-contact";
 import { ReviewForm } from "./review-form";
 import { ReviewsSection } from "./reviews-section";
+import { ViewBeacon } from "./view-beacon";
 
 const SITE = "https://milk.in";
 
@@ -154,6 +156,9 @@ export default async function VendorProfilePage({
 
   return (
     <main>
+      <Suspense fallback={null}>
+        <ViewBeacon slug={slug} />
+      </Suspense>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: businessJsonLd(detail, canonical, summary) }}

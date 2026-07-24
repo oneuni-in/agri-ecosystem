@@ -1,13 +1,13 @@
 /**
- * BFF proxy: browser -> same-origin /api/directory/* -> FastAPI /directory/*
+ * BFF proxy: browser -> same-origin /api/catalog/* -> FastAPI /catalog/*
  * with the session's bearer token attached HERE, server-side (tokens never
- * touch JS - D10 non-negotiable). Only the backend's /directory prefix is
- * reachable through this route by construction.
+ * touch JS - D10 non-negotiable). Only vendor-facing catalog surfaces
+ * (verticals, my, products, businesses) are reachable through this route.
  *
  * Unlike the /api/notify proxy, request/response bodies are forwarded as raw
- * bytes with their original content-type: the claim submission is
- * multipart/form-data (evidence photos) and the boundary lives in that
- * header - parsing it into formData() here would lose it.
+ * bytes with their original content-type: product image uploads are
+ * multipart/form-data and the boundary lives in that header - parsing it
+ * into formData() here would lose it.
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -19,14 +19,22 @@ const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 // 5 files x 5MiB cap + multipart overhead.
 const MAX_BODY_BYTES = 30 * 1024 * 1024;
 
+// Only vendor-facing catalog surfaces; admin/* must never ride the
+// browser-authenticated proxy.
+const ALLOWED_FIRST_SEGMENTS = new Set(["verticals", "my", "products", "businesses"]);
+
 async function forward(
   req: NextRequest,
   params: Promise<{ path: string[] }>,
-  method: "GET" | "POST" | "PATCH" | "PUT",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
 ): Promise<NextResponse> {
   const { path } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
+  }
+  const [firstSegment] = path;
+  if (!firstSegment || !ALLOWED_FIRST_SEGMENTS.has(firstSegment)) {
+    return NextResponse.json({ detail: "not_found" }, { status: 404 });
   }
   if (method !== "GET") {
     const contentLength = Number(req.headers.get("content-length"));
@@ -36,7 +44,7 @@ async function forward(
   }
   const token = await auth.getAccessToken();
   if (!token) return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
-  const url = new URL(`${API}/directory/${path.map(encodeURIComponent).join("/")}`);
+  const url = new URL(`${API}/catalog/${path.map(encodeURIComponent).join("/")}`);
   url.search = req.nextUrl.search;
   const headers: Record<string, string> = { authorization: `Bearer ${token}` };
   const contentType = req.headers.get("content-type");
@@ -45,7 +53,7 @@ async function forward(
     method,
     headers,
     // Raw bytes, not formData()/text(): preserves the multipart boundary
-    // for evidence-photo uploads (claim submission) untouched.
+    // for product image uploads untouched.
     ...(method !== "GET" ? { body: Buffer.from(await req.arrayBuffer()) } : {}),
     cache: "no-store",
   });
@@ -74,6 +82,6 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx.params, "PATCH");
 }
-export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  return forward(req, ctx.params, "PUT");
+export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "DELETE");
 }

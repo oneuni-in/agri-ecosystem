@@ -80,11 +80,17 @@ function renderPayload(inquiry: InboxInquiry): ReactNode {
     const message = typeof inquiry.payload.message === "string" ? inquiry.payload.message : "";
     return <p className="text-[13px] text-ink">{message}</p>;
   }
-  const { qty_liters, milk_type, schedule } = inquiry.payload;
+  const { qty_liters, milk_type, schedule, delivery_time, note } = inquiry.payload;
   return (
-    <p className="text-[13px] text-ink">
-      {String(qty_liters ?? "?")} L/day · {String(milk_type ?? "?")} · {String(schedule ?? "?")}
-    </p>
+    <div className="space-y-1">
+      <p className="text-[13px] text-ink">
+        {String(qty_liters ?? "?")} L/day · {String(milk_type ?? "?")} · {String(schedule ?? "?")}
+      </p>
+      {typeof delivery_time === "string" && delivery_time ? (
+        <p className="text-[12px] text-sub">Preferred delivery: {delivery_time}</p>
+      ) : null}
+      {typeof note === "string" && note ? <p className="text-[12px] text-sub">"{note}"</p> : null}
+    </div>
   );
 }
 
@@ -98,6 +104,7 @@ export function InboxClient() {
   const [businesses, setBusinesses] = useState<BusinessOut[] | null>(null);
   const [businessesError, setBusinessesError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<InquiryType | "all">("all");
 
   const [items, setItems] = useState<InboxInquiry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -139,6 +146,7 @@ export function InboxClient() {
     try {
       const params = new URLSearchParams({ business_id: businessId, limit: "20" });
       if (cursorParam) params.set("cursor", cursorParam);
+      if (typeFilter !== "all") params.set("type", typeFilter);
       const body = await getJson(`/api/leads/inbox?${params.toString()}`);
       const newItems = (body.items as InboxInquiry[] | undefined) ?? [];
       setItems((prev) => (append ? [...prev, ...newItems] : newItems));
@@ -165,7 +173,7 @@ export function InboxClient() {
     setCursor(null);
     void loadInbox(selectedId, null, false);
     void loadStats(selectedId);
-  }, [selectedId]);
+  }, [selectedId, typeFilter]);
 
   const reply = async (id: string) => {
     const body = replyText[id]?.trim();
@@ -251,6 +259,19 @@ export function InboxClient() {
         </select>
       </label>
 
+      <label className={LABEL}>
+        Show
+        <select
+          className={FIELD}
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value as InquiryType | "all")}
+        >
+          <option value="all">All leads</option>
+          <option value="contact">Messages</option>
+          <option value="milk_subscription">Milk subscriptions</option>
+        </select>
+      </label>
+
       {stats ? (
         <p className="text-[13px] text-sub">
           {stats.total} lead{stats.total === 1 ? "" : "s"} · {stats.responded} replied
@@ -258,6 +279,13 @@ export function InboxClient() {
             ? ` · Avg response: ${formatAvgResponse(stats.avg_response_seconds)}`
             : ""}
         </p>
+      ) : null}
+
+      {stats && stats.avg_response_seconds !== null && stats.avg_response_seconds > 86400 ? (
+        <AlertNotice>
+          Your average reply time is {formatAvgResponse(stats.avg_response_seconds)}. Fast replies
+          win more customers — aim for under a day.
+        </AlertNotice>
       ) : null}
 
       {itemsLoading ? (

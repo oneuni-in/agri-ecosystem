@@ -1,14 +1,18 @@
-/** D17 mount point: the product management surface lands in a later spec. */
+import { redirect } from "next/navigation";
+
+import { auth } from "@/lib/auth";
+
+import { ProductsClient } from "./products-client";
+
 export const metadata = { title: "Products", robots: { index: false } };
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+  const user = await auth.getServerUser();
+  if (!user) redirect("/api/auth/login?next=/business/products");
   return (
-    <main>
+    <main className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="font-display text-[20px] font-extrabold text-ink">Products</h1>
-      <p className="mt-2 rounded-card border border-line bg-card p-4 text-[13px] text-sub">
-        Manage your product catalog here soon. Approved products stay visible in the public
-        catalog.
-      </p>
+      <ProductsClient />
     </main>
   );
 }

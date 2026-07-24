@@ -36,8 +36,6 @@ const OSM_STYLE: maplibregl.StyleSpecification = {
 
 const PIN_CLASS =
   "block h-7 w-7 cursor-pointer rounded-full border-2 border-card bg-brand-deep shadow-md";
-const PIN_SELECTED_CLASS =
-  "block h-7 w-7 cursor-pointer rounded-full border-2 border-card bg-accent shadow-md";
 
 function spread(pins: MapPin[]): MapPin[] {
   const seen = new Map<string, number>();
@@ -105,7 +103,8 @@ export default function VendorMap({
     for (const [id, marker] of markersRef.current) {
       const el = marker.getElement();
       const selected = id === selectedId;
-      el.className = selected ? PIN_SELECTED_CLASS : PIN_CLASS;
+      el.classList.toggle("bg-accent", selected);
+      el.classList.toggle("bg-brand-deep", !selected);
       el.setAttribute("data-selected", String(selected));
     }
     if (selectedId) {

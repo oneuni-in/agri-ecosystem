@@ -181,7 +181,7 @@ export function ListingsClient() {
       setBusinesses((prev) =>
         prev?.map((b) =>
           b.id === savedFor
-            ? { ...b, name: trimmedName, type, primary_pincode: primaryPincode, description }
+            ? { ...b, name: trimmedName, type, primary_pincode: primaryPincode, description, delivery_windows: windows }
             : b,
         ) ?? prev,
       );

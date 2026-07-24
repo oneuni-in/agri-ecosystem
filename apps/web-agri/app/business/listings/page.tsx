@@ -1,15 +1,18 @@
-/** D15 mount point: the listings management surface lands in a later spec.
- * The registry entry + this stub prove the console mount contract. */
+import { redirect } from "next/navigation";
+
+import { auth } from "@/lib/auth";
+
+import { ListingsClient } from "./listings-client";
+
 export const metadata = { title: "Listings", robots: { index: false } };
 
-export default function ListingsPage() {
+export default async function ListingsPage() {
+  const user = await auth.getServerUser();
+  if (!user) redirect("/api/auth/login?next=/business/listings");
   return (
-    <main>
+    <main className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="font-display text-[20px] font-extrabold text-ink">Listings</h1>
-      <p className="mt-2 rounded-card border border-line bg-card p-4 text-[13px] text-sub">
-        Manage your branches and coverage here soon. Your public listing stays live at your
-        directory page.
-      </p>
+      <ListingsClient />
     </main>
   );
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { CONSOLE_MODULES } from "@/lib/console-modules";
@@ -27,8 +26,14 @@ export default async function BusinessConsoleLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await auth.getServerUser();
-  if (!user) redirect("/api/auth/login?next=/business");
+  // No auth gate here on purpose: every /business/* page.tsx already does
+  // its own `if (!user) redirect("/api/auth/login?next=/business/<page>")`
+  // with the CORRECT next path. A layout-level gate ran first (layouts
+  // render before their page) and always redirected with next=/business -
+  // a route with no page.tsx of its own - so a guest opening any console
+  // page directly (bookmark, shared link, or Task 17's e2e login) landed on
+  // a 404 after signing in. Removing the redundant, wrong-next gate here
+  // lets the page-level redirect (the one with the real destination) win.
   const showBilling = await billingVisible();
   const modules = CONSOLE_MODULES.filter((entry) =>
     entry.gate === "billing" ? showBilling : true,

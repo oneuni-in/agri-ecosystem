@@ -57,6 +57,7 @@ from modules.directory.schemas import (
     ViewBeaconIn,
     ViewBeaconOut,
 )
+from settings import get_settings
 from shared.db import get_session
 from shared.events import publish
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
@@ -535,6 +536,19 @@ async def covers_search(
     )
 
 
+def _client_ip(request: Request) -> str:
+    # Same trust-gated idiom as modules/identity/location_router.py::_client_ip
+    # (directory must not import identity, so this is copied, not shared).
+    # Guests hit this route via the Next relay (apps/web-*/app/api/view),
+    # never the browser directly - without trust_forwarded_for the hash would
+    # collapse to the relay's own IP for every visitor.
+    if get_settings().trust_forwarded_for:
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
 @router.post("/businesses/{slug}/view", public=True)
 async def record_profile_view(
     request: Request, slug: str, body: ViewBeaconIn, session: SessionDep
@@ -548,7 +562,7 @@ async def record_profile_view(
     if business_id is None:
         raise HTTPException(status_code=404, detail="Business not found")
     now = datetime.now(UTC)
-    ip = request.client.host if request.client else ""
+    ip = _client_ip(request)
     hashed = analytics.viewer_hash(ip, request.headers.get("user-agent", ""), now=now)
     await analytics.record_view(
         session, business_id=business_id, pincode=body.pincode, viewer_hash_value=hashed, now=now

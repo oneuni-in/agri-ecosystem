@@ -3,6 +3,11 @@
  * /api/view -> public FastAPI beacon. Deliberately NO auth and NO token -
  * profile views are mostly anonymous. Always 204: a lost view must never
  * surface as a user-visible error.
+ *
+ * Forwards the real client identity (x-forwarded-for, user-agent) so the
+ * backend's viewer_hash varies per visitor instead of collapsing every
+ * request to the Next server's own IP/UA (final-review fix - see
+ * modules/directory/router.py::record_profile_view on the backend side).
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -22,10 +27,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     typeof body?.pincode === "string" && PINCODE_RE.test(body.pincode)
       ? body.pincode
       : undefined;
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) headers["x-forwarded-for"] = forwardedFor;
+  const userAgent = req.headers.get("user-agent");
+  if (userAgent) headers["user-agent"] = userAgent;
   try {
     await fetch(`${API}/directory/businesses/${encodeURIComponent(slug)}/view`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(pincode ? { pincode } : {}),
       cache: "no-store",
     });

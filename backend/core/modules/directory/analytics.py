@@ -4,7 +4,14 @@ Views are DPDP-minimal by construction: the beacon stores a daily-rotating
 viewer pseudonym (ads-module precedent), never IP/UA, and the table is
 append-only by grant. Dedupe (1 view/viewer/business/UTC-day) is the DB
 unique index - the hash itself rotates daily, so (business_id, viewer_hash)
-is day-scoped without any Redis state."""
+is day-scoped without any Redis state.
+
+PROD NOTE: the beacon is only ever reached through the Next relay
+(apps/web-agri|web-milk /api/view), never directly by the browser, so
+`request.client.host` at the FastAPI layer is the relay's own address for
+every visitor. `settings.trust_forwarded_for` MUST be true in prod (it
+already must be, for D19 location) or every viewer_hash collapses to one
+value per business per day - see router.py::_client_ip."""
 
 import hashlib
 import uuid

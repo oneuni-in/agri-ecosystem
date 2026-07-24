@@ -74,3 +74,62 @@ async def test_viewer_hash_rotates_daily() -> None:
     day1 = analytics.viewer_hash("1.2.3.4", "UA", now=datetime(2026, 7, 24, tzinfo=UTC))
     day2 = analytics.viewer_hash("1.2.3.4", "UA", now=datetime(2026, 7, 25, tzinfo=UTC))
     assert day1 != day2  # unlinkable across days (DPDP-minimal)
+
+
+async def test_distinct_forwarded_viewers_both_recorded(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The regression this suite was missing: with trust_forwarded_for on
+    (the required prod posture - see analytics.py PROD NOTE), two distinct
+    real visitors relayed through the same Next server must not collapse
+    into the Next server's own IP/UA. This is the test that would have
+    caught the relay identity-stripping bug."""
+    from settings import get_settings
+
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "true")
+    get_settings.cache_clear()
+    http, session = api
+    _business_id, slug = await _active_business(session)
+
+    response_a = await http.post(
+        f"/directory/businesses/{slug}/view",
+        json={},
+        headers={"x-forwarded-for": "10.0.0.1", "user-agent": "visitor-a"},
+    )
+    response_b = await http.post(
+        f"/directory/businesses/{slug}/view",
+        json={},
+        headers={"x-forwarded-for": "10.0.0.2", "user-agent": "visitor-b"},
+    )
+    assert response_a.status_code == 200
+    assert response_b.status_code == 200
+
+    rows = (await session.scalars(select(ProfileView))).all()
+    assert len(rows) == 2  # distinct forwarded viewers -> distinct rows
+    assert rows[0].viewer_hash != rows[1].viewer_hash
+
+
+async def test_same_forwarded_viewer_still_dedupes(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same forwarded IP+UA twice, same day, still collapses to one row -
+    the dedupe contract survives once identity is forwarded correctly."""
+    from settings import get_settings
+
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "true")
+    get_settings.cache_clear()
+    http, session = api
+    _business_id, slug = await _active_business(session)
+
+    for _ in range(2):
+        response = await http.post(
+            f"/directory/businesses/{slug}/view",
+            json={},
+            headers={"x-forwarded-for": "10.0.0.5", "user-agent": "visitor-c"},
+        )
+        assert response.status_code == 200
+
+    rows = (await session.scalars(select(ProfileView))).all()
+    assert len(rows) == 1

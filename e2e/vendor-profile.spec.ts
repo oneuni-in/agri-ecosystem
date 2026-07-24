@@ -55,6 +55,7 @@ test.describe("D24 vendor profile", () => {
     await waitForHeaderSettled(page);
     await page.getByLabel(/message/i).fill("Do you deliver on Sundays?");
     await page.getByRole("button", { name: /send enquiry/i }).click();
-    await expect(page.getByText(/enquiry sent/i)).toBeVisible();
+    // first POST after boot JIT-compiles the /api/leads route in dev — allow for it
+    await expect(page.getByText(/enquiry sent/i)).toBeVisible({ timeout: 15_000 });
   });
 });

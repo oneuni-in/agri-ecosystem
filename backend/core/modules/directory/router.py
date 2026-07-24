@@ -57,11 +57,11 @@ from modules.directory.schemas import (
     ViewBeaconIn,
     ViewBeaconOut,
 )
-from settings import get_settings
 from shared.db import get_session
 from shared.events import publish
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
+from shared.security import client_ip as _client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -534,19 +534,6 @@ async def covers_search(
         items=[CoversItemOut(**asdict(item)) for item in page.items],
         next_cursor=page.next_cursor,
     )
-
-
-def _client_ip(request: Request) -> str:
-    # Same trust-gated idiom as modules/identity/location_router.py::_client_ip
-    # (directory must not import identity, so this is copied, not shared).
-    # Guests hit this route via the Next relay (apps/web-*/app/api/view),
-    # never the browser directly - without trust_forwarded_for the hash would
-    # collapse to the relay's own IP for every visitor.
-    if get_settings().trust_forwarded_for:
-        fwd = request.headers.get("x-forwarded-for")
-        if fwd:
-            return fwd.split(",")[0].strip()
-    return request.client.host if request.client else ""
 
 
 @router.post("/businesses/{slug}/view", public=True)

@@ -132,9 +132,26 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 
+def client_ip(request: Request) -> str:
+    """Best client address available: the first X-Forwarded-For entry when
+    settings.trust_forwarded_for is on (deploy proxy overwrites the header),
+    else the direct socket address.
+
+    PROD NOTE: in production trust_forwarded_for must be enabled and the
+    edge proxy must overwrite (not append) X-Forwarded-For - otherwise a
+    caller can spoof the header and dodge both rate limiting and any
+    per-visitor hashing built on top of this helper. With trust_forwarded_for
+    off (the default), the header is never read.
+    """
+    if get_settings().trust_forwarded_for:
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 async def rate_limit(request: Request) -> None:
-    client = request.client.host if request.client else "unknown"
-    key = f"ratelimit:{client}:{request.url.path}"
+    key = f"ratelimit:{client_ip(request)}:{request.url.path}"
     if not await rate_limiter.hit(key):
         raise HTTPException(status_code=429, detail="Too many requests")
 

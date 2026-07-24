@@ -18,7 +18,7 @@ from fastapi import Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import covers as covers_module
+from modules.directory import analytics, covers as covers_module
 from modules.directory import leads_service, search_sync, service
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
@@ -49,6 +49,8 @@ from modules.directory.schemas import (
     RenameIn,
     TierSelectionIn,
     TierSelectionOut,
+    ViewBeaconIn,
+    ViewBeaconOut,
 )
 from shared.db import get_session
 from shared.events import publish
@@ -470,3 +472,25 @@ async def covers_search(
         items=[CoversItemOut(**asdict(item)) for item in page.items],
         next_cursor=page.next_cursor,
     )
+
+
+@router.post("/businesses/{slug}/view", public=True)
+async def record_profile_view(
+    request: Request, slug: str, body: ViewBeaconIn, session: SessionDep
+) -> ViewBeaconOut:
+    """Fire-and-forget view beacon (D26.D). Public: guests are most views.
+    Stores a daily-rotating pseudonym only; the unique index makes repeats
+    a no-op. Rate limiting comes from SecureRouter defaults."""
+    business_id = await session.scalar(
+        select(Business.id).where(Business.slug == slug, Business.status == "active")
+    )
+    if business_id is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    now = datetime.now(UTC)
+    ip = request.client.host if request.client else ""
+    hashed = analytics.viewer_hash(ip, request.headers.get("user-agent", ""), now=now)
+    await analytics.record_view(
+        session, business_id=business_id, pincode=body.pincode, viewer_hash_value=hashed, now=now
+    )
+    await session.commit()
+    return ViewBeaconOut(status="ok")

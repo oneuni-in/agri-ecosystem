@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     need_post_daily_cap: int = 5
     need_fanout_limit: int = 10
 
+    # Profile-view beacon (D26 analytics-lite). The secret salts the ads-style
+    # daily-rotating viewer pseudonym; dedupe is the DB unique index, so a
+    # missing Redis costs nothing here.
+    view_beacon_secret: str = "dev-view-beacon-secret"
+
     # Location resolution (D19). GeoIP is optional, state-level, advisory-only
     # infrastructure: an empty path means the feature is off (no mmdb file is
     # committed to this repo; the owner provisions one on the VPS later).

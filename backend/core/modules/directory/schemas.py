@@ -260,3 +260,11 @@ class RejectIn(BaseModel):
 
 class AdminTierIn(BaseModel):
     tier: Literal["free", "premium"]
+
+
+class ViewBeaconIn(BaseModel):
+    pincode: str | None = Field(default=None, pattern=PINCODE_PATTERN)
+
+
+class ViewBeaconOut(BaseModel):
+    status: str

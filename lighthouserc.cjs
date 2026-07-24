@@ -52,14 +52,17 @@ module.exports = {
         },
         {
           // /demo (D02 kitchen-sink gallery): ~138KB of streamed HTML makes
-          // LCP track full document download; measured baseline is perf 83 on
-          // 3G. Gate holds it at >=80 so regressions still fail, a11y at the
-          // full floor. SEO is exempt: the page deliberately self-noindexes
+          // LCP track full document download; measured baseline was perf 83 on
+          // 3G. SEO is exempt: the page deliberately self-noindexes
           // (noindex-until-populated rule), which zeroes crawlability audits.
           // Deliberate carve-out, approved 2026-07-10 - see PR D04.
+          // Re-baselined 0.80 -> 0.75 on 2026-07-24 (owner-approved): the D24
+          // PR scored 0.70-0.79 across 6 samples on a byte-identical /demo
+          // (no packages/ui or web-agri changes vs dev), i.e. runner/Chrome
+          // drift, not a code regression. Real regressions still fail.
           matchingUrlPattern: "/demo$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.8, aggregationMethod: "median-run" }],
+            "categories:performance": ["error", { minScore: 0.75, aggregationMethod: "median-run" }],
             "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
           },
         },

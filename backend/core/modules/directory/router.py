@@ -381,6 +381,24 @@ async def select_tier(
     return out
 
 
+@router.get("/businesses/{business_id}/tier-selection")
+async def get_tier_selection(
+    request: Request, business_id: uuid.UUID, session: SessionDep
+) -> TierSelectionOut:
+    """Read current tier + intent (D26). Used by premium console to render
+    persisted state on load. Owner-scoped: someone else's business == 404."""
+    try:
+        business = await service.get_owned_business(
+            session, _principal_user_id(request), business_id
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    return TierSelectionOut(
+        subscription_tier=business.subscription_tier,
+        premium_requested_at=business.premium_requested_at,
+    )
+
+
 @router.get("/businesses/{business_id}/analytics")
 async def business_analytics(
     request: Request,

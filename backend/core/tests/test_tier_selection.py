@@ -104,3 +104,28 @@ async def test_patch_cannot_change_subscription_tier(
     )
     business = await service.get_owned_business(session, owner, business_id)
     assert business.subscription_tier == "free"
+
+
+async def test_get_tier_selection_roundtrip(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, session = api
+    owner = uuid.uuid4()
+    business_id = await _business(session, owner)
+    await http.put(
+        f"/directory/businesses/{business_id}/tier-selection",
+        json={"tier": "premium"},
+        headers=_as(owner),
+    )
+    response = await http.get(
+        f"/directory/businesses/{business_id}/tier-selection", headers=_as(owner)
+    )
+    assert response.status_code == 200
+    assert response.json()["premium_requested_at"] is not None
+
+
+async def test_get_tier_selection_idor_404(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, session = api
+    business_id = await _business(session, uuid.uuid4())
+    response = await http.get(
+        f"/directory/businesses/{business_id}/tier-selection", headers=_as(uuid.uuid4())
+    )
+    assert response.status_code == 404

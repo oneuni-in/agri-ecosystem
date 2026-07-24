@@ -56,6 +56,17 @@ function fieldLabel(field: SpecField): string {
   return field.label.en ?? field.key;
 }
 
+function formErrorFromApiError(err: ApiError): string {
+  const data = err.detailData;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const { code, field } = data as { code?: unknown; field?: unknown };
+    if (typeof code === "string") {
+      return `Check the form — ${typeof field === "string" && field ? `'${field}': ` : ""}${code}`;
+    }
+  }
+  return `Check the form: ${err.detail}`;
+}
+
 function ModerationChip({ status }: { status: string }) {
   const classes =
     status === "approved"
@@ -140,13 +151,15 @@ export function ProductsClient() {
       const params = new URLSearchParams({ business_id: businessId, limit: "20" });
       if (cursorParam) params.set("cursor", cursorParam);
       const body = await getJson(`/api/catalog/my/products?${params.toString()}`);
+      if (selectedIdRef.current !== businessId) return;
       const items = (body.items as Product[] | undefined) ?? [];
       setProducts((prev) => (append ? [...prev, ...items] : items));
       setCursor((body.next_cursor as string | null | undefined) ?? null);
     } catch {
+      if (selectedIdRef.current !== businessId) return;
       if (!append) setProducts([]);
     } finally {
-      setListLoading(false);
+      if (selectedIdRef.current === businessId) setListLoading(false);
     }
   };
 
@@ -191,7 +204,7 @@ export function ProductsClient() {
       if (selectedIdRef.current !== savedFor) return;
       setFormError(
         err instanceof ApiError && err.status === 422
-          ? `Check the form: ${err.detail}`
+          ? formErrorFromApiError(err)
           : "Could not save the product — please try again.",
       );
     } finally {
@@ -200,9 +213,10 @@ export function ProductsClient() {
   };
 
   const archive = async (productId: string) => {
+    const forBusiness = selectedIdRef.current;
     try {
       await patchJson(`/api/catalog/products/${productId}`, { status: "archived" });
-      if (selectedId) void loadProducts(selectedId, null, false);
+      if (forBusiness && selectedIdRef.current === forBusiness) void loadProducts(forBusiness, null, false);
     } catch {
       // list stays actionable; owner can retry
     }

@@ -48,9 +48,7 @@ async def _covered_business(
     return business
 
 
-async def test_premium_outranks_nearer_free(
-    db_session: AsyncSession, tn_geo_sample: None
-) -> None:
+async def test_premium_outranks_nearer_free(db_session: AsyncSession, tn_geo_sample: None) -> None:
     await _covered_business(db_session, "NearFree", branch_at=(10.9232, 76.9686))  # ~0 km
     await _covered_business(
         db_session, "FarPremium", branch_at=(11.2832, 76.9686), tier="premium"
@@ -60,9 +58,7 @@ async def test_premium_outranks_nearer_free(
     assert page.items[0].subscription_tier == "premium"
 
 
-async def test_distance_orders_within_a_tier(
-    db_session: AsyncSession, tn_geo_sample: None
-) -> None:
+async def test_distance_orders_within_a_tier(db_session: AsyncSession, tn_geo_sample: None) -> None:
     await _covered_business(db_session, "PremFar", branch_at=(11.2832, 76.9686), tier="premium")
     await _covered_business(db_session, "PremNear", branch_at=(10.9232, 76.9686), tier="premium")
     await _covered_business(db_session, "FreeNear", branch_at=(10.9232, 76.9686))
@@ -90,9 +86,7 @@ async def test_keyset_pages_across_tier_boundary(
     assert seen == ["P1", "P2", "P3", "F1", "F2", "F3"]  # no gaps, no dupes
 
 
-async def test_coverage_edit_updates_covers(
-    db_session: AsyncSession, tn_geo_sample: None
-) -> None:
+async def test_coverage_edit_updates_covers(db_session: AsyncSession, tn_geo_sample: None) -> None:
     """NN#4: the coverage editor's whole-list PUT semantics must be visible
     in covers() immediately - add shows the business, remove hides it."""
     business = await _covered_business(db_session, "Editable", branch_at=(10.9232, 76.9686))
@@ -108,7 +102,9 @@ async def test_coverage_edit_updates_covers(
     assert page.items == []
     # re-add it
     await service.set_coverage(
-        db_session, owner_user_id=owner, business_id=business.id,
+        db_session,
+        owner_user_id=owner,
+        business_id=business.id,
         pincodes=["641001", "641002"],
     )
     page = await covers(db_session, pincode="641001")

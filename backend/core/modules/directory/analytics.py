@@ -143,12 +143,8 @@ async def business_analytics(
 ) -> AnalyticsData:
     base = {"business_id": business_id, "since": since}
     views = await _section(session, _VIEWS_TOTAL_SQL, _VIEWS_SQL, base)
-    reveals = await _section(
-        session, _INQUIRY_TOTAL_SQL, _INQUIRY_SQL, {**base, "is_reveal": True}
-    )
-    leads = await _section(
-        session, _INQUIRY_TOTAL_SQL, _INQUIRY_SQL, {**base, "is_reveal": False}
-    )
+    reveals = await _section(session, _INQUIRY_TOTAL_SQL, _INQUIRY_SQL, {**base, "is_reveal": True})
+    leads = await _section(session, _INQUIRY_TOTAL_SQL, _INQUIRY_SQL, {**base, "is_reveal": False})
     row = (await session.execute(_RESPONSE_SQL, base)).one()._mapping
     avg = row["avg_response_seconds"]
     return AnalyticsData(

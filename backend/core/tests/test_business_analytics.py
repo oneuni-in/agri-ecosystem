@@ -19,7 +19,10 @@ pytestmark = pytest.mark.asyncio
 
 async def _business(session: AsyncSession, owner: uuid.UUID) -> uuid.UUID:
     business = await service.create_business(
-        session, owner_user_id=owner, name="Stats Dairy", type_="vendor",
+        session,
+        owner_user_id=owner,
+        name="Stats Dairy",
+        type_="vendor",
         primary_pincode="641001",
     )
     await session.commit()
@@ -51,13 +54,18 @@ async def test_analytics_splits_sources_and_groups_by_pincode(
     )
     session.add(  # reveal-attribution inquiry (counts as reveal, NOT lead)
         Inquiry(
-            type="contact", from_user_id=uuid.uuid4(), business_id=business_id,
-            payload={"message": "x", "source": "contact_reveal"}, pincode="641001",
+            type="contact",
+            from_user_id=uuid.uuid4(),
+            business_id=business_id,
+            payload={"message": "x", "source": "contact_reveal"},
+            pincode="641001",
         )
     )
     session.add(  # a real lead
         Inquiry(
-            type="milk_subscription", from_user_id=uuid.uuid4(), business_id=business_id,
+            type="milk_subscription",
+            from_user_id=uuid.uuid4(),
+            business_id=business_id,
             payload={"qty_liters": 2, "milk_type": "cow", "schedule": "daily"},
             pincode="641002",
         )
@@ -91,8 +99,12 @@ async def test_response_time_stat_is_accurate(
     base = datetime.now(UTC) - timedelta(days=1)
     for offset_s in (600, 1200):
         inquiry = Inquiry(
-            type="contact", from_user_id=uuid.uuid4(), business_id=business_id,
-            payload={"message": "hello"}, pincode="641001", status="responded",
+            type="contact",
+            from_user_id=uuid.uuid4(),
+            business_id=business_id,
+            payload={"message": "hello"},
+            pincode="641001",
+            status="responded",
         )
         session.add(inquiry)
         await session.flush()
@@ -100,7 +112,9 @@ async def test_response_time_stat_is_accurate(
         inquiry.created_at = base
         session.add(
             InquiryResponse(
-                inquiry_id=inquiry.id, business_user_id=owner, body="reply",
+                inquiry_id=inquiry.id,
+                business_user_id=owner,
+                body="reply",
             )
         )
         await session.flush()

@@ -15,7 +15,10 @@ pytestmark = pytest.mark.asyncio
 
 async def _business(session: AsyncSession, owner: uuid.UUID) -> uuid.UUID:
     business = await service.create_business(
-        session, owner_user_id=owner, name="Window Dairy", type_="vendor",
+        session,
+        owner_user_id=owner,
+        name="Window Dairy",
+        type_="vendor",
         primary_pincode="641001",
     )
     await session.commit()
@@ -56,14 +59,16 @@ async def test_public_detail_serves_windows(api: tuple[httpx.AsyncClient, AsyncS
 @pytest.mark.parametrize(
     "bad",
     [
-        {"days": ["funday"], "open": "06:00", "close": "09:00"},   # unknown day
-        {"days": ["mon"], "open": "25:00", "close": "26:00"},      # bad time
-        {"days": ["mon"], "open": "09:00", "close": "06:00"},      # open >= close
-        {"days": ["mon"], "open": "09:00", "close": "09:00"},      # zero-length
-        {"days": [], "open": "06:00", "close": "09:00"},           # no days
+        {"days": ["funday"], "open": "06:00", "close": "09:00"},  # unknown day
+        {"days": ["mon"], "open": "25:00", "close": "26:00"},  # bad time
+        {"days": ["mon"], "open": "09:00", "close": "06:00"},  # open >= close
+        {"days": ["mon"], "open": "09:00", "close": "09:00"},  # zero-length
+        {"days": [], "open": "06:00", "close": "09:00"},  # no days
     ],
 )
-async def test_invalid_windows_rejected(api: tuple[httpx.AsyncClient, AsyncSession], bad: dict) -> None:
+async def test_invalid_windows_rejected(
+    api: tuple[httpx.AsyncClient, AsyncSession], bad: dict[str, object]
+) -> None:
     http, session = api
     owner = uuid.uuid4()
     business_id = await _business(session, owner)
@@ -75,7 +80,9 @@ async def test_invalid_windows_rejected(api: tuple[httpx.AsyncClient, AsyncSessi
     assert response.status_code == 422
 
 
-async def test_more_than_seven_windows_rejected(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+async def test_more_than_seven_windows_rejected(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     http, session = api
     owner = uuid.uuid4()
     business_id = await _business(session, owner)

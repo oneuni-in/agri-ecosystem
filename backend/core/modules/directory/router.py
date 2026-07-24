@@ -19,8 +19,8 @@ from pydantic import BeforeValidator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import analytics, covers as covers_module
-from modules.directory import leads_service, search_sync, service
+from modules.directory import analytics, leads_service, search_sync, service
+from modules.directory import covers as covers_module
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, BusinessCoverage, Category

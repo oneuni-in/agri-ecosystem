@@ -65,7 +65,11 @@ MODULES: dict[str, dict[str, str]] = {
         "(/directory/branches/{id}/reveal) is daily-capped, fail-closed, and\n"
         "appends to an append-only leads.contact_reveals DPDP log. Emits\n"
         "review.approved, lead.created, lead.responded on the directory\n"
-        "event stream.",
+        "event stream. D26 adds owner tier-selection (intent only;\n"
+        "subscription_tier is admin-set via /admin/directory .../tier, audited),\n"
+        "premium-first covers() ordering, a public profile-view beacon\n"
+        "(/directory/businesses/{slug}/view, daily-rotating pseudonym,\n"
+        "append-only), and owner analytics (/directory/businesses/{id}/analytics).",
         "spec": "docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).",
         "pii_note": "holds business contact data (phones, emails)",
         "extra_never": "- Never render contact details without the lead/verification\n"

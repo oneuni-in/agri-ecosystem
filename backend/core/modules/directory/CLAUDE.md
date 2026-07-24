@@ -13,13 +13,13 @@ moderation with cached rating aggregates, and a leads engine under
 /leads: guest submission (optional_auth), coverage(pincode) x
 category routing, owner inbox/responses/stats. Contact reveal
 (/directory/branches/{id}/reveal) is daily-capped, fail-closed, and
-appends to an append-only leads.contact_reveals DPDP log. D25 adds
-/leads/needs: authed fan-out of milk_subscription needs to ALL
-covering vendors (capped) as child inquiries (need_id), user-side
-open/fulfilled/closed status, and a validated voice-note shell
-(shared.media.validate_audio, auth-gated playback). Emits
+appends to an append-only leads.contact_reveals DPDP log. Emits
 review.approved, lead.created, lead.responded on the directory
-event stream.
+event stream. D26 adds owner tier-selection (intent only;
+subscription_tier is admin-set via /admin/directory .../tier, audited),
+premium-first covers() ordering, a public profile-view beacon
+(/directory/businesses/{slug}/view, daily-rotating pseudonym,
+append-only), and owner analytics (/directory/businesses/{id}/analytics).
 
 **Spec pointer:** docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).
 

@@ -1,5 +1,6 @@
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
@@ -148,6 +149,15 @@ export default async function PincodePage({
           <b>Today in {pincode}:</b> {priceBannerText(data.price_banner)}
         </div>
       ) : null}
+
+      <Link
+        href="/post-need"
+        className="rounded-card border border-line bg-card px-3 py-3 text-[13px] font-bold text-ink no-underline"
+        data-testid="post-need-cta"
+      >
+        🥛 Post my need — vendors here reply to you{" "}
+        <span className="vern font-normal text-sub">· என் தேவை</span>
+      </Link>
 
       {filteredEmpty ? (
         <p className="text-[14px] text-sub" data-testid="filtered-empty">

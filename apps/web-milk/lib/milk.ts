@@ -25,6 +25,8 @@ export interface MilkCard {
   verification_status: string;
   subscription_tier: string;
   distance_m: number;
+  lat: number | null;
+  lng: number | null;
   products: MilkProduct[];
 }
 

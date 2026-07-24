@@ -28,6 +28,8 @@ class MilkCardOut(BaseModel):
     verification_status: str
     subscription_tier: str
     distance_m: int
+    lat: float | None
+    lng: float | None
     products: list[MilkProductOut]
 
 
@@ -68,6 +70,8 @@ def _card_out(card: MilkCard) -> MilkCardOut:
         verification_status=card.verification_status,
         subscription_tier=card.subscription_tier,
         distance_m=card.distance_m,
+        lat=float(card.lat) if card.lat is not None else None,
+        lng=float(card.lng) if card.lng is not None else None,
         products=[
             MilkProductOut(
                 milk_type=p.specs.get("milk_type"),

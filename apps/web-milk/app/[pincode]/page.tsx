@@ -6,7 +6,7 @@ import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/l
 
 import { NotifyMe } from "./notify-me";
 import { TypeFilterRow } from "./type-filter-row";
-import { VendorCard } from "./vendor-card";
+import { VendorResults } from "./vendor-results";
 
 const SITE = "https://milk.in";
 export const revalidate = 300;
@@ -155,30 +155,7 @@ export default async function PincodePage({
           yet — <a className="font-bold text-brand-deep" href={`/${pincode}`}>see all</a>.
         </p>
       ) : (
-        <>
-          {data.vendors.length > 0 ? (
-            <section className="flex flex-col gap-2.5">
-              <h2 className="font-display text-[16px] font-extrabold text-ink">Local vendors</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {data.vendors.map((c) => (
-                  <VendorCard key={c.id} card={c} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-          {data.brands.length > 0 ? (
-            <section className="flex flex-col gap-2.5">
-              <h2 className="font-display text-[16px] font-extrabold text-ink">
-                Brands &amp; shops nearby
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {data.brands.map((c) => (
-                  <VendorCard key={c.id} card={c} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-        </>
+        <VendorResults vendors={data.vendors} brands={data.brands} />
       )}
     </main>
   );

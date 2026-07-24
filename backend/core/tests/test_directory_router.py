@@ -176,12 +176,22 @@ async def test_public_detail_by_slug(api: tuple[httpx.AsyncClient, AsyncSession]
     http, _ = api
     created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
     slug = created.json()["slug"]
+    business_id = created.json()["id"]
     detail = await http.get(f"/directory/businesses/{slug}")  # public: NO auth header
     assert detail.status_code == 200
     body = detail.json()
     assert body["business"]["name"] == "Anbu Milk Farm"
     assert body["branches"] == []
     assert body["categories"] == []
+    assert body["coverage_pincodes"] == []
+    # coverage pincodes are public, non-PII profile content (D24.A)
+    await http.put(
+        f"/directory/businesses/{business_id}/coverage",
+        json={"pincodes": ["641002", "641001"]},
+        headers=_as(USER_A),
+    )
+    covered = await http.get(f"/directory/businesses/{slug}")
+    assert covered.json()["coverage_pincodes"] == ["641001", "641002"]  # sorted
     assert (await http.get("/directory/businesses/no-such-slug")).status_code == 404
 
 

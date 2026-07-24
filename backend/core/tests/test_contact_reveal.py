@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import service
-from modules.directory.leads_models import ContactReveal
+from modules.directory.leads_models import ContactReveal, Inquiry
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import get_session
@@ -195,3 +195,39 @@ async def test_reveal_log_line_has_no_phone(
     assert response.status_code == 200
     assert PHONE not in caplog.text
     assert "637400" not in caplog.text
+
+
+async def test_reveal_records_contact_inquiry_once_per_day(
+    api: tuple[httpx.AsyncClient, AsyncSession], reveal_redis: Redis
+) -> None:
+    """D24.B: a reveal is also a lead — recorded once per user/business/day so
+    repeat reveals don't spam the vendor inbox, and NEVER carrying the phone."""
+    http, session = api
+    owner = uuid.uuid4()
+    caller = uuid.uuid4()
+    _slug, branch_id = await _seeded_branch(session, owner)
+    for _ in range(2):
+        ok = await http.post(f"/directory/branches/{branch_id}/reveal", headers=_as(caller))
+        assert ok.status_code == 200
+    inquiries = (await session.scalars(select(Inquiry).where(Inquiry.from_user_id == caller))).all()
+    assert len(inquiries) == 1  # deduped
+    inquiry = inquiries[0]
+    assert inquiry.type == "contact"
+    assert inquiry.payload["source"] == "contact_reveal"
+    assert inquiry.pincode == "641001"
+    # the attribution row records THAT contact happened, never the number
+    assert PHONE not in str(inquiry.payload)
+    assert WHATSAPP not in str(inquiry.payload)
+
+
+async def test_second_user_reveal_gets_own_inquiry(
+    api: tuple[httpx.AsyncClient, AsyncSession], reveal_redis: Redis
+) -> None:
+    http, session = api
+    owner = uuid.uuid4()
+    _slug, branch_id = await _seeded_branch(session, owner)
+    for caller in (uuid.uuid4(), uuid.uuid4()):
+        ok = await http.post(f"/directory/branches/{branch_id}/reveal", headers=_as(caller))
+        assert ok.status_code == 200
+    count = len((await session.scalars(select(Inquiry).where(Inquiry.type == "contact"))).all())
+    assert count == 2

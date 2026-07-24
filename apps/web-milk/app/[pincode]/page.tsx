@@ -152,6 +152,7 @@ export default async function PincodePage({
 
       <Link
         href="/post-need"
+        prefetch={false}
         className="rounded-card border border-line bg-card px-3 py-3 text-[13px] font-bold text-ink no-underline"
         data-testid="post-need-cta"
       >

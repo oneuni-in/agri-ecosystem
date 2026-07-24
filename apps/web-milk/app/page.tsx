@@ -57,6 +57,7 @@ export default function HomePage() {
       <div className="mx-auto max-w-[720px] px-4 pb-6">
         <Link
           href="/post-need"
+          prefetch={false}
           className="block rounded-card border border-line bg-card px-4 py-3 text-center text-[14px] font-bold text-ink no-underline"
           data-testid="home-post-need-cta"
         >

@@ -60,6 +60,8 @@ export function PremiumClient({ billingLive }: { billingLive: boolean }) {
   useEffect(() => {
     if (!selectedId) return;
     setSelection(null);
+    setSaving(false);
+    setSaveError(false);
     let cancelled = false;
     void (async () => {
       try {
@@ -89,7 +91,7 @@ export function PremiumClient({ billingLive }: { billingLive: boolean }) {
       if (selectedIdRef.current !== savedFor) return;
       setSaveError(true);
     } finally {
-      setSaving(false);
+      if (selectedIdRef.current === savedFor) setSaving(false);
     }
   };
 

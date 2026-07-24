@@ -1,4 +1,4 @@
-"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 exactly.
+"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 + 0025 exactly.
 
 owner_user_id is a plain UUID value, never an FK into identity: the module
 independence contract forbids directory -> identity coupling at any layer.

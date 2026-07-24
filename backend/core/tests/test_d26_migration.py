@@ -47,6 +47,7 @@ async def test_profile_views_table_and_dedupe_index(db_session: AsyncSession) ->
         ).all()
     }
     assert "uq_directory_profile_views_dedupe" in indexes
+    assert "ix_directory_profile_views_business_occurred" in indexes
 
 
 async def test_profile_views_append_only_grant(db_session: AsyncSession) -> None:

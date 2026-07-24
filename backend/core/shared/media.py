@@ -57,3 +57,34 @@ def reencode_image(data: bytes) -> tuple[bytes, str]:
     out = BytesIO()
     img.convert("RGB").save(out, format="JPEG", quality=85)
     return out.getvalue(), "image/jpeg"
+
+
+# --- Voice-note audio (D25 shell). Stored as-is after container sniff + size
+# cap: no transcode, no metadata strip (audio containers carry no GPS EXIF the
+# way images do; transcription is Phase 2). The client-declared MIME is
+# ignored - the magic bytes decide.
+
+MAX_AUDIO_BYTES = 5 * 1024 * 1024
+AUDIO_EXTENSIONS = {"audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a"}
+
+
+def _sniff_audio_mime(data: bytes) -> str | None:
+    if len(data) >= 12 and data[4:8] == b"ftyp":  # MP4/M4A brand box
+        return "audio/mp4"
+    if data[:4] == b"\x1a\x45\xdf\xa3":  # EBML header (WebM/Matroska)
+        return "audio/webm"
+    if data[:4] == b"OggS":  # Ogg page capture pattern
+        return "audio/ogg"
+    return None
+
+
+def validate_audio(data: bytes) -> tuple[bytes, str]:
+    """bytes in -> (same bytes, sniffed mime). MediaError on reject."""
+    if not data:
+        raise MediaError("empty_file")
+    if len(data) > MAX_AUDIO_BYTES:
+        raise MediaError("too_large")
+    mime = _sniff_audio_mime(data)
+    if mime is None:
+        raise MediaError("unsupported_type")
+    return data, mime

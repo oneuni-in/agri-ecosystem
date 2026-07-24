@@ -31,6 +31,15 @@ class RenameIn(BaseModel):
     new_slug: str = Field(pattern=SLUG_PATTERN, min_length=3, max_length=80)
 
 
+class TierSelectionIn(BaseModel):
+    tier: Literal["free", "premium"]
+
+
+class TierSelectionOut(BaseModel):
+    subscription_tier: str
+    premium_requested_at: datetime | None
+
+
 class BusinessOut(BaseModel):
     id: uuid.UUID
     name: str

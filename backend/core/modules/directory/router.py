@@ -47,6 +47,8 @@ from modules.directory.schemas import (
     CoversOut,
     PublicBranchOut,
     RenameIn,
+    TierSelectionIn,
+    TierSelectionOut,
 )
 from shared.db import get_session
 from shared.events import publish
@@ -339,6 +341,30 @@ async def assign_categories(
     await _publish_best_effort("business.updated", payload)
     for product_payload in product_payloads:
         await _publish_best_effort("product.updated", product_payload)
+    return out
+
+
+@router.put("/businesses/{business_id}/tier-selection")
+async def select_tier(
+    request: Request, business_id: uuid.UUID, body: TierSelectionIn, session: SessionDep
+) -> TierSelectionOut:
+    """Premium INTENT while billing is dark (D26): 'activate at launch'.
+    subscription_tier is untouched by design - server-set only."""
+    try:
+        business = await service.select_tier(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            tier=body.tier,
+            now=datetime.now(UTC),
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    out = TierSelectionOut(
+        subscription_tier=business.subscription_tier,
+        premium_requested_at=business.premium_requested_at,
+    )
+    await session.commit()
     return out
 
 

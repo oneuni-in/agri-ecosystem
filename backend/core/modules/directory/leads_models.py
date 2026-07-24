@@ -26,6 +26,9 @@ inquiry_type_enum = postgresql.ENUM(
 inquiry_status_enum = postgresql.ENUM(
     "new", "responded", "closed", name="inquiry_status", schema="leads", create_type=False
 )
+need_status_enum = postgresql.ENUM(
+    "open", "fulfilled", "closed", name="need_status", schema="leads", create_type=False
+)
 
 
 class Inquiry(UUIDv7PKMixin, TimestampMixin, Base):
@@ -33,6 +36,7 @@ class Inquiry(UUIDv7PKMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_leads_inquiries_business_id_id", "business_id", "id"),
         Index("ix_leads_inquiries_from_user_id_id", "from_user_id", "id"),
+        Index("ix_leads_inquiries_need_id_id", "need_id", "id"),
         {"schema": "leads"},
     )
 
@@ -46,6 +50,10 @@ class Inquiry(UUIDv7PKMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(inquiry_status_enum, nullable=False, server_default="new")
     pincode: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # D25 fan-out link: set when this inquiry is a routed child of a need
+    need_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("leads.needs.id"), nullable=True
+    )
 
 
 class InquiryResponse(UUIDv7PKMixin, TimestampMixin, Base):
@@ -95,3 +103,25 @@ class PincodeInterest(UUIDv7PKMixin, TimestampMixin, Base):
         postgresql.UUID(as_uuid=True), nullable=True
     )
     milk_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Need(UUIDv7PKMixin, TimestampMixin, Base):
+    """User-side subscription-intent need (D25). Fan-out to covering vendors
+    happens via child Inquiry rows (need_id) so the D18 inbox/respond
+    machinery is reused verbatim. status is the USER side (open/fulfilled/
+    closed); each child inquiry keeps its own vendor-side status."""
+
+    __tablename__ = "needs"
+    __table_args__ = (
+        Index("ix_leads_needs_from_user_id_id", "from_user_id", "id"),
+        {"schema": "leads"},
+    )
+
+    from_user_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
+    pincode: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(postgresql.JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(need_status_enum, nullable=False, server_default="open")
+    accepted_business_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+    voice_key: Mapped[str | None] = mapped_column(Text, nullable=True)

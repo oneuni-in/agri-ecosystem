@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Card, Skeleton, cn } from "@agri/ui";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ApiError, getJson, patchJson, postJson, putJson } from "@/lib/api";
 
@@ -72,6 +72,20 @@ export function ListingsClient() {
   const [saving, setSaving] = useState<"listing" | "coverage" | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
+  // Latest values mirrored into refs so async callbacks (saves, in-flight detail
+  // fetches) can check "is this still current?" without retriggering the effects
+  // that depend on selectedId alone.
+  const businessesRef = useRef<BusinessOut[] | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    businessesRef.current = businesses;
+  }, [businesses]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
   const loadBusinesses = async () => {
     try {
       const body = await getJson("/api/directory/businesses?limit=50");
@@ -87,9 +101,16 @@ export function ListingsClient() {
     void loadBusinesses();
   }, []);
 
+  // Resets the form to the selected business's server snapshot and fetches its
+  // coverage. Depends on selectedId ONLY (not businesses) so that background
+  // refreshes of the businesses list never clobber in-progress edits; the
+  // current list is read from businessesRef instead. The cancelled guard drops
+  // stale detail responses when the user switches businesses before a prior
+  // fetch resolves.
   useEffect(() => {
-    const selected = businesses?.find((b) => b.id === selectedId);
+    const selected = businessesRef.current?.find((b) => b.id === selectedId);
     if (!selected) return;
+    let cancelled = false;
     setName(selected.name);
     setType(selected.type);
     setPrimaryPincode(selected.primary_pincode);
@@ -100,14 +121,18 @@ export function ListingsClient() {
     void (async () => {
       try {
         const detail = await getJson(`/api/directory/businesses/${selected.slug}`);
+        if (cancelled) return;
         setCoverage((detail.coverage_pincodes as string[] | undefined) ?? []);
       } catch {
-        setCoverage([]);
+        if (!cancelled) setCoverage([]);
       } finally {
-        setDetailLoading(false);
+        if (!cancelled) setDetailLoading(false);
       }
     })();
-  }, [selectedId, businesses]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   const create = async () => {
     if (!newName.trim() || !PINCODE_RE.test(newPincode)) {
@@ -135,22 +160,35 @@ export function ListingsClient() {
 
   const saveListing = async () => {
     if (!selectedId) return;
+    const savedFor = selectedId;
     setSaving("listing");
     setNotice(null);
     try {
       const description = descriptionEn.trim()
-        ? { ...(businesses?.find((b) => b.id === selectedId)?.description ?? {}), en: descriptionEn.trim() }
+        ? { ...(businessesRef.current?.find((b) => b.id === savedFor)?.description ?? {}), en: descriptionEn.trim() }
         : null;
-      await patchJson(`/api/directory/businesses/${selectedId}`, {
-        name: name.trim(),
+      const trimmedName = name.trim();
+      await patchJson(`/api/directory/businesses/${savedFor}`, {
+        name: trimmedName,
         type,
         primary_pincode: primaryPincode,
         description,
         delivery_windows: windows,
       });
+      // Update the picker's entry locally instead of refetching the whole list -
+      // an un-awaited refetch here is what let stale GET responses clobber
+      // in-progress edits on other businesses.
+      setBusinesses((prev) =>
+        prev?.map((b) =>
+          b.id === savedFor
+            ? { ...b, name: trimmedName, type, primary_pincode: primaryPincode, description }
+            : b,
+        ) ?? prev,
+      );
+      if (selectedIdRef.current !== savedFor) return;
       setNotice({ kind: "ok", text: "Listing saved." });
-      void loadBusinesses();
     } catch (err) {
+      if (selectedIdRef.current !== savedFor) return;
       setNotice({
         kind: "error",
         text:
@@ -172,13 +210,22 @@ export function ListingsClient() {
 
   const saveCoverage = async () => {
     if (!selectedId) return;
+    const savedFor = selectedId;
     setSaving("coverage");
     setNotice(null);
     try {
-      await putJson(`/api/directory/businesses/${selectedId}/coverage`, { pincodes: coverage });
+      await putJson(`/api/directory/businesses/${savedFor}/coverage`, { pincodes: coverage });
+      if (selectedIdRef.current !== savedFor) return;
       setNotice({ kind: "ok", text: "Coverage saved — customers in these pincodes can now find you." });
-    } catch {
-      setNotice({ kind: "error", text: "Could not save coverage — please try again." });
+    } catch (err) {
+      if (selectedIdRef.current !== savedFor) return;
+      setNotice({
+        kind: "error",
+        text:
+          err instanceof ApiError && err.status === 422
+            ? "Coverage not saved — check the pincodes (6 digits each, up to 500)."
+            : "Could not save coverage — please try again.",
+      });
     } finally {
       setSaving(null);
     }

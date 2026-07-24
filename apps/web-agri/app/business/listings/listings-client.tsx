@@ -164,9 +164,19 @@ export function ListingsClient() {
     setSaving("listing");
     setNotice(null);
     try {
-      const description = descriptionEn.trim()
-        ? { ...(businessesRef.current?.find((b) => b.id === savedFor)?.description ?? {}), en: descriptionEn.trim() }
-        : null;
+      const existingDescription = businessesRef.current?.find((b) => b.id === savedFor)?.description ?? null;
+      const trimmedEn = descriptionEn.trim();
+      let description: Record<string, string> | null;
+      if (trimmedEn) {
+        description = { ...existingDescription, en: trimmedEn };
+      } else if (existingDescription) {
+        // Empty EN box must only clear the `en` key - never wipe seeded/claimed
+        // ta/hi translations that this EN-only console never displays.
+        const { en: _en, ...rest } = existingDescription;
+        description = Object.keys(rest).length > 0 ? rest : null;
+      } else {
+        description = null;
+      }
       const trimmedName = name.trim();
       await patchJson(`/api/directory/businesses/${savedFor}`, {
         name: trimmedName,

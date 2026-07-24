@@ -24,6 +24,7 @@ from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.leads_router import router as leads_engine_router
 from modules.directory.lookups import business_ref, owned_business_refs
 from modules.directory.moderation_sources import register_directory_moderation_sources
+from modules.directory.needs_router import router as needs_router
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
@@ -84,6 +85,7 @@ MODULE_ROUTERS = [
     identity_session_router,
     leads_router,
     leads_engine_router,
+    needs_router,
     market_data_router,
     notify_router,
     ops_admin_router,

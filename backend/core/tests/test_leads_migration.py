@@ -45,6 +45,32 @@ async def test_app_rt_cannot_delete_contact_reveals(db_session: AsyncSession) ->
         await db_session.execute(text("DELETE FROM leads.contact_reveals"))
 
 
+async def test_app_rt_can_insert_and_update_needs(db_session: AsyncSession) -> None:
+    # D25: needs are mutable state (status transitions), so app_rt keeps
+    # INSERT and UPDATE - unlike the append-only contact_reveals
+    await db_session.execute(
+        text(
+            "INSERT INTO leads.needs (id, from_user_id, pincode, payload) "
+            "VALUES (gen_random_uuid(), gen_random_uuid(), '641001', '{}'::jsonb)"
+        )
+    )
+    await db_session.execute(text("UPDATE leads.needs SET status = 'fulfilled'"))
+
+
+async def test_inquiries_need_id_is_fk_to_needs(db_session: AsyncSession) -> None:
+    # D25 fan-out link: a need_id that doesn't exist in leads.needs must be
+    # rejected by the FK
+    with pytest.raises(Exception):  # noqa: B017 - FK-violation wrapping varies
+        await db_session.execute(
+            text(
+                "INSERT INTO leads.inquiries "
+                "(id, type, business_id, payload, pincode, need_id) "
+                "VALUES (gen_random_uuid(), 'milk_subscription', gen_random_uuid(), "
+                "'{}'::jsonb, '641001', gen_random_uuid())"
+            )
+        )
+
+
 async def test_lead_templates_seeded_in_all_locales(db_session: AsyncSession) -> None:
     rows = (
         await db_session.execute(

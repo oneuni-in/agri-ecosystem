@@ -327,17 +327,27 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: check PR title + commit subjects
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          # The event payload freezes the title at trigger time, so a re-run
+          # after fixing the title would replay the stale value and fail
+          # forever (D24 lesson). Fetch the CURRENT title instead — then
+          # "Re-run failed jobs" alone picks up the fix (no close/reopen,
+          # no full-suite re-trigger).
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.base_ref }}
         run: |
           pattern='^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
           fail=0
+          PR_TITLE="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .title)"
           if ! grep -qE "$pattern" <<<"$PR_TITLE"; then
             echo "PR title is not a conventional commit: $PR_TITLE"
             fail=1

@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+
+import { PostNeedForm } from "./post-need-form";
+
+// Utility page (form): noindex keeps the Lighthouse/SEO public-page set
+// unchanged. Static shell — the pincode prefill is read client-side from the
+// agri_loc cookie so the page stays cacheable.
+export const metadata: Metadata = {
+  title: "Post my need — Milk.in",
+  description: "Tell nearby milk vendors what you need — they reply, you choose.",
+  robots: { index: false },
+};
+
+export default function PostNeedPage() {
+  return (
+    <main className="mx-auto max-w-[720px] space-y-4 px-4 py-6">
+      <header className="space-y-1">
+        <h1 className="font-display text-[22px] font-extrabold text-ink">
+          🥛 Post my need <span className="vern font-normal">· என் தேவை</span>
+        </h1>
+        <p className="text-[13px] text-sub">
+          Tell vendors near you what milk you need — everyone covering your pincode gets it and
+          replies here.
+        </p>
+      </header>
+      <PostNeedForm />
+    </main>
+  );
+}

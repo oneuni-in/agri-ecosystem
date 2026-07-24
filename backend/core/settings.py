@@ -101,7 +101,8 @@ class Settings(BaseSettings):
     # Profile-view beacon (D26 analytics-lite). The secret salts the ads-style
     # daily-rotating viewer pseudonym; dedupe is the DB unique index, so a
     # missing Redis costs nothing here.
-    view_beacon_secret: str = "dev-view-beacon-secret"  # dev-only default; set a real secret in prod
+    # dev-only default; set a real secret in prod.
+    view_beacon_secret: str = "dev-view-beacon-secret"
 
     # Location resolution (D19). GeoIP is optional, state-level, advisory-only
     # infrastructure: an empty path means the feature is off (no mmdb file is

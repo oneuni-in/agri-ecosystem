@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { cookies } from "next/headers";
 
+import { Link } from "@/i18n/navigation";
+
 import { SearchForm } from "./search-form";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -68,8 +70,10 @@ function placeLabel(hit: SearchHit): string | null {
  * must render nothing rather than throw — same D16 precedent as
  * `apps/web-agri/app/directory/businesses/[slug]/page.tsx` (`.description.en`),
  * just guarded since this cast is less trusted than that route's.
- * No locale routing exists yet (D02 decision), so "en" is always the
- * request locale in practice.
+ * Deliberately reads the "en" entry: locale routing (D27) governs UI-string
+ * translation, not user-authored business/product content — that stays in the
+ * language it was written in, so we surface the "en" value regardless of the
+ * request locale (localised content is a future backend concern).
  */
 function pickDescription(description: SearchHit["description"]): string | null {
   if (!description || typeof description !== "object") return null;
@@ -173,12 +177,12 @@ export default async function SearchPage({
       )}
 
       {page.next_cursor ? (
-        <a
+        <Link
           href={`/search?q=${encodeURIComponent(q)}&cursor=${encodeURIComponent(page.next_cursor)}`}
-          className="mx-auto rounded-btn border border-line bg-card px-4 py-2 text-sm font-bold text-ink"
+          className="mx-auto rounded-btn border border-line bg-card px-4 py-2 text-sm font-bold text-ink no-underline"
         >
           {t("results.loadMore")}
-        </a>
+        </Link>
       ) : null}
     </main>
   );

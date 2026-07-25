@@ -205,7 +205,7 @@ export default async function VendorProfilePage({
                     {t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category.slug]}.name`)}
                   </Link>
                 ) : (
-                  <Badge key={category.slug} variant="cert">
+                  <Badge key={category.slug} variant="neutral">
                     {category.name.en ?? category.slug}
                   </Badge>
                 ),

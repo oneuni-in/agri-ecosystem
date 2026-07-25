@@ -28,6 +28,10 @@
 Badge verified: bg #E1F3E5 / fg #156A2E
 Badge sponsored: bg #FFF1D2 / fg #8A5B00
 Badge cert:      bg #EAF2DC / fg #3E5A14
+Badge neutral:   bg #FFFFFF / fg #5A6A5D / border #E2E7DA (plain label, e.g. a
+                 non-dairy category tag — outlined not filled, so it never
+                 reads as a trust badge; not in the mockup, built from shared
+                 neutral tokens per §"never invent a new visual language")
 Rating stars fg: #C77700
 ```
 
@@ -55,7 +59,7 @@ Rating stars fg: #C77700
 |---|---|---|
 | **CategoryTile** | `.cat` | 96px min column, 16px radius, 1.5px border; 52px tinted icon square (14px radius, pastel bg per category) + 12px/700 EN label + `.vern` line; hover lift + brand border. Min-height 104px. |
 | **CallButton / WhatsAppButton** | `.abtn.call / .abtn.wa` | Call = solid `--call` white text; WA = `#E6F8EC` bg, `#157A3C` text, 1.5px `#BDE8CC` border. Both flex-1, 12px radius, 800 weight, emoji-prefixed. Call/WA lead every vendor card — forms never do. |
-| **Badge** | `.badge.*` | Pill, 11px/800; exact verified/sponsored/cert colors above. Sponsored is ALWAYS labeled "★ Sponsored". |
+| **Badge** | `.badge.*` | Pill, 11px/800; exact verified/sponsored/cert/neutral colors above. Sponsored is ALWAYS labeled "★ Sponsored". `neutral` is outlined, not filled — for plain labels, never a trust claim. |
 | **SearchBar (mic slot)** | `.searchbox` | White 16px-radius bar with floating shadow; 46px **accent-colored mic** (right-most) + optional cam; hint line below in white/85 on the header gradient. |
 | **PincodeInput** | `.pinbox` | White 16px container, 18px/700 numeric input with .15em letter-spacing, solid brand "Find" button; GPS pill (`rgba(255,255,255,.16)` bg, white border .35) beneath. |
 | **BottomNav** | `.appnav` | 5 slots, sticky bottom, white, top border + up-shadow; center **Ask AI** = 46px brand circle, raised −22px, 4px white ring, mic emoji; labels 10.5px/700. |

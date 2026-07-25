@@ -114,9 +114,13 @@ export default async function PincodePage({
   // NOT reuse `fetchMilkHome`'s 3-way scope machinery (covered /
   // tn_no_vendors / out_of_area): `/directory/covers` has no such concept,
   // it just returns items or an empty page, so the category view only ever
-  // has two states, items or empty (handled inside `CategoryResults`).
+  // has two states, items or empty (handled inside `CategoryResults`) — but
+  // a `fetchCovers` null (backend unreachable / non-ok) is a genuine error,
+  // not a warm empty state, same distinction `fetchMilkHome`'s `!data` check
+  // makes below for the milk view.
   if (category !== undefined && isDairyCategory(category)) {
     const covers = await fetchCovers(pincode, category);
+    if (!covers) notFound();
     const t = await getTranslations("ui");
     const categoryLabel = t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category]}.name`);
     return (
@@ -128,7 +132,7 @@ export default async function PincodePage({
           {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
         </h1>
         <CategoryChips pincode={pincode} active={category} />
-        <CategoryResults items={covers?.items ?? []} categoryLabel={categoryLabel} pincode={pincode} />
+        <CategoryResults items={covers.items} categoryLabel={categoryLabel} pincode={pincode} />
       </main>
     );
   }

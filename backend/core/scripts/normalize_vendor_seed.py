@@ -14,7 +14,8 @@ Output contract (columns the D27 loader consumes - `ref` is a stable
 string key joining rows across the four files; D27 mints UUIDv7 ids from
 it, `ref` itself is never a database id):
 
-    businesses.csv: ref,name,type,category_slugs,primary_pincode,description_en,description_ta
+    businesses.csv: ref,name,type,category_slugs,primary_pincode,
+                     description_en,description_ta,description_hi
     branches.csv:   business_ref,address,state,district,pincode,lat,lng
     coverage.csv:   business_ref,pincode
     products.csv:   business_ref,vertical_slug,name,specs_json,price_display
@@ -23,7 +24,7 @@ Deliberately absent: phone/whatsapp/email columns anywhere in the output.
 Contact data enters only via the D16 claim flow, so the seed is PII-free
 by construction - looks_like_pii() actively rejects any row that smuggles
 contact-shaped text into ANY free-text field this script emits (name,
-address, state, district, description_en/ta, product name,
+address, state, district, description_en/ta/hi, product name,
 price_display - see _PII_CHECKED_FIELDS); rejected rows are written to
 rejects.csv (gitignored - see the .gitignore in data/seeds/coimbatore/,
 never committed - it holds the raw PII verbatim) with a reason, never
@@ -35,7 +36,7 @@ column names are known; the validation/dedupe/rejection logic below does
 not change, only which raw columns feed it):
 
     name, type, category_slugs, primary_pincode,
-    description_en, description_ta,
+    description_en, description_ta, description_hi,
     address, state, district, pincode, lat, lng, coverage_pincodes,
     vertical_slug, product_name, specs_json,
     milk_type, fat_percent, pack_size, price_display
@@ -139,6 +140,7 @@ BUSINESS_FIELDS = (
     "primary_pincode",
     "description_en",
     "description_ta",
+    "description_hi",
 )
 BRANCH_FIELDS = ("business_ref", "address", "state", "district", "pincode", "lat", "lng")
 COVERAGE_FIELDS = ("business_ref", "pincode")
@@ -160,6 +162,7 @@ _PII_CHECKED_FIELDS = (
     "district",
     "description_en",
     "description_ta",
+    "description_hi",
     "product_name",
     "price_display",
 )
@@ -300,6 +303,7 @@ def normalize_row(
         "district": raw.get("district", ""),
         "description_en": raw.get("description_en", ""),
         "description_ta": raw.get("description_ta", ""),
+        "description_hi": raw.get("description_hi", ""),
         "product_name": raw.get("product_name", ""),
         "price_display": raw.get("price_display", ""),
     }
@@ -349,6 +353,7 @@ def normalize_row(
         "primary_pincode": primary_pincode,
         "description_en": " ".join(raw.get("description_en", "").split()),
         "description_ta": " ".join(raw.get("description_ta", "").split()),
+        "description_hi": " ".join(raw.get("description_hi", "").split()),
     }
     branch = {
         "business_ref": ref,

@@ -49,6 +49,7 @@ def _row(**overrides: str) -> dict[str, str]:
         "primary_pincode": "641001",
         "description_en": "Fresh cow milk daily doorstep delivery",
         "description_ta": "",
+        "description_hi": "",
         "address": "Shop 4, RS Puram",
         "state": "Tamil Nadu",
         "district": "Coimbatore",
@@ -180,6 +181,10 @@ class TestNormalizeRow:
     def test_rejects_email_in_description(self) -> None:
         _, reason = normalize_row(_row(description_en="mail us at vendor@example.com"), GEO)
         assert reason == "pii_detected:description_en"
+
+    def test_rejects_phone_in_description_hi(self) -> None:
+        _, reason = normalize_row(_row(description_hi="ऑर्डर के लिए 9876543210 पर कॉल करें"), GEO)
+        assert reason == "pii_detected:description_hi"
 
     def test_rejects_phone_in_name(self) -> None:
         _, reason = normalize_row(_row(name="Sri Balaji Dairy 9876543210"), GEO)
@@ -316,6 +321,7 @@ class TestStarterSeed:
             assert not looks_like_pii(row["name"])
             assert not looks_like_pii(row["description_en"])
             assert not looks_like_pii(row["description_ta"])
+            assert not looks_like_pii(row["description_hi"])
         for row in self._rows("branches.csv"):
             assert not looks_like_pii(row["address"])
             assert not looks_like_pii(row["state"])
@@ -329,6 +335,15 @@ class TestStarterSeed:
         # this directory must never be able to commit it silently.
         gitignore = (SEED_DIR / ".gitignore").read_text(encoding="utf-8")
         assert "rejects.csv" in gitignore
+
+
+def test_businesses_csv_has_hindi_descriptions() -> None:
+    with (SEED_DIR / "businesses.csv").open(encoding="utf-8", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert rows, "starter sample must not be empty"
+    for row in rows:
+        assert "description_hi" in row
+        assert row["description_hi"].strip(), row["ref"]
 
 
 def test_dairy_service_categories_are_valid_seed_slugs() -> None:

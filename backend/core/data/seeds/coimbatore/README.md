@@ -41,7 +41,7 @@ rejected row carries a machine-readable reason (`pincode_not_found`,
 
 | file | columns |
 |---|---|
-| `businesses.csv` | `ref,name,type,category_slugs,primary_pincode,description_en,description_ta` |
+| `businesses.csv` | `ref,name,type,category_slugs,primary_pincode,description_en,description_ta,description_hi` |
 | `branches.csv` | `business_ref,address,state,district,pincode,lat,lng` |
 | `coverage.csv` | `business_ref,pincode` |
 | `products.csv` | `business_ref,vertical_slug,name,specs_json,price_display` |
@@ -59,8 +59,8 @@ the system only through the D16 claim flow once a real owner claims
 their listing — so this seed (and the tool that produces it) is
 PII-free by construction, not by discipline. The normalizer actively
 scans every free-text field it emits (`name`, `address`, `state`,
-`district`, `description_en`, `description_ta`, `product_name`,
-`price_display`) with `looks_like_pii()` and rejects any row that looks
+`district`, `description_en`, `description_ta`, `description_hi`,
+`product_name`, `price_display`) with `looks_like_pii()` and rejects any row that looks
 like it smuggled in a phone number (any punctuation style — space,
 hyphen, dot, slash, parens) or an email address, rather than silently
 stripping it.

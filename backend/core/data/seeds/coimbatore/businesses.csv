@@ -1,16 +1,16 @@
-ref,name,type,category_slugs,primary_pincode,description_en,description_ta
-sri-balaji-dairy-farm-641001,Sri Balaji Dairy Farm,farm,dairy,641001,Farm-fresh cow milk with doorstep delivery in Ukkadam,
-kovai-fresh-milk-suppliers-641002,Kovai Fresh Milk Suppliers,vendor,dairy,641002,Daily toned milk supply for RS Puram households,
-annai-dairy-products-641004,Annai Dairy Products,vendor,dairy,641004,Buffalo milk sourced from Peelamedu-area farms,
-coimbatore-cooperative-milk-vendor-641005,Coimbatore Cooperative Milk Vendor,vendor,dairy,641005,Bulk cow milk supply for hotels and mess in Singanallur,
-nandhini-milk-center-641006,Nandhini Milk Center,shop,dairy,641006,Retail milk booth serving Ganapathy locality,
-saibaba-colony-dairy-641011,Saibaba Colony Dairy,vendor,dairy,641011,A2 milk delivery across Saibaba Colony,
-ganga-dairy-farm-641009,Ganga Dairy Farm,farm,dairy,641009,Organic certified dairy farm near Kalapatti,
-sri-krishna-milk-suppliers-641012,Sri Krishna Milk Suppliers,vendor,dairy,641012,Fresh buffalo milk supplier near Race Course,
-kovai-nature-farms-dairy-641013,Kovai Nature Farms Dairy,farm,dairy,641013,Small organic dairy farm collective,
-elango-dairy-vendor-641014,Elango Dairy Vendor,vendor,dairy,641014,Neighbourhood milk vendor with morning delivery,
-amman-dairy-products-641016,Amman Dairy Products,vendor,dairy,641016,Buffalo milk products vendor near Thudiyalur,
-green-valley-dairy-farm-641017,Green Valley Dairy Farm,farm,dairy,641017,Small-batch A2 milk farm near Vellalore,
-sri-lakshmi-milk-center-641018,Sri Lakshmi Milk Center,shop,dairy,641018,Retail dairy counter in Podanur,
-kovai-a2-milk-suppliers-641020,Kovai A2 Milk Suppliers,vendor,dairy,641020,Premium A2 milk home delivery,
-tiruppur-border-dairy-vendor-641604,Tiruppur Border Dairy Vendor,vendor,dairy,641604,Milk vendor serving the Coimbatore-Tiruppur border belt,
+ref,name,type,category_slugs,primary_pincode,description_en,description_ta,description_hi
+sri-balaji-dairy-farm-641001,Sri Balaji Dairy Farm,farm,dairy,641001,Farm-fresh cow milk with doorstep delivery in Ukkadam,,उक्कडम में ताज़ा फार्म गाय का दूध घर पर डिलीवरी
+kovai-fresh-milk-suppliers-641002,Kovai Fresh Milk Suppliers,vendor,dairy,641002,Daily toned milk supply for RS Puram households,,आरएस पुरम के घरों के लिए रोज़ाना टोंड दूध की आपूर्ति
+annai-dairy-products-641004,Annai Dairy Products,vendor,dairy,641004,Buffalo milk sourced from Peelamedu-area farms,,पीलामेडु क्षेत्र के खेतों से भैंस का दूध
+coimbatore-cooperative-milk-vendor-641005,Coimbatore Cooperative Milk Vendor,vendor,dairy,641005,Bulk cow milk supply for hotels and mess in Singanallur,,सिंगनल्लूर में होटलों और मेस के लिए थोक गाय के दूध की आपूर्ति
+nandhini-milk-center-641006,Nandhini Milk Center,shop,dairy,641006,Retail milk booth serving Ganapathy locality,,गणपति इलाके की सेवा करने वाला खुदरा दूध बूथ
+saibaba-colony-dairy-641011,Saibaba Colony Dairy,vendor,dairy,641011,A2 milk delivery across Saibaba Colony,,साईबाबा कॉलोनी में ए2 दूध की डिलीवरी
+ganga-dairy-farm-641009,Ganga Dairy Farm,farm,dairy,641009,Organic certified dairy farm near Kalapatti,,कलापट्टी के पास प्रमाणित जैविक डेयरी फार्म
+sri-krishna-milk-suppliers-641012,Sri Krishna Milk Suppliers,vendor,dairy,641012,Fresh buffalo milk supplier near Race Course,,रेस कोर्स के पास ताज़ा भैंस के दूध का आपूर्तिकर्ता
+kovai-nature-farms-dairy-641013,Kovai Nature Farms Dairy,farm,dairy,641013,Small organic dairy farm collective,,छोटा जैविक डेयरी फार्म समूह
+elango-dairy-vendor-641014,Elango Dairy Vendor,vendor,dairy,641014,Neighbourhood milk vendor with morning delivery,,सुबह डिलीवरी के साथ स्थानीय दूध विक्रेता
+amman-dairy-products-641016,Amman Dairy Products,vendor,dairy,641016,Buffalo milk products vendor near Thudiyalur,,थुडियालूर के पास भैंस के दूध उत्पाद विक्रेता
+green-valley-dairy-farm-641017,Green Valley Dairy Farm,farm,dairy,641017,Small-batch A2 milk farm near Vellalore,,वेल्लालोर के पास छोटे बैच का ए2 दूध फार्म
+sri-lakshmi-milk-center-641018,Sri Lakshmi Milk Center,shop,dairy,641018,Retail dairy counter in Podanur,,पोडानूर में खुदरा डेयरी काउंटर
+kovai-a2-milk-suppliers-641020,Kovai A2 Milk Suppliers,vendor,dairy,641020,Premium A2 milk home delivery,,प्रीमियम ए2 दूध घर पहुंच सेवा
+tiruppur-border-dairy-vendor-641604,Tiruppur Border Dairy Vendor,vendor,dairy,641604,Milk vendor serving the Coimbatore-Tiruppur border belt,,कोयंबटूर-तिरुप्पुर सीमा क्षेत्र की सेवा करने वाला दूध विक्रेता

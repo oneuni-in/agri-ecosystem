@@ -241,6 +241,7 @@ async def test_covers_category_filter(
     session.add_all([vendor, vet])
     await session.flush()
     vet_cat = await session.scalar(select(Category).where(Category.slug == "veterinarian"))
+    assert vet_cat is not None
     session.add_all(
         [
             BusinessCoverage(business_id=vendor.id, pincode="641001"),

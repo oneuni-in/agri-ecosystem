@@ -186,10 +186,13 @@ def _sample_bundle() -> list[SeedBusiness]:
 
 
 class TestImportSeed:
-    async def test_creates_ownerless_claimable_businesses(self, db_session, tn_geo_sample) -> None:
+    async def test_creates_ownerless_claimable_businesses(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
         report = await import_seed(db_session, _sample_bundle())
         assert report.created == 2 and report.skipped == 0
         vet = await db_session.scalar(select(Business).where(Business.name == "Seed Vet Clinic"))
+        assert vet is not None
         assert vet.owner_user_id is None  # claimable (D16)
         assert vet.status == "active"
         cats = (
@@ -202,7 +205,7 @@ class TestImportSeed:
         assert cats == ["veterinarian"]
 
     async def test_products_created_approved_with_pinned_schema(
-        self, db_session, tn_geo_sample
+        self, db_session: AsyncSession, tn_geo_sample: None
     ) -> None:
         await import_seed(db_session, _sample_bundle())
         product = await db_session.scalar(
@@ -210,11 +213,14 @@ class TestImportSeed:
             .join(Business, Business.id == Product.business_id)
             .where(Business.name == "Seed Fresh Dairy")
         )
+        assert product is not None
         assert product.moderation_status == "approved"
         assert product.vertical_slug == "milk"
         assert product.schema_version is not None
 
-    async def test_reimport_is_idempotent(self, db_session, tn_geo_sample) -> None:
+    async def test_reimport_is_idempotent(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
         first = await import_seed(db_session, _sample_bundle())
         assert first.created == 2
         await db_session.flush()
@@ -228,7 +234,7 @@ class TestImportSeed:
         assert count == 2
 
     async def test_event_payloads_captured_for_created_only(
-        self, db_session, tn_geo_sample
+        self, db_session: AsyncSession, tn_geo_sample: None
     ) -> None:
         first = await import_seed(db_session, _sample_bundle())
         types = [t for (t, _) in first.event_payloads]
@@ -238,7 +244,9 @@ class TestImportSeed:
         second = await import_seed(db_session, _sample_bundle())
         assert second.event_payloads == []
 
-    async def test_unknown_category_slug_fails_loud(self, db_session, tn_geo_sample) -> None:
+    async def test_unknown_category_slug_fails_loud(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
         bad = [
             replace(
                 _sample_bundle()[0], ref="x", name="X Clinic", category_slugs=("no-such-category",)

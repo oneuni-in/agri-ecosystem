@@ -906,6 +906,7 @@ class TestDairyCategorySites:
         db_session.add(business)
         await db_session.flush()
         cat = await db_session.scalar(select(Category).where(Category.slug == "veterinarian"))
+        assert cat is not None
         db_session.add(BusinessCategory(business_id=business.id, category_id=cat.id))
         db_session.add(BusinessCoverage(business_id=business.id, pincode="641002"))
         await db_session.flush()

@@ -51,6 +51,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/catalog/milk/home/{pincode}",
     "/directory/businesses/{slug}",
     "/directory/covers/{pincode}",
+    "/directory/businesses/{slug}/nearby-branches",
     "/directory/businesses/{slug}/view",
     "/authorize",
     "/token",

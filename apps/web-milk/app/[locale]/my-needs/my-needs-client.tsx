@@ -2,8 +2,9 @@
 
 import { Button, Card, cn, EmptyState } from "@agri/ui";
 import { useAgriUser } from "@agri/auth-client/react";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+
+import { Link } from "@/i18n/navigation";
 
 interface ResponseOut {
   id: string;

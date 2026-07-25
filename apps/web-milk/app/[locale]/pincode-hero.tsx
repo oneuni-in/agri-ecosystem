@@ -1,8 +1,9 @@
 "use client";
 
 import { GpsPill, parseLocationResponse, PincodeInput } from "@agri/ui";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { useRouter } from "@/i18n/navigation";
 
 /**
  * Interactive controls rendered as the `children` of the `@agri/ui`

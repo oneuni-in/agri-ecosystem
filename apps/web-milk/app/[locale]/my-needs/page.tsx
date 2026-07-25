@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 
 import { MyNeedsClient } from "./my-needs-client";
 
@@ -8,7 +9,13 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default function MyNeedsPage() {
+export default async function MyNeedsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   return (
     <main className="mx-auto max-w-[720px] space-y-4 px-4 py-6">
       <h1 className="font-display text-[22px] font-extrabold text-ink">

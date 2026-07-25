@@ -1,6 +1,7 @@
 import { Badge, Card, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -31,9 +32,10 @@ function canonicalFor(slug: string): string {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
   const detail = await fetchBusiness(slug);
   if (!detail) {
     return { title: "Vendor not found", robots: { index: false, follow: true } };
@@ -140,9 +142,10 @@ const MAX_PINCODES_SHOWN = 12;
 export default async function VendorProfilePage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
   const detail = await fetchBusiness(slug);
   if (!detail) notFound();
   const { business, branches, coverage_pincodes } = detail;

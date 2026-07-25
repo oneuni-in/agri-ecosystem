@@ -1,9 +1,9 @@
 "use client";
 
 import { Badge, buttonVariants, Card, cn } from "@agri/ui";
-import Link from "next/link";
 import type { KeyboardEvent } from "react";
 
+import { Link } from "@/i18n/navigation";
 import { milkTypeMeta, type MilkCard } from "@/lib/milk";
 
 /**

@@ -1,8 +1,9 @@
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { Link } from "@/i18n/navigation";
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
 
 import { NotifyMe } from "./notify-me";
@@ -17,9 +18,10 @@ const PIN_RE = /^\d{6}$/;
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ pincode: string }>;
+  params: Promise<{ locale: string; pincode: string }>;
 }): Promise<Metadata> {
-  const { pincode } = await params;
+  const { locale, pincode } = await params;
+  setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) return { title: "Milk.in", robots: { index: false, follow: true } };
   const data = await fetchMilkHome(pincode);
   const place = data?.location ? `${data.location.district} (${pincode})` : pincode;
@@ -72,10 +74,11 @@ export default async function PincodePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ pincode: string }>;
+  params: Promise<{ locale: string; pincode: string }>;
   searchParams: Promise<{ type?: string }>;
 }) {
-  const { pincode } = await params;
+  const { locale, pincode } = await params;
+  setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) notFound();
   const { type = "all" } = await searchParams;
   const data = await fetchMilkHome(pincode, type);
@@ -163,7 +166,11 @@ export default async function PincodePage({
       {filteredEmpty ? (
         <p className="text-[14px] text-sub" data-testid="filtered-empty">
           No {type === "all" ? "" : `${milkTypeMeta(type).en.toLowerCase()} `}milk listed here
-          yet — <a className="font-bold text-brand-deep" href={`/${pincode}`}>see all</a>.
+          yet —{" "}
+          <Link className="font-bold text-brand-deep" href={`/${pincode}`}>
+            see all
+          </Link>
+          .
         </p>
       ) : (
         <VendorResults vendors={data.vendors} brands={data.brands} pincode={pincode} />

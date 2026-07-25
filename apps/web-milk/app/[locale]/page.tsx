@@ -1,7 +1,9 @@
 import { PincodeHero } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { setRequestLocale } from "next-intl/server";
+
+import { Link } from "@/i18n/navigation";
 
 import { PincodeHeroFinder } from "./pincode-hero";
 
@@ -9,13 +11,27 @@ const SITE = "https://milk.in";
 // Static hero — no per-visitor data on this page, so it stays ISR-cacheable.
 export const revalidate = 3600;
 
-export const metadata: Metadata = buildMetadata({
-  title: "Milk near you — all options, one place | Milk.in",
-  description:
-    "Enter your pincode to find cow, buffalo, A2 and organic milk vendors, brands and farm-fresh delivery near you across Tamil Nadu.",
-  canonical: canonicalUrl(SITE, "/"),
-  siteName: "Milk.in",
-});
+export function generateMetadata(): Metadata {
+  return {
+    ...buildMetadata({
+      title: "Milk near you — all options, one place | Milk.in",
+      description:
+        "Enter your pincode to find cow, buffalo, A2 and organic milk vendors, brands and farm-fresh delivery near you across Tamil Nadu.",
+      canonical: canonicalUrl(SITE, "/"),
+      siteName: "Milk.in",
+    }),
+    // hreflang: "/" is the canonical English URL; ta/hi live under /ta /hi.
+    alternates: {
+      canonical: `${SITE}/`,
+      languages: {
+        en: `${SITE}/`,
+        ta: `${SITE}/ta`,
+        hi: `${SITE}/hi`,
+        "x-default": `${SITE}/`,
+      },
+    },
+  };
+}
 
 /**
  * WebSite + Organization — hand-built (no webSite/organization builder in
@@ -42,7 +58,13 @@ function homeJsonLd(): string {
  * exact pattern in `apps/web-agri/app/demo/page.tsx`); `PincodeHeroFinder`
  * supplies the interactive pincode box + GPS pill.
  */
-export default function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   return (
     <main className="bg-header-gradient">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd() }} />

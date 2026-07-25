@@ -76,6 +76,19 @@ class TestLoadBundle:
         with pytest.raises(SeedContractError, match="GHOST"):
             load_bundle(seed_dir)
 
+    def test_blank_branch_business_ref_reported(self, tmp_path: Path) -> None:
+        seed_dir = _write_bundle(
+            tmp_path,
+            **{
+                "branches.csv": (
+                    "business_ref,address,state,district,pincode,lat,lng\n"
+                    ",1 Main Rd,Tamil Nadu,Coimbatore,641001,,\n"
+                )
+            },
+        )
+        with pytest.raises(SeedContractError, match="blank business_ref"):
+            load_bundle(seed_dir)
+
     def test_bad_pincode_rejected(self, tmp_path: Path) -> None:
         seed_dir = _write_bundle(
             tmp_path,

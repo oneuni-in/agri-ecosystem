@@ -58,6 +58,15 @@ async function forward(
   if (token) headers.authorization = `Bearer ${token}`;
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
+  // Forward the real client identity (mirrors /api/view's relay pattern -
+  // D26/D27 final-review fix): the backend's rate limiter keys on
+  // client_ip + path (SecureRouter's Depends(rate_limit) is unconditional,
+  // public or private), so without this every caller through this proxy
+  // collapses into the Next server's own single shared bucket.
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) headers["x-forwarded-for"] = forwardedFor;
+  const userAgent = req.headers.get("user-agent");
+  if (userAgent) headers["user-agent"] = userAgent;
   const upstream = await fetch(url, {
     method,
     headers,

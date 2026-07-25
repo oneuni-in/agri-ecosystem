@@ -23,9 +23,11 @@ This module is split into two halves:
 - The DB-import half (Task 8, added to this same module) takes the
   `SeedBusiness` list `load_bundle()` returns and writes it to
   `directory.businesses` / `.branches` / `.business_coverage` /
-  `.products`. Imported businesses land **ownerless and `claimable`**
-  (D16's claim flow model: `owner_user_id IS NULL`, `verification_status
-  = claimable`) - a bulk-seeded listing is not "owned" by anyone until a
+  `.products`. Imported businesses land **ownerless and claimable**
+  (D16's claim flow model: `owner_user_id IS NULL`) - `claimable` is
+  derived from that (owner is absent), not a `verification_status`
+  value; `verification_status` stays at its server default
+  ("unverified"). A bulk-seeded listing is not "owned" by anyone until a
   real vendor claims it. Category-slug validity against the live
   `directory.categories` table (the source of truth, not a hardcoded
   list) and product `specs_json` schema validation against the pinned
@@ -225,7 +227,10 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
     branches_by_ref: dict[str, list[SeedBranch]] = {}
     for row in branch_rows:
         ref = row["business_ref"].strip()
-        if not ref or ref not in ref_set:
+        if not ref:
+            errors.append("branches.csv: row has a blank business_ref")
+            continue
+        if ref not in ref_set:
             continue
         pincode = row["pincode"].strip()
         if not PINCODE_RE.match(pincode):
@@ -245,7 +250,10 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
     coverage_by_ref: dict[str, list[str]] = {}
     for row in coverage_rows:
         ref = row["business_ref"].strip()
-        if not ref or ref not in ref_set:
+        if not ref:
+            errors.append("coverage.csv: row has a blank business_ref")
+            continue
+        if ref not in ref_set:
             continue
         pincode = row["pincode"].strip()
         if not PINCODE_RE.match(pincode):
@@ -262,7 +270,10 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
     products_by_ref: dict[str, list[SeedProduct]] = {}
     for row in product_rows:
         ref = row["business_ref"].strip()
-        if not ref or ref not in ref_set:
+        if not ref:
+            errors.append("products.csv: row has a blank business_ref")
+            continue
+        if ref not in ref_set:
             continue
         raw_specs = row["specs_json"].strip()
         specs: dict[str, Any] = {}

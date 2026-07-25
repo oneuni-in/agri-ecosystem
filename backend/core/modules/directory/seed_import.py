@@ -38,12 +38,20 @@ from __future__ import annotations
 import csv
 import json
 import re
+import uuid
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from modules.directory.service import MAX_COVERAGE_PINCODES
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from modules.directory import catalog_service
+from modules.directory.models import Branch, Business, BusinessCategory, BusinessCoverage, Category
+from modules.directory.search_sync import business_event_payload, product_event_payload
+from modules.directory.service import MAX_COVERAGE_PINCODES, _free_slug, _slugify
+from shared.i18n import Translated
 
 PINCODE_RE = re.compile(r"^\d{6}$")
 BUSINESS_TYPES = frozenset({"vendor", "shop", "lab", "farm"})
@@ -324,3 +332,125 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
         raise SeedContractError("\n".join(errors))
 
     return businesses
+
+
+@dataclass(frozen=True, slots=True)
+class ImportOutcome:
+    ref: str
+    action: str  # "created" | "skipped"
+    business_id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ImportReport:
+    outcomes: list[ImportOutcome]
+    event_payloads: list[tuple[str, dict[str, Any]]]  # (event_type, payload) - publish AFTER commit
+
+    @property
+    def created(self) -> int:
+        return sum(1 for o in self.outcomes if o.action == "created")
+
+    @property
+    def skipped(self) -> int:
+        return sum(1 for o in self.outcomes if o.action == "skipped")
+
+
+async def import_seed(session: AsyncSession, bundle: list[SeedBusiness]) -> ImportReport:
+    """Idempotent DB import of a `load_bundle()`-produced bundle. Imported
+    businesses land OWNERLESS and claimable (D16: `owner_user_id IS NULL`) -
+    a bulk-seeded listing is not "owned" by anyone until a real vendor
+    claims it. Idempotency key is `(name, primary_pincode)` - a re-run finds
+    the existing row and reports "skipped" rather than duplicating it.
+
+    Never commits - the caller owns the commit/rollback (the D27 CLI's
+    dry-run mode relies on being able to roll back after inspecting the
+    report)."""
+    # 1. Resolve every category slug used by the bundle in ONE query - the
+    # live directory.categories table is the source of truth, not a
+    # hardcoded list.
+    wanted_slugs: set[str] = set()
+    for seed in bundle:
+        wanted_slugs.update(seed.category_slugs)
+    slug_to_id: dict[str, uuid.UUID] = {}
+    if wanted_slugs:
+        rows = (
+            await session.execute(
+                select(Category.slug, Category.id).where(Category.slug.in_(wanted_slugs))
+            )
+        ).all()
+        slug_to_id = {slug: cat_id for (slug, cat_id) in rows}
+    unknown_slugs = wanted_slugs - slug_to_id.keys()
+    if unknown_slugs:
+        raise SeedContractError(f"unknown category slug(s): {sorted(unknown_slugs)}")
+
+    outcomes: list[ImportOutcome] = []
+    created_business_ids: list[uuid.UUID] = []
+    created_product_ids: list[uuid.UUID] = []
+
+    for seed in bundle:
+        existing = await session.scalar(
+            select(Business.id).where(
+                Business.name == seed.name,
+                Business.primary_pincode == seed.primary_pincode,
+                Business.deleted_at.is_(None),
+            )
+        )
+        if existing is not None:
+            outcomes.append(ImportOutcome(ref=seed.ref, action="skipped", business_id=existing))
+            continue
+
+        business = Business(
+            owner_user_id=None,  # ownerless / claimable, D16
+            name=seed.name,
+            slug=await _free_slug(session, _slugify(seed.name)),
+            type=seed.type,
+            primary_pincode=seed.primary_pincode,
+            description=Translated.from_dict(seed.description) if seed.description else None,
+        )
+        session.add(business)
+        await session.flush()
+
+        for branch in seed.branches:
+            session.add(
+                Branch(
+                    business_id=business.id,
+                    address=branch.address,
+                    state=branch.state,
+                    district=branch.district,
+                    pincode=branch.pincode,
+                    lat=branch.lat,
+                    lng=branch.lng,
+                )
+            )
+        for pincode in seed.coverage:
+            session.add(BusinessCoverage(business_id=business.id, pincode=pincode))
+        for slug in seed.category_slugs:
+            session.add(BusinessCategory(business_id=business.id, category_id=slug_to_id[slug]))
+        await session.flush()
+
+        for product in seed.products:
+            built = await catalog_service._build_product(
+                session,
+                business_id=business.id,
+                vertical_slug=product.vertical_slug,
+                name=product.name,
+                specs=product.specs,
+                price_display=product.price_display,
+            )
+            await catalog_service.moderate_product(session, product_id=built.id, approve=True)
+            created_product_ids.append(built.id)
+
+        created_business_ids.append(business.id)
+        outcomes.append(ImportOutcome(ref=seed.ref, action="created", business_id=business.id))
+
+    # 3. Capture fat-event payloads for CREATED rows only, AFTER flush and
+    # BEFORE any commit (ORM attrs expire on commit).
+    event_payloads: list[tuple[str, dict[str, Any]]] = []
+    for business_id in created_business_ids:
+        event_payloads.append(
+            ("business.created", await business_event_payload(session, business_id))
+        )
+    for product_id in created_product_ids:
+        event_payloads.append(("product.created", await product_event_payload(session, product_id)))
+
+    return ImportReport(outcomes=outcomes, event_payloads=event_payloads)

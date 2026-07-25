@@ -437,9 +437,11 @@ class TestMergeRows:
 
 
 class TestStarterSeed:
-    """The four data/seeds/coimbatore/*.csv files are a ~15-row STARTER
-    SAMPLE, not real vendor data (see README.md) - but they must be
-    well-formed against the same contract the normalizer emits."""
+    """The four data/seeds/coimbatore/*.csv files are the D27 launch
+    dataset (150+ Coimbatore dairy-ecosystem businesses across brands,
+    milk vendors, dairy farms, veterinarians, feed suppliers and
+    cooperatives - see README.md). They must be well-formed against the
+    same contract the normalizer emits."""
 
     def _rows(self, name: str) -> list[dict[str, str]]:
         with (SEED_DIR / name).open(newline="", encoding="utf-8") as fh:
@@ -450,9 +452,9 @@ class TestStarterSeed:
             rows = self._rows(name)
             assert rows, f"{name} is empty"
 
-    def test_row_count_is_a_small_starter_sample(self) -> None:
+    def test_row_count_is_the_launch_dataset(self) -> None:
         businesses = self._rows("businesses.csv")
-        assert 10 <= len(businesses) <= 20
+        assert len(businesses) >= 150
 
     def test_refs_are_unique_and_join_across_files(self) -> None:
         businesses = self._rows("businesses.csv")
@@ -476,9 +478,13 @@ class TestStarterSeed:
         for row in self._rows("coverage.csv"):
             assert validate_pincode(row["pincode"], geo) is None
 
-    def test_category_is_dairy(self) -> None:
+    def test_categories_are_valid_seed_slugs(self) -> None:
+        from scripts.normalize_vendor_seed import CATEGORY_SLUGS
+
         for row in self._rows("businesses.csv"):
-            assert "dairy" in row["category_slugs"].split(";")
+            slugs = [c for c in row["category_slugs"].split(";") if c]
+            assert slugs, row["ref"]
+            assert set(slugs) <= CATEGORY_SLUGS, row["ref"]
 
     def test_product_specs_validate_against_milk_schema(self) -> None:
         fields = parse_fields(MILK_SPEC_FIELDS)

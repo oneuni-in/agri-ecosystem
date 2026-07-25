@@ -100,3 +100,16 @@ class TestLoadBundle:
         )
         with pytest.raises(SeedContractError, match="not-json|specs"):
             load_bundle(seed_dir)
+
+    def test_blank_specs_json_rejected(self, tmp_path: Path) -> None:
+        seed_dir = _write_bundle(
+            tmp_path,
+            **{
+                "products.csv": (
+                    "business_ref,vertical_slug,name,specs_json,price_display\n"
+                    "b1,milk,Blank Specs,,\n"
+                )
+            },
+        )
+        with pytest.raises(SeedContractError, match="specs"):
+            load_bundle(seed_dir)

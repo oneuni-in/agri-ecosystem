@@ -258,20 +258,27 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
             continue
         raw_specs = row["specs_json"].strip()
         specs: dict[str, Any] = {}
-        try:
-            parsed = json.loads(raw_specs) if raw_specs else {}
-        except json.JSONDecodeError:
-            errors.append(
-                f"products.csv: business_ref {ref!r} has invalid specs_json {raw_specs!r}"
-            )
+        if not raw_specs:
+            # Blank is not "no specs" - the normalizer always emits a
+            # populated specs_json (milk_type is a required field), so a
+            # blank one reaching here can only mean corrupted/hand-edited
+            # input. Same violation as unparseable JSON, not a silent {}.
+            errors.append(f"products.csv: business_ref {ref!r} has blank specs_json")
         else:
-            if not isinstance(parsed, dict):
+            try:
+                parsed = json.loads(raw_specs)
+            except json.JSONDecodeError:
                 errors.append(
-                    f"products.csv: business_ref {ref!r} specs_json must be a JSON object, "
-                    f"got {raw_specs!r}"
+                    f"products.csv: business_ref {ref!r} has invalid specs_json {raw_specs!r}"
                 )
             else:
-                specs = parsed
+                if not isinstance(parsed, dict):
+                    errors.append(
+                        f"products.csv: business_ref {ref!r} specs_json must be a JSON object, "
+                        f"got {raw_specs!r}"
+                    )
+                else:
+                    specs = parsed
         price_display = row["price_display"].strip() or None
         product = SeedProduct(
             vertical_slug=row["vertical_slug"].strip(),

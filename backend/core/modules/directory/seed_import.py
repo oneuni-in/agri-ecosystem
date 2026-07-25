@@ -409,6 +409,7 @@ async def import_seed(session: AsyncSession, bundle: list[SeedBusiness]) -> Impo
         )
         session.add(business)
         await session.flush()
+        await session.refresh(business)  # load server-side defaults (status, tier, ...)
 
         for branch in seed.branches:
             session.add(

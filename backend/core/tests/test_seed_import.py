@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.catalog_models import Product
 from modules.directory.covers import covers
@@ -248,14 +249,18 @@ class TestImportSeed:
 
 
 class TestSeedReachesSurfaces:
-    async def test_seeded_vendors_appear_in_covers_641001(self, db_session, tn_geo_sample) -> None:
+    async def test_seeded_vendors_appear_in_covers_641001(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
         await import_seed(db_session, _sample_bundle())
         await db_session.flush()
         page = await covers(db_session, pincode="641001")
         names = {item.name for item in page.items}
         assert {"Seed Vet Clinic", "Seed Fresh Dairy"} <= names
 
-    async def test_covers_category_filter_on_seeded_vet(self, db_session, tn_geo_sample) -> None:
+    async def test_covers_category_filter_on_seeded_vet(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
         await import_seed(db_session, _sample_bundle())
         await db_session.flush()
         page = await covers(db_session, pincode="641001", category="veterinarian")
@@ -263,7 +268,9 @@ class TestSeedReachesSurfaces:
         assert "Seed Vet Clinic" in names
         assert "Seed Fresh Dairy" not in names
 
-    async def test_seed_events_index_into_meili(self, db_session, tn_geo_sample, meili) -> None:
+    async def test_seed_events_index_into_meili(
+        self, db_session: AsyncSession, tn_geo_sample: None, meili: None
+    ) -> None:
         """The classic stale-index seam (spec NN#1): prove the captured
         payloads actually become milk-site documents."""
         report = await import_seed(db_session, _sample_bundle())

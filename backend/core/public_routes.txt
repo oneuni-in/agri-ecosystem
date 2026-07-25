@@ -49,3 +49,7 @@
 # anonymous visitors are most views. Stores daily-rotating pseudonym only
 # (no IP/UA), DB-unique dedupe, append-only table, rate-limited.
 /directory/businesses/{slug}/view
+# /directory/businesses/{slug}/nearby-branches: brand-page "shops near you"
+# (D27.B) - branch addresses are already public on the business page; no
+# contact fields in the response; bounded LIMIT 10, no cursor to walk.
+/directory/businesses/{slug}/nearby-branches

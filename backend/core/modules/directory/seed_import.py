@@ -167,7 +167,7 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
     if errors:
         # Header-level problems make everything below meaningless
         # (e.g. no `ref` column at all) - fail fast on those alone.
-        raise SeedContractError("; ".join(errors))
+        raise SeedContractError("\n".join(errors))
 
     refs = [row["ref"].strip() for row in business_rows]
     ref_set = set(refs)
@@ -314,6 +314,6 @@ def load_bundle(seed_dir: Path) -> list[SeedBusiness]:
         )
 
     if errors:
-        raise SeedContractError("; ".join(errors))
+        raise SeedContractError("\n".join(errors))
 
     return businesses

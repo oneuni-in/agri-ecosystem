@@ -76,6 +76,8 @@ BUSINESS_TYPES = frozenset({"vendor", "shop", "lab", "farm"})
 # Mirrors alembic/versions/0016_directory_v1.py SEED_CATEGORIES exactly.
 CATEGORY_SLUGS = frozenset(
     {"farm", "dairy", "shop", "lab", "nursery", "equipment", "service", "other"}
+    # D27 dairy service categories (alembic/versions/0026_dairy_categories.py)
+    | {"veterinarian", "feed-supplier", "dairy-farm", "cooperative"}
 )
 
 # Mirrors alembic/versions/0018_catalog_v1.py MILK_SCHEMA_V1_FIELDS exactly.

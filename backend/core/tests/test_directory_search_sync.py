@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import catalog_service, search_sync, service
-from modules.directory.models import Category
+from modules.directory.models import Business, BusinessCategory, BusinessCoverage, Category
+from modules.directory.search_sync import business_snapshot
 from shared.db import get_session
 from shared.security import register_principal_resolver
 
@@ -865,3 +866,49 @@ async def test_owner_archive_product_republishes_business_out_of_milk_site(
     payload = matches[0][2]
     assert payload["doc_id"] == f"business_{biz.id.hex}"
     assert "milk" not in payload["snapshot"]["sites"]
+
+
+# --- D27: dairy service categories --------------------------------------
+
+DAIRY_SERVICE_CATEGORIES = ("veterinarian", "feed-supplier", "dairy-farm", "cooperative")
+
+
+class TestDairyCategorySites:
+    async def test_new_dairy_categories_are_seeded(self, db_session: AsyncSession) -> None:
+        rows = (
+            await db_session.scalars(
+                select(Category.slug).where(Category.slug.in_(DAIRY_SERVICE_CATEGORIES))
+            )
+        ).all()
+        assert sorted(rows) == sorted(DAIRY_SERVICE_CATEGORIES)
+
+    async def test_category_names_are_three_locale(self, db_session: AsyncSession) -> None:
+        cats = (
+            await db_session.scalars(
+                select(Category).where(Category.slug.in_(DAIRY_SERVICE_CATEGORIES))
+            )
+        ).all()
+        for cat in cats:
+            name = cat.name if isinstance(cat.name, dict) else cat.name.to_dict()
+            assert set(name) >= {"en", "ta", "hi"}, cat.slug
+            assert all(v.strip() for v in name.values()), cat.slug
+
+    async def test_veterinarian_business_routes_to_milk_site(
+        self, db_session: AsyncSession, tn_geo_sample: None
+    ) -> None:
+        business = Business(
+            owner_user_id=None,
+            name="RS Puram Veterinary Clinic",
+            slug="rs-puram-veterinary-clinic",
+            type="shop",
+            primary_pincode="641002",
+        )
+        db_session.add(business)
+        await db_session.flush()
+        cat = await db_session.scalar(select(Category).where(Category.slug == "veterinarian"))
+        db_session.add(BusinessCategory(business_id=business.id, category_id=cat.id))
+        db_session.add(BusinessCoverage(business_id=business.id, pincode="641002"))
+        await db_session.flush()
+        snapshot = await business_snapshot(db_session, business.id)
+        assert snapshot is not None
+        assert "milk" in snapshot["sites"]

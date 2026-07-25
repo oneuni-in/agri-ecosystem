@@ -31,7 +31,14 @@ SITES = ("agri", "milk")
 # any approved product in that vertical (e.g. a seeded dairy business should
 # show up on Milk.in as soon as it's categorized, not only after its first
 # product clears moderation).
-CATEGORY_SITES: dict[str, str] = {"dairy": "milk"}
+CATEGORY_SITES: dict[str, str] = {
+    "dairy": "milk",
+    # D27: dairy service categories surface on Milk.in even with no product.
+    "veterinarian": "milk",
+    "feed-supplier": "milk",
+    "dairy-farm": "milk",
+    "cooperative": "milk",
+}
 
 
 async def _geo_context(

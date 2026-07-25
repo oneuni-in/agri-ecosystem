@@ -329,3 +329,9 @@ class TestStarterSeed:
         # this directory must never be able to commit it silently.
         gitignore = (SEED_DIR / ".gitignore").read_text(encoding="utf-8")
         assert "rejects.csv" in gitignore
+
+
+def test_dairy_service_categories_are_valid_seed_slugs() -> None:
+    from scripts.normalize_vendor_seed import CATEGORY_SLUGS
+
+    assert {"veterinarian", "feed-supplier", "dairy-farm", "cooperative"} <= CATEGORY_SLUGS

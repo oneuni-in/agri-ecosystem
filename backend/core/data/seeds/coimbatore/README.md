@@ -76,8 +76,10 @@ stripping it.
 - `type` must be one of the real `directory.business_type` enum values:
   `vendor`, `shop`, `lab`, `farm`.
 - `category_slugs` must be a subset of the categories actually seeded
-  by `alembic/versions/0016_directory_v1.py`: `farm`, `dairy`, `shop`,
-  `lab`, `nursery`, `equipment`, `service`, `other`.
+  by `alembic/versions/0016_directory_v1.py` (`farm`, `dairy`, `shop`,
+  `lab`, `nursery`, `equipment`, `service`, `other`) plus the D27 dairy
+  service categories seeded by `alembic/versions/0026_dairy_categories.py`:
+  `veterinarian`, `feed-supplier`, `dairy-farm`, `cooperative`.
 - Product `specs_json` is validated for real against the seeded milk
   spec-schema (`alembic/versions/0018_catalog_v1.py` /
   `modules/directory/specs.py`) — `milk_type` (required enum: `cow`,

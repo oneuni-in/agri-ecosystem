@@ -12,13 +12,22 @@ import { useRouter } from "@/i18n/navigation";
  * results route `/[pincode]` (Task 10). This is distinct from the header's
  * `LiveLocationPill` (the persistent location switcher, untouched here) —
  * this control only ever pushes a route, it never sets/persists location.
+ *
+ * `hrefForPincode` lets callers (e.g. the D27 category landing pages) route
+ * a submitted pincode somewhere other than the plain results route — it
+ * defaults to the original `/${pincode}` target, so existing callers are
+ * unaffected.
  */
-export function PincodeHeroFinder() {
+export function PincodeHeroFinder({
+  hrefForPincode = (p) => `/${p}`,
+}: {
+  hrefForPincode?: (pincode: string) => string;
+}) {
   const router = useRouter();
   const [pincode, setPincode] = useState("");
 
   function go(next: string) {
-    if (/^\d{6}$/.test(next)) router.push(`/${next}`);
+    if (/^\d{6}$/.test(next)) router.push(hrefForPincode(next));
   }
 
   function useGps() {

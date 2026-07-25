@@ -1,10 +1,12 @@
 import { Badge, Card, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { Link } from "@/i18n/navigation";
+import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
 import {
   fetchBusiness,
   fetchProducts,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/business";
 
 import { LeadForm } from "./lead-form";
+import { NearbyShops } from "./nearby-shops";
 import { RevealContact } from "./reveal-contact";
 import { ReviewForm } from "./review-form";
 import { ReviewsSection } from "./reviews-section";
@@ -56,18 +59,22 @@ export async function generateMetadata({
  * Hand-built LocalBusiness JSON-LD (same precedent as web-agri's business
  * page: the shared builder requires `address`, only known when a branch
  * exists). `<` escaped so content can never close the script tag.
- * NON-NEGOTIABLE 2: must parse as valid LocalBusiness.
+ * NON-NEGOTIABLE 2: must parse as valid LocalBusiness (vendor pages,
+ * `isBrand=false`). Brand pages (D27 Task 14) are `shop`-type businesses
+ * with a product catalog rather than a single physical premises, so they
+ * declare `["Organization", "Brand"]` instead — same fields otherwise.
  */
 function businessJsonLd(
   detail: BusinessDetail,
   canonical: string,
   summary: RatingSummary,
+  isBrand: boolean,
 ): string {
   const { business, branches } = detail;
   const firstBranch = branches[0];
   const data = {
     "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+    "@type": isBrand ? ["Organization", "Brand"] : "LocalBusiness",
     name: business.name,
     url: canonical,
     ...(business.description?.en ? { description: business.description.en } : {}),
@@ -148,12 +155,17 @@ export default async function VendorProfilePage({
   setRequestLocale(locale);
   const detail = await fetchBusiness(slug);
   if (!detail) notFound();
-  const { business, branches, coverage_pincodes } = detail;
+  const { business, branches, categories, coverage_pincodes } = detail;
   const canonical = canonicalFor(business.slug);
   const [products, { summary, items: reviews }] = await Promise.all([
     fetchProducts(business.slug),
     fetchReviews(business.id),
   ]);
+  // Brand variant (D27 Task 14): `shop`-type businesses with a catalog read
+  // as a brand (many outlets, one product line) rather than a single
+  // physical premises. A `shop` with no products keeps the vendor layout.
+  const isBrand = business.type === "shop" && products.length > 0;
+  const t = await getTranslations("ui");
   const shownPincodes = coverage_pincodes.slice(0, MAX_PINCODES_SHOWN);
   const morePincodes = coverage_pincodes.length - shownPincodes.length;
 
@@ -164,7 +176,7 @@ export default async function VendorProfilePage({
       </Suspense>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: businessJsonLd(detail, canonical, summary) }}
+        dangerouslySetInnerHTML={{ __html: businessJsonLd(detail, canonical, summary, isBrand) }}
       />
       <Wrap className="max-w-[720px] py-6">
         <header className="space-y-1.5">
@@ -180,12 +192,32 @@ export default async function VendorProfilePage({
           {business.description?.en ? (
             <p className="text-[15px] text-ink">{business.description.en}</p>
           ) : null}
+          {categories.length > 0 ? (
+            <div className="flex flex-wrap gap-2" data-testid="category-chips">
+              {categories.map((category) =>
+                isDairyCategory(category.slug) ? (
+                  <Link
+                    key={category.slug}
+                    href={`/c/${category.slug}`}
+                    className="rounded-pill border-2 border-line bg-card px-3.5 py-2.5 text-[12.5px] font-extrabold text-ink no-underline"
+                    data-testid={`category-chip-${category.slug}`}
+                  >
+                    {t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category.slug]}.name`)}
+                  </Link>
+                ) : (
+                  <Badge key={category.slug} variant="cert">
+                    {category.name.en ?? category.slug}
+                  </Badge>
+                ),
+              )}
+            </div>
+          ) : null}
         </header>
 
         {products.length > 0 ? (
           <section className="mt-6 space-y-2.5" aria-labelledby="products-h">
             <h2 id="products-h" className="font-display text-[16px] font-extrabold text-ink">
-              Milk products
+              {isBrand ? t("brandPage.products") : "Milk products"}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {products.map((product) => (
@@ -193,6 +225,10 @@ export default async function VendorProfilePage({
               ))}
             </div>
           </section>
+        ) : null}
+
+        {isBrand ? (
+          <NearbyShops slug={business.slug} initialPincode={business.primary_pincode} />
         ) : null}
 
         {coverage_pincodes.length > 0 ? (

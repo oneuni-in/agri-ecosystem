@@ -19,6 +19,19 @@ const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 // 5 files x 5MiB cap + multipart overhead.
 const MAX_BODY_BYTES = 30 * 1024 * 1024;
 
+// This proxy exists to attach the session bearer server-side (D10 - tokens
+// never touch JS), so it 401s up front when there is no session. D27 Task 14
+// adds the first GUEST-facing route behind it: nearby-branches is declared
+// `public=True` on the backend (public_routes.txt) - "shops near you" must
+// work for anonymous brand-page visitors, who are most of them. Rather than
+// gate the whole proxy open, only this one declared-public GET path skips
+// the token requirement; everything else keeps the default-private behavior.
+const PUBLIC_GET_PATTERNS = [/^businesses\/[^/]+\/nearby-branches$/];
+
+function isPublicGet(method: "GET" | "POST", path: string[]): boolean {
+  return method === "GET" && PUBLIC_GET_PATTERNS.some((re) => re.test(path.join("/")));
+}
+
 async function forward(
   req: NextRequest,
   params: Promise<{ path: string[] }>,
@@ -34,11 +47,15 @@ async function forward(
       return NextResponse.json({ detail: "payload too large" }, { status: 413 });
     }
   }
+  const publicGet = isPublicGet(method, path);
   const token = await auth.getAccessToken();
-  if (!token) return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
+  if (!token && !publicGet) {
+    return NextResponse.json({ detail: "unauthenticated" }, { status: 401 });
+  }
   const url = new URL(`${API}/directory/${path.map(encodeURIComponent).join("/")}`);
   url.search = req.nextUrl.search;
-  const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+  const headers: Record<string, string> = {};
+  if (token) headers.authorization = `Bearer ${token}`;
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
   const upstream = await fetch(url, {

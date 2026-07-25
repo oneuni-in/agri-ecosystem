@@ -42,6 +42,19 @@ export interface CatalogProduct {
   images: string[];
 }
 
+/** GET /directory/businesses/{slug}/nearby-branches (D27 Task 3, public).
+ * lat/lng serialize as Decimal-wire-strings (D24 precedent). */
+export type NearbyBranch = {
+  id: string;
+  address: string;
+  district: string;
+  state: string;
+  pincode: string;
+  lat: string | null;
+  lng: string | null;
+  distance_m: number;
+};
+
 export type RatingSummary = { rating_avg: string | null; rating_count: number };
 export type ReviewItem = {
   id: string;

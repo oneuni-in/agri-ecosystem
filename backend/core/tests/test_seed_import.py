@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import func, select
 
 from modules.directory.catalog_models import Product
+from modules.directory.covers import covers
 from modules.directory.models import Business, BusinessCategory, Category
 from modules.directory.seed_import import (
     SeedBranch,
@@ -17,6 +18,9 @@ from modules.directory.seed_import import (
     import_seed,
     load_bundle,
 )
+from modules.search.client import get_meili
+from modules.search.indexing import apply_event, index_uid
+from shared.events import Event
 
 SEED_DIR = Path(__file__).resolve().parents[1] / "data" / "seeds" / "coimbatore"
 
@@ -241,3 +245,30 @@ class TestImportSeed:
         ]
         with pytest.raises(SeedContractError, match="no-such-category"):
             await import_seed(db_session, bad)
+
+
+class TestSeedReachesSurfaces:
+    async def test_seeded_vendors_appear_in_covers_641001(self, db_session, tn_geo_sample) -> None:
+        await import_seed(db_session, _sample_bundle())
+        await db_session.flush()
+        page = await covers(db_session, pincode="641001")
+        names = {item.name for item in page.items}
+        assert {"Seed Vet Clinic", "Seed Fresh Dairy"} <= names
+
+    async def test_covers_category_filter_on_seeded_vet(self, db_session, tn_geo_sample) -> None:
+        await import_seed(db_session, _sample_bundle())
+        await db_session.flush()
+        page = await covers(db_session, pincode="641001", category="veterinarian")
+        names = {item.name for item in page.items}
+        assert "Seed Vet Clinic" in names
+        assert "Seed Fresh Dairy" not in names
+
+    async def test_seed_events_index_into_meili(self, db_session, tn_geo_sample, meili) -> None:
+        """The classic stale-index seam (spec NN#1): prove the captured
+        payloads actually become milk-site documents."""
+        report = await import_seed(db_session, _sample_bundle())
+        await db_session.flush()
+        for i, (event_type, payload) in enumerate(report.event_payloads):
+            await apply_event(Event(id=f"seed-{i}", type=event_type, payload=payload))
+        res = await get_meili().search(index_uid("milk"), {"q": "Seed Vet Clinic"})
+        assert any(hit["name"] == "Seed Vet Clinic" for hit in res["hits"])

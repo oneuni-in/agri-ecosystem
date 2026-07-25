@@ -203,12 +203,19 @@ class MergedBusiness:
     """One business assembled from one or more raw rows sharing a `ref`
     (or a single ref-less row, wrapped the same way). `branches` and
     `products` hold every contributing row's branch/product; `coverage`
-    is the union of every contributing row's coverage pincodes."""
+    is the union of every contributing row's coverage pincodes.
+    `raw_rows` holds every ORIGINAL raw row that contributed (1 for a
+    ref-less business, N for a merged ref-group) - kept so that if this
+    whole business is later rejected (e.g. by dedupe()), every one of
+    its raw rows can still be written to rejects.csv individually rather
+    than only the canonical row, which would silently drop the other
+    N-1 raw rows."""
 
     business: dict[str, str]
     branches: list[dict[str, str]]
     coverage: list[dict[str, str]]
     products: list[dict[str, str]]
+    raw_rows: list[dict[str, str]]
 
 
 # dedupe() works structurally on anything carrying a `.business` dict -
@@ -489,6 +496,7 @@ def merge_rows(
             branches=[record.branch for _, record in members],
             coverage=coverage,
             products=[product for _, record in members for product in record.products],
+            raw_rows=[raw_row for raw_row, _ in members],
         )
         merged.append((canonical_raw, business))
 
@@ -497,15 +505,23 @@ def merge_rows(
 
 def dedupe[T: _HasBusiness](
     accepted: list[tuple[dict[str, str], T]],
-) -> tuple[list[T], list[tuple[dict[str, str], str]]]:
-    """Dedupe by (name, primary_pincode); first occurrence wins."""
+) -> tuple[list[T], list[tuple[dict[str, str], str, T]]]:
+    """Dedupe by (name, primary_pincode); first occurrence wins.
+
+    `dupes` carries the rejected RECORD alongside its (raw_row, reason)
+    pair - not just the raw_row - so a caller whose T is a MergedBusiness
+    can expand a rejected group back to every one of its `raw_rows`
+    (dupes[i][0] alone would only be the group's canonical row, silently
+    dropping the other members). Existing (raw_row, reason)-only callers
+    are unaffected - `dupes[i][1]` is still the reason string.
+    """
     seen: set[tuple[str, str]] = set()
     kept: list[T] = []
-    dupes: list[tuple[dict[str, str], str]] = []
+    dupes: list[tuple[dict[str, str], str, T]] = []
     for raw_row, record in accepted:
         key = (record.business["name"].lower(), record.business["primary_pincode"])
         if key in seen:
-            dupes.append((raw_row, "duplicate"))
+            dupes.append((raw_row, "duplicate", record))
             continue
         seen.add(key)
         kept.append(record)
@@ -535,8 +551,12 @@ def run(raw_path: Path, out_dir: Path, geo_path: Path) -> tuple[int, int]:
     ]
 
     kept, dupes = dedupe(merged)
-    for raw_row, reason in dupes:
-        rejects.append({**raw_row, "reject_reason": reason})
+    for _canonical_raw, reason, business in dupes:
+        # Expand to every raw row the rejected MergedBusiness came from
+        # (1 for a ref-less row, N for a merged ref-group) - not just its
+        # canonical row - so a losing merged group never silently drops
+        # its other N-1 raw rows from rejects.csv.
+        rejects.extend({**raw_row, "reject_reason": reason} for raw_row in business.raw_rows)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(out_dir / "businesses.csv", BUSINESS_FIELDS, [r.business for r in kept])

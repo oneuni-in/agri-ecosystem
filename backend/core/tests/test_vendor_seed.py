@@ -377,6 +377,64 @@ class TestMergeRows:
         assert len(business.branches) == 2
         assert len(business.products) == 1
 
+    def test_losing_merged_group_reports_every_raw_row_not_just_canonical(self) -> None:
+        # A 1-row winner and a 2-row merged ref-group collide on
+        # (name, primary_pincode). dedupe() keeps the winner and rejects
+        # the whole loser MergedBusiness - every one of the loser's raw
+        # rows (both "Parlour" rows, not just its canonical first row)
+        # must show up in rejects, or a raw row silently vanishes from
+        # the accounting: len(kept contributions) + len(rejects) must
+        # equal len(rows).
+        winner = [
+            _row(
+                ref="brandA",
+                name="Brand A",
+                pincode="641001",
+                address="Winner Parlour",
+                product_name="Winner Milk",
+            ),
+        ]
+        loser = [
+            _row(
+                ref="brandB",
+                name="Brand A",  # same (name, primary_pincode) as winner
+                pincode="641001",
+                address="Loser Parlour 1",
+                product_name="Loser Milk 1",
+            ),
+            _row(
+                ref="brandB",
+                name="Brand A",
+                pincode="641045",
+                address="Loser Parlour 2",
+                product_name="Loser Milk 2",
+            ),
+        ]
+        rows = winner + loser
+        merged, merge_rejects = merge_rows(rows, GEO)
+        assert merge_rejects == []
+        assert len(merged) == 2  # brandA and brandB both merged cleanly before dedupe
+
+        kept, dupes = dedupe(merged)
+        assert len(kept) == 1
+        assert len(dupes) == 1
+
+        dedupe_rejects: list[dict[str, str]] = []
+        for _canonical_raw, reason, business in dupes:
+            assert reason == "duplicate"
+            dedupe_rejects.extend({**r, "reject_reason": reason} for r in business.raw_rows)
+
+        # Both loser rows are accounted for individually - not collapsed
+        # into a single canonical-row reject.
+        assert len(dedupe_rejects) == 2
+        assert {r["address"] for r in dedupe_rejects} == {"Loser Parlour 1", "Loser Parlour 2"}
+        assert all(r["reject_reason"] == "duplicate" for r in dedupe_rejects)
+
+        # Full raw-row accounting identity: every contributed raw row
+        # (kept business or rejected) is accounted for exactly once.
+        total_kept_raw_rows = sum(len(business.raw_rows) for business in kept)
+        assert total_kept_raw_rows + len(merge_rejects) + len(dedupe_rejects) == len(rows)
+
 
 class TestStarterSeed:
     """The four data/seeds/coimbatore/*.csv files are a ~15-row STARTER

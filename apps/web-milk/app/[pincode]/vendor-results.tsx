@@ -17,9 +17,11 @@ const VendorMap = dynamic(() => import("./vendor-map"), { ssr: false });
 export function VendorResults({
   vendors,
   brands,
+  pincode,
 }: {
   vendors: MilkCard[];
   brands: MilkCard[];
+  pincode: string;
 }) {
   const [showMap, setShowMap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -42,7 +44,13 @@ export function VendorResults({
         <h2 className="font-display text-[16px] font-extrabold text-ink">{title}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {cards.map((c) => (
-            <VendorCard key={c.id} card={c} selected={selectedId === c.id} onSelect={setSelectedId} />
+            <VendorCard
+              key={c.id}
+              card={c}
+              pincode={pincode}
+              selected={selectedId === c.id}
+              onSelect={setSelectedId}
+            />
           ))}
         </div>
       </section>

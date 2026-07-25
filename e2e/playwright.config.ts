@@ -34,5 +34,14 @@ export default defineConfig({
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
     },
+    {
+      // D26 vendor console lives in web-agri only (port 3002 per D01-A) -
+      // never added when D09/D10 wrote this file since neither spec touched
+      // web-agri. Required for e2e/vendor-dashboard.spec.ts.
+      command: "pnpm --filter @agri/web-agri dev",
+      url: "http://localhost:3002",
+      timeout: 180_000,
+      reuseExistingServer: !process.env.CI,
+    },
   ],
 });

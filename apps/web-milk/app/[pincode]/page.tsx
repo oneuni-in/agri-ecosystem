@@ -166,7 +166,7 @@ export default async function PincodePage({
           yet — <a className="font-bold text-brand-deep" href={`/${pincode}`}>see all</a>.
         </p>
       ) : (
-        <VendorResults vendors={data.vendors} brands={data.brands} />
+        <VendorResults vendors={data.vendors} brands={data.brands} pincode={pincode} />
       )}
     </main>
   );

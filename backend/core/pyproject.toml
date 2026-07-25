@@ -56,6 +56,22 @@ select = ["E", "F", "I", "UP", "B", "SIM", "T20"]
 [tool.ruff.lint.isort]
 known-first-party = ["modules", "shared", "settings", "main"]
 
+[tool.ruff.lint.per-file-ignores]
+# D26 suites import the shared `api` fixture from tests/d26_helpers.py by
+# name (pytest fixture-injection idiom - the import makes it visible to
+# pytest's collector, then every test function re-binds `api` as its own
+# parameter to receive the fixture value). Pyflakes has no concept of pytest
+# fixture injection, so it sees the parameter as redefining a "still unused"
+# import and flags F811 at every test signature - not a real bug. Any new
+# file importing `api` from tests.d26_helpers needs to be added here too.
+"tests/test_business_analytics.py" = ["F811"]
+"tests/test_delivery_windows.py" = ["F811"]
+"tests/test_directory_admin_tier.py" = ["F811"]
+"tests/test_inbox_type_filter.py" = ["F811"]
+"tests/test_profile_views.py" = ["F811"]
+"tests/test_tier_selection.py" = ["F811"]
+"tests/test_vertical_schema_route.py" = ["F811"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

@@ -1,4 +1,4 @@
-"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 exactly.
+"""Directory module ORM models (D15) - mirrors migrations 0016 + 0017 + 0025 exactly.
 
 owner_user_id is a plain UUID value, never an FK into identity: the module
 independence contract forbids directory -> identity coupling at any layer.
@@ -9,6 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+import uuid6
 from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
@@ -56,6 +57,14 @@ class Business(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, ImmutableSlugMixi
         subscription_tier_enum, nullable=False, server_default="free"
     )
     primary_pincode: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    # D26: owner-expressed premium intent (activation is server-side only)
+    premium_requested_at: Mapped[datetime | None] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=True
+    )
+    # D26: list of {"days": [...], "open": "HH:MM", "close": "HH:MM"}
+    delivery_windows: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        postgresql.JSONB, nullable=True
+    )
 
 
 class Branch(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -117,6 +126,39 @@ class BusinessCoverage(UUIDv7PKMixin, TimestampMixin, Base):
         postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
     )
     pincode: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ProfileView(Base):
+    """Append-only (BY GRANT) profile-view log (D26 analytics-lite).
+
+    viewer_hash rotates daily (analytics.viewer_hash), so the UNIQUE
+    (business_id, viewer_hash) pair enforces 1 view/viewer/business/UTC-day
+    without Redis. No timestamp mixin: occurred_at is the only time that
+    matters and rows are never updated."""
+
+    __tablename__ = "profile_views"
+    __table_args__ = (
+        Index(
+            "uq_directory_profile_views_dedupe",
+            "business_id",
+            "viewer_hash",
+            unique=True,
+        ),
+        Index("ix_directory_profile_views_business_occurred", "business_id", "occurred_at"),
+        {"schema": "directory"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), primary_key=True, default=uuid6.uuid7
+    )
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
+    )
+    pincode: Mapped[str | None] = mapped_column(Text, nullable=True)
+    viewer_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=False
+    )
 
 
 claim_status_enum = postgresql.ENUM(

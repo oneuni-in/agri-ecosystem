@@ -9,6 +9,7 @@ import { RevealContact } from "./reveal-contact";
 import { ReviewForm } from "./review-form";
 import { ReviewsSection, type RatingSummary, type ReviewItem } from "./reviews-section";
 import { SponsoredSlot } from "./sponsored-slot";
+import { ViewBeacon } from "./view-beacon";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const SITE = "https://agri.in";
@@ -151,6 +152,7 @@ export default async function BusinessPage({
 
   return (
     <main>
+      <ViewBeacon slug={slug} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: businessJsonLd(detail, canonical, summary) }}

@@ -22,6 +22,7 @@ from modules.directory.leads_schemas import (
     InquiryCreateIn,
     InquiryOut,
     InquiryStatus,
+    InquiryType,
     MilkSubscriptionPayloadIn,
     MyInquiryOut,
     MyInquiryPageOut,
@@ -141,6 +142,7 @@ async def inbox(
     session: SessionDep,
     business_id: uuid.UUID,
     status: InquiryStatus | None = None,
+    type: InquiryType | None = None,
     cursor: str | None = None,
     limit: LimitQuery = 20,
 ) -> InboxPageOut:
@@ -152,6 +154,8 @@ async def inbox(
     query = select(Inquiry).where(Inquiry.business_id == business_id)
     if status is not None:
         query = query.where(Inquiry.status == status)
+    if type is not None:
+        query = query.where(Inquiry.type == type)
     try:
         page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
     except InvalidCursorError as exc:

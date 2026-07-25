@@ -11,15 +11,16 @@ strings: this module carries business contact PII (phones, addresses).
 import logging
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
-from typing import Annotated
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Path, Query, Request
+from pydantic import BeforeValidator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.directory import analytics, leads_service, search_sync, service
 from modules.directory import covers as covers_module
-from modules.directory import leads_service, search_sync, service
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, BusinessCoverage, Category
@@ -29,9 +30,12 @@ from modules.directory.reveal import (
     claim_reveal_slot,
 )
 from modules.directory.schemas import (
+    AnalyticsResponseOut,
+    AnalyticsSectionOut,
     BranchCreateIn,
     BranchOut,
     BranchPatchIn,
+    BusinessAnalyticsOut,
     BusinessCreateIn,
     BusinessDetailOut,
     BusinessOut,
@@ -45,13 +49,19 @@ from modules.directory.schemas import (
     CoverageOut,
     CoversItemOut,
     CoversOut,
+    PincodeCountOut,
     PublicBranchOut,
     RenameIn,
+    TierSelectionIn,
+    TierSelectionOut,
+    ViewBeaconIn,
+    ViewBeaconOut,
 )
 from shared.db import get_session
 from shared.events import publish
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
+from shared.security import client_ip as _client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +69,11 @@ router = SecureRouter(prefix="/directory", tags=["directory"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+# Literal[int, ...] alone rejects a string query value outright (pydantic
+# validates Literal by identity, no int coercion) - BeforeValidator(int)
+# coerces "30" -> 30 before the Literal membership check runs, so days=14
+# still 422s but days=30/7/90 (sent as query strings) do not.
+DaysQuery = Annotated[Literal[7, 30, 90], BeforeValidator(int)]
 
 EVENT_STREAM = "directory"
 
@@ -104,6 +119,7 @@ def _business_out(business: Business) -> BusinessOut:
         claimable=business.owner_user_id is None,
         primary_pincode=business.primary_pincode,
         description=business.description.to_dict() if business.description else None,
+        delivery_windows=business.delivery_windows,
         created_at=business.created_at,
     )
 
@@ -342,6 +358,81 @@ async def assign_categories(
     return out
 
 
+@router.put("/businesses/{business_id}/tier-selection")
+async def select_tier(
+    request: Request, business_id: uuid.UUID, body: TierSelectionIn, session: SessionDep
+) -> TierSelectionOut:
+    """Premium INTENT while billing is dark (D26): 'activate at launch'.
+    subscription_tier is untouched by design - server-set only."""
+    try:
+        business = await service.select_tier(
+            session,
+            owner_user_id=_principal_user_id(request),
+            business_id=business_id,
+            tier=body.tier,
+            now=datetime.now(UTC),
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    out = TierSelectionOut(
+        subscription_tier=business.subscription_tier,
+        premium_requested_at=business.premium_requested_at,
+    )
+    await session.commit()
+    return out
+
+
+@router.get("/businesses/{business_id}/tier-selection")
+async def get_tier_selection(
+    request: Request, business_id: uuid.UUID, session: SessionDep
+) -> TierSelectionOut:
+    """Read current tier + intent (D26). Used by premium console to render
+    persisted state on load. Owner-scoped: someone else's business == 404."""
+    try:
+        business = await service.get_owned_business(
+            session, _principal_user_id(request), business_id
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    return TierSelectionOut(
+        subscription_tier=business.subscription_tier,
+        premium_requested_at=business.premium_requested_at,
+    )
+
+
+@router.get("/businesses/{business_id}/analytics")
+async def business_analytics(
+    request: Request,
+    business_id: uuid.UUID,
+    session: SessionDep,
+    days: DaysQuery = 30,
+) -> BusinessAnalyticsOut:
+    """Analytics-lite (D26.D): request-time SQL over inquiries + profile
+    views. Owner-only - the same 404 IDOR contract as every vendor write."""
+    try:
+        await service.get_owned_business(session, _principal_user_id(request), business_id)
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    since = datetime.now(UTC) - timedelta(days=days)
+    data = await analytics.business_analytics(session, business_id=business_id, since=since)
+    return BusinessAnalyticsOut(
+        days=days,
+        views=AnalyticsSectionOut(
+            total=data.views.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.views.by_pincode],
+        ),
+        reveals=AnalyticsSectionOut(
+            total=data.reveals.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.reveals.by_pincode],
+        ),
+        leads=AnalyticsSectionOut(
+            total=data.leads.total,
+            by_pincode=[PincodeCountOut(**asdict(p)) for p in data.leads.by_pincode],
+        ),
+        response=AnalyticsResponseOut(**asdict(data.response)),
+    )
+
+
 @router.get("/categories")
 async def list_categories(
     session: SessionDep, cursor: str | None = None, limit: LimitQuery = DEFAULT_PAGE_SIZE
@@ -443,3 +534,25 @@ async def covers_search(
         items=[CoversItemOut(**asdict(item)) for item in page.items],
         next_cursor=page.next_cursor,
     )
+
+
+@router.post("/businesses/{slug}/view", public=True)
+async def record_profile_view(
+    request: Request, slug: str, body: ViewBeaconIn, session: SessionDep
+) -> ViewBeaconOut:
+    """Fire-and-forget view beacon (D26.D). Public: guests are most views.
+    Stores a daily-rotating pseudonym only; the unique index makes repeats
+    a no-op. Rate limiting comes from SecureRouter defaults."""
+    business_id = await session.scalar(
+        select(Business.id).where(Business.slug == slug, Business.status == "active")
+    )
+    if business_id is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    now = datetime.now(UTC)
+    ip = _client_ip(request)
+    hashed = analytics.viewer_hash(ip, request.headers.get("user-agent", ""), now=now)
+    await analytics.record_view(
+        session, business_id=business_id, pincode=body.pincode, viewer_hash_value=hashed, now=now
+    )
+    await session.commit()
+    return ViewBeaconOut(status="ok")

@@ -5,12 +5,26 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 BusinessType = Literal["vendor", "shop", "lab", "farm"]
+Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 PINCODE_PATTERN = r"^\d{6}$"
 SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
+class DeliveryWindowIn(BaseModel):
+    days: list[Weekday] = Field(min_length=1, max_length=7)
+    open: str = Field(pattern=TIME_PATTERN)
+    close: str = Field(pattern=TIME_PATTERN)
+
+    @model_validator(mode="after")
+    def _open_before_close(self) -> "DeliveryWindowIn":
+        if self.open >= self.close:  # HH:MM strings compare lexicographically
+            raise ValueError("open must be before close (overnight windows unsupported)")
+        return self
 
 
 class BusinessCreateIn(BaseModel):
@@ -25,10 +39,20 @@ class BusinessPatchIn(BaseModel):
     type: BusinessType | None = None
     primary_pincode: str | None = Field(default=None, pattern=PINCODE_PATTERN)
     description: dict[str, str] | None = None
+    delivery_windows: list[DeliveryWindowIn] | None = Field(default=None, max_length=7)
 
 
 class RenameIn(BaseModel):
     new_slug: str = Field(pattern=SLUG_PATTERN, min_length=3, max_length=80)
+
+
+class TierSelectionIn(BaseModel):
+    tier: Literal["free", "premium"]
+
+
+class TierSelectionOut(BaseModel):
+    subscription_tier: str
+    premium_requested_at: datetime | None
 
 
 class BusinessOut(BaseModel):
@@ -42,6 +66,7 @@ class BusinessOut(BaseModel):
     claimable: bool
     primary_pincode: str
     description: dict[str, str] | None
+    delivery_windows: list[dict[str, Any]] | None
     created_at: datetime
 
 
@@ -231,3 +256,39 @@ class DecisionIn(BaseModel):
 
 class RejectIn(BaseModel):
     note: str = Field(min_length=3, max_length=1000)  # reject always carries a reason
+
+
+class AdminTierIn(BaseModel):
+    tier: Literal["free", "premium"]
+
+
+class ViewBeaconIn(BaseModel):
+    pincode: str | None = Field(default=None, pattern=PINCODE_PATTERN)
+
+
+class ViewBeaconOut(BaseModel):
+    status: str
+
+
+class PincodeCountOut(BaseModel):
+    pincode: str
+    count: int
+
+
+class AnalyticsSectionOut(BaseModel):
+    total: int
+    by_pincode: list[PincodeCountOut]
+
+
+class AnalyticsResponseOut(BaseModel):
+    total: int
+    responded: int
+    avg_response_seconds: int | None
+
+
+class BusinessAnalyticsOut(BaseModel):
+    days: int
+    views: AnalyticsSectionOut
+    reveals: AnalyticsSectionOut
+    leads: AnalyticsSectionOut
+    response: AnalyticsResponseOut

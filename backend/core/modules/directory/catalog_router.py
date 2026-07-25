@@ -24,6 +24,7 @@ from modules.directory.catalog_schemas import (
     ProductPatchIn,
     PublicProductOut,
     PublicProductPageOut,
+    SchemaVersionOut,
     VerticalOut,
     VerticalPageOut,
     media_url,
@@ -269,6 +270,28 @@ async def delete_product_image(
     except ValueError as exc:  # index out of range
         raise HTTPException(status_code=404, detail="Image not found") from exc
     return _product_out(product)
+
+
+@router.get("/verticals/{vertical}/schema")
+async def get_vertical_schema(
+    request: Request, vertical: str, session: SessionDep
+) -> SchemaVersionOut:
+    """Active field definitions for a vertical (D26 products console) - the
+    create form's source of truth. Authed, NOT public: vendors are logged in
+    to reach the products console, and keeping this private avoids widening
+    the anonymous surface for no reason."""
+    found = await catalog_service.get_vertical(session, vertical)
+    if found is None or found.status != "active":
+        raise HTTPException(status_code=404, detail="Vertical not found")
+    schema = await catalog_service.active_schema(session, vertical)
+    if schema is None:
+        raise HTTPException(status_code=404, detail="Vertical not found")
+    return SchemaVersionOut(
+        vertical_slug=schema.vertical_slug,
+        version=schema.version,
+        fields=schema.fields,
+        created_at=schema.created_at,
+    )
 
 
 # --- public reads (declared in backend/core/public_routes.txt) -------------

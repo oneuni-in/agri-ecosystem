@@ -22,5 +22,7 @@ export const CONSOLE_MODULES: ConsoleModule[] = [
   { id: "inbox", title: "Lead inbox", href: "/business/inbox" },
   { id: "listings", title: "Listings", href: "/business/listings" },
   { id: "products", title: "Products", href: "/business/products" },
+  { id: "analytics", title: "Analytics", href: "/business/analytics" },
+  { id: "premium", title: "Premium", href: "/business/premium" },
   { id: "billing", title: "Subscription & invoices", href: "/business/billing", gate: "billing" },
 ];

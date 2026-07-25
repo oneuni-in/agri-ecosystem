@@ -22,13 +22,13 @@ const MAX_BODY_BYTES = 30 * 1024 * 1024;
 async function forward(
   req: NextRequest,
   params: Promise<{ path: string[] }>,
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT",
 ): Promise<NextResponse> {
   const { path } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
   }
-  if (method === "POST") {
+  if (method !== "GET") {
     const contentLength = Number(req.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
       return NextResponse.json({ detail: "payload too large" }, { status: 413 });
@@ -46,7 +46,7 @@ async function forward(
     headers,
     // Raw bytes, not formData()/text(): preserves the multipart boundary
     // for evidence-photo uploads (claim submission) untouched.
-    ...(method === "POST" ? { body: Buffer.from(await req.arrayBuffer()) } : {}),
+    ...(method !== "GET" ? { body: Buffer.from(await req.arrayBuffer()) } : {}),
     cache: "no-store",
   });
   if (NULL_BODY_STATUSES.has(upstream.status)) {
@@ -70,4 +70,10 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 }
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx.params, "POST");
+}
+export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "PATCH");
+}
+export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "PUT");
 }

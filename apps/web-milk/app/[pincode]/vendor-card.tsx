@@ -18,10 +18,12 @@ import { milkTypeMeta, type MilkCard } from "@/lib/milk";
  */
 export function VendorCard({
   card,
+  pincode,
   selected = false,
   onSelect,
 }: {
   card: MilkCard;
+  pincode: string;
   selected?: boolean;
   onSelect?: (id: string) => void;
 }) {
@@ -30,7 +32,9 @@ export function VendorCard({
     .filter((p) => p.price_display)
     .map((p) => `${p.price_display} ${milkTypeMeta(p.milk_type ?? "").en}`.trim())
     .join(" · ");
-  const profileHref = `/directory/businesses/${card.slug}`;
+  // ?pin= carries the browsing pincode to the profile-view beacon (D26) —
+  // never in list payloads, just query context for the client island.
+  const profileHref = `/directory/businesses/${card.slug}?pin=${pincode}`;
 
   const handleKeyDown = onSelect
     ? (event: KeyboardEvent<HTMLDivElement>) => {

@@ -7,6 +7,7 @@ Never log request bodies here - business contact PII flows through this module.
 
 import re
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -27,7 +28,7 @@ BUSINESS_PATH = "/directory/businesses/{slug}"
 # The only owner-editable business columns. slug (rename endpoint),
 # verification_status (D16 claim flow), subscription_tier (billing) and
 # owner_user_id are one-way doors from this API's point of view.
-MUTABLE_FIELDS = {"name", "type", "primary_pincode", "description"}
+MUTABLE_FIELDS = {"name", "type", "primary_pincode", "description", "delivery_windows"}
 
 
 class BusinessNotFoundError(Exception):
@@ -116,6 +117,23 @@ async def update_business(
         business.description = Translated.from_dict(raw) if raw else None
     for field, value in patch.items():
         setattr(business, field, value)
+    await session.flush()
+    return business
+
+
+async def select_tier(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    tier: str,
+    now: datetime,
+) -> Business:
+    """Record premium INTENT (D26). Never writes subscription_tier - that
+    column stays server-set (admin route / billing at launch): the
+    fake-premium threat model's one-way door."""
+    business = await get_owned_business(session, owner_user_id, business_id)
+    business.premium_requested_at = now if tier == "premium" else None
     await session.flush()
     return business
 

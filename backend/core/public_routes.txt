@@ -45,3 +45,7 @@
 /ads/serve
 /ads/impressions
 /ads/clicks
+# /directory/businesses/{slug}/view: profile-view beacon (D26 analytics) -
+# anonymous visitors are most views. Stores daily-rotating pseudonym only
+# (no IP/UA), DB-unique dedupe, append-only table, rate-limited.
+/directory/businesses/{slug}/view

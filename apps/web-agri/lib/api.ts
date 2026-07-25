@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly detail: string,
+    public readonly detailData?: unknown,
   ) {
     super(`${status}: ${detail}`);
   }
@@ -22,7 +23,11 @@ interface JsonBody {
 async function parse(response: Response): Promise<JsonBody> {
   const body = (await response.json().catch(() => ({}))) as JsonBody;
   if (!response.ok) {
-    throw new ApiError(response.status, String(body.detail ?? body.error ?? "request_failed"));
+    throw new ApiError(
+      response.status,
+      String(body.detail ?? body.error ?? "request_failed"),
+      body.detail,
+    );
   }
   return body;
 }
@@ -44,4 +49,24 @@ export function postJson(path: string, payload?: unknown): Promise<JsonBody> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload ?? {}),
   });
+}
+
+export function putJson(path: string, payload?: unknown): Promise<JsonBody> {
+  return request(path, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload ?? {}),
+  });
+}
+
+export function patchJson(path: string, payload?: unknown): Promise<JsonBody> {
+  return request(path, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload ?? {}),
+  });
+}
+
+export function deleteJson(path: string): Promise<JsonBody> {
+  return request(path, { method: "DELETE" });
 }

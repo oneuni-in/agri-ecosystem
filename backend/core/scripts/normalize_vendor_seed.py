@@ -35,7 +35,7 @@ yet, so this is the mapping layer to revisit once the real sheet's
 column names are known; the validation/dedupe/rejection logic below does
 not change, only which raw columns feed it):
 
-    name, type, category_slugs, primary_pincode,
+    ref, name, type, category_slugs, primary_pincode,
     description_en, description_ta, description_hi,
     address, state, district, pincode, lat, lng, coverage_pincodes,
     vertical_slug, product_name, specs_json,
@@ -49,6 +49,20 @@ not change, only which raw columns feed it):
   Otherwise, for vertical_slug == "milk" (the only vertical seeded so
   far - D17), specs are built from milk_type/fat_percent/pack_size
   (fat_percent/pack_size optional, milk_type required by the schema).
+- ref is OPTIONAL and blank by default. Rows sharing a non-blank ref
+  merge into a SINGLE business (e.g. a brand like Aavin with a dozen
+  parlours): the first row of the group is canonical for the business
+  fields (name/type/category_slugs/primary_pincode/descriptions); every
+  row in the group may still contribute its own branch (when
+  address/pincode are present) and product (when vertical_slug is
+  non-blank), and coverage_pincodes across the group are unioned. Every
+  row is still validated individually (pincode/PII/specs) - a row that
+  fails validation is rejected on its own without pulling down the rest
+  of the group. If rows sharing a ref disagree on name/type/
+  primary_pincode, the WHOLE group is rejected (reason
+  `ref_conflict:<field>`) rather than silently picking one row's value.
+  Rows with a blank ref are unaffected - each normalizes to its own
+  business exactly as before (see merge_rows()).
 
 Uses stdlib csv only; the geo CSV is loaded once into a dict.
 """
@@ -61,6 +75,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from modules.directory.specs import SpecValidationError, parse_fields, validate_specs
 
@@ -181,6 +196,26 @@ class NormalizedRecord:
     branch: dict[str, str]
     coverage: list[dict[str, str]]
     products: list[dict[str, str]]
+
+
+@dataclass(slots=True)
+class MergedBusiness:
+    """One business assembled from one or more raw rows sharing a `ref`
+    (or a single ref-less row, wrapped the same way). `branches` and
+    `products` hold every contributing row's branch/product; `coverage`
+    is the union of every contributing row's coverage pincodes."""
+
+    business: dict[str, str]
+    branches: list[dict[str, str]]
+    coverage: list[dict[str, str]]
+    products: list[dict[str, str]]
+
+
+# dedupe() works structurally on anything carrying a `.business` dict -
+# both NormalizedRecord (one row) and MergedBusiness (a merged ref-group)
+# satisfy this, so the same dedupe pass runs after merge_rows().
+class _HasBusiness(Protocol):
+    business: dict[str, str]
 
 
 def load_geo(path: Path) -> dict[str, GeoPincode]:
@@ -381,12 +416,91 @@ def normalize_row(
     )
 
 
-def dedupe(
-    accepted: list[tuple[dict[str, str], NormalizedRecord]],
-) -> tuple[list[NormalizedRecord], list[tuple[dict[str, str], str]]]:
+_REF_CONFLICT_FIELDS = ("name", "type", "primary_pincode")
+
+
+def merge_rows(
+    rows: Sequence[dict[str, str]],
+    geo: dict[str, GeoPincode],
+) -> tuple[list[tuple[dict[str, str], MergedBusiness]], list[tuple[dict[str, str], str]]]:
+    """Normalize every raw row (normalize_row's full per-row validation -
+    pincode/PII/specs - applies to each row individually, exactly as
+    before; merging never bypasses a rejection path) and group rows that
+    share a non-blank `ref` into ONE MergedBusiness: the first surviving
+    row of the group is canonical for the business fields, every row
+    contributes its branch (when address/pincode are present) and
+    product (when vertical_slug is non-blank), and coverage pincodes
+    across the group are unioned (first-seen order). Rows with a blank
+    ref each form their own singleton group - ref-less behavior is
+    unchanged (dedupe(), applied later, still rejects accidental
+    (name, primary_pincode) duplicates).
+
+    If a ref-group's surviving rows disagree on name/type/
+    primary_pincode, the WHOLE group is rejected with reason
+    `ref_conflict:<field>` - never silently picking one row's value.
+
+    Returns (merged, rejects): merged pairs the group's canonical raw
+    row with its MergedBusiness (the same (dict, record) shape dedupe()
+    already consumes); rejects pairs an original raw row with a
+    machine-readable reason (from normalize_row, or `ref_conflict:...`).
+    """
+    normalized: list[tuple[dict[str, str], NormalizedRecord]] = []
+    rejects: list[tuple[dict[str, str], str]] = []
+    for raw_row in rows:
+        record, reason = normalize_row(raw_row, geo)
+        if reason:
+            rejects.append((raw_row, reason))
+        else:
+            assert record is not None
+            normalized.append((raw_row, record))
+
+    groups: dict[str, list[tuple[dict[str, str], NormalizedRecord]]] = {}
+    for i, (raw_row, record) in enumerate(normalized):
+        ref = raw_row.get("ref", "").strip()
+        key = ref if ref else f"\0singleton{i}"
+        groups.setdefault(key, []).append((raw_row, record))
+
+    merged: list[tuple[dict[str, str], MergedBusiness]] = []
+    for members in groups.values():
+        canonical_raw, canonical_record = members[0]
+        canonical = canonical_record.business
+        conflict_field = next(
+            (
+                field
+                for field in _REF_CONFLICT_FIELDS
+                if any(record.business[field] != canonical[field] for _, record in members)
+            ),
+            None,
+        )
+        if conflict_field:
+            rejects.extend((raw_row, f"ref_conflict:{conflict_field}") for raw_row, _ in members)
+            continue
+
+        seen_pins: set[str] = set()
+        coverage: list[dict[str, str]] = []
+        for _, record in members:
+            for cov in record.coverage:
+                if cov["pincode"] not in seen_pins:
+                    seen_pins.add(cov["pincode"])
+                    coverage.append(cov)
+
+        business = MergedBusiness(
+            business=dict(canonical),
+            branches=[record.branch for _, record in members],
+            coverage=coverage,
+            products=[product for _, record in members for product in record.products],
+        )
+        merged.append((canonical_raw, business))
+
+    return merged, rejects
+
+
+def dedupe[T: _HasBusiness](
+    accepted: list[tuple[dict[str, str], T]],
+) -> tuple[list[T], list[tuple[dict[str, str], str]]]:
     """Dedupe by (name, primary_pincode); first occurrence wins."""
     seen: set[tuple[str, str]] = set()
-    kept: list[NormalizedRecord] = []
+    kept: list[T] = []
     dupes: list[tuple[dict[str, str], str]] = []
     for raw_row, record in accepted:
         key = (record.business["name"].lower(), record.business["primary_pincode"])
@@ -410,27 +524,23 @@ def run(raw_path: Path, out_dir: Path, geo_path: Path) -> tuple[int, int]:
     Returns (accepted_count, rejected_count)."""
     geo = load_geo(geo_path)
 
-    accepted: list[tuple[dict[str, str], NormalizedRecord]] = []
-    rejects: list[dict[str, str]] = []
-
     with raw_path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
         raw_fieldnames = list(reader.fieldnames or [])
-        for raw_row in reader:
-            record, reason = normalize_row(raw_row, geo)
-            if reason:
-                rejects.append({**raw_row, "reject_reason": reason})
-            else:
-                assert record is not None
-                accepted.append((raw_row, record))
+        raw_rows = list(reader)
 
-    kept, dupes = dedupe(accepted)
+    merged, merge_rejects = merge_rows(raw_rows, geo)
+    rejects: list[dict[str, str]] = [
+        {**raw_row, "reject_reason": reason} for raw_row, reason in merge_rejects
+    ]
+
+    kept, dupes = dedupe(merged)
     for raw_row, reason in dupes:
         rejects.append({**raw_row, "reject_reason": reason})
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(out_dir / "businesses.csv", BUSINESS_FIELDS, [r.business for r in kept])
-    _write_csv(out_dir / "branches.csv", BRANCH_FIELDS, [r.branch for r in kept])
+    _write_csv(out_dir / "branches.csv", BRANCH_FIELDS, [b for r in kept for b in r.branches])
     _write_csv(out_dir / "coverage.csv", COVERAGE_FIELDS, [c for r in kept for c in r.coverage])
     _write_csv(out_dir / "products.csv", PRODUCT_FIELDS, [p for r in kept for p in r.products])
     _write_csv(out_dir / "rejects.csv", [*raw_fieldnames, "reject_reason"], rejects)

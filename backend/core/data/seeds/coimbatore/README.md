@@ -91,6 +91,36 @@ stripping it.
   deduped by `(name, primary_pincode)` — first occurrence wins, later
   duplicates are rejected.
 
+## Multi-branch / multi-product brands (`ref` column)
+
+The raw sheet may carry an optional `ref` column, blank by default.
+Rows sharing a **non-blank** `ref` merge into a **single business** —
+this is how a brand like Aavin, with a dozen parlours across
+Coimbatore, becomes one `businesses.csv` row with many `branches.csv` /
+`products.csv` rows instead of a dozen separate (and duplicate-rejected)
+businesses. Within a ref-group:
+
+- The **first row** is canonical for the business-level fields (`name`,
+  `type`, `category_slugs`, `primary_pincode`, descriptions).
+- **Every row** may still contribute its own branch (when it has
+  `address`/`pincode`) and its own product (when `vertical_slug` is
+  non-blank) — so a 12-parlour, 3-product brand is 12 rows in the raw
+  sheet, each repeating the same business fields and carrying its own
+  branch/product columns.
+- `coverage_pincodes` across the whole group are **unioned**.
+- Every row is still validated **individually** — a row with a bad
+  pincode or PII-looking text is rejected on its own (its normal reject
+  reason) without pulling the rest of the group down.
+- If rows sharing a `ref` **disagree** on `name` / `type` /
+  `primary_pincode`, the **whole group** is rejected with reason
+  `ref_conflict:<field>` (e.g. `ref_conflict:primary_pincode`) rather
+  than silently picking one row's value — that kind of silent
+  divergence is exactly how bad seed data slips in.
+
+Rows with a blank `ref` are unaffected: each normalizes to its own
+business exactly as before, and the existing `(name, primary_pincode)`
+dedupe still rejects accidental duplicates.
+
 ## This sample specifically
 
 15 dairy vendors (`category_slugs=dairy`) across real Coimbatore

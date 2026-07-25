@@ -22,6 +22,7 @@ from scripts.normalize_vendor_seed import (
     dedupe,
     load_geo,
     looks_like_pii,
+    merge_rows,
     normalize_row,
     validate_pincode,
 )
@@ -43,6 +44,7 @@ GEO = {
 
 def _row(**overrides: str) -> dict[str, str]:
     base = {
+        "ref": "",
         "name": "  Sri  Balaji   Dairy  ",
         "type": "vendor",
         "category_slugs": "dairy",
@@ -255,6 +257,125 @@ class TestDedupe:
         kept, dupes = dedupe([({}, rec1), ({}, rec2)])
         assert len(kept) == 2
         assert dupes == []
+
+
+class TestMergeRows:
+    """merge_rows(rows, geo) normalizes every raw row (same per-row
+    validation as normalize_row - pincode/PII/specs) and then groups
+    rows sharing a non-blank `ref` into ONE merged business. It returns
+    (merged, rejects) where merged is a list of (canonical_raw_row,
+    MergedBusiness) pairs - the same (dict, record) shape dedupe()
+    already consumes - and rejects pairs an original raw row with a
+    machine-readable reason (either from normalize_row's own validation
+    or `ref_conflict:<field>`)."""
+
+    def test_shared_ref_merges_branches_and_products(self) -> None:
+        rows = [
+            _row(
+                ref="aavin-cbe",
+                name="Aavin Coimbatore",
+                type="shop",
+                address="Parlour 1, Town Hall",
+                pincode="641001",
+                product_name="Aavin Toned Milk",
+                milk_type="toned",
+                coverage_pincodes="641001",
+            ),
+            _row(
+                ref="aavin-cbe",
+                name="Aavin Coimbatore",
+                type="shop",
+                address="Parlour 2, RS Puram",
+                pincode="641045",
+                product_name="Aavin Full Cream",
+                milk_type="cow",
+                coverage_pincodes="641045",
+            ),
+        ]
+        merged, rejects = merge_rows(rows, GEO)
+        assert rejects == []
+        assert len(merged) == 1
+        _, business = merged[0]
+        assert len(business.branches) == 2
+        assert {b["address"] for b in business.branches} == {
+            "Parlour 1, Town Hall",
+            "Parlour 2, RS Puram",
+        }
+        assert len(business.products) == 2
+        assert {p["name"] for p in business.products} == {
+            "Aavin Toned Milk",
+            "Aavin Full Cream",
+        }
+        assert {c["pincode"] for c in business.coverage} == {"641001", "641045"}
+        # business_ref stays consistent across every contribution.
+        ref = business.business["ref"]
+        assert all(b["business_ref"] == ref for b in business.branches)
+        assert all(p["business_ref"] == ref for p in business.products)
+
+    def test_blank_ref_rows_stay_separate_and_dupes_still_reject(self) -> None:
+        rows = [_row(), _row()]  # same (name, primary_pincode), no ref
+        merged, rejects = merge_rows(rows, GEO)
+        assert rejects == []
+        # merge_rows does not dedupe by itself - each ref-less row forms
+        # its own singleton group, exactly as normalize_row did before.
+        assert len(merged) == 2
+        kept, dupes = dedupe(merged)
+        assert len(kept) == 1  # the existing (name, primary_pincode) dedupe still fires
+        assert len(dupes) == 1
+        assert dupes[0][1] == "duplicate"
+
+    def test_ref_group_disagreeing_on_name_is_rejected_wholesale(self) -> None:
+        rows = [
+            _row(ref="aavin-cbe", name="Aavin Coimbatore", pincode="641001"),
+            _row(ref="aavin-cbe", name="Aavin Coimbatore Branch", pincode="641045"),
+        ]
+        merged, rejects = merge_rows(rows, GEO)
+        assert merged == []
+        assert len(rejects) == 2
+        assert all(reason == "ref_conflict:name" for _, reason in rejects)
+
+    def test_ref_group_disagreeing_on_primary_pincode_is_rejected_wholesale(self) -> None:
+        rows = [
+            _row(
+                ref="aavin-cbe", name="Aavin Coimbatore", primary_pincode="641001", pincode="641001"
+            ),
+            _row(
+                ref="aavin-cbe", name="Aavin Coimbatore", primary_pincode="641045", pincode="641045"
+            ),
+        ]
+        merged, rejects = merge_rows(rows, GEO)
+        assert merged == []
+        assert len(rejects) == 2
+        assert all(reason == "ref_conflict:primary_pincode" for _, reason in rejects)
+
+    def test_invalid_row_in_group_is_rejected_alone_and_rest_still_merges(self) -> None:
+        rows = [
+            _row(ref="aavin-cbe", name="Aavin Coimbatore", pincode="641001", address="Parlour 1"),
+            _row(
+                ref="aavin-cbe",
+                name="Aavin Coimbatore",
+                pincode="641001",
+                address="Parlour 2",
+                type="wholesaler",  # invalid type -> this row alone is rejected
+            ),
+        ]
+        merged, rejects = merge_rows(rows, GEO)
+        assert len(merged) == 1
+        _, business = merged[0]
+        assert len(business.branches) == 1
+        assert len(rejects) == 1
+        assert rejects[0][1].startswith("invalid_type")
+
+    def test_no_product_row_contributed_when_vertical_blank(self) -> None:
+        rows = [
+            _row(ref="aavin-cbe", name="Aavin Coimbatore", pincode="641001"),
+            _row(ref="aavin-cbe", name="Aavin Coimbatore", pincode="641045", vertical_slug=""),
+        ]
+        merged, rejects = merge_rows(rows, GEO)
+        assert rejects == []
+        _, business = merged[0]
+        assert len(business.branches) == 2
+        assert len(business.products) == 1
 
 
 class TestStarterSeed:

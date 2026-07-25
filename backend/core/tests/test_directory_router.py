@@ -11,10 +11,12 @@ import httpx
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import service
+from modules.directory.models import Business, BusinessCategory, BusinessCoverage, Category
 from shared.db import get_session
 from shared.middleware import SlugRedirectMiddleware
 from shared.security import register_principal_resolver
@@ -214,6 +216,52 @@ async def test_covers_endpoint_public(
     assert body["next_cursor"] is None
     assert (await http.get("/directory/covers/641001?cursor=garbage")).status_code == 400
     assert (await http.get("/directory/covers/notapin")).status_code == 422
+
+
+async def test_covers_category_filter(
+    api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+) -> None:
+    # one dairy vendor + one veterinarian, both covering 641001
+    http, session = api
+    vendor = Business(
+        owner_user_id=None,
+        name="Covers Cat Dairy",
+        slug="covers-cat-dairy",
+        type="vendor",
+        primary_pincode="641001",
+    )
+    vet = Business(
+        owner_user_id=None,
+        name="Covers Cat Vet",
+        slug="covers-cat-vet",
+        type="shop",
+        primary_pincode="641001",
+    )
+    session.add_all([vendor, vet])
+    await session.flush()
+    vet_cat = await session.scalar(select(Category).where(Category.slug == "veterinarian"))
+    session.add_all(
+        [
+            BusinessCoverage(business_id=vendor.id, pincode="641001"),
+            BusinessCoverage(business_id=vet.id, pincode="641001"),
+            BusinessCategory(business_id=vet.id, category_id=vet_cat.id),
+        ]
+    )
+    await session.commit()
+
+    response = await http.get("/directory/covers/641001", params={"category": "veterinarian"})
+    assert response.status_code == 200
+    slugs = [item["slug"] for item in response.json()["items"]]
+    assert "covers-cat-vet" in slugs
+    assert "covers-cat-dairy" not in slugs
+
+
+async def test_covers_category_param_validated(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, _ = api
+    response = await http.get("/directory/covers/641001", params={"category": "NOT A SLUG!"})
+    assert response.status_code == 422
 
 
 async def test_rename_serves_301_from_old_path(

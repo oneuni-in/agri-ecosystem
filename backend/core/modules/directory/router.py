@@ -523,11 +523,14 @@ async def covers_search(
     session: SessionDep,
     cursor: str | None = None,
     limit: LimitQuery = DEFAULT_PAGE_SIZE,
+    category: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,40}$")] = None,
 ) -> CoversOut:
     """Vendor discovery: businesses covering the pincode, nearest first.
     Keyset + rate limit are the scraping defence (no offsets to walk)."""
     try:
-        page = await covers_module.covers(session, pincode=pincode, cursor=cursor, limit=limit)
+        page = await covers_module.covers(
+            session, pincode=pincode, cursor=cursor, limit=limit, category=category
+        )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return CoversOut(

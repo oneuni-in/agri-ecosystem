@@ -21,9 +21,16 @@ covered, with complete TA/HI strings across Milk.in.
    (`/directory/businesses/[slug]`); when `type == "shop"` the page renders a brand
    layout. One canonical URL per entity, immutable slugs preserved, no SEO
    duplication. No `Brand` entity — brands stay `shop`-type `Business` rows.
-3. **Locale switching ships in D27.** web-milk stops pinning `locale="en"` and reads
-   the `NEXT_LOCALE` cookie (web-id's existing pattern) with a header switcher —
-   otherwise the TA/HI catalogs are unreachable and the non-negotiable is hollow.
+3. **Locale switching ships in D27 — via locale-segment routing, not the cookie.**
+   (Amended during planning, owner-approved 2026-07-25.) The cookie pattern would
+   invoke `cookies()`/`headers()` in `i18n/request.ts` and put the whole app back on
+   per-request rendering — the exact regression D23's static fix removed, on the very
+   home page the Lighthouse CI gate audits. Instead web-milk moves to standard
+   next-intl routing with an `app/[locale]/` segment and `localePrefix: "as-needed"`:
+   `/` stays the statically rendered English page (audited URL unchanged), `/ta` and
+   `/hi` are statically generated variants with hreflang alternates (indexable Tamil/
+   Hindi pages), `setRequestLocale` keeps every page static, and middleware handles
+   cookie-remembered locale redirects for returning users.
 4. **The loader drives the real service layer** (`create_business → add_branch →
    set_coverage → assign_categories → create_product → approve`), like
    `make_business.py` / `seed_e2e_milk.py`. Validation, moderation states, and the

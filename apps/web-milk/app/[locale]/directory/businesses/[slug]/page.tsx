@@ -2,7 +2,7 @@ import { Badge, Card, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Link } from "@/i18n/navigation";
@@ -156,6 +156,11 @@ export default async function VendorProfilePage({
   const detail = await fetchBusiness(slug);
   if (!detail) notFound();
   const { business, branches, categories, coverage_pincodes } = detail;
+  // A renamed business reaches us through the backend's 301 (D03
+  // slug_redirects via SlugRedirectMiddleware — fetch follows it silently
+  // and returns the NEW slug). Surface it as a page-level 301 so indexed
+  // old URLs migrate instead of serving duplicate content (D28.D).
+  if (business.slug !== slug) permanentRedirect(`/directory/businesses/${business.slug}`);
   const canonical = canonicalFor(business.slug);
   const [products, { summary, items: reviews }] = await Promise.all([
     fetchProducts(business.slug),

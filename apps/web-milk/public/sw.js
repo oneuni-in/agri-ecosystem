@@ -2,7 +2,7 @@
  * model — /api/* is never intercepted (no PII in caches), only same-origin
  * GETs are handled, navigations are network-first with an /offline shell
  * fallback, and hashed _next/static assets are cache-first. */
-const VERSION = "v1"; // bump to invalidate all caches
+const VERSION = "v2"; // bump to invalidate all caches
 const SHELL_CACHE = `milk-shell-${VERSION}`;
 const ASSET_CACHE = `milk-assets-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -45,7 +45,12 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  // NOTE: /_next/static/* is deliberately NOT SW-cached. In production the
+  // browser HTTP cache already holds those (immutable cache-control); in dev
+  // the URLs are NOT content-hashed, and a cache-first SW serves stale
+  // modules after Fast Refresh recompiles — which triggers full page
+  // reloads that abort in-flight fetches (broke three e2e specs).
+  if (url.pathname.startsWith("/icons/")) {
     event.respondWith(
       caches.match(event.request).then(
         (hit) =>

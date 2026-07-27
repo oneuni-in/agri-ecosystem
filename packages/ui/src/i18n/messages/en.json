@@ -250,6 +250,14 @@
       "installCta": "Install",
       "iosHint": "Tap Share, then 'Add to Home Screen'.",
       "dismiss": "Dismiss"
+    },
+    "pushAlerts": {
+      "title": "Lead & reply alerts",
+      "body": "Get a notification when a vendor replies — even with the app closed.",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "blocked": "Notifications are blocked in browser settings.",
+      "iosInstallFirst": "Install Milk.in first (Share → Add to Home Screen), then enable alerts here."
     }
   },
   "coins": {

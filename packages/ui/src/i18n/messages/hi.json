@@ -250,6 +250,14 @@
       "installCta": "इंस्टॉल करें",
       "iosHint": "Share दबाएँ, फिर 'Add to Home Screen' चुनें।",
       "dismiss": "बंद करें"
+    },
+    "pushAlerts": {
+      "title": "पूछताछ और जवाब अलर्ट",
+      "body": "विक्रेता के जवाब देते ही सूचना पाएँ — ऐप बंद होने पर भी।",
+      "enable": "चालू करें",
+      "disable": "बंद करें",
+      "blocked": "ब्राउज़र सेटिंग में सूचनाएँ ब्लॉक हैं।",
+      "iosInstallFirst": "पहले Milk.in इंस्टॉल करें (Share → Add to Home Screen), फिर यहाँ अलर्ट चालू करें।"
     }
   },
   "coins": {

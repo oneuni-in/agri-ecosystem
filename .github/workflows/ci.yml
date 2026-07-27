@@ -234,13 +234,53 @@ jobs:
   # C / non-negotiable 2: Lighthouse mobile + throttled 3G on affected app
   # templates (always including the D02 /demo route); perf>=90 a11y>=95 seo>=95
   # + committed budgets.json. Thresholds live in lighthouserc.cjs.
+  #
+  # D28b: the job now boots the API (postgres + redis + migrate + geo + seed,
+  # same stack as e2e-auth) so the /{city}/{pincode} pincode landing pages can
+  # be audited too. They are milk.in's real SEO surface — home is just a
+  # pincode box — and they are dynamic SSR reading covers(), so without a
+  # backend they render notFound() and cannot be gated at all.
   lighthouse:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app # CI-only credentials
+          POSTGRES_DB: agri
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U app -d agri"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@localhost:5432/agri
+      DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      REDIS_URL: redis://localhost:6379/0
+      API_BASE_URL: http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # turbo diffs against the PR base to find affected apps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - run: pip install -e backend/core
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -253,6 +293,17 @@ jobs:
           key: turbo-${{ runner.os }}-lhci-${{ github.sha }}
           restore-keys: |
             turbo-${{ runner.os }}-
+      # migrate -> load_geo -> seed_e2e_milk -> uvicorn (scripts/e2e-api.mjs).
+      # Backgrounded here; lhci-affected.mjs skips the landing URLs (loudly) if
+      # this never comes up, so a backend failure can't silently drop coverage.
+      - name: Start API for landing-page audit
+        run: |
+          pnpm run e2e:api &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/health && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8000/health
       - run: node scripts/lhci-affected.mjs
         env:
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}

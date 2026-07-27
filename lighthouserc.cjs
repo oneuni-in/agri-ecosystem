@@ -51,6 +51,20 @@ module.exports = {
           },
         },
         {
+          // D28 pincode landing pages (/{city}/{pincode}) - milk.in's real SEO
+          // surface: home is just a pincode box, THESE are what Google indexes
+          // and what carries the ItemList/LocalBusiness JSON-LD. Same
+          // Constitution floor as the app templates; no carve-out. Audited only
+          // when the API is up (scripts/lhci-affected.mjs), which the CI
+          // lighthouse job now provides.
+          matchingUrlPattern: "/[a-z][a-z-]*/\\d{6}$",
+          assertions: {
+            "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
+            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+          },
+        },
+        {
           // /demo (D02 kitchen-sink gallery): ~138KB of streamed HTML makes
           // LCP track full document download; measured baseline was perf 83 on
           // 3G. SEO is exempt: the page deliberately self-noindexes

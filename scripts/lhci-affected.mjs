@@ -22,6 +22,17 @@ const APPS = {
 const ALWAYS = "web-agri";
 const READY_TIMEOUT_MS = 120_000;
 
+// Non-home routes that must also hold the floor. The D28 pincode landing is
+// milk.in's actual SEO surface (home is a pincode box; these pages are what
+// Google indexes), so it cannot be left ungated. It is dynamic SSR reading
+// covers(), so it needs the API up — without a backend it renders notFound()
+// and would fail the audit for the wrong reason. Included only when the API
+// answers; the skip is logged, never silent.
+const EXTRA_URLS = {
+  "web-milk": ["/coimbatore/641001"], // seeded covered pincode (seed_e2e_milk.py)
+};
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
+
 function run(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32", ...opts });
 }
@@ -82,6 +93,21 @@ run("pnpm", ["exec", "turbo", "run", "build", ...filters], { stdio: "inherit" })
 
 const urls = apps.map((app) => `http://localhost:${APPS[app]}/`);
 if (apps.includes(ALWAYS)) urls.push(`http://localhost:${APPS[ALWAYS]}/demo`);
+
+const apiUp = await fetch(`${API_BASE_URL}/health`)
+  .then((r) => r.ok)
+  .catch(() => false);
+for (const [app, paths] of Object.entries(EXTRA_URLS)) {
+  if (!apps.includes(app)) continue;
+  if (!apiUp) {
+    console.warn(
+      `lhci: SKIPPING ${app} extra URLs (${paths.join(", ")}) - no API at ${API_BASE_URL}. ` +
+        `These routes are NOT audited in this run.`,
+    );
+    continue;
+  }
+  urls.push(...paths.map((p) => `http://localhost:${APPS[app]}${p}`));
+}
 
 const servers = apps.map((app) =>
   spawn("pnpm", ["--filter", `@agri/${app}`, "start"], {

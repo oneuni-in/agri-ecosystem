@@ -34,7 +34,11 @@ export default async function OfflinePage({ params }: { params: Promise<{ locale
           {t("kisanHelpline")}:{" "}
           <a className="font-bold text-brand-deep" href="tel:18001801551">
             1800-180-1551
-          </a>
+          </a>{" "}
+          {/* KCC runs 6am-10pm (verified against ICAR/MANAGE). Offline is
+              exactly when the user cannot look this up, so a number without
+              its hours invites a dead call at midnight. */}
+          <span className="text-[13px] text-sub">({t("kisanHours")})</span>
         </p>
       </section>
       <OfflineStatus title={t("lastSeenTitle")} />

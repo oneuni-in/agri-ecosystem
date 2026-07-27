@@ -243,7 +243,8 @@
       "helplineTitle": "Helplines that work without internet",
       "vetHelpline": "Animal husbandry helpline",
       "kisanHelpline": "Kisan Call Centre",
-      "lastSeenTitle": "Last seen prices"
+      "lastSeenTitle": "Last seen prices",
+      "kisanHours": "6 AM – 10 PM, all week"
     },
     "pwa": {
       "installTitle": "Install Milk.in on this phone",

@@ -32,6 +32,7 @@ secrets/*
 
 # lighthouse CI reports
 .lhci/
+.lighthouseci/
 
 # logs
 *.log

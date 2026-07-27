@@ -51,6 +51,31 @@ module.exports = {
           },
         },
         {
+          // D28 pincode landing pages (/{city}/{pincode}) - milk.in's real SEO
+          // surface: home is just a pincode box, THESE are what Google indexes
+          // and what carries the ItemList/LocalBusiness JSON-LD. Audited only
+          // when the API is up (scripts/lhci-affected.mjs), which the CI
+          // lighthouse job now provides.
+          //
+          // perf floor 0.80, owner-approved 2026-07-27 (D28b). First CI
+          // measurement was 0.82 / 0.83 / 0.83 - stable, not runner variance,
+          // so 0.90 would fail deterministically rather than flakily. The cost
+          // is the shared shell, not the listings: LCP render delay 3664ms of
+          // a ~4.0s LCP, of which render-blocking CSS is 1559ms across two
+          // small stylesheets (each request costs a ~560ms round trip on this
+          // 3G profile); CLS is 0 and TTFB 40ms. 0.80 leaves ~3pts headroom so
+          // the gate protects against regressions TODAY; raising it to the
+          // Constitution's 0.90 is tracked as a follow-up (critical-CSS
+          // delivery + font strategy in packages/ui). a11y/seo hold the full
+          // floor - they measure 0.96 / 1.00.
+          matchingUrlPattern: "/[a-z][a-z-]*/\\d{6}$",
+          assertions: {
+            "categories:performance": ["error", { minScore: 0.8, aggregationMethod: "median-run" }],
+            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+          },
+        },
+        {
           // /demo (D02 kitchen-sink gallery): ~138KB of streamed HTML makes
           // LCP track full document download; measured baseline was perf 83 on
           // 3G. SEO is exempt: the page deliberately self-noindexes

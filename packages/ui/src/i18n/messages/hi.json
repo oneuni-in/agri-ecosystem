@@ -243,7 +243,8 @@
       "helplineTitle": "बिना इंटरनेट काम करने वाली हेल्पलाइन",
       "vetHelpline": "पशुपालन हेल्पलाइन",
       "kisanHelpline": "किसान कॉल सेंटर",
-      "lastSeenTitle": "आख़िरी देखी गई क़ीमतें"
+      "lastSeenTitle": "आख़िरी देखी गई क़ीमतें",
+      "kisanHours": "सुबह 6 – रात 10, पूरे सप्ताह"
     },
     "pwa": {
       "installTitle": "इस फ़ोन पर Milk.in इंस्टॉल करें",

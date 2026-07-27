@@ -13,6 +13,11 @@ allowBuilds:
   # upload activates at launch prep (docs/runbooks/monitoring.md). Keep blocked.
   "@sentry/cli": false
 
+# postcss 8.5.18 is the patched release for GHSA-r28c-9q8g-f849 (high);
+# excluded from the release-age delay so the floor below is installable.
+minimumReleaseAgeExclude:
+  - postcss@8.5.18
+
 # security-audit floors (pnpm audit --audit-level high is a CI gate);
 # tmp <0.2.6 (GHSA-ph9p-34f9-6g65) comes in through @lhci/cli
 # brace-expansion 1.x/2.x (GHSA-3jxr-9vmj-r5cp) via minimatch everywhere;
@@ -35,5 +40,18 @@ overrides:
   "brace-expansion@1": ">=1.1.16 <2"
   "brace-expansion@2": ">=2.1.2 <3"
   "js-yaml@4": ">=4.3.0 <5"
-  postcss: ">=8.5.10 <9"
+  # 8.5.18 patches GHSA-r28c-9q8g-f849 (high, sourceMappingURL path traversal).
+  postcss: ">=8.5.18 <9"
   body-parser: ">=1.20.6 <2"
+
+# GHSA-mh99-v99m-4gvg (brace-expansion DoS, high) declares every version
+# <=5.0.7 vulnerable with 5.0.8 as the ONLY patched release - no 1.x/2.x
+# backports exist at time of writing. Forcing 5.x into the minimatch chains
+# is exactly the cross-major breakage documented above ("expand is not a
+# function"), so the advisory is ignored instead of floored. The DoS needs
+# attacker-controlled glob patterns; none of our minimatch consumers
+# (eslint/glob/rimraf/lhci) expand untrusted input. Revisit and replace with
+# per-major floors the moment backports land.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-mh99-v99m-4gvg

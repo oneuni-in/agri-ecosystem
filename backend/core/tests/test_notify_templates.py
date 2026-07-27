@@ -21,8 +21,8 @@ EXPECTED_CHANNELS = {
     # D18 review moderation (in-app only, same rationale as claim/verification)
     "review_approved": {"in_app"},
     # D18 leads (in-app only, same rationale as claim/verification)
-    "lead_received": {"in_app"},
-    "lead_response": {"in_app"},
+    "lead_received": {"in_app", "push"},
+    "lead_response": {"in_app", "push"},
     # D20 billing
     "dunning_payment_failed": {"in_app", "email"},
     "dunning_reminder": {"in_app", "email"},

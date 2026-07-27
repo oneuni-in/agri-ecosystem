@@ -16,11 +16,11 @@ import { milkTypeMeta } from "@/lib/milk";
  * shareable/back-button-safe with zero JS required for the happy path.
  */
 export function TypeFilterRow({
-  pincode,
+  base,
   filters,
   active,
 }: {
-  pincode: string;
+  base: string; // canonical page path, e.g. /coimbatore/641001 (D28)
   filters: string[];
   active: string;
 }) {
@@ -34,7 +34,7 @@ export function TypeFilterRow({
       {filters.map((key) => {
         const meta = milkTypeMeta(key);
         const on = key === active;
-        const href = key === "all" ? `/${pincode}` : `/${pincode}?type=${key}`;
+        const href = key === "all" ? base : `${base}?type=${key}`;
         return (
           <Link
             key={key}

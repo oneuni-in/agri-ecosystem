@@ -157,7 +157,11 @@
         "empty": "कोई उपयोगकर्ता नहीं मिला",
         "loadMore": "और लोड करें",
         "phoneEnding": "{last4} पर समाप्त होने वाला फ़ोन",
-        "status": { "active": "सक्रिय", "suspended": "निलंबित", "deleted": "हटाया गया" },
+        "status": {
+          "active": "सक्रिय",
+          "suspended": "निलंबित",
+          "deleted": "हटाया गया"
+        },
         "roles": "भूमिकाएँ",
         "addRole": "भूमिका जोड़ें",
         "removeRole": "{role} हटाएँ",
@@ -230,7 +234,34 @@
       "empty": "{pincode} के पास कोई दुकान नहीं मिली।",
       "kmAway": "{km} किमी दूर"
     },
-    "localeSwitcher": { "label": "भाषा" }
+    "localeSwitcher": {
+      "label": "भाषा"
+    },
+    "offline": {
+      "title": "आप ऑफ़लाइन हैं",
+      "body": "कनेक्शन नहीं है — आपके लिए सहेजी गई जानकारी यहाँ है।",
+      "helplineTitle": "बिना इंटरनेट काम करने वाली हेल्पलाइन",
+      "vetHelpline": "पशुपालन हेल्पलाइन",
+      "kisanHelpline": "किसान कॉल सेंटर",
+      "lastSeenTitle": "आख़िरी देखी गई क़ीमतें"
+    },
+    "pwa": {
+      "installTitle": "इस फ़ोन पर Milk.in इंस्टॉल करें",
+      "installCta": "इंस्टॉल करें",
+      "iosHint": "Share दबाएँ, फिर 'Add to Home Screen' चुनें।",
+      "dismiss": "बंद करें"
+    },
+    "pushAlerts": {
+      "title": "पूछताछ और जवाब अलर्ट",
+      "body": "विक्रेता के जवाब देते ही सूचना पाएँ — ऐप बंद होने पर भी।",
+      "enable": "चालू करें",
+      "disable": "बंद करें",
+      "blocked": "ब्राउज़र सेटिंग में सूचनाएँ ब्लॉक हैं।",
+      "iosInstallFirst": "पहले Milk.in इंस्टॉल करें (Share → Add to Home Screen), फिर यहाँ अलर्ट चालू करें।"
+    },
+    "lowData": {
+      "label": "डेटा सेवर"
+    }
   },
   "coins": {
     "reason": {

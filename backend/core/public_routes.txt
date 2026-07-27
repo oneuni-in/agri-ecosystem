@@ -22,6 +22,10 @@
 # vendors + brands + schema-driven filters + computed price banner behind a
 # 3-way empty-state scope. Anonymous visitors land here before signup.
 /catalog/milk/home/{pincode}
+# /catalog/milk/coverage/pincodes: sitemap feed (D28) - covered pincodes +
+# district name only (no business rows, no contact data); keyset on pincode,
+# limit-capped, rate-limited like every public route.
+/catalog/milk/coverage/pincodes
 /leads/inquiries
 /leads/pincode-interest
 /reviews

@@ -24,7 +24,7 @@ from modules.directory.models import Business
 from modules.identity.oauth_keys import reset_oauth_keys
 from modules.identity.otp_drivers import MockDriver
 from modules.identity.rbac import reset_permission_cache
-from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
+from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver, MockPushDriver
 from modules.search.client import get_meili, reset_meili
 from settings import get_settings
 from shared import storage
@@ -70,6 +70,7 @@ def _reset_state() -> Iterator[None]:
     reset_permission_cache()
     MockEmailDriver.reset()
     MockNotifySmsDriver.reset()
+    MockPushDriver.reset()
     reset_meili()
     reset_geoip()
     reset_moderation_sources()

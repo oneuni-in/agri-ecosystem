@@ -15,10 +15,10 @@ import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES, type DairyCategory } from "@/li
  * the happy path, same precedent as `TypeFilterRow`.
  */
 export async function CategoryChips({
-  pincode,
+  base,
   active,
 }: {
-  pincode: string;
+  base: string; // canonical page path, e.g. /coimbatore/641001 (D28)
   active: DairyCategory | null;
 }) {
   const t = await getTranslations("ui");
@@ -36,7 +36,7 @@ export async function CategoryChips({
       data-testid="category-chip-row"
     >
       <Link
-        href={`/${pincode}`}
+        href={base}
         aria-current={active === null ? "true" : undefined}
         className={chipClass(active === null)}
         data-testid="category-chip-all"
@@ -48,7 +48,7 @@ export async function CategoryChips({
         return (
           <Link
             key={slug}
-            href={`/${pincode}?category=${slug}`}
+            href={`${base}?category=${slug}`}
             aria-current={on ? "true" : undefined}
             className={chipClass(on)}
             data-testid={`category-chip-${slug}`}

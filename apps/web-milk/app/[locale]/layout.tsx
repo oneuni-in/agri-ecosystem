@@ -1,6 +1,7 @@
+import { themeColors } from "@agri/config/theme-colors";
 import type { SiteTheme } from "@agri/types";
 import { fontVariables } from "@agri/ui/fonts";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -8,6 +9,8 @@ import type { ReactNode } from "react";
 
 import { routing } from "@/i18n/routing";
 
+import { PwaClient } from "./pwa-client";
+import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
@@ -16,7 +19,12 @@ const THEME: SiteTheme = "theme-milk";
 export const metadata: Metadata = {
   title: "Milk.in",
   description: "Pincode-first dairy discovery.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Milk.in", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
+
+export const viewport: Viewport = { themeColor: themeColors[THEME].brand };
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -37,6 +45,8 @@ export default async function LocaleLayout({
         <NextIntlClientProvider>
           <SiteHeader />
           {children}
+          <SiteFooter />
+          <PwaClient />
         </NextIntlClientProvider>
       </body>
     </html>

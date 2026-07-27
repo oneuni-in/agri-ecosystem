@@ -48,6 +48,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/catalog/products/{slug}",
     "/catalog/businesses/{slug}/products",
     "/catalog/verticals/{vertical}/products",
+    "/catalog/milk/coverage/pincodes",
     "/catalog/milk/home/{pincode}",
     "/directory/businesses/{slug}",
     "/directory/covers/{pincode}",

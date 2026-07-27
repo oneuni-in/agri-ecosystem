@@ -9,12 +9,15 @@
     "./tsconfig/library.json": "./tsconfig/library.json",
     "./eslint": "./eslint/base.js",
     "./eslint/next": "./eslint/next.js",
-    "./tailwind-preset": "./tailwind/preset.js"
+    "./tailwind-preset": "./tailwind/preset.js",
+    "./theme-colors": "./theme-colors.js"
   },
   "files": [
     "eslint",
     "tailwind",
-    "tsconfig"
+    "tsconfig",
+    "theme-colors.js",
+    "theme-colors.d.ts"
   ],
   "scripts": {
     "lint": "eslint . --max-warnings 0",

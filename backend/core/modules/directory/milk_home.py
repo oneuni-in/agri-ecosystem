@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, Protocol
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import catalog_service
@@ -113,6 +113,56 @@ async def _milk_filter_keys(session: AsyncSession) -> list[str]:
         if field.key == "milk_type" and field.options:
             return ["all", *field.options]
     return ["all"]
+
+
+@dataclass(frozen=True, slots=True)
+class CoveredPincode:
+    pincode: str
+    district: str
+
+
+# Same "covered" predicate as milk_home() below (active covering business
+# with >=1 approved+active milk product) - the sitemap may only advertise
+# pincodes whose landing page is indexable. Raw SQL bypasses the ORM
+# soft-delete filter, so deleted_at IS NULL is explicit (covers.py rule).
+_COVERED_PINCODES_SQL = """
+SELECT c.pincode, d.name AS district
+FROM directory.business_coverage c
+JOIN directory.businesses b
+  ON b.id = c.business_id AND b.status = 'active' AND b.deleted_at IS NULL
+JOIN geo.pincodes p ON p.pincode = c.pincode
+JOIN geo.districts d ON d.id = p.district_id
+WHERE EXISTS (
+    SELECT 1 FROM directory.products pr
+    WHERE pr.business_id = b.id AND pr.vertical_slug = 'milk'
+      AND pr.moderation_status = 'approved' AND pr.status = 'active'
+      AND pr.deleted_at IS NULL
+)
+{cursor_clause}
+GROUP BY c.pincode, d.name
+ORDER BY c.pincode
+LIMIT :lim
+"""
+
+
+async def covered_pincodes(
+    session: AsyncSession, *, cursor: str | None = None, limit: int = 100
+) -> tuple[list[CoveredPincode], str | None]:
+    """Sitemap feed (D28): keyset on pincode; the cursor IS the last pincode."""
+    limit = min(max(limit, 1), 100)
+    clause = "AND c.pincode > :cursor" if cursor is not None else ""
+    params: dict[str, object] = {"lim": limit + 1}
+    if cursor is not None:
+        params["cursor"] = cursor
+    rows = (
+        await session.execute(text(_COVERED_PINCODES_SQL.format(cursor_clause=clause)), params)
+    ).all()
+    items = [
+        CoveredPincode(pincode=m["pincode"], district=m["district"])
+        for m in (r._mapping for r in rows[:limit])
+    ]
+    next_cursor = items[-1].pincode if len(rows) > limit else None
+    return items, next_cursor
 
 
 async def milk_home(

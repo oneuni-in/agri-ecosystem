@@ -36,6 +36,8 @@ export function SponsoredAd({
           <img
             src={ad.media_urls[0]}
             alt={ad.title}
+            loading="lazy"
+            decoding="async"
             className="max-h-40 w-full rounded-lg object-cover"
           />
         ) : null}

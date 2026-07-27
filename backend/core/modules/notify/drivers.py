@@ -1,11 +1,15 @@
-"""Notify channel drivers (D12): mock SMS + mock/ZeptoMail email.
+"""Notify channel drivers (D12/D28): mock SMS + mock/ZeptoMail email +
+mock/VAPID web push.
 
 get_*_driver() are the ONLY selection points, mirroring identity's
 otp_drivers pattern. An import-linter forbidden contract keeps every other
 module away from this file: sends go through the notify engine (preferences,
-rate cap, flag) or not at all. Destinations and bodies are never logged."""
+rate cap, flag) or not at all. Destinations, endpoints and bodies are never
+logged."""
 
-from typing import ClassVar, Protocol
+import asyncio
+import json
+from typing import Any, ClassVar, Protocol
 
 import httpx
 
@@ -82,6 +86,63 @@ class ZeptoMailDriver:
         request_id = data.get("request_id")
         logger.info("zeptomail sent", extra={"extra_fields": {"request_id": request_id}})
         return str(request_id) if request_id is not None else None
+
+
+class ExpiredSubscriptionError(Exception):
+    """Provider says this endpoint is gone (404/410): prune, don't retry."""
+
+
+class PushDriver(Protocol):
+    async def send(
+        self, subscription_info: dict[str, Any], title: str, body: str
+    ) -> str | None: ...
+
+
+class MockPushDriver:
+    """Dev/test: pushes land in an inspectable in-memory outbox."""
+
+    outbox: ClassVar[list[tuple[str, str, str]]] = []  # (endpoint, title, body)
+
+    async def send(self, subscription_info: dict[str, Any], title: str, body: str) -> str | None:
+        MockPushDriver.outbox.append((subscription_info["endpoint"], title, body))
+        logger.info("mock push queued", extra={"extra_fields": {"title_len": len(title)}})
+        return None
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.outbox.clear()
+
+
+class WebPushDriver:
+    """VAPID web push via pywebpush (sync lib -> to_thread). Endpoint URLs
+    are durable device identifiers: never logged (module rule)."""
+
+    async def send(self, subscription_info: dict[str, Any], title: str, body: str) -> str | None:
+        from pywebpush import WebPushException, webpush
+
+        settings = get_settings()
+        try:
+            await asyncio.to_thread(
+                webpush,
+                subscription_info=subscription_info,
+                data=json.dumps({"title": title, "body": body, "url": "/notifications"}),
+                vapid_private_key=settings.vapid_private_key,
+                vapid_claims={"sub": settings.vapid_subject},
+                ttl=3600,
+            )
+        except WebPushException as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status in (404, 410):
+                raise ExpiredSubscriptionError from exc
+            raise
+        return None
+
+
+def get_push_driver() -> PushDriver:
+    settings = get_settings()
+    if settings.vapid_private_key and settings.vapid_public_key:
+        return WebPushDriver()
+    return MockPushDriver()
 
 
 def get_email_driver() -> EmailDriver:

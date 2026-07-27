@@ -77,6 +77,29 @@ export function priceBannerText(banner: NonNullable<MilkHome["price_banner"]>): 
   return parts.length > 0 ? `${parts.join(" · ")} · ${sellerText}` : sellerText;
 }
 
+export interface CoveredPincode {
+  pincode: string;
+  district: string;
+}
+
+/** Sitemap feed (D28) — `GET /catalog/milk/coverage/pincodes`. Null on
+ * failure so sitemap generation degrades to static entries instead of
+ * failing the build (CI builds run with no backend). */
+export async function fetchCoveredPincodes(
+  cursor?: string,
+): Promise<{ items: CoveredPincode[]; next_cursor: string | null } | null> {
+  const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  try {
+    const res = await fetch(`${API}/catalog/milk/coverage/pincodes${qs}`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { items: CoveredPincode[]; next_cursor: string | null };
+  } catch {
+    return null;
+  }
+}
+
 /** Server-side public read — direct to backend (NOT the BFF proxy), with
  * `next: { revalidate: 300 }` for ISR. Returns null on any non-ok response
  * or thrown error so the page can degrade gracefully instead of crashing. */

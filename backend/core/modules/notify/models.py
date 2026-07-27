@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from shared.db import Base, TimestampMixin, UUIDv7PKMixin
 
 _channel = postgresql.ENUM(
-    "in_app", "sms", "email", name="notify_channel", schema="notify", create_type=False
+    "in_app", "sms", "email", "push", name="notify_channel", schema="notify", create_type=False
 )
 _status = postgresql.ENUM(
     "pending", "sent", "failed", "dead", name="delivery_status", schema="notify", create_type=False
@@ -76,6 +76,26 @@ class Delivery(UUIDv7PKMixin, TimestampMixin, Base):
     provider_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     cost: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PushSubscription(UUIDv7PKMixin, TimestampMixin, Base):
+    """One browser push endpoint for a user. endpoint is a durable device
+    identifier - same never-log class as Delivery.destination. Rows are
+    hard-deleted on unsubscribe or provider 404/410 (no audit value)."""
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("endpoint"),
+        {"schema": "notify"},
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    p256dh: Mapped[str] = mapped_column(Text, nullable=False)
+    auth: Mapped[str] = mapped_column(Text, nullable=False)
+    ua_label: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Preference(UUIDv7PKMixin, TimestampMixin, Base):

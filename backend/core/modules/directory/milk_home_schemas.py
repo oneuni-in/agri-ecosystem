@@ -61,6 +61,16 @@ class MilkHomeOut(BaseModel):
     next_cursor: str | None
 
 
+class CoveredPincodeOut(BaseModel):
+    pincode: str
+    district: str
+
+
+class CoveragePincodesOut(BaseModel):
+    items: list[CoveredPincodeOut]
+    next_cursor: str | None
+
+
 def _card_out(card: MilkCard) -> MilkCardOut:
     return MilkCardOut(
         id=card.id,

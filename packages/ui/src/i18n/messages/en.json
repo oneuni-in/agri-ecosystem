@@ -197,7 +197,40 @@
       "markAllRead": "Mark all read",
       "markRead": "Mark read",
       "loadMore": "Load more"
-    }
+    },
+    "dairyCategories": {
+      "veterinarian": {
+        "name": "Veterinarians",
+        "description": "Find veterinary clinics for your cattle — vaccinations, treatment and farm visits."
+      },
+      "feedSupplier": {
+        "name": "Cattle Feed Suppliers",
+        "description": "Shops selling cattle feed, fodder and supplements near you."
+      },
+      "dairyFarm": {
+        "name": "Dairy Farms",
+        "description": "Local dairy farms producing fresh milk in your area."
+      },
+      "cooperative": {
+        "name": "Milk Cooperatives",
+        "description": "Milk cooperative societies collecting and selling milk locally."
+      },
+      "browseCta": "Find near your pincode"
+    },
+    "categoryBrowse": {
+      "heading": "{category} in {place}",
+      "empty": "Nothing listed here yet — check back soon.",
+      "allMilk": "All milk"
+    },
+    "brandPage": {
+      "products": "Products",
+      "shopsNearYou": "Shops near you",
+      "pincodeLabel": "Your pincode",
+      "find": "Find shops",
+      "empty": "No shops found near {pincode}.",
+      "kmAway": "{km} km away"
+    },
+    "localeSwitcher": { "label": "Language" }
   },
   "coins": {
     "reason": {

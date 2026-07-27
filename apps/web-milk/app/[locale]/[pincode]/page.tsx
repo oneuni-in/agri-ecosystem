@@ -1,10 +1,15 @@
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { Link } from "@/i18n/navigation";
+import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
+import { fetchCovers } from "@/lib/directory";
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
 
+import { CategoryChips } from "./category-chips";
+import { CategoryResults } from "./category-results";
 import { NotifyMe } from "./notify-me";
 import { TypeFilterRow } from "./type-filter-row";
 import { VendorResults } from "./vendor-results";
@@ -16,11 +21,34 @@ const PIN_RE = /^\d{6}$/;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
-  params: Promise<{ pincode: string }>;
+  params: Promise<{ locale: string; pincode: string }>;
+  searchParams: Promise<{ category?: string }>;
 }): Promise<Metadata> {
-  const { pincode } = await params;
+  const { locale, pincode } = await params;
+  setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) return { title: "Milk.in", robots: { index: false, follow: true } };
+  const { category } = await searchParams;
+
+  // Category query-param views (D27 Task 13) are thin duplicates of the
+  // `/c/{category}` landing pages (Task 12), which own indexing for that
+  // content — canonical stays `/{pincode}` (never `/{pincode}?category=`),
+  // and the page always self-noindexes regardless of coverage/result count.
+  if (category !== undefined && isDairyCategory(category)) {
+    const t = await getTranslations({
+      locale,
+      namespace: `ui.dairyCategories.${CATEGORY_MESSAGE_KEY[category]}`,
+    });
+    return buildMetadata({
+      title: `${t("name")} in ${pincode} — Milk.in`,
+      description: t("description"),
+      canonical: canonicalUrl(SITE, `/${pincode}`),
+      siteName: "Milk.in",
+      noIndex: true,
+    });
+  }
+
   const data = await fetchMilkHome(pincode);
   const place = data?.location ? `${data.location.district} (${pincode})` : pincode;
   const covered = data?.scope === "covered";
@@ -72,12 +100,43 @@ export default async function PincodePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ pincode: string }>;
-  searchParams: Promise<{ type?: string }>;
+  params: Promise<{ locale: string; pincode: string }>;
+  searchParams: Promise<{ type?: string; category?: string }>;
 }) {
-  const { pincode } = await params;
+  const { locale, pincode } = await params;
+  setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) notFound();
-  const { type = "all" } = await searchParams;
+  const { type = "all", category } = await searchParams;
+
+  // ---- Category browse (D27 Task 13) ----
+  // An unrecognized `?category=` value is treated as absent, not an error —
+  // falls straight through to the normal milk view below. Deliberately does
+  // NOT reuse `fetchMilkHome`'s 3-way scope machinery (covered /
+  // tn_no_vendors / out_of_area): `/directory/covers` has no such concept,
+  // it just returns items or an empty page, so the category view only ever
+  // has two states, items or empty (handled inside `CategoryResults`) — but
+  // a `fetchCovers` null (backend unreachable / non-ok) is a genuine error,
+  // not a warm empty state, same distinction `fetchMilkHome`'s `!data` check
+  // makes below for the milk view.
+  if (category !== undefined && isDairyCategory(category)) {
+    const covers = await fetchCovers(pincode, category);
+    if (!covers) notFound();
+    const t = await getTranslations("ui");
+    const categoryLabel = t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category]}.name`);
+    return (
+      <main
+        className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6"
+        data-testid="scope-category"
+      >
+        <h1 className="font-display text-[22px] font-extrabold text-ink">
+          {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
+        </h1>
+        <CategoryChips pincode={pincode} active={category} />
+        <CategoryResults items={covers.items} categoryLabel={categoryLabel} pincode={pincode} />
+      </main>
+    );
+  }
+
   const data = await fetchMilkHome(pincode, type);
   if (!data) notFound(); // backend unreachable / non-ok — genuine error, not a warm state
 
@@ -140,6 +199,7 @@ export default async function PincodePage({
         Milk in {data.location?.district ?? pincode}
       </h1>
       <TypeFilterRow pincode={pincode} filters={data.filters} active={type} />
+      <CategoryChips pincode={pincode} active={null} />
 
       {data.price_banner ? (
         <div
@@ -163,7 +223,11 @@ export default async function PincodePage({
       {filteredEmpty ? (
         <p className="text-[14px] text-sub" data-testid="filtered-empty">
           No {type === "all" ? "" : `${milkTypeMeta(type).en.toLowerCase()} `}milk listed here
-          yet — <a className="font-bold text-brand-deep" href={`/${pincode}`}>see all</a>.
+          yet —{" "}
+          <Link className="font-bold text-brand-deep" href={`/${pincode}`}>
+            see all
+          </Link>
+          .
         </p>
       ) : (
         <VendorResults vendors={data.vendors} brands={data.brands} pincode={pincode} />

@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { cn } from "@agri/ui";
 
+import { Link } from "@/i18n/navigation";
 import { milkTypeMeta } from "@/lib/milk";
 
 /**

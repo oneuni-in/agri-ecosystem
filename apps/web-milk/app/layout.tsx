@@ -1,32 +1,12 @@
-import type { SiteTheme } from "@agri/types";
-import { fontVariables } from "@agri/ui/fonts";
-import type { Metadata } from "next";
-import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
 import "./globals.css";
 
-import { SiteHeader } from "./site-header";
-
-/** Design Spec §1.1 switches brand tokens off this attribute. */
-const THEME: SiteTheme = "theme-milk";
-
-export const metadata: Metadata = {
-  title: "Milk.in",
-  description: "Pincode-first dairy discovery.",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{ children: ReactNode }>) {
-  return (
-    <html lang="en" data-theme={THEME} className={fontVariables}>
-      <body>
-        <NextIntlClientProvider>
-          <SiteHeader />
-          {children}
-        </NextIntlClientProvider>
-      </body>
-    </html>
-  );
+/**
+ * Root passthrough (D27): locale routing lives under `app/[locale]`, which
+ * owns `<html>`/`<body>` and the next-intl provider. This shell only pulls in
+ * global CSS so it applies to every locale segment.
+ */
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return children;
 }

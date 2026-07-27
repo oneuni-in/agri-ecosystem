@@ -1,16 +1,201 @@
 business_ref,address,state,district,pincode,lat,lng
-sri-balaji-dairy-farm-641001,No 12 Big Bazaar Street Ukkadam,Tamil Nadu,Coimbatore,641001,10.923220,76.968600
-kovai-fresh-milk-suppliers-641002,14 D West Road RS Puram,Tamil Nadu,Coimbatore,641002,10.874500,76.975600
-annai-dairy-products-641004,7 Avinashi Road Peelamedu,Tamil Nadu,Coimbatore,641004,11.026600,77.000400
-coimbatore-cooperative-milk-vendor-641005,22 Trichy Road Singanallur,Tamil Nadu,Coimbatore,641005,10.999000,77.032400
-nandhini-milk-center-641006,Shop 3 Mettupalayam Road Ganapathy,Tamil Nadu,Coimbatore,641006,10.891100,77.033100
-saibaba-colony-dairy-641011,9 DB Road Saibaba Colony,Tamil Nadu,Coimbatore,641011,11.017900,76.969300
-ganga-dairy-farm-641009,Survey No 45 Kalapatti Road,Tamil Nadu,Coimbatore,641009,10.874500,76.975600
-sri-krishna-milk-suppliers-641012,3 Race Course Road,Tamil Nadu,Coimbatore,641012,11.026500,76.959200
-kovai-nature-farms-dairy-641013,Nature Farms Vadavalli,Tamil Nadu,Coimbatore,641013,11.017900,76.969300
-elango-dairy-vendor-641014,18 Thadagam Road,Tamil Nadu,Coimbatore,641014,11.017900,76.969300
-amman-dairy-products-641016,5 Mettupalayam Bypass Thudiyalur,Tamil Nadu,Coimbatore,641016,11.047580,77.080800
-green-valley-dairy-farm-641017,Green Valley Farm Vellalore,Tamil Nadu,Coimbatore,641017,11.082300,76.916400
-sri-lakshmi-milk-center-641018,11 Station Road Podanur,Tamil Nadu,Coimbatore,641018,11.017900,76.969300
-kovai-a2-milk-suppliers-641020,27 Sundarapuram Main Road,Tamil Nadu,Coimbatore,641020,11.152600,76.951600
-tiruppur-border-dairy-vendor-641604,4 Palladam Road,Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+aavin-641001,"Kamarajar Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+aavin-641001,"Sanganoor Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+aavin-641001,"Vilankurichi Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+aavin-641001,"Race Course Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+aavin-641001,"Dr Nanjappa Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+aavin-641001,"Trichy Road, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+aavin-641001,"Avinashi Road, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+aavin-641001,"Mettupalayam Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+aavin-641001,"Sathy Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+aavin-641001,"Cross Cut Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+aavin-641001,"Big Bazaar Street, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+aavin-641001,"Sungam Bypass, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+arokya-641025,"Sathy Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+arokya-641025,"Cross Cut Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+arokya-641025,"Big Bazaar Street, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600
+arokya-641025,"Sungam Bypass, Thudiyalur",Tamil Nadu,Coimbatore,641041,10.880000,77.153900
+arokya-641025,"Pollachi Main Road, Vadavalli",Tamil Nadu,Coimbatore,641045,10.911100,77.041500
+arokya-641025,"Thadagam Road, Maruthamalai",Tamil Nadu,Coimbatore,641046,10.911100,77.041500
+arokya-641025,"Marudhamalai Road, Saravanampatti",Tamil Nadu,Coimbatore,641048,10.911100,77.041500
+arokya-641025,"Bharathiar Road, Nava India",Tamil Nadu,Coimbatore,641062,11.012875,77.056750
+sakthi-dairy-641103,"Thadagam Road, Perur",Tamil Nadu,Coimbatore,641103,11.017800,77.062900
+sakthi-dairy-641103,"Marudhamalai Road, Vellakinar",Tamil Nadu,Coimbatore,641107,10.895591,76.954873
+sakthi-dairy-641103,"Bharathiar Road, Thondamuthur",Tamil Nadu,Coimbatore,641114,10.956200,76.759400
+sakthi-dairy-641103,"Perur Main Road, Kinathukadavu",Tamil Nadu,Coimbatore,641202,10.834400,77.088425
+sakthi-dairy-641103,"Kamarajar Road, Mettupalayam",Tamil Nadu,Coimbatore,641301,10.874500,76.975600
+amul-641402,"Kamarajar Road, Sulur",Tamil Nadu,Coimbatore,641402,11.024300,77.125700
+amul-641402,"Sanganoor Road, Pollachi",Tamil Nadu,Coimbatore,642001,10.649800,77.000000
+amul-641402,"Vilankurichi Road, Pollachi East",Tamil Nadu,Coimbatore,642002,10.681900,76.996514
+amul-641402,"Race Course Road, Valparai",Tamil Nadu,Coimbatore,642126,10.745600,77.103800
+heritage-642127,"Dr Nanjappa Road, Valparai Town",Tamil Nadu,Coimbatore,642127,10.326900,76.951200
+heritage-642127,"Trichy Road, Tiruppur",Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+heritage-642127,"Avinashi Road, Palladam",Tamil Nadu,Tiruppur,638051,11.259491,77.669809
+heritage-642127,"Mettupalayam Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+dodla-dairy-641002,"Sathy Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+dodla-dairy-641002,"Cross Cut Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+dodla-dairy-641002,"Big Bazaar Street, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+dodla-dairy-641002,"Sungam Bypass, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+thirumala-milk-641007,"Sungam Bypass, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+thirumala-milk-641007,"Pollachi Main Road, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+thirumala-milk-641007,"Thadagam Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+milky-mist-641012,"Marudhamalai Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+milky-mist-641012,"Bharathiar Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+milky-mist-641012,"Perur Main Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+sri-balaji-milk-supply-town-hall-641001,"Trichy Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+sri-balaji-milk-supply-town-hall-641001,"Trichy Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+sri-amman-milk-supply-ram-nagar-641002,"Avinashi Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+sri-amman-milk-supply-ram-nagar-641002,"Avinashi Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+sri-murugan-milk-supply-r-s-puram-641004,"Mettupalayam Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+sri-murugan-milk-supply-r-s-puram-641004,"Mettupalayam Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+saibaba-milk-supply-singanallur-641005,"Sathy Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+saibaba-milk-supply-singanallur-641005,"Sathy Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+sri-vinayaga-milk-supply-ramanathapuram-641006,"Cross Cut Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+sri-vinayaga-milk-supply-ramanathapuram-641006,"Cross Cut Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+annapoorna-milk-supply-uppilipalayam-641007,"Big Bazaar Street, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+annapoorna-milk-supply-uppilipalayam-641007,"Big Bazaar Street, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+kongu-milk-supply-gandhipuram-641009,"Sungam Bypass, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+kongu-milk-supply-gandhipuram-641009,"Sungam Bypass, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+velan-milk-supply-ganapathy-641011,"Pollachi Main Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+velan-milk-supply-ganapathy-641011,"Pollachi Main Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+sri-lakshmi-milk-supply-peelamedu-641012,"Thadagam Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+sri-lakshmi-milk-supply-peelamedu-641012,"Thadagam Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+sri-karpagam-milk-supply-ondipudur-641015,"Marudhamalai Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+sri-karpagam-milk-supply-ondipudur-641015,"Marudhamalai Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+senthil-milk-supply-rathinapuri-641018,"Bharathiar Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+senthil-milk-supply-rathinapuri-641018,"Bharathiar Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+arun-milk-supply-kuniyamuthur-641021,"Perur Main Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+arun-milk-supply-kuniyamuthur-641021,"Perur Main Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+sri-vetri-milk-supply-ukkadam-641025,"Kamarajar Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+sri-vetri-milk-supply-ukkadam-641025,"Kamarajar Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+bharathi-milk-supply-podanur-641035,"Sanganoor Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+bharathi-milk-supply-podanur-641035,"Sanganoor Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+sri-ganga-milk-supply-kavundampalayam-641037,"Vilankurichi Road, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600
+nandhini-milk-supply-thudiyalur-641041,"Race Course Road, Thudiyalur",Tamil Nadu,Coimbatore,641041,10.880000,77.153900
+sri-selvam-milk-supply-vadavalli-641045,"Dr Nanjappa Road, Vadavalli",Tamil Nadu,Coimbatore,641045,10.911100,77.041500
+vijay-milk-supply-maruthamalai-641046,"Trichy Road, Maruthamalai",Tamil Nadu,Coimbatore,641046,10.911100,77.041500
+sri-ram-milk-supply-saravanampatti-641048,"Avinashi Road, Saravanampatti",Tamil Nadu,Coimbatore,641048,10.911100,77.041500
+kaveri-milk-supply-nava-india-641062,"Mettupalayam Road, Nava India",Tamil Nadu,Coimbatore,641062,11.012875,77.056750
+sri-balaji-fresh-milk-centre-perur-641103,"Sathy Road, Perur",Tamil Nadu,Coimbatore,641103,11.017800,77.062900
+sri-amman-fresh-milk-centre-vellakinar-641107,"Cross Cut Road, Vellakinar",Tamil Nadu,Coimbatore,641107,10.895591,76.954873
+sri-murugan-fresh-milk-centre-thondamuthur-641114,"Big Bazaar Street, Thondamuthur",Tamil Nadu,Coimbatore,641114,10.956200,76.759400
+saibaba-fresh-milk-centre-kinathukadavu-641202,"Sungam Bypass, Kinathukadavu",Tamil Nadu,Coimbatore,641202,10.834400,77.088425
+sri-vinayaga-fresh-milk-centre-mettupalayam-641301,"Pollachi Main Road, Mettupalayam",Tamil Nadu,Coimbatore,641301,10.874500,76.975600
+annapoorna-fresh-milk-centre-sulur-641402,"Thadagam Road, Sulur",Tamil Nadu,Coimbatore,641402,11.024300,77.125700
+kongu-fresh-milk-centre-pollachi-642001,"Marudhamalai Road, Pollachi",Tamil Nadu,Coimbatore,642001,10.649800,77.000000
+velan-fresh-milk-centre-pollachi-east-642002,"Bharathiar Road, Pollachi East",Tamil Nadu,Coimbatore,642002,10.681900,76.996514
+sri-lakshmi-fresh-milk-centre-valparai-642126,"Perur Main Road, Valparai",Tamil Nadu,Coimbatore,642126,10.745600,77.103800
+sri-karpagam-fresh-milk-centre-valparai-town-642127,"Kamarajar Road, Valparai Town",Tamil Nadu,Coimbatore,642127,10.326900,76.951200
+senthil-fresh-milk-centre-tiruppur-641604,"Sanganoor Road, Tiruppur",Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+arun-fresh-milk-centre-palladam-638051,"Vilankurichi Road, Palladam",Tamil Nadu,Tiruppur,638051,11.259491,77.669809
+sri-vetri-fresh-milk-centre-town-hall-641001,"Race Course Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+bharathi-fresh-milk-centre-ram-nagar-641002,"Dr Nanjappa Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+sri-ganga-fresh-milk-centre-r-s-puram-641004,"Trichy Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+nandhini-fresh-milk-centre-singanallur-641005,"Avinashi Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+sri-selvam-fresh-milk-centre-ramanathapuram-641006,"Mettupalayam Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+vijay-fresh-milk-centre-uppilipalayam-641007,"Sathy Road, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+sri-ram-fresh-milk-centre-gandhipuram-641009,"Cross Cut Road, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+kaveri-fresh-milk-centre-ganapathy-641011,"Big Bazaar Street, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+sri-balaji-dairy-peelamedu-641012,"Sungam Bypass, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+sri-amman-dairy-ondipudur-641015,"Pollachi Main Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+sri-murugan-dairy-rathinapuri-641018,"Thadagam Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+saibaba-dairy-kuniyamuthur-641021,"Marudhamalai Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+sri-vinayaga-dairy-ukkadam-641025,"Bharathiar Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+annapoorna-dairy-podanur-641035,"Perur Main Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+kongu-dairy-kavundampalayam-641037,"Kamarajar Road, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600
+velan-dairy-thudiyalur-641041,"Sanganoor Road, Thudiyalur",Tamil Nadu,Coimbatore,641041,10.880000,77.153900
+sri-lakshmi-dairy-vadavalli-641045,"Vilankurichi Road, Vadavalli",Tamil Nadu,Coimbatore,641045,10.911100,77.041500
+sri-karpagam-dairy-maruthamalai-641046,"Race Course Road, Maruthamalai",Tamil Nadu,Coimbatore,641046,10.911100,77.041500
+senthil-dairy-saravanampatti-641048,"Dr Nanjappa Road, Saravanampatti",Tamil Nadu,Coimbatore,641048,10.911100,77.041500
+arun-dairy-nava-india-641062,"Trichy Road, Nava India",Tamil Nadu,Coimbatore,641062,11.012875,77.056750
+sri-vetri-dairy-perur-641103,"Avinashi Road, Perur",Tamil Nadu,Coimbatore,641103,11.017800,77.062900
+bharathi-dairy-vellakinar-641107,"Mettupalayam Road, Vellakinar",Tamil Nadu,Coimbatore,641107,10.895591,76.954873
+sri-ganga-dairy-thondamuthur-641114,"Sathy Road, Thondamuthur",Tamil Nadu,Coimbatore,641114,10.956200,76.759400
+nandhini-dairy-kinathukadavu-641202,"Cross Cut Road, Kinathukadavu",Tamil Nadu,Coimbatore,641202,10.834400,77.088425
+kongu-dairy-farm-mettupalayam-641301,"Trichy Road, Mettupalayam",Tamil Nadu,Coimbatore,641301,10.874500,76.975600
+green-pastures-dairy-farm-sulur-641402,"Avinashi Road, Sulur",Tamil Nadu,Coimbatore,641402,11.024300,77.125700
+sri-balaji-dairy-farm-pollachi-642001,"Mettupalayam Road, Pollachi",Tamil Nadu,Coimbatore,642001,10.649800,77.000000
+amman-dairy-farm-pollachi-east-642002,"Sathy Road, Pollachi East",Tamil Nadu,Coimbatore,642002,10.681900,76.996514
+vellingiri-dairy-farm-valparai-642126,"Cross Cut Road, Valparai",Tamil Nadu,Coimbatore,642126,10.745600,77.103800
+sri-murugan-dairy-farm-valparai-town-642127,"Big Bazaar Street, Valparai Town",Tamil Nadu,Coimbatore,642127,10.326900,76.951200
+nallur-dairy-farm-tiruppur-641604,"Sungam Bypass, Tiruppur",Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+karpagam-dairy-farm-palladam-638051,"Pollachi Main Road, Palladam",Tamil Nadu,Tiruppur,638051,11.259491,77.669809
+sri-velan-dairy-farm-town-hall-641001,"Thadagam Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+ponni-dairy-farm-ram-nagar-641002,"Marudhamalai Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+sri-lakshmi-dairy-farm-r-s-puram-641004,"Bharathiar Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+thendral-dairy-farm-singanallur-641005,"Perur Main Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+kongu-dairy-farm-ramanathapuram-641006,"Kamarajar Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+green-pastures-dairy-farm-uppilipalayam-641007,"Sanganoor Road, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+sri-balaji-dairy-farm-gandhipuram-641009,"Vilankurichi Road, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+amman-dairy-farm-ganapathy-641011,"Race Course Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+vellingiri-dairy-farm-peelamedu-641012,"Dr Nanjappa Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+sri-murugan-dairy-farm-ondipudur-641015,"Trichy Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+nallur-dairy-farm-rathinapuri-641018,"Avinashi Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+karpagam-dairy-farm-kuniyamuthur-641021,"Mettupalayam Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+sri-velan-dairy-farm-ukkadam-641025,"Sathy Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+ponni-dairy-farm-podanur-641035,"Cross Cut Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+sri-lakshmi-dairy-farm-kavundampalayam-641037,"Big Bazaar Street, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600
+thendral-dairy-farm-thudiyalur-641041,"Sungam Bypass, Thudiyalur",Tamil Nadu,Coimbatore,641041,10.880000,77.153900
+kongu-dairy-farm-vadavalli-641045,"Pollachi Main Road, Vadavalli",Tamil Nadu,Coimbatore,641045,10.911100,77.041500
+sri-balaji-veterinary-clinic-maruthamalai-641046,"Trichy Road, Maruthamalai",Tamil Nadu,Coimbatore,641046,10.911100,77.041500
+amman-veterinary-clinic-saravanampatti-641048,"Avinashi Road, Saravanampatti",Tamil Nadu,Coimbatore,641048,10.911100,77.041500
+kongu-veterinary-clinic-nava-india-641062,"Mettupalayam Road, Nava India",Tamil Nadu,Coimbatore,641062,11.012875,77.056750
+sri-murugan-veterinary-clinic-perur-641103,"Sathy Road, Perur",Tamil Nadu,Coimbatore,641103,11.017800,77.062900
+vetcare-veterinary-clinic-vellakinar-641107,"Cross Cut Road, Vellakinar",Tamil Nadu,Coimbatore,641107,10.895591,76.954873
+sri-vinayaga-veterinary-clinic-thondamuthur-641114,"Big Bazaar Street, Thondamuthur",Tamil Nadu,Coimbatore,641114,10.956200,76.759400
+nallur-veterinary-clinic-kinathukadavu-641202,"Sungam Bypass, Kinathukadavu",Tamil Nadu,Coimbatore,641202,10.834400,77.088425
+sri-lakshmi-veterinary-clinic-mettupalayam-641301,"Pollachi Main Road, Mettupalayam",Tamil Nadu,Coimbatore,641301,10.874500,76.975600
+green-valley-veterinary-clinic-sulur-641402,"Thadagam Road, Sulur",Tamil Nadu,Coimbatore,641402,11.024300,77.125700
+sri-karpagam-veterinary-clinic-pollachi-642001,"Marudhamalai Road, Pollachi",Tamil Nadu,Coimbatore,642001,10.649800,77.000000
+sri-balaji-pet-cattle-clinic-pollachi-east-642002,"Bharathiar Road, Pollachi East",Tamil Nadu,Coimbatore,642002,10.681900,76.996514
+amman-pet-cattle-clinic-valparai-642126,"Perur Main Road, Valparai",Tamil Nadu,Coimbatore,642126,10.745600,77.103800
+kongu-pet-cattle-clinic-valparai-town-642127,"Kamarajar Road, Valparai Town",Tamil Nadu,Coimbatore,642127,10.326900,76.951200
+sri-murugan-pet-cattle-clinic-tiruppur-641604,"Sanganoor Road, Tiruppur",Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+vetcare-pet-cattle-clinic-palladam-638051,"Vilankurichi Road, Palladam",Tamil Nadu,Tiruppur,638051,11.259491,77.669809
+sri-vinayaga-pet-cattle-clinic-town-hall-641001,"Race Course Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+nallur-pet-cattle-clinic-ram-nagar-641002,"Dr Nanjappa Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+sri-lakshmi-pet-cattle-clinic-r-s-puram-641004,"Trichy Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+green-valley-pet-cattle-clinic-singanallur-641005,"Avinashi Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+sri-karpagam-pet-cattle-clinic-ramanathapuram-641006,"Mettupalayam Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+sri-balaji-animal-health-centre-uppilipalayam-641007,"Sathy Road, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+amman-animal-health-centre-gandhipuram-641009,"Cross Cut Road, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+kongu-animal-health-centre-ganapathy-641011,"Big Bazaar Street, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+sri-murugan-animal-health-centre-peelamedu-641012,"Sungam Bypass, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+vetcare-animal-health-centre-ondipudur-641015,"Pollachi Main Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+kongu-cattle-feeds-rathinapuri-641018,"Trichy Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+sri-balaji-cattle-feeds-kuniyamuthur-641021,"Avinashi Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+amman-cattle-feeds-ukkadam-641025,"Mettupalayam Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+vetri-cattle-feeds-podanur-641035,"Sathy Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+sri-murugan-cattle-feeds-kavundampalayam-641037,"Cross Cut Road, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600
+ponni-cattle-feeds-thudiyalur-641041,"Big Bazaar Street, Thudiyalur",Tamil Nadu,Coimbatore,641041,10.880000,77.153900
+nallur-cattle-feeds-vadavalli-641045,"Sungam Bypass, Vadavalli",Tamil Nadu,Coimbatore,641045,10.911100,77.041500
+sri-velan-cattle-feeds-maruthamalai-641046,"Pollachi Main Road, Maruthamalai",Tamil Nadu,Coimbatore,641046,10.911100,77.041500
+kaveri-cattle-feeds-saravanampatti-641048,"Thadagam Road, Saravanampatti",Tamil Nadu,Coimbatore,641048,10.911100,77.041500
+sri-lakshmi-cattle-feeds-nava-india-641062,"Marudhamalai Road, Nava India",Tamil Nadu,Coimbatore,641062,11.012875,77.056750
+thendral-cattle-feeds-perur-641103,"Bharathiar Road, Perur",Tamil Nadu,Coimbatore,641103,11.017800,77.062900
+sri-ganga-cattle-feeds-vellakinar-641107,"Perur Main Road, Vellakinar",Tamil Nadu,Coimbatore,641107,10.895591,76.954873
+kongu-agro-feeds-thondamuthur-641114,"Kamarajar Road, Thondamuthur",Tamil Nadu,Coimbatore,641114,10.956200,76.759400
+sri-balaji-agro-feeds-kinathukadavu-641202,"Sanganoor Road, Kinathukadavu",Tamil Nadu,Coimbatore,641202,10.834400,77.088425
+amman-agro-feeds-mettupalayam-641301,"Vilankurichi Road, Mettupalayam",Tamil Nadu,Coimbatore,641301,10.874500,76.975600
+vetri-agro-feeds-sulur-641402,"Race Course Road, Sulur",Tamil Nadu,Coimbatore,641402,11.024300,77.125700
+sri-murugan-agro-feeds-pollachi-642001,"Dr Nanjappa Road, Pollachi",Tamil Nadu,Coimbatore,642001,10.649800,77.000000
+ponni-agro-feeds-pollachi-east-642002,"Trichy Road, Pollachi East",Tamil Nadu,Coimbatore,642002,10.681900,76.996514
+nallur-agro-feeds-valparai-642126,"Avinashi Road, Valparai",Tamil Nadu,Coimbatore,642126,10.745600,77.103800
+sri-velan-agro-feeds-valparai-town-642127,"Mettupalayam Road, Valparai Town",Tamil Nadu,Coimbatore,642127,10.326900,76.951200
+kaveri-agro-feeds-tiruppur-641604,"Sathy Road, Tiruppur",Tamil Nadu,Tiruppur,641604,10.896157,77.050386
+sri-lakshmi-agro-feeds-palladam-638051,"Cross Cut Road, Palladam",Tamil Nadu,Tiruppur,638051,11.259491,77.669809
+kongu-town-hall-milk-producers-cooperative-society-641001,"Trichy Road, Town Hall",Tamil Nadu,Coimbatore,641001,10.923220,76.968600
+nallur-ram-nagar-cooperative-dairy-641002,"Avinashi Road, Ram Nagar",Tamil Nadu,Coimbatore,641002,10.874500,76.975600
+ponni-r-s-puram-milk-sangam-641004,"Mettupalayam Road, R.S. Puram",Tamil Nadu,Coimbatore,641004,11.026600,77.000400
+vellingiri-singanallur-milk-producers-cooperative-society-641005,"Sathy Road, Singanallur",Tamil Nadu,Coimbatore,641005,10.999000,77.032400
+thendral-ramanathapuram-cooperative-dairy-641006,"Cross Cut Road, Ramanathapuram",Tamil Nadu,Coimbatore,641006,10.891100,77.033100
+sri-velan-uppilipalayam-milk-sangam-641007,"Big Bazaar Street, Uppilipalayam",Tamil Nadu,Coimbatore,641007,10.874500,76.975600
+kongu-gandhipuram-milk-producers-cooperative-society-641009,"Sungam Bypass, Gandhipuram",Tamil Nadu,Coimbatore,641009,10.874500,76.975600
+nallur-ganapathy-cooperative-dairy-641011,"Pollachi Main Road, Ganapathy",Tamil Nadu,Coimbatore,641011,11.017900,76.969300
+ponni-peelamedu-milk-sangam-641012,"Thadagam Road, Peelamedu",Tamil Nadu,Coimbatore,641012,11.026500,76.959200
+vellingiri-ondipudur-milk-producers-cooperative-society-641015,"Marudhamalai Road, Ondipudur",Tamil Nadu,Coimbatore,641015,11.017900,76.969300
+thendral-rathinapuri-cooperative-dairy-641018,"Bharathiar Road, Rathinapuri",Tamil Nadu,Coimbatore,641018,11.017900,76.969300
+sri-velan-kuniyamuthur-milk-sangam-641021,"Perur Main Road, Kuniyamuthur",Tamil Nadu,Coimbatore,641021,11.076600,76.971000
+kongu-ukkadam-milk-producers-cooperative-society-641025,"Kamarajar Road, Ukkadam",Tamil Nadu,Coimbatore,641025,11.076600,76.971000
+nallur-podanur-cooperative-dairy-641035,"Sanganoor Road, Podanur",Tamil Nadu,Coimbatore,641035,10.940167,76.989500
+ponni-kavundampalayam-milk-sangam-641037,"Vilankurichi Road, Kavundampalayam",Tamil Nadu,Coimbatore,641037,10.874500,76.975600

@@ -109,17 +109,18 @@ async def _free_product_slug(session: AsyncSession, base: str) -> str:
     return candidate
 
 
-async def create_product(
+async def _build_product(
     session: AsyncSession,
     *,
-    owner_user_id: uuid.UUID,
     business_id: uuid.UUID,
     vertical_slug: str,
     name: str,
     specs: dict[str, Any],
     price_display: str | None = None,
 ) -> Product:
-    await get_owned_business(session, owner_user_id, business_id)  # IDOR gate
+    """Shared post-authorization product construction: create_product (owner
+    API) and seed_import (D27 ownerless seed) both build products through
+    this one path so spec pinning/validation can never diverge."""
     vertical = await get_vertical(session, vertical_slug)
     if vertical is None or vertical.status != "active":
         raise VerticalNotFoundError(vertical_slug)
@@ -140,6 +141,27 @@ async def create_product(
     await session.flush()
     await session.refresh(product)  # server defaults: status, moderation_status
     return product
+
+
+async def create_product(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+    vertical_slug: str,
+    name: str,
+    specs: dict[str, Any],
+    price_display: str | None = None,
+) -> Product:
+    await get_owned_business(session, owner_user_id, business_id)  # IDOR gate
+    return await _build_product(
+        session,
+        business_id=business_id,
+        vertical_slug=vertical_slug,
+        name=name,
+        specs=specs,
+        price_display=price_display,
+    )
 
 
 async def get_owned_product(

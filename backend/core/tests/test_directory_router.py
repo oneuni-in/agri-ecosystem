@@ -6,15 +6,18 @@ the acting user so one client can exercise the IDOR matrix."""
 
 import uuid
 from collections.abc import AsyncIterator
+from decimal import Decimal
 
 import httpx
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import service
+from modules.directory.models import Branch, Business, BusinessCategory, BusinessCoverage, Category
 from shared.db import get_session
 from shared.middleware import SlugRedirectMiddleware
 from shared.security import register_principal_resolver
@@ -216,6 +219,53 @@ async def test_covers_endpoint_public(
     assert (await http.get("/directory/covers/notapin")).status_code == 422
 
 
+async def test_covers_category_filter(
+    api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+) -> None:
+    # one dairy vendor + one veterinarian, both covering 641001
+    http, session = api
+    vendor = Business(
+        owner_user_id=None,
+        name="Covers Cat Dairy",
+        slug="covers-cat-dairy",
+        type="vendor",
+        primary_pincode="641001",
+    )
+    vet = Business(
+        owner_user_id=None,
+        name="Covers Cat Vet",
+        slug="covers-cat-vet",
+        type="shop",
+        primary_pincode="641001",
+    )
+    session.add_all([vendor, vet])
+    await session.flush()
+    vet_cat = await session.scalar(select(Category).where(Category.slug == "veterinarian"))
+    assert vet_cat is not None
+    session.add_all(
+        [
+            BusinessCoverage(business_id=vendor.id, pincode="641001"),
+            BusinessCoverage(business_id=vet.id, pincode="641001"),
+            BusinessCategory(business_id=vet.id, category_id=vet_cat.id),
+        ]
+    )
+    await session.commit()
+
+    response = await http.get("/directory/covers/641001", params={"category": "veterinarian"})
+    assert response.status_code == 200
+    slugs = [item["slug"] for item in response.json()["items"]]
+    assert "covers-cat-vet" in slugs
+    assert "covers-cat-dairy" not in slugs
+
+
+async def test_covers_category_param_validated(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, _ = api
+    response = await http.get("/directory/covers/641001", params={"category": "NOT A SLUG!"})
+    assert response.status_code == 422
+
+
 async def test_rename_serves_301_from_old_path(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:
@@ -258,3 +308,102 @@ def test_directory_public_routes_are_registered() -> None:
     app = create_app()
     assert "/directory/businesses/{slug}" in app.state.public_routes
     assert "/directory/covers/{pincode}" in app.state.public_routes
+    assert "/directory/businesses/{slug}/nearby-branches" in app.state.public_routes
+
+
+class TestNearbyBranches:
+    async def _brand(self, session: AsyncSession) -> Business:
+        brand = Business(
+            owner_user_id=None,
+            name="Nearby Test Brand",
+            slug="nearby-test-brand",
+            type="shop",
+            primary_pincode="641001",
+        )
+        session.add(brand)
+        await session.flush()
+        session.add_all(
+            [
+                # geocoded branch near the 641001 centroid (10.923220, 76.968600)
+                Branch(
+                    business_id=brand.id,
+                    address="1 Town Hall Rd",
+                    state="Tamil Nadu",
+                    district="Coimbatore",
+                    pincode="641001",
+                    lat=Decimal("10.925000"),
+                    lng=Decimal("76.970000"),
+                ),
+                # farther geocoded branch (own lat/lng, no geo.pincodes row needed)
+                Branch(
+                    business_id=brand.id,
+                    address="2 Avinashi Rd",
+                    state="Tamil Nadu",
+                    district="Coimbatore",
+                    pincode="641004",
+                    lat=Decimal("11.029000"),
+                    lng=Decimal("77.028000"),
+                ),
+                # ungeocoded branch: falls back to its own pincode centroid
+                # (600001 is the other pincode tn_geo_sample seeds)
+                Branch(
+                    business_id=brand.id,
+                    address="3 Mount Road",
+                    state="Tamil Nadu",
+                    district="Chennai",
+                    pincode="600001",
+                    lat=None,
+                    lng=None,
+                ),
+            ]
+        )
+        await session.commit()
+        return brand
+
+    async def test_orders_by_distance_and_serves_fallback(
+        self, api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+    ) -> None:
+        http, session = api
+        await self._brand(session)
+        response = await http.get(
+            "/directory/businesses/nearby-test-brand/nearby-branches",
+            params={"pincode": "641001"},
+        )
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert len(items) == 3
+        distances = [item["distance_m"] for item in items]
+        assert distances == sorted(distances)
+        assert items[0]["address"] == "1 Town Hall Rd"
+        # the ungeocoded branch still got a finite distance via its pincode centroid
+        ungeo = next(i for i in items if i["address"] == "3 Mount Road")
+        assert ungeo["distance_m"] < 1_000_000_000
+
+    async def test_unknown_slug_404(
+        self, api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+    ) -> None:
+        http, _ = api
+        response = await http.get(
+            "/directory/businesses/no-such-brand/nearby-branches", params={"pincode": "641001"}
+        )
+        assert response.status_code == 404
+
+    async def test_unknown_pincode_404(
+        self, api: tuple[httpx.AsyncClient, AsyncSession], tn_geo_sample: None
+    ) -> None:
+        http, session = api
+        await self._brand(session)
+        response = await http.get(
+            "/directory/businesses/nearby-test-brand/nearby-branches",
+            params={"pincode": "999999"},
+        )
+        assert response.status_code == 404
+
+    async def test_pincode_shape_validated(
+        self, api: tuple[httpx.AsyncClient, AsyncSession]
+    ) -> None:
+        http, _ = api
+        response = await http.get(
+            "/directory/businesses/x/nearby-branches", params={"pincode": "64100"}
+        )
+        assert response.status_code == 422

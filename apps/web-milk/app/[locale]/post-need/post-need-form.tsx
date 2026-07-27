@@ -2,8 +2,9 @@
 
 import { Button, Card, cn, LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import { useAgriUser } from "@agri/auth-client/react";
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+
+import { Link } from "@/i18n/navigation";
 
 import { VoiceRecorder } from "./voice-recorder";
 

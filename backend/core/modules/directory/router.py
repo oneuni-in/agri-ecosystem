@@ -49,6 +49,8 @@ from modules.directory.schemas import (
     CoverageOut,
     CoversItemOut,
     CoversOut,
+    NearbyBranchesOut,
+    NearbyBranchOut,
     PincodeCountOut,
     PublicBranchOut,
     RenameIn,
@@ -59,6 +61,7 @@ from modules.directory.schemas import (
 )
 from shared.db import get_session
 from shared.events import publish
+from shared.geo.service import district_for_pincode
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
 from shared.security import client_ip as _client_ip
@@ -523,17 +526,43 @@ async def covers_search(
     session: SessionDep,
     cursor: str | None = None,
     limit: LimitQuery = DEFAULT_PAGE_SIZE,
+    category: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,40}$")] = None,
 ) -> CoversOut:
     """Vendor discovery: businesses covering the pincode, nearest first.
     Keyset + rate limit are the scraping defence (no offsets to walk)."""
     try:
-        page = await covers_module.covers(session, pincode=pincode, cursor=cursor, limit=limit)
+        page = await covers_module.covers(
+            session, pincode=pincode, cursor=cursor, limit=limit, category=category
+        )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return CoversOut(
         items=[CoversItemOut(**asdict(item)) for item in page.items],
         next_cursor=page.next_cursor,
     )
+
+
+@router.get("/businesses/{slug}/nearby-branches", public=True)
+async def nearby_branches_route(
+    slug: str,
+    pincode: Annotated[str, Query(pattern=r"^\d{6}$")],
+    session: SessionDep,
+) -> NearbyBranchesOut:
+    """Brand page 'shops near you' (D27.B): 404s are explicit so the page can
+    distinguish bad slug / unknown pincode from a brand with no branches."""
+    known_business = await session.scalar(
+        select(Business.id).where(
+            Business.slug == slug, Business.status == "active", Business.deleted_at.is_(None)
+        )
+    )
+    if known_business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    # district_for_pincode(): same geo.pincodes existence check leads_service
+    # and milk_home use to gate on a geocoded anchor.
+    if await district_for_pincode(session, pincode) is None:
+        raise HTTPException(status_code=404, detail="Unknown pincode")
+    items = await covers_module.nearby_branches(session, slug=slug, pincode=pincode)
+    return NearbyBranchesOut(items=[NearbyBranchOut(**asdict(item)) for item in items])
 
 
 @router.post("/businesses/{slug}/view", public=True)

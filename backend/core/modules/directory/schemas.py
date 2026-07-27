@@ -181,6 +181,21 @@ class CoversOut(BaseModel):
     next_cursor: str | None
 
 
+class NearbyBranchOut(BaseModel):
+    id: uuid.UUID
+    address: str
+    district: str
+    state: str
+    pincode: str
+    lat: Decimal | None
+    lng: Decimal | None
+    distance_m: int
+
+
+class NearbyBranchesOut(BaseModel):
+    items: list[NearbyBranchOut]
+
+
 ClaimStatus = Literal["pending", "approved", "rejected"]
 
 

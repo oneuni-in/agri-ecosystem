@@ -41,7 +41,7 @@ rejected row carries a machine-readable reason (`pincode_not_found`,
 
 | file | columns |
 |---|---|
-| `businesses.csv` | `ref,name,type,category_slugs,primary_pincode,description_en,description_ta` |
+| `businesses.csv` | `ref,name,type,category_slugs,primary_pincode,description_en,description_ta,description_hi` |
 | `branches.csv` | `business_ref,address,state,district,pincode,lat,lng` |
 | `coverage.csv` | `business_ref,pincode` |
 | `products.csv` | `business_ref,vertical_slug,name,specs_json,price_display` |
@@ -59,8 +59,8 @@ the system only through the D16 claim flow once a real owner claims
 their listing — so this seed (and the tool that produces it) is
 PII-free by construction, not by discipline. The normalizer actively
 scans every free-text field it emits (`name`, `address`, `state`,
-`district`, `description_en`, `description_ta`, `product_name`,
-`price_display`) with `looks_like_pii()` and rejects any row that looks
+`district`, `description_en`, `description_ta`, `description_hi`,
+`product_name`, `price_display`) with `looks_like_pii()` and rejects any row that looks
 like it smuggled in a phone number (any punctuation style — space,
 hyphen, dot, slash, parens) or an email address, rather than silently
 stripping it.
@@ -76,8 +76,10 @@ stripping it.
 - `type` must be one of the real `directory.business_type` enum values:
   `vendor`, `shop`, `lab`, `farm`.
 - `category_slugs` must be a subset of the categories actually seeded
-  by `alembic/versions/0016_directory_v1.py`: `farm`, `dairy`, `shop`,
-  `lab`, `nursery`, `equipment`, `service`, `other`.
+  by `alembic/versions/0016_directory_v1.py` (`farm`, `dairy`, `shop`,
+  `lab`, `nursery`, `equipment`, `service`, `other`) plus the D27 dairy
+  service categories seeded by `alembic/versions/0026_dairy_categories.py`:
+  `veterinarian`, `feed-supplier`, `dairy-farm`, `cooperative`.
 - Product `specs_json` is validated for real against the seeded milk
   spec-schema (`alembic/versions/0018_catalog_v1.py` /
   `modules/directory/specs.py`) — `milk_type` (required enum: `cow`,
@@ -88,6 +90,36 @@ stripping it.
 - Names are whitespace-collapsed and casing-normalized; rows are
   deduped by `(name, primary_pincode)` — first occurrence wins, later
   duplicates are rejected.
+
+## Multi-branch / multi-product brands (`ref` column)
+
+The raw sheet may carry an optional `ref` column, blank by default.
+Rows sharing a **non-blank** `ref` merge into a **single business** —
+this is how a brand like Aavin, with a dozen parlours across
+Coimbatore, becomes one `businesses.csv` row with many `branches.csv` /
+`products.csv` rows instead of a dozen separate (and duplicate-rejected)
+businesses. Within a ref-group:
+
+- The **first row** is canonical for the business-level fields (`name`,
+  `type`, `category_slugs`, `primary_pincode`, descriptions).
+- **Every row** may still contribute its own branch (when it has
+  `address`/`pincode`) and its own product (when `vertical_slug` is
+  non-blank) — so a 12-parlour, 3-product brand is 12 rows in the raw
+  sheet, each repeating the same business fields and carrying its own
+  branch/product columns.
+- `coverage_pincodes` across the whole group are **unioned**.
+- Every row is still validated **individually** — a row with a bad
+  pincode or PII-looking text is rejected on its own (its normal reject
+  reason) without pulling the rest of the group down.
+- If rows sharing a `ref` **disagree** on `name` / `type` /
+  `primary_pincode`, the **whole group** is rejected with reason
+  `ref_conflict:<field>` (e.g. `ref_conflict:primary_pincode`) rather
+  than silently picking one row's value — that kind of silent
+  divergence is exactly how bad seed data slips in.
+
+Rows with a blank `ref` are unaffected: each normalizes to its own
+business exactly as before, and the existing `(name, primary_pincode)`
+dedupe still rejects accidental duplicates.
 
 ## This sample specifically
 

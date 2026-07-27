@@ -2,8 +2,10 @@ import { Card, EmptyState } from "@agri/ui";
 import { LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { cookies } from "next/headers";
+
+import { Link } from "@/i18n/navigation";
 
 import { SearchForm } from "./search-form";
 
@@ -68,8 +70,10 @@ function placeLabel(hit: SearchHit): string | null {
  * must render nothing rather than throw — same D16 precedent as
  * `apps/web-agri/app/directory/businesses/[slug]/page.tsx` (`.description.en`),
  * just guarded since this cast is less trusted than that route's.
- * No locale routing exists yet (D02 decision), so "en" is always the
- * request locale in practice.
+ * Deliberately reads the "en" entry: locale routing (D27) governs UI-string
+ * translation, not user-authored business/product content — that stays in the
+ * language it was written in, so we surface the "en" value regardless of the
+ * request locale (localised content is a future backend concern).
  */
 function pickDescription(description: SearchHit["description"]): string | null {
   if (!description || typeof description !== "object") return null;
@@ -78,16 +82,20 @@ function pickDescription(description: SearchHit["description"]): string | null {
 }
 
 export default async function SearchPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<{ q?: string; cursor?: string }>;
 }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const { q = "", cursor } = await searchParams;
 
   const jar = await cookies();
   const loc = parseLocCookie(jar.get(LOC_COOKIE)?.value);
 
-  const params = new URLSearchParams({ site: "milk", q });
+  const query = new URLSearchParams({ site: "milk", q });
   if (loc?.pincode) {
     // `pincode` alone drives the geo-sort BOOST (nearest first) - it must
     // NOT also set `covered=true`. `covered` is a hard Meili filter, and
@@ -96,15 +104,15 @@ export default async function SearchPage({
     // a location set (D19 review finding 3). `covered` stays available on
     // the backend for a future explicit "only vendors who deliver here"
     // toggle - just not applied by default.
-    params.set("pincode", loc.pincode);
+    query.set("pincode", loc.pincode);
   }
-  if (cursor) params.set("cursor", cursor);
+  if (cursor) query.set("cursor", cursor);
 
   // Public read: goes direct to the backend, not through an authed BFF proxy
   // (D16/D18 precedent — /api/* proxies 401 guests, this endpoint is public).
   let page: SearchResponse = { items: [], next_cursor: null };
   try {
-    const resp = await fetch(`${API}/search?${params.toString()}`, { cache: "no-store" });
+    const resp = await fetch(`${API}/search?${query.toString()}`, { cache: "no-store" });
     if (resp.ok) {
       page = (await resp.json()) as SearchResponse;
     }
@@ -169,12 +177,12 @@ export default async function SearchPage({
       )}
 
       {page.next_cursor ? (
-        <a
+        <Link
           href={`/search?q=${encodeURIComponent(q)}&cursor=${encodeURIComponent(page.next_cursor)}`}
-          className="mx-auto rounded-btn border border-line bg-card px-4 py-2 text-sm font-bold text-ink"
+          className="mx-auto rounded-btn border border-line bg-card px-4 py-2 text-sm font-bold text-ink no-underline"
         >
           {t("results.loadMore")}
-        </a>
+        </Link>
       ) : null}
     </main>
   );

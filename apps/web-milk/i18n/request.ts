@@ -1,22 +1,20 @@
 import { getUiMessages } from "@agri/ui/i18n";
+import { hasLocale } from "next-intl";
 import { getRequestConfig } from "next-intl/server";
 
+import { routing } from "./routing";
+
 /**
- * No locale routing (D02): "en" is the only locale for web-milk. We resolve it
- * as a constant and deliberately DO NOT touch `requestLocale` — reading it calls
- * next-intl's `getRequestLocale()` -> `headers()`, a dynamic API that opts the
- * whole app into per-request (`ƒ`) rendering (see next-intl RequestLocale.js).
- * By never awaiting `requestLocale`, `headers()` is never invoked, so the home
- * and pincode routes can render as static/ISR (`○`) and their FCP/LCP stop
- * paying request-time SSR latency under Lighthouse's throttled model.
- *
- * Explicit non-"en" locales still work via `getTranslations({ locale })`, which
- * passes a `localeOverride` and bypasses this default entirely.
- *
- * web-milk only: web-agri/web-organic/web-id keep their own request.ts (web-id
- * legitimately reads the NEXT_LOCALE cookie), so this change is isolated.
+ * Locale routing (D27): web-milk now serves en/ta/hi under an `[locale]`
+ * segment. Static rendering is preserved NOT by avoiding `requestLocale`
+ * (the old D02 pin) but by every page calling `setRequestLocale(locale)`
+ * before rendering — that supplies the locale without touching `headers()`,
+ * so `/`, `/ta`, `/hi` still prerender (○/●). `requestLocale` here resolves
+ * to the segment param on those static builds; it only falls back to
+ * `defaultLocale` for unmatched inputs.
  */
-export default getRequestConfig(async () => {
-  const locale = "en";
+export default getRequestConfig(async ({ requestLocale }) => {
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
   return { locale, messages: getUiMessages(locale) };
 });

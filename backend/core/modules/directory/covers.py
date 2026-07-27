@@ -182,3 +182,69 @@ async def covers(
         else None
     )
     return CoversPage(items=items, next_cursor=next_cursor)
+
+
+@dataclass(frozen=True, slots=True)
+class NearbyBranch:
+    id: uuid.UUID
+    address: str
+    district: str
+    state: str
+    pincode: str
+    lat: Decimal | None
+    lng: Decimal | None
+    distance_m: int
+
+
+MAX_NEARBY_BRANCHES = 10
+
+_BRANCH_PINCODE_DISTANCE = _haversine_m("q.lat", "q.lon", "p.centroid_lat", "p.centroid_lon")
+
+_NEARBY_SQL = f"""
+WITH q AS (
+    SELECT centroid_lat AS lat, centroid_lon AS lon
+    FROM geo.pincodes WHERE pincode = :pincode
+)
+SELECT br.id, br.address, br.district, br.state, br.pincode, br.lat, br.lng,
+       CAST(ROUND(COALESCE(
+           CASE WHEN br.lat IS NOT NULL AND br.lng IS NOT NULL
+                THEN {_BRANCH_DISTANCE} END,
+           (SELECT {_BRANCH_PINCODE_DISTANCE}
+            FROM geo.pincodes p WHERE p.pincode = br.pincode),
+           {UNLOCATABLE_M}
+       )) AS BIGINT) AS distance_m
+FROM directory.branches br
+JOIN directory.businesses b ON b.id = br.business_id
+CROSS JOIN q
+WHERE b.slug = :slug AND b.status = 'active' AND b.deleted_at IS NULL
+  AND br.deleted_at IS NULL
+ORDER BY distance_m, br.id
+LIMIT :lim
+"""
+
+
+async def nearby_branches(
+    session: AsyncSession, *, slug: str, pincode: str, limit: int = MAX_NEARBY_BRANCHES
+) -> list[NearbyBranch]:
+    """Brand 'shops near you': this business's branches, nearest first.
+    Bounded list, no cursor - brands have bounded branch counts and the
+    LIMIT caps the response regardless."""
+    rows = (
+        await session.execute(
+            text(_NEARBY_SQL),
+            {"slug": slug, "pincode": pincode, "lim": min(limit, MAX_NEARBY_BRANCHES)},
+        )
+    ).all()
+    return [
+        NearbyBranch(
+            id=m["id"],
+            address=m["address"],
+            district=m["district"],
+            state=m["state"],
+            pincode=m["pincode"],
+            lat=m["lat"],
+            lng=m["lng"],
+            distance_m=int(m["distance_m"]),
+        )
+        for m in (row._mapping for row in rows)
+    ]

@@ -36,9 +36,7 @@ depends_on: str | Sequence[str] | None = None
 
 _uuid = postgresql.UUID(as_uuid=True)
 
-channel_enum = postgresql.ENUM(
-    name="notify_channel", schema="notify", create_type=False
-)
+channel_enum = postgresql.ENUM(name="notify_channel", schema="notify", create_type=False)
 locale_enum = postgresql.ENUM(name="notify_locale", schema="notify", create_type=False)
 
 templates_table = sa.table(
@@ -147,8 +145,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute(sa.text("DELETE FROM public.feature_flags WHERE key = 'notify.push_enabled'"))
     op.execute(sa.text("DELETE FROM notify.templates WHERE channel = 'push'"))
-    op.drop_index(
-        "ix_notify_push_subscriptions_user_id", "push_subscriptions", schema="notify"
-    )
+    op.drop_index("ix_notify_push_subscriptions_user_id", "push_subscriptions", schema="notify")
     op.drop_table("push_subscriptions", schema="notify")
     # enum value 'push' remains - see THREAT/NOTES.

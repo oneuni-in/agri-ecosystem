@@ -36,7 +36,9 @@ position, so `app/[locale]/[city]/[pincode]` cannot coexist with the existing
   Single TS implementation in `packages/ui` (`citySlug()`), unit-tested. The backend
   never produces slugs — the coverage endpoint returns raw district names.
 
-**Sitemap:** new public endpoint `GET /directory/coverage/pincodes?cursor=&limit=`
+**Sitemap:** new public endpoint `GET /catalog/milk/coverage/pincodes?cursor=&limit=`
+(implementation note: moved from the drafted `/directory/coverage/pincodes` — the
+milk-product predicate makes the catalog/milk path the honest home)
 (SecureRouter `public=True`, keyset on pincode, limit ≤100) → `{items: [{pincode,
 district}], next_cursor}`. Criterion = the SAME "covered" predicate as milk-home
 (≥1 active, non-deleted covering business with an approved+active milk product) —

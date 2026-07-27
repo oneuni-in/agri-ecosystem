@@ -29,7 +29,12 @@ from modules.directory.catalog_schemas import (
     VerticalPageOut,
     media_url,
 )
-from modules.directory.milk_home_schemas import MilkHomeOut, milk_home_out
+from modules.directory.milk_home_schemas import (
+    CoveragePincodesOut,
+    CoveredPincodeOut,
+    MilkHomeOut,
+    milk_home_out,
+)
 from modules.directory.models import Business
 from modules.directory.service import BusinessNotFoundError
 from modules.directory.specs import SpecValidationError
@@ -370,6 +375,23 @@ async def list_vertical_products(
     return PublicProductPageOut(
         items=[_public_product_out(p, businesses[p.business_id]) for p in page.items],
         next_cursor=page.next_cursor,
+    )
+
+
+@router.get("/milk/coverage/pincodes", public=True)
+async def milk_coverage_pincodes(
+    session: SessionDep,
+    cursor: Annotated[str | None, Query(pattern=r"^\d{6}$")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+) -> CoveragePincodesOut:
+    """Sitemap feed (D28): covered (indexable) pincodes only, keyset on
+    pincode. The Query pattern 422s malformed cursors before they reach SQL."""
+    items, next_cursor = await milk_home_module.covered_pincodes(
+        session, cursor=cursor, limit=limit
+    )
+    return CoveragePincodesOut(
+        items=[CoveredPincodeOut(pincode=i.pincode, district=i.district) for i in items],
+        next_cursor=next_cursor,
     )
 
 

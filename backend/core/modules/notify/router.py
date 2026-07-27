@@ -10,11 +10,12 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, Request
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, StringConstraints, field_validator
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.notify.models import Notification, Preference, PushSubscription
+from modules.notify.push_endpoints import is_allowed_push_endpoint
 from modules.notify.rendering import load_template, render_template
 from shared.db import get_session
 from shared.i18n import SUPPORTED_LOCALES
@@ -80,6 +81,15 @@ class PushSubscriptionIn(BaseModel):
     endpoint: _Endpoint
     keys: PushKeys
     ua_label: Annotated[str, StringConstraints(max_length=80)] | None = None
+
+    @field_validator("endpoint")
+    @classmethod
+    def _known_push_service(cls, value: str) -> str:
+        """SSRF gate: the server POSTs to this URL later, so it may only ever
+        point at a real push service (modules/notify/push_endpoints.py)."""
+        if not is_allowed_push_endpoint(value):
+            raise ValueError("unsupported_push_provider")
+        return value
 
 
 class PushUnsubscribeIn(BaseModel):

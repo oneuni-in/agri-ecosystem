@@ -154,7 +154,10 @@ async def test_lead_created_pushes_to_subscribed_device(
     flag.enabled = True
     db_session.add(
         PushSubscription(
-            user_id=user_id, endpoint="https://push.example/sub/consumer", p256dh="p", auth="a"
+            user_id=user_id,
+            endpoint="https://fcm.googleapis.com/fcm/send/consumer",
+            p256dh="p",
+            auth="a",
         )
     )
     await db_session.flush()
@@ -171,7 +174,7 @@ async def test_lead_created_pushes_to_subscribed_device(
     await handle_event(db_session, event)
     assert len(MockPushDriver.outbox) == 1
     endpoint, title, _body = MockPushDriver.outbox[0]
-    assert endpoint == "https://push.example/sub/consumer"
+    assert endpoint == "https://fcm.googleapis.com/fcm/send/consumer"
     assert title == "New enquiry — Anbu Seeds"
 
 

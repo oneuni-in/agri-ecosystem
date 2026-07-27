@@ -123,6 +123,13 @@ structural constraint, not a carve-out request.
 - **API**: `POST /notify/push/subscriptions` (upsert on endpoint) and
   `DELETE /notify/push/subscriptions` — both auth'd, private, rate-limited.
   `TOGGLEABLE_CHANNELS` + `PreferenceIn.channel` Literal gain `"push"`.
+- **SSRF gate** (`modules/notify/push_endpoints.py`, added after the design
+  draft): the `endpoint` is a browser-supplied URL the server later POSTs to,
+  so it is allowlisted to real push services (FCM / Mozilla autopush / WNS /
+  Apple, https only) — enforced on write (422) AND again before every send,
+  where a disallowed row is pruned and dead-lettered without a network call.
+  Without it any authenticated user could point the notify worker at cloud
+  metadata or an internal service.
 - **Frontend**: subscribe/unsubscribe card on web-milk `/notifications`
   (permission → `pushManager.subscribe` with `NEXT_PUBLIC_VAPID_PUBLIC_KEY` →
   POST via BFF). iOS: PushManager absent outside installed PWA → show install hint.

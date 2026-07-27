@@ -27,8 +27,8 @@ NOW = datetime(2026, 7, 27, 10, 0, tzinfo=UTC)
 USER_A = uuid.uuid4()
 USER_B = uuid.uuid4()
 
-ENDPOINT_1 = "https://push.example/sub/aaaaaaaa"
-ENDPOINT_2 = "https://push.example/sub/bbbbbbbb"
+ENDPOINT_1 = "https://fcm.googleapis.com/fcm/send/aaaaaaaa"
+ENDPOINT_2 = "https://web.push.apple.com/sub/bbbbbbbb"
 
 
 def _resolver_for(
@@ -190,7 +190,9 @@ async def test_expired_subscription_pruned(
     db_session.add(_subscription(USER_A, ENDPOINT_1))
     await db_session.flush()
 
-    async def gone(self: object, subscription_info: dict, title: str, body: str) -> str | None:
+    async def gone(
+        self: object, subscription_info: dict[str, object], title: str, body: str
+    ) -> str | None:
         raise ExpiredSubscriptionError
 
     monkeypatch.setattr(MockPushDriver, "send", gone)
@@ -207,7 +209,9 @@ async def test_transient_push_failure_schedules_retry(
     db_session.add(_subscription(USER_A, ENDPOINT_1))
     await db_session.flush()
 
-    async def boom(self: object, subscription_info: dict, title: str, body: str) -> str | None:
+    async def boom(
+        self: object, subscription_info: dict[str, object], title: str, body: str
+    ) -> str | None:
         raise RuntimeError("provider down")
 
     monkeypatch.setattr(MockPushDriver, "send", boom)
@@ -216,3 +220,40 @@ async def test_transient_push_failure_schedules_retry(
     assert delivery.status == "failed"
     assert delivery.attempts == 1
     assert delivery.next_attempt_at is not None
+
+
+# ---- SSRF gate (push endpoints are URLs the SERVER later POSTs to) ----
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://169.254.169.254/latest/meta-data/",  # cloud metadata
+        "https://127.0.0.1:8000/internal",  # loopback
+        "https://attacker.example/collect",  # not a push service
+        "http://fcm.googleapis.com/fcm/send/x",  # right host, wrong scheme
+        "https://fcm.googleapis.com.evil.test/x",  # suffix-confusion host
+    ],
+)
+async def test_subscribe_rejects_non_push_service_endpoints(
+    api: httpx.AsyncClient, db_session: AsyncSession, endpoint: str
+) -> None:
+    res = await api.post("/notify/push/subscriptions", json=_sub_body(endpoint))
+    assert res.status_code == 422
+    assert (await db_session.scalars(select(PushSubscription))).all() == []
+
+
+async def test_disallowed_stored_endpoint_is_pruned_without_sending(
+    db_session: AsyncSession, otp_redis: Redis
+) -> None:
+    """Defence in depth: a row written before the allowlist existed must
+    never become an outbound request when the flag is flipped on."""
+    await _enable_push_flag(db_session)
+    db_session.add(_subscription(USER_A, "https://169.254.169.254/hijack"))
+    await db_session.flush()
+    await dispatch(db_session, _push_request(), now=NOW)
+    assert MockPushDriver.outbox == []  # no send attempted
+    assert (await db_session.scalars(select(PushSubscription))).all() == []  # pruned
+    delivery = (await db_session.scalars(select(Delivery))).one()
+    assert delivery.status == "dead"
+    assert delivery.last_error == "endpoint_not_allowed"

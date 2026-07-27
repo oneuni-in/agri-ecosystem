@@ -25,6 +25,7 @@ from modules.notify.drivers import (
     get_push_driver,
 )
 from modules.notify.models import Delivery, Notification, Preference, PushSubscription
+from modules.notify.push_endpoints import is_allowed_push_endpoint
 from modules.notify.rendering import load_template, render_template
 from settings import get_settings
 from shared.cache import get_redis
@@ -159,6 +160,17 @@ async def _attempt(
             delivery.status = "dead"
             delivery.next_attempt_at = None
             delivery.last_error = "subscription_gone"
+            NOTIFY_SENT.labels("push", "dead").inc()
+            await session.flush()
+            return
+        # SSRF gate, re-checked at the sink: rows stored before the router
+        # allowlist existed (or written by any future path) must never become
+        # an outbound request to an internal address. Unfixable -> prune.
+        if not is_allowed_push_endpoint(subscription.endpoint):
+            await session.delete(subscription)
+            delivery.status = "dead"
+            delivery.next_attempt_at = None
+            delivery.last_error = "endpoint_not_allowed"
             NOTIFY_SENT.labels("push", "dead").inc()
             await session.flush()
             return

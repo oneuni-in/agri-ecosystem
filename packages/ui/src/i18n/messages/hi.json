@@ -157,7 +157,11 @@
         "empty": "कोई उपयोगकर्ता नहीं मिला",
         "loadMore": "और लोड करें",
         "phoneEnding": "{last4} पर समाप्त होने वाला फ़ोन",
-        "status": { "active": "सक्रिय", "suspended": "निलंबित", "deleted": "हटाया गया" },
+        "status": {
+          "active": "सक्रिय",
+          "suspended": "निलंबित",
+          "deleted": "हटाया गया"
+        },
         "roles": "भूमिकाएँ",
         "addRole": "भूमिका जोड़ें",
         "removeRole": "{role} हटाएँ",
@@ -230,7 +234,17 @@
       "empty": "{pincode} के पास कोई दुकान नहीं मिली।",
       "kmAway": "{km} किमी दूर"
     },
-    "localeSwitcher": { "label": "भाषा" }
+    "localeSwitcher": {
+      "label": "भाषा"
+    },
+    "offline": {
+      "title": "आप ऑफ़लाइन हैं",
+      "body": "कनेक्शन नहीं है — आपके लिए सहेजी गई जानकारी यहाँ है।",
+      "helplineTitle": "बिना इंटरनेट काम करने वाली हेल्पलाइन",
+      "vetHelpline": "पशुपालन हेल्पलाइन",
+      "kisanHelpline": "किसान कॉल सेंटर",
+      "lastSeenTitle": "आख़िरी देखी गई क़ीमतें"
+    }
   },
   "coins": {
     "reason": {

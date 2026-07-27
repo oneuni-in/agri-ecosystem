@@ -23,10 +23,13 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
+      // NEXT_PUBLIC_ENABLE_SW: dev-mode opt-in so the D28 service-worker
+      // registration island runs under `next dev` (see sw-register.tsx).
       command: "pnpm --filter @agri/web-milk dev",
       url: "http://localhost:3000",
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
+      env: { NEXT_PUBLIC_ENABLE_SW: "1" },
     },
     {
       command: "pnpm --filter @agri/web-organic dev",

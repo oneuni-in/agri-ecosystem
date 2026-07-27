@@ -10,6 +10,7 @@ import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/l
 
 import { CategoryChips } from "./category-chips";
 import { CategoryResults } from "./category-results";
+import { LastSeenWriter } from "./last-seen-writer";
 import { NotifyMe } from "./notify-me";
 import { OutOfArea } from "./out-of-area";
 import { TypeFilterRow } from "./type-filter-row";
@@ -222,12 +223,19 @@ export default async function PincodePage({
       <CategoryChips base={base} active={null} />
 
       {data.price_banner ? (
-        <div
-          className="rounded-card border border-dashed border-line bg-brand-soft px-3 py-2 text-[13px] text-ink"
-          data-testid="price-banner"
-        >
-          <b>Today in {pincode}:</b> {priceBannerText(data.price_banner)}
-        </div>
+        <>
+          <div
+            className="rounded-card border border-dashed border-line bg-brand-soft px-3 py-2 text-[13px] text-ink"
+            data-testid="price-banner"
+          >
+            <b>Today in {pincode}:</b> {priceBannerText(data.price_banner)}
+          </div>
+          <LastSeenWriter
+            pincode={pincode}
+            district={data.location?.district ?? null}
+            banner={priceBannerText(data.price_banner)}
+          />
+        </>
       ) : null}
 
       <Link

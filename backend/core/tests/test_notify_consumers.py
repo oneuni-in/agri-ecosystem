@@ -7,8 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.notify.consumers import EVENT_ROUTES, handle_event
-from modules.notify.models import Notification
+from modules.notify.drivers import MockPushDriver
+from modules.notify.models import Notification, PushSubscription
 from shared.events import Event
+from shared.flags import FeatureFlag
 
 
 def _event(event_type: str, **vars_: str) -> tuple[Event, str]:
@@ -58,8 +60,10 @@ def test_route_table_matches_seeded_templates() -> None:
         "directory.verification_approved": ("verification_approved", frozenset()),
         "directory.verification_rejected": ("verification_rejected", frozenset()),
         "review.approved": ("review_approved", frozenset()),
-        "lead.created": ("lead_received", frozenset()),
-        "lead.responded": ("lead_response", frozenset()),
+        # D28: leads also push - subscriptions resolve by user_id inside
+        # notify, so no destination is needed in the event payload.
+        "lead.created": ("lead_received", frozenset({"push"})),
+        "lead.responded": ("lead_response", frozenset({"push"})),
         # D20 billing/dunning routes (backend/core/modules/notify/consumers.py)
         "billing.payment_failed": ("dunning_payment_failed", frozenset({"email"})),
         "billing.dunning_reminder": ("dunning_reminder", frozenset({"email"})),
@@ -136,6 +140,39 @@ async def test_lead_created_creates_in_app_notification(
     assert notification.template_key == "lead_received"
     assert notification.payload.get("business_name") == "Anbu Seeds"
     assert notification.payload.get("inquiry_type") == "contact"
+
+
+async def test_lead_created_pushes_to_subscribed_device(
+    db_session: AsyncSession, otp_redis: Redis
+) -> None:
+    """D28: the lead.created route fans out to push when the user has a
+    subscription and the flag is on (preference/flag/no-sub cases are
+    pinned in test_notify_push.py - this covers the consumer wiring)."""
+    user_id = uuid.uuid4()
+    flag = await db_session.get(FeatureFlag, "notify.push_enabled")
+    assert flag is not None
+    flag.enabled = True
+    db_session.add(
+        PushSubscription(
+            user_id=user_id, endpoint="https://push.example/sub/consumer", p256dh="p", auth="a"
+        )
+    )
+    await db_session.flush()
+    event = Event(
+        id="1-0",
+        type="lead.created",
+        payload={
+            "user_id": str(user_id),
+            "inquiry_id": str(uuid.uuid4()),
+            "business_id": str(uuid.uuid4()),
+            "vars": {"business_name": "Anbu Seeds", "inquiry_type": "contact"},
+        },
+    )
+    await handle_event(db_session, event)
+    assert len(MockPushDriver.outbox) == 1
+    endpoint, title, _body = MockPushDriver.outbox[0]
+    assert endpoint == "https://push.example/sub/consumer"
+    assert title == "New enquiry — Anbu Seeds"
 
 
 async def test_lead_responded_creates_in_app_notification(

@@ -27,11 +27,13 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     "directory.claim_rejected": ("claim_rejected", frozenset()),
     "directory.verification_approved": ("verification_approved", frozenset()),
     "directory.verification_rejected": ("verification_rejected", frozenset()),
-    # D18: in-app only, same rationale as the D16 claim/verification routes
-    # above - directory events carry no destination.
+    # D18: review stays in-app only, same rationale as the D16 routes above -
+    # directory events carry no destination. D28: leads ALSO fan out to push,
+    # which needs no destination in the payload (subscriptions resolve by
+    # user_id inside notify), so module independence holds.
     "review.approved": ("review_approved", frozenset()),
-    "lead.created": ("lead_received", frozenset()),
-    "lead.responded": ("lead_response", frozenset()),
+    "lead.created": ("lead_received", frozenset({"push"})),
+    "lead.responded": ("lead_response", frozenset({"push"})),
     # D20 billing/dunning: money events DO carry a destination - billing
     # resolves the owner's verified email + locale at emit time through
     # shared.lookups (identity's registered adapter), so email rides along

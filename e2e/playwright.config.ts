@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
@@ -9,6 +9,17 @@ export default defineConfig({
     baseURL: "http://localhost:3003",
     trace: "retain-on-failure",
   },
+  // D29 device matrix. All three projects share the one `webServer` list below
+  // - Playwright boots those once for the whole run, not per project.
+  projects: [
+    // The full suite, exactly as e2e-auth has always run it.
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    // Low-end Android proxy. Only @matrix specs run here: layout, tap targets,
+    // locale, a11y and the core journeys are device-sensitive; API-shaped specs
+    // (bff-path-traversal, sso) are not, and running them 3x buys nothing.
+    { name: "mobile-chrome", use: { ...devices["Pixel 5"] }, grep: /@matrix/ },
+    { name: "mobile-safari", use: { ...devices["iPhone 13"] }, grep: /@matrix/ },
+  ],
   webServer: [
     {
       command: "pnpm run e2e:api",

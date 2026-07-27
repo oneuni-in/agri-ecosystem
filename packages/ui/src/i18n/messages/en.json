@@ -258,6 +258,9 @@
       "disable": "Turn off",
       "blocked": "Notifications are blocked in browser settings.",
       "iosInstallFirst": "Install Milk.in first (Share → Add to Home Screen), then enable alerts here."
+    },
+    "lowData": {
+      "label": "Data saver"
     }
   },
   "coins": {

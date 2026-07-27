@@ -46,6 +46,8 @@ export {
   serializeLocCookie,
 } from "./lib/location";
 export type { LocContext, LocSource } from "./lib/location";
+export { LOW_DATA_COOKIE, lowDataCookieString, parseLowDataCookie } from "./lib/low-data-core";
+export { LowDataToggle, setLowData, useLowData } from "./lib/low-data";
 export { isSafeTargetUrl, parseServedAd } from "./lib/sponsored";
 export type { ServedAd } from "./lib/sponsored";
 

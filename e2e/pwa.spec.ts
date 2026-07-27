@@ -32,6 +32,17 @@ test.describe("D28 PWA", () => {
     );
   });
 
+  test("low-data toggle persists across reloads", async ({ page }) => {
+    await page.goto(`${MILK}/`);
+    const toggle = page.getByTestId("low-data-toggle");
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(await page.evaluate(() => document.cookie)).toContain("milk_lowdata=1");
+    await page.reload();
+    await expect(page.getByTestId("low-data-toggle")).toHaveAttribute("aria-checked", "true");
+  });
+
   test("offline navigation falls back to the shell with helplines and last prices", async ({
     browser,
   }) => {

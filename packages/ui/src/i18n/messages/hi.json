@@ -258,6 +258,9 @@
       "disable": "बंद करें",
       "blocked": "ब्राउज़र सेटिंग में सूचनाएँ ब्लॉक हैं।",
       "iosInstallFirst": "पहले Milk.in इंस्टॉल करें (Share → Add to Home Screen), फिर यहाँ अलर्ट चालू करें।"
+    },
+    "lowData": {
+      "label": "डेटा सेवर"
     }
   },
   "coins": {

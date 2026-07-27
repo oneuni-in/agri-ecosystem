@@ -9,9 +9,8 @@ import type { ReactNode } from "react";
 
 import { routing } from "@/i18n/routing";
 
-import { InstallPrompt } from "./install-prompt";
+import { PwaClient } from "./pwa-client";
 import { SiteHeader } from "./site-header";
-import { SwRegister } from "./sw-register";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
 const THEME: SiteTheme = "theme-milk";
@@ -43,10 +42,9 @@ export default async function LocaleLayout({
     <html lang={locale} data-theme={THEME} className={fontVariables}>
       <body>
         <NextIntlClientProvider>
-          <SwRegister />
           <SiteHeader />
           {children}
-          <InstallPrompt />
+          <PwaClient />
         </NextIntlClientProvider>
       </body>
     </html>

@@ -312,13 +312,19 @@ jobs:
         if: always()
         with:
           name: lighthouse-reports
-          # .lhci only exists once the UPLOAD stage runs, which autorun skips
-          # when assert fails - i.e. exactly when the report is needed. Collect
-          # always writes raw runs to .lighthouseci, so grab both.
+          # Two reasons this uploaded nothing before:
+          # 1. upload-artifact@v4 skips dot-files/dirs unless told otherwise,
+          #    and BOTH report dirs are hidden - so every run since the v4
+          #    bump silently produced an empty artifact ("No files were found
+          #    with the provided path: .lhci").
+          # 2. .lhci only exists once autorun's UPLOAD stage runs, which it
+          #    skips when assert fails - i.e. exactly when you want the report.
+          #    collect always writes raw runs to .lighthouseci, so grab both.
           path: |
             .lhci
             .lighthouseci
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: warn
 
   # D09 non-negotiables at the browser level: signup, returning login,
   # wrong-OTP lockout UX, device revoke, logout-everywhere. Real FastAPI

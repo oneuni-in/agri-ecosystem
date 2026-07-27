@@ -10,11 +10,11 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.notify.models import Notification, Preference
+from modules.notify.models import Notification, Preference, PushSubscription
 from modules.notify.rendering import load_template, render_template
 from shared.db import get_session
 from shared.i18n import SUPPORTED_LOCALES
@@ -25,7 +25,7 @@ router = SecureRouter(prefix="/notify", tags=["notify"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
-TOGGLEABLE_CHANNELS = ("sms", "email")
+TOGGLEABLE_CHANNELS = ("sms", "email", "push")
 
 
 def _user_id(request: Request) -> uuid.UUID:
@@ -64,8 +64,26 @@ class PreferencesOut(BaseModel):
 
 
 class PreferenceIn(BaseModel):
-    channel: Literal["sms", "email"]
+    channel: Literal["sms", "email", "push"]
     enabled: bool
+
+
+_Endpoint = Annotated[str, StringConstraints(min_length=8, max_length=1024)]
+
+
+class PushKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscriptionIn(BaseModel):
+    endpoint: _Endpoint
+    keys: PushKeys
+    ua_label: Annotated[str, StringConstraints(max_length=80)] | None = None
+
+
+class PushUnsubscribeIn(BaseModel):
+    endpoint: _Endpoint
 
 
 @router.get("/notifications")
@@ -147,6 +165,50 @@ async def get_preferences(request: Request, session: SessionDep) -> PreferencesO
             for channel in TOGGLEABLE_CHANNELS
         ]
     )
+
+
+@router.post("/push/subscriptions")
+async def push_subscribe(
+    body: PushSubscriptionIn, request: Request, session: SessionDep
+) -> StatusOut:
+    """Upsert by endpoint: a browser re-subscribing (or a device changing
+    hands between accounts) must never 409 - last writer owns the endpoint.
+    The endpoint URL is stored for sends, NEVER logged (module rule)."""
+    row = await session.scalar(
+        select(PushSubscription).where(PushSubscription.endpoint == body.endpoint)
+    )
+    if row is None:
+        session.add(
+            PushSubscription(
+                user_id=_user_id(request),
+                endpoint=body.endpoint,
+                p256dh=body.keys.p256dh,
+                auth=body.keys.auth,
+                ua_label=body.ua_label,
+            )
+        )
+    else:
+        row.user_id = _user_id(request)
+        row.p256dh = body.keys.p256dh
+        row.auth = body.keys.auth
+        row.ua_label = body.ua_label
+    return StatusOut()
+
+
+@router.delete("/push/subscriptions")
+async def push_unsubscribe(
+    body: PushUnsubscribeIn, request: Request, session: SessionDep
+) -> StatusOut:
+    row = await session.scalar(
+        select(PushSubscription).where(
+            PushSubscription.endpoint == body.endpoint,
+            PushSubscription.user_id == _user_id(request),
+        )
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="unknown_subscription")
+    await session.delete(row)
+    return StatusOut()
 
 
 @router.put("/preferences")

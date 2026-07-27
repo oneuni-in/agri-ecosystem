@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     zeptomail_from: str = "no-reply@agri.in"
     notify_user_hourly_cap: int = 30
     notify_worker_enabled: bool = True
+    # Web push (D28). Empty keys select the mock driver (kill switch); real
+    # sends are additionally gated by the notify.push_enabled DB flag.
+    vapid_public_key: str = ""  # base64url ECDSA P-256 (applicationServerKey)
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:no-reply@agri.in"
 
     # Contact reveal (D18.C, anti-scraping). Public business/branch reads
     # never carry phone/whatsapp; a logged-in user reveals a branch's

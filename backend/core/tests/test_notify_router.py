@@ -143,14 +143,14 @@ async def test_preferences_default_enabled_put_flips_and_dispatch_skips(
     default = await api.get("/notify/preferences")
     assert default.status_code == 200
     items = {row["channel"]: row["enabled"] for row in default.json()["items"]}
-    assert items == {"sms": True, "email": True}
+    assert items == {"sms": True, "email": True, "push": True}
 
     flipped = await api.put("/notify/preferences", json={"channel": "sms", "enabled": False})
     assert flipped.status_code == 200
 
     updated = await api.get("/notify/preferences")
     items2 = {row["channel"]: row["enabled"] for row in updated.json()["items"]}
-    assert items2 == {"sms": False, "email": True}
+    assert items2 == {"sms": False, "email": True, "push": True}
 
     row = await db_session.scalar(
         select(Preference).where(Preference.user_id == USER_A, Preference.channel == "sms")

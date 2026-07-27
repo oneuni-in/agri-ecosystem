@@ -244,6 +244,12 @@
       "vetHelpline": "Animal husbandry helpline",
       "kisanHelpline": "Kisan Call Centre",
       "lastSeenTitle": "Last seen prices"
+    },
+    "pwa": {
+      "installTitle": "Install Milk.in on this phone",
+      "installCta": "Install",
+      "iosHint": "Tap Share, then 'Add to Home Screen'.",
+      "dismiss": "Dismiss"
     }
   },
   "coins": {

@@ -244,6 +244,12 @@
       "vetHelpline": "கால்நடை பராமரிப்பு உதவி எண்",
       "kisanHelpline": "கிசான் கால் சென்டர்",
       "lastSeenTitle": "கடைசியாக பார்த்த விலைகள்"
+    },
+    "pwa": {
+      "installTitle": "இந்த போனில் Milk.in-ஐ நிறுவுங்கள்",
+      "installCta": "நிறுவு",
+      "iosHint": "Share-ஐ தட்டி, 'Add to Home Screen' தேர்வு செய்யவும்.",
+      "dismiss": "மூடு"
     }
   },
   "coins": {

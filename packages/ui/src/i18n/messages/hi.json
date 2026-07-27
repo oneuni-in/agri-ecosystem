@@ -244,6 +244,12 @@
       "vetHelpline": "पशुपालन हेल्पलाइन",
       "kisanHelpline": "किसान कॉल सेंटर",
       "lastSeenTitle": "आख़िरी देखी गई क़ीमतें"
+    },
+    "pwa": {
+      "installTitle": "इस फ़ोन पर Milk.in इंस्टॉल करें",
+      "installCta": "इंस्टॉल करें",
+      "iosHint": "Share दबाएँ, फिर 'Add to Home Screen' चुनें।",
+      "dismiss": "बंद करें"
     }
   },
   "coins": {

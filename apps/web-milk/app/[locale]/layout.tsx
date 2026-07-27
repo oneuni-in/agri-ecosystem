@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import { routing } from "@/i18n/routing";
 
+import { InstallPrompt } from "./install-prompt";
 import { SiteHeader } from "./site-header";
 import { SwRegister } from "./sw-register";
 
@@ -45,6 +46,7 @@ export default async function LocaleLayout({
           <SwRegister />
           <SiteHeader />
           {children}
+          <InstallPrompt />
         </NextIntlClientProvider>
       </body>
     </html>

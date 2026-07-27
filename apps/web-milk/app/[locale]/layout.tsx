@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { routing } from "@/i18n/routing";
 
 import { PwaClient } from "./pwa-client";
+import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
@@ -44,6 +45,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider>
           <SiteHeader />
           {children}
+          <SiteFooter />
           <PwaClient />
         </NextIntlClientProvider>
       </body>

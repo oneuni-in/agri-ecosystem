@@ -49,6 +49,15 @@ from shared.storage import reset_storage
 # worker can still monkeypatch+cache_clear around it.
 os.environ.setdefault("NOTIFY_WORKER_ENABLED", "false")
 
+# D28: get_push_driver() returns the REAL WebPushDriver as soon as both VAPID
+# keys are non-empty, and settings read backend/core/.env - so a developer who
+# provisions keys for local dev would silently turn every push test into a
+# live request to FCM/Mozilla/Apple. Env vars beat the dotenv file in
+# pydantic-settings, so blanking them here pins the mock driver. setdefault()
+# so a test that genuinely wants the real driver can monkeypatch+cache_clear.
+os.environ.setdefault("VAPID_PUBLIC_KEY", "")
+os.environ.setdefault("VAPID_PRIVATE_KEY", "")
+
 TEST_DB_NAME = "agri_test"
 TEST_REDIS_DB = 9
 

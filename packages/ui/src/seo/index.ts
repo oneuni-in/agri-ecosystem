@@ -17,3 +17,4 @@ export type {
 export { buildMetadata, canonicalUrl, shouldNoIndex } from "./meta";
 export type { MetaInput } from "./meta";
 export { NoIndex } from "./no-index";
+export { citySlug } from "./slug";

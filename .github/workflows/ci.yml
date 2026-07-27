@@ -312,7 +312,12 @@ jobs:
         if: always()
         with:
           name: lighthouse-reports
-          path: .lhci
+          # .lhci only exists once the UPLOAD stage runs, which autorun skips
+          # when assert fails - i.e. exactly when the report is needed. Collect
+          # always writes raw runs to .lighthouseci, so grab both.
+          path: |
+            .lhci
+            .lighthouseci
           if-no-files-found: ignore
 
   # D09 non-negotiables at the browser level: signup, returning login,

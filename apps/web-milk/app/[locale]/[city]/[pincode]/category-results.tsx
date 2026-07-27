@@ -20,11 +20,11 @@ const UNLOCATABLE_M = 1_000_000_000;
 export async function CategoryResults({
   items,
   categoryLabel,
-  pincode,
+  base,
 }: {
   items: CoversItem[];
   categoryLabel: string;
-  pincode: string;
+  base: string; // canonical page path, e.g. /coimbatore/641001 (D28)
 }) {
   const t = await getTranslations("ui");
 
@@ -36,7 +36,7 @@ export async function CategoryResults({
         action={
           <Link
             className="font-bold text-brand-deep no-underline"
-            href={`/${pincode}`}
+            href={base}
             data-testid="category-empty-back"
           >
             {t("categoryBrowse.allMilk")}

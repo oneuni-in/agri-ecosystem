@@ -131,10 +131,13 @@ test.describe("D29 vernacular pass (signed in)", { tag: "@matrix" }, () => {
       for (const route of ["/my-needs", "/notifications"]) {
         await page.goto(`${MILK}${prefix(locale)}${route}`);
         await page.waitForLoadState("networkidle");
-        // See device-matrix.spec.ts: networkidle does not outlast the
-        // silent-SSO bounce on a slow runner, and the evaluate below then dies
-        // with "Execution context was destroyed".
-        await waitForHeaderSettled(page).catch(() => {});
+        // NO waitForHeaderSettled here, unlike the guest sweep above: it waits
+        // for the logged-OUT "Login" button, which never appears once signed
+        // in, so it burned its full 20s timeout on all six iterations and blew
+        // the 60s test budget - surfacing as a bogus "ta/my-needs rendered
+        // Next's error page" at exactly the point the clock ran out. There is
+        // no silent-SSO bounce to outlast here anyway; that only affects
+        // cookie-less visitors.
         await assertNotAnErrorPage(page, `${locale}${route}`);
         await assertNoHorizontalOverflow(page, `${locale}${route}`);
         await assertNoRawMessageKeys(page, `${locale}${route}`);

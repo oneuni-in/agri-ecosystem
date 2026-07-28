@@ -57,8 +57,15 @@ test.describe("D29 low-data / throttled 3G", { tag: "@matrix" }, () => {
 
     const toggle = page.getByTestId("low-data-toggle");
     await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    // Retry the click rather than assert once. LowDataToggle is a client
+    // island, so a click landing before React attaches does nothing at all -
+    // and on a phone profile over throttled 3G the bundle arrives late enough
+    // that the default 5s assertion expires first (the one failure this spec
+    // had on mobile-chrome in CI).
+    await expect(async () => {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "true", { timeout: 5_000 });
+    }).toPass({ timeout: 60_000 });
 
     await page.reload();
     // Same hydration wait as pwa.spec.ts, and slower still: this page is under

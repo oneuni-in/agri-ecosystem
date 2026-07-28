@@ -376,6 +376,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install chromium --with-deps
+      # D16 claim evidence and D17 product media upload through shared.storage,
+      # which is MinIO-backed. Without it _store_evidence 500s and the claim
+      # journey fails with a generic "something went wrong" that says nothing
+      # about the cause. Run as a step, not a service: service containers
+      # cannot override the image command, and minio/minio needs `server /data`.
+      # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
+      - name: start MinIO (claim evidence + product media)
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo 'MinIO never became healthy' >&2; docker logs minio >&2; exit 1; fi
+            sleep 2
+          done
       - run: pnpm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -439,6 +453,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # webkit as well as chromium - mobile-safari is the whole point of this job
       - run: pnpm exec playwright install chromium webkit --with-deps
+      # D16 claim evidence and D17 product media upload through shared.storage,
+      # which is MinIO-backed. Without it _store_evidence 500s and the claim
+      # journey fails with a generic "something went wrong" that says nothing
+      # about the cause. Run as a step, not a service: service containers
+      # cannot override the image command, and minio/minio needs `server /data`.
+      # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
+      - name: start MinIO (claim evidence + product media)
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo 'MinIO never became healthy' >&2; docker logs minio >&2; exit 1; fi
+            sleep 2
+          done
       - run: pnpm run e2e:matrix
       - uses: actions/upload-artifact@v4
         if: failure()

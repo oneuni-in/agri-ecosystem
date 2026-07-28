@@ -1,6 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { API, fillOtp, peekOtp, randomPhone, resetOtpThrottle } from "./helpers";
+import {
+  API,
+  VENDOR_PHONE,
+  apiAs,
+  fillOtp,
+  peekOtp,
+  randomPhone,
+  resetOtpThrottle,
+} from "./helpers";
 
 // The vendor console (Task 11-15) lives ONLY in web-agri, whose dev server
 // binds :3002 (D01-A port map) - not :3000 (that's web-milk). The task
@@ -103,5 +111,26 @@ test.describe("vendor dashboard (D26)", () => {
       await page.getByRole("button", { name: "Add product" }).click();
       await expect(page.getByText("E2E Cow Milk 1L")).toBeVisible({ timeout: 15_000 });
     }
+  });
+
+  test("subscribe-tier stays dark: the billing surface does not exist while the flag is off", async () => {
+    // The console's premium page shows the intent branch above because
+    // billing_enabled is off (D20 dark launch) - but the UI choosing a branch
+    // proves nothing about the server. This asserts the gate itself.
+    //
+    // 404, not 403, and exactly so: modules/billing/router.py's _require_flag
+    // documents "flag off -> this surface does not exist (404, never 403)",
+    // which keeps an unlaunched product invisible rather than merely refused.
+    // A flag-ON e2e branch is deliberately absent: there is no flag-set
+    // endpoint, so it would mean a DB write plus defeating the flag cache, and
+    // D20's own tests already cover the enabled path at the API level.
+    // Asserted on the GETs, not POST /billing/subscriptions: FastAPI validates
+    // a request body BEFORE the route body runs, so an empty POST returns 422
+    // without ever reaching _require_flag - which would prove nothing about
+    // the gate. These carry no body and hit it directly.
+    const vendor = await apiAs(VENDOR_PHONE);
+    expect((await vendor.get("/billing/subscription")).status()).toBe(404);
+    expect((await vendor.get("/billing/invoices")).status()).toBe(404);
+    await vendor.dispose();
   });
 });

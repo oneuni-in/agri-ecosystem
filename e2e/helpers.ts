@@ -38,10 +38,28 @@ export async function fillOtp(page: Page, code: string): Promise<void> {
 /** Complete the web-id login UI when we ARRIVED there via a redirect (the
  * BFF authorize dance), unlike loginAs which starts at /login itself. */
 export async function completeLoginUi(page: Page, phone: string): Promise<void> {
-  await page.getByLabel(/mobile number/i).fill(phone);
-  await page.getByRole("button", { name: /send otp/i }).click();
+  const input = page.getByLabel(/mobile number/i);
+  const send = page.getByRole("button", { name: /send otp/i });
+  // Hydration-resilient fill: when a spec is the first to touch /login, dev-JIT
+  // can hydrate the island AFTER the first fill. The typed value then never
+  // reaches React state and Send OTP stays SSR-disabled forever. Refilling
+  // until the button reacts proves hydration has attached.
+  await input.waitFor({ timeout: 30_000 });
+  await expect(async () => {
+    await input.fill("");
+    await input.fill(phone);
+    await expect(send).toBeEnabled({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  await send.click();
   await expect(page.getByText(/6-digit code/i)).toBeVisible();
   await fillOtp(page, await peekOtp(`+91${phone}`));
+}
+
+/** Progressive-account tail for a phone that has never logged in: skip the
+ * handle step, pick a language, which finish()es into the authorize resume. */
+export async function completeNewUserSteps(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /skip for now/i }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: /english/i }).click({ timeout: 20_000 });
 }
 
 export async function loginAs(page: Page, phone: string): Promise<void> {
@@ -95,6 +113,25 @@ export async function apiAs(phone: string): Promise<APIRequestContext> {
 export function staffApi(): Promise<APIRequestContext> {
   return apiAs(STAFF_PHONE);
 }
+
+/**
+ * Why logged-in journeys cannot run on the mobile-safari project (D29).
+ *
+ * The session cookie `agri_sid` is `Secure`, and the local dev servers speak
+ * plain http. Chromium treats http://localhost as a trustworthy origin and
+ * sends Secure cookies to it anyway; WebKit does not - it stores the cookie
+ * but never sends it, so /api/auth/me answers 401 {"user":null} forever. The
+ * OTP itself is fine (verify returns 200 with a valid otp_proof and
+ * /auth/login returns status:ok); only the browser's follow-up requests are
+ * anonymous, which surfaces as the login screen claiming the code was wrong.
+ *
+ * This is a limitation of an http test rig, NOT a product defect: production
+ * is https, where Safari sends the cookie normally. Verifying iOS Safari
+ * end-to-end therefore needs a run against the https staging origin, and that
+ * is recorded as an owner-run item in docs/qa/d29-device-matrix.md.
+ */
+export const WEBKIT_HTTP_COOKIE_SKIP =
+  "logged-in journeys need https on WebKit: it will not send the Secure agri_sid cookie over http://localhost (see helpers.ts)";
 
 /**
  * Every page load races the header's `AuthCluster` silent-SSO probe (D10): a

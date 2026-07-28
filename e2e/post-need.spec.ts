@@ -5,8 +5,8 @@ import {
   MILK,
   VENDOR_PHONE,
   apiAs,
-  fillOtp,
-  peekOtp,
+  completeLoginUi,
+  completeNewUserSteps,
   randomPhone,
   resetOtpThrottle,
   waitForHeaderSettled,
@@ -15,26 +15,11 @@ import {
 /** D25's vendor side is the D18 inbox API (the vendor console UI is D26). */
 const vendorApi = (): Promise<APIRequestContext> => apiAs(VENDOR_PHONE);
 
-/** Hydration-resilient variant of helpers.completeLoginUi: when this spec is
- * the first to touch /login, dev-JIT can hydrate the island AFTER the first
- * fill — the typed value then never reaches React state and Send OTP stays
- * SSR-disabled. Refill until the button reacts (proof hydration attached). */
+/** helpers.completeLoginUi is hydration-resilient in its own right; a fresh
+ * phone is always a new user, so the progressive-account tail follows. */
 async function completeLoginResilient(page: Page, phone: string): Promise<void> {
-  const input = page.getByLabel(/mobile number/i);
-  const send = page.getByRole("button", { name: /send otp/i });
-  await input.waitFor({ timeout: 30_000 });
-  await expect(async () => {
-    await input.fill("");
-    await input.fill(phone);
-    await expect(send).toBeEnabled({ timeout: 2_000 });
-  }).toPass({ timeout: 30_000 });
-  await send.click();
-  await expect(page.getByText(/6-digit code/i)).toBeVisible();
-  await fillOtp(page, await peekOtp(`+91${phone}`));
-  // fresh phones are always new users (progressive account): skip the handle
-  // step, pick a language — that finish()es into the authorize resume.
-  await page.getByRole("button", { name: /skip for now/i }).click({ timeout: 20_000 });
-  await page.getByRole("button", { name: /english/i }).click({ timeout: 20_000 });
+  await completeLoginUi(page, phone);
+  await completeNewUserSteps(page);
 }
 
 async function seededBusinessId(ctx: APIRequestContext): Promise<string> {

@@ -67,7 +67,11 @@ test.describe("D29 low-data / throttled 3G", { tag: "@matrix" }, () => {
       await expect(toggle).toHaveAttribute("aria-checked", "true", { timeout: 5_000 });
     }).toPass({ timeout: 60_000 });
 
-    await page.reload();
+    // Let whatever the toggle kicked off settle before reloading. Reloading
+    // while a request is still in flight over throttled 3G aborts the
+    // navigation itself ("net::ERR_ABORTED; maybe frame was detached?").
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.reload({ waitUntil: "domcontentloaded" });
     // Same hydration wait as pwa.spec.ts, and slower still: this page is under
     // 3G emulation, so the client bundle needed to correct the SSR "false"
     // arrives over a throttled link.

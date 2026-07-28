@@ -33,13 +33,32 @@ const DEVANAGARI = /[ऀ-ॿ]/;
 /** A layout break is a page wider than its own viewport - which on a 360px
  * phone is exactly what longer Tamil and Hindi strings tend to cause. */
 async function assertNoHorizontalOverflow(page: Page, where: string): Promise<void> {
-  const { scroll, client } = await page.evaluate(() => ({
-    scroll: document.documentElement.scrollWidth,
-    client: document.documentElement.clientWidth,
-  }));
-  expect(scroll, `${where} overflows horizontally (${scroll}px inside ${client}px)`).toBeLessThanOrEqual(
-    client + 1,
-  );
+  const { scroll, client, culprits } = await page.evaluate(() => {
+    const root = document.documentElement;
+    const limit = root.clientWidth;
+    // Name the widest elements crossing the viewport's right edge. "The page
+    // is 15px too wide" is not actionable on its own, and locale overflows are
+    // font-metric dependent - they reproduce on the CI runner's font stack but
+    // not necessarily on a dev box, so the failure message has to carry enough
+    // to fix it without reproducing it.
+    const out: string[] = [];
+    for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.right <= limit + 1) continue;
+      if (el.querySelector("*") && r.width < limit) continue; // prefer leaves
+      out.push(
+        `<${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? ` class="${el.className.slice(0, 90)}"` : ""}> ` +
+          `right=${Math.round(r.right)} w=${Math.round(r.width)} text=${JSON.stringify(
+            (el.textContent ?? "").trim().slice(0, 40),
+          )}`,
+      );
+    }
+    return { scroll: root.scrollWidth, client: limit, culprits: out.slice(0, 6) };
+  });
+  expect(
+    scroll,
+    `${where} overflows horizontally (${scroll}px inside ${client}px)\n  ${culprits.join("\n  ")}`,
+  ).toBeLessThanOrEqual(client + 1);
 }
 
 /** A 404/500 renders Next's error document, which has no overflow and no

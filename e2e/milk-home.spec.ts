@@ -1,21 +1,8 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 // web-milk runs on :3000 but the Playwright baseURL is web-id (:3003),
 // so every navigation here uses an absolute URL.
-const MILK = "http://localhost:3000";
-
-/**
- * Every page load races the header's `AuthCluster` silent-SSO probe (D10):
- * a fresh, cookie-less visitor bounces through `/api/auth/login?silent=1`
- * and back before settling (see e2e/sso.spec.ts, "fails gracefully for a
- * fresh visitor"). Interacting with the page before that round trip
- * resolves can hit a page that's mid-navigation and lose client state (e.g.
- * a form's in-progress submit) - so every test here waits for the header to
- * settle on its logged-out "Login" button first, same convention as sso.spec.ts.
- */
-async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
-}
+import { MILK, waitForHeaderSettled } from "./helpers";
 
 test.describe("D23 milk pincode home — three empty-state branches", () => {
   test("(a) covered TN pincode with a seeded vendor shows results", async ({ page }) => {

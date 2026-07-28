@@ -1,47 +1,19 @@
-import { expect, request, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { fillOtp, peekOtp, randomPhone, resetOtpThrottle } from "./helpers";
+import {
+  API,
+  MILK,
+  VENDOR_PHONE,
+  apiAs,
+  fillOtp,
+  peekOtp,
+  randomPhone,
+  resetOtpThrottle,
+  waitForHeaderSettled,
+} from "./helpers";
 
-const MILK = "http://localhost:3000";
-const API = "http://127.0.0.1:8000";
-const VENDOR_PHONE = "+919000000023"; // seed_e2e_milk.py owner
-
-/** Cookie-authenticated API context for the seed vendor owner: the same
- * OTP → /auth/login progressive flow the browser uses, driven over HTTP.
- * (The vendor console UI is D26 — D25's vendor side is the D18 inbox API.) */
-async function vendorApi(): Promise<APIRequestContext> {
-  const bootstrap = await request.newContext({ baseURL: API });
-  await resetOtpThrottle(VENDOR_PHONE);
-  const requested = await bootstrap.post("/auth/otp/request", {
-    data: { phone: VENDOR_PHONE, purpose: "login" },
-  });
-  expect(requested.ok()).toBeTruthy();
-  const code = await peekOtp(VENDOR_PHONE);
-  const verify = await bootstrap.post("/auth/otp/verify", {
-    data: { phone: VENDOR_PHONE, purpose: "login", code },
-  });
-  expect(verify.ok()).toBeTruthy();
-  const { otp_proof } = (await verify.json()) as { otp_proof: string };
-  const login = await bootstrap.post("/auth/login", { data: { otp_proof } });
-  expect(login.ok()).toBeTruthy();
-  // agri_sid is Secure; the request-context jar won't replay it over plain
-  // http://127.0.0.1, so carry it as an explicit header instead.
-  const state = await bootstrap.storageState();
-  const sid = state.cookies.find((c) => c.name === "agri_sid")?.value;
-  expect(sid).toBeTruthy();
-  await bootstrap.dispose();
-  return request.newContext({
-    baseURL: API,
-    extraHTTPHeaders: { cookie: `agri_sid=${sid}` },
-  });
-}
-
-/** Same convention as e2e/vendor-profile.spec.ts: wait out hydration + the
- * silent-SSO probe before interacting — otherwise the mount-time pincode
- * prefill effect can overwrite a value typed too early. */
-async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
-}
+/** D25's vendor side is the D18 inbox API (the vendor console UI is D26). */
+const vendorApi = (): Promise<APIRequestContext> => apiAs(VENDOR_PHONE);
 
 /** Hydration-resilient variant of helpers.completeLoginUi: when this spec is
  * the first to touch /login, dev-JIT can hydrate the island AFTER the first

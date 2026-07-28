@@ -1,10 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MILK = "http://localhost:3000";
-
-async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
-}
+import { MILK, waitForHeaderSettled } from "./helpers";
 
 /** A 1x1 transparent PNG — enough for MapLibre to consider a raster tile
  * loaded. */

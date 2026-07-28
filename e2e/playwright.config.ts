@@ -23,7 +23,15 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm run e2e:api",
-      url: "http://127.0.0.1:8000/health",
+      // Probe a peek-ONLY route, not /health. The dev docker stack also serves
+      // :8000 but without OTP_TEST_PEEK, so /health could not tell the two
+      // apart: reuseExistingServer would silently adopt the peek-less API and
+      // every OTP-driven spec then died with "no OTP recorded" - ten opaque
+      // failures for one environment mistake (D09's port-8000 trap, D29).
+      // A peek-enabled API answers 200 {"code":null} for an unknown phone;
+      // one without the flag 404s, so Playwright refuses to reuse it and the
+      // resulting port clash names the problem outright.
+      url: "http://127.0.0.1:8000/auth/otp/_peek?phone=%2B910000000000",
       timeout: 120_000,
       reuseExistingServer: !process.env.CI,
     },

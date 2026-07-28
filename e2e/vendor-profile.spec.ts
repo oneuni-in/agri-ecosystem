@@ -1,27 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MILK = "http://localhost:3000";
-const API = "http://localhost:8000";
-
-/** Same convention as e2e/milk-home.spec.ts: wait out the silent-SSO bounce
- * before interacting. */
-async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
-}
-
-/** Resolve the seeded vendor from the live API, BY SLUG rather than by
- * position: milk_home orders by distance from the pincode centroid, so
- * `vendors[0]` is a D27 seed listing locally and the fixture only in CI (D29).
- * Asserting against whichever vendor happens to be nearest makes the
- * phone-number and JSON-LD checks below meaningless. */
-async function seededSlug(request: import("@playwright/test").APIRequestContext): Promise<string> {
-  const res = await request.get(`${API}/catalog/milk/home/641001`);
-  expect(res.ok()).toBeTruthy();
-  const data = (await res.json()) as { vendors: { slug: string }[] };
-  const fixture = data.vendors.find((v) => v.slug === "e2e-milk-vendor");
-  expect(fixture, "seed fixture missing - run seed_e2e_milk.py").toBeTruthy();
-  return fixture!.slug;
-}
+import { MILK, fixtureSlug as seededSlug, waitForHeaderSettled } from "./helpers";
 
 test.describe("D24 vendor profile", () => {
   test("renders with valid LocalBusiness JSON-LD (non-negotiable 2)", async ({

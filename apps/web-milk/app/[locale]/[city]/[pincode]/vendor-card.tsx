@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge, buttonVariants, Card, cn } from "@agri/ui";
-import type { KeyboardEvent } from "react";
 
 import { Link } from "@/i18n/navigation";
 import { milkTypeMeta, type MilkCard } from "@/lib/milk";
@@ -36,24 +35,23 @@ export function VendorCard({
   // never in list payloads, just query context for the client island.
   const profileHref = `/directory/businesses/${card.slug}?pin=${pincode}`;
 
-  const handleKeyDown = onSelect
-    ? (event: KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === "Enter" || event.key === " ") {
-          if (event.key === " ") event.preventDefault();
-          onSelect(card.id);
-        }
-      }
-    : undefined;
-
   return (
     <Card
       data-testid={`vendor-card-${card.slug}`}
       data-card-id={card.id}
       data-selected={selected}
+      // Click still selects this card on the map, but the card is NOT exposed
+      // as a control: it used to carry role="button" + tabIndex while
+      // containing the Call and WhatsApp links, which axe flags as
+      // nested-interactive (serious, 7 instances) - a button wrapping links
+      // gives screen readers a control they cannot describe or escape, and put
+      // an extra tab stop in front of every card (D29).
+      //
+      // Keyboard users lose nothing: the links inside remain focusable, and
+      // map -> card selection is unaffected. Selecting a card FROM the keyboard
+      // is the one gap; the map pins themselves are real <button>s, so the
+      // pin -> card direction still works without a mouse.
       onClick={onSelect ? () => onSelect(card.id) : undefined}
-      role={onSelect ? "button" : undefined}
-      tabIndex={onSelect ? 0 : undefined}
-      onKeyDown={handleKeyDown}
       className={cn(
         "flex flex-col gap-1.5 p-4",
         selected && "outline outline-[3px] outline-accent outline-offset-2",

@@ -19,7 +19,7 @@ const prefix = (locale: (typeof LOCALES)[number]) => (locale === "en" ? "" : `/$
 const PUBLIC_ROUTES = [
   "/",
   "/coimbatore/641001",
-  "/c/milk",
+  "/c/dairy-farm",
   "/search",
   "/post-need",
   "/offline",
@@ -41,6 +41,15 @@ async function assertNoHorizontalOverflow(page: Page, where: string): Promise<vo
   );
 }
 
+/** A 404/500 renders Next's error document, which has no overflow and no
+ * message keys - so it passes every other assertion here silently. /c/milk was
+ * swept green in three locales that way before this guard existed (D29). */
+async function assertNotAnErrorPage(page: Page, where: string): Promise<void> {
+  await expect(page.locator("html#__next_error__"), `${where} rendered Next's error page`).toHaveCount(
+    0,
+  );
+}
+
 /** An untranslated key leaks as its raw dotted path, e.g. "ui.pushAlerts.title". */
 async function assertNoRawMessageKeys(page: Page, where: string): Promise<void> {
   const text = await page.locator("body").innerText();
@@ -57,6 +66,7 @@ test.describe("D29 vernacular pass", { tag: "@matrix" }, () => {
         // a bare shell, and this also lets the silent-SSO bounce finish before
         // anything is measured.
         await page.waitForLoadState("networkidle");
+        await assertNotAnErrorPage(page, `${locale}${route}`);
         await assertNoHorizontalOverflow(page, `${locale}${route}`);
         await assertNoRawMessageKeys(page, `${locale}${route}`);
       });
@@ -116,6 +126,7 @@ test.describe("D29 vernacular pass (signed in)", { tag: "@matrix" }, () => {
       for (const route of ["/my-needs", "/notifications"]) {
         await page.goto(`${MILK}${prefix(locale)}${route}`);
         await page.waitForLoadState("networkidle");
+        await assertNotAnErrorPage(page, `${locale}${route}`);
         await assertNoHorizontalOverflow(page, `${locale}${route}`);
         await assertNoRawMessageKeys(page, `${locale}${route}`);
       }

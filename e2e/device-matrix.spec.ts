@@ -10,7 +10,7 @@ const BLANK_TILE = Buffer.from(
 
 const MIN_TAP = 44; // design-system.md §1.5 - 44x44 CSS px
 
-const ROUTES = ["/", "/coimbatore/641001", "/c/milk", "/search", "/post-need"];
+const ROUTES = ["/", "/coimbatore/641001", "/c/dairy-farm", "/search", "/post-need"];
 
 /** Every visible, enabled control must be tappable with a thumb. Collects ALL
  * offenders in one pass - fixing them one failure per run wastes the point. */

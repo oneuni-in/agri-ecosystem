@@ -183,7 +183,13 @@ export const agriPreset = {
           display: "block",
           fontSize: ".78em",
           fontWeight: "500",
-          opacity: ".85",
+          // No opacity. `.vern` is the mother-tongue line (UX law 1), almost
+          // always --sub on --card: that is 5.74:1 on its own, but blending it
+          // to 85% dropped it to 4.14:1 - under the 4.5:1 AA floor, and at
+          // .78em it is small text that gets no large-text exemption. axe
+          // flagged 19 instances across home/pincode/post-need (D29). The
+          // vernacular line was the least readable text on the page for the
+          // readers who most need it; full opacity fixes that.
           lineHeight: "1.3",
         },
       });

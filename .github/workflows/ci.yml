@@ -390,7 +390,11 @@ jobs:
   # names the device instead of hiding in one long serial run.
   e2e-matrix:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 35, not 20: the suite itself is ~9min locally, but CI adds a webkit +
+    # chromium install with system deps on top of pnpm/pip install, migrations
+    # and the seed. The first run hit the 20min cap mid-suite and was killed,
+    # which reads as a failure rather than a timeout.
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16

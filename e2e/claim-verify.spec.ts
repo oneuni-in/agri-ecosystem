@@ -14,7 +14,21 @@ const CLAIMABLE_SLUG = "e2e-claimable-dairy"; // seed_e2e_milk.py, NULL owner
 
 type AdminClaim = { id: string; business_id: string; status: string };
 
-test.describe("D29 claim → verify (D16)", { tag: "@matrix" }, () => {
+/**
+ * Deliberately NOT tagged `@matrix`, i.e. desktop only.
+ *
+ * The journey consumes a one-shot fixture: approving the claim sets an owner,
+ * and "E2E Claimable Dairy" is a single row, so a second project running the
+ * same journey in the same suite finds it already claimed. Only re-running
+ * seed_e2e_milk.py resets it. Rather than seed a business per project, or
+ * weaken the test to tolerate an owned fixture (which would stop proving the
+ * approval did anything), the journey runs once end to end.
+ *
+ * Device coverage is not really lost: the claim form is a plain file input and
+ * submit button on web-agri, and D29's tap-target and locale sweeps already
+ * exercise responsive rendering.
+ */
+test.describe("D29 claim → verify (D16)", () => {
   test.skip(({ browserName }) => browserName === "webkit", WEBKIT_HTTP_COOKIE_SKIP);
 
   test("user claims an unowned listing, staff approves, the listing stops being claimable", async ({

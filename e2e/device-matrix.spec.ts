@@ -58,6 +58,12 @@ test.describe("D29 device matrix", { tag: "@matrix" }, () => {
     test(`tap targets on ${route}`, async ({ page }) => {
       await page.goto(`${MILK}${route}`);
       await page.waitForLoadState("networkidle");
+      // Tolerant header settle BEFORE evaluating. networkidle alone is not
+      // enough: on a slower runner the silent-SSO bounce fires a navigation
+      // after the network goes quiet and page.evaluate dies with "Execution
+      // context was destroyed" (4 of these in the first CI run). Tolerant
+      // because /c/* renders no logged-out Login button to wait for.
+      await waitForHeaderSettled(page).catch(() => {});
       const offenders = await tapTargetOffenders(page, MIN_TAP);
       expect(
         offenders,

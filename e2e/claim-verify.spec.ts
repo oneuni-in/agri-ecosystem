@@ -58,17 +58,26 @@ test.describe("D29 claim → verify (D16)", () => {
     await completeLoginUi(page, phone);
     await completeNewUserSteps(page);
     await expect(page.getByRole("heading", { name: /claim /i })).toBeVisible({ timeout: 30_000 });
-    // Let dev-JIT finish shipping the island's chunks. Clicking Submit before
-    // React attaches performs a NATIVE form submit, which reloads the page and
-    // silently drops the chosen file - the form simply reappears pristine with
-    // no error to explain itself.
-    await page.waitForLoadState("networkidle");
 
-    // Target the real <input type=file>: the label wraps it, so getByLabel
-    // resolves to the styled control in the a11y tree, not the input itself.
-    await page.locator('input[type="file"]').setInputFiles("e2e/fixtures/evidence.png");
-    await page.getByRole("button", { name: /submit claim/i }).click();
-    await expect(page.getByText(/claim submitted/i)).toBeVisible({ timeout: 30_000 });
+    // Clicking Submit before React attaches performs a NATIVE form submit,
+    // which reloads the page and silently drops the chosen file - the form
+    // just reappears pristine with no error to explain itself. networkidle is
+    // NOT a hydration signal and did not survive a slower CI runner, so retry
+    // the whole select-and-submit until it takes. Re-selecting the file each
+    // attempt matters: a native submit clears it.
+    //
+    // A retry after a submit that DID reach the server yields "you already
+    // have a pending claim", which is equally proof the claim exists - accept
+    // either, then verify against the staff queue below, which is the real
+    // assertion.
+    const submitted = page.getByText(/claim submitted|already have a pending/i);
+    await expect(async () => {
+      // Target the real <input type=file>: the label wraps it, so getByLabel
+      // resolves to the styled control in the a11y tree, not the input itself.
+      await page.locator('input[type="file"]').setInputFiles("e2e/fixtures/evidence.png");
+      await page.getByRole("button", { name: /submit claim/i }).click();
+      await expect(submitted).toBeVisible({ timeout: 15_000 });
+    }).toPass({ timeout: 90_000 });
 
     // --- staff approves THIS claim (diffed, not "the first pending one") ---
     const mine = (await queued()).find((c) => !before.has(c.id) && c.business_id === business.id);

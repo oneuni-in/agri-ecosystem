@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   MILK,
+  waitForHeaderSettled,
   WEBKIT_HTTP_COOKIE_SKIP,
   completeLoginUi,
   completeNewUserSteps,
@@ -66,6 +67,10 @@ test.describe("D29 vernacular pass", { tag: "@matrix" }, () => {
         // a bare shell, and this also lets the silent-SSO bounce finish before
         // anything is measured.
         await page.waitForLoadState("networkidle");
+        // See device-matrix.spec.ts: networkidle does not outlast the
+        // silent-SSO bounce on a slow runner, and the evaluate below then dies
+        // with "Execution context was destroyed".
+        await waitForHeaderSettled(page).catch(() => {});
         await assertNotAnErrorPage(page, `${locale}${route}`);
         await assertNoHorizontalOverflow(page, `${locale}${route}`);
         await assertNoRawMessageKeys(page, `${locale}${route}`);
@@ -126,6 +131,10 @@ test.describe("D29 vernacular pass (signed in)", { tag: "@matrix" }, () => {
       for (const route of ["/my-needs", "/notifications"]) {
         await page.goto(`${MILK}${prefix(locale)}${route}`);
         await page.waitForLoadState("networkidle");
+        // See device-matrix.spec.ts: networkidle does not outlast the
+        // silent-SSO bounce on a slow runner, and the evaluate below then dies
+        // with "Execution context was destroyed".
+        await waitForHeaderSettled(page).catch(() => {});
         await assertNotAnErrorPage(page, `${locale}${route}`);
         await assertNoHorizontalOverflow(page, `${locale}${route}`);
         await assertNoRawMessageKeys(page, `${locale}${route}`);

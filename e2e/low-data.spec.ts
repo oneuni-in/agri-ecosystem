@@ -61,7 +61,12 @@ test.describe("D29 low-data / throttled 3G", { tag: "@matrix" }, () => {
     await expect(toggle).toHaveAttribute("aria-checked", "true");
 
     await page.reload();
-    await expect(page.getByTestId("low-data-toggle")).toHaveAttribute("aria-checked", "true");
+    // Same hydration wait as pwa.spec.ts, and slower still: this page is under
+    // 3G emulation, so the client bundle needed to correct the SSR "false"
+    // arrives over a throttled link.
+    await expect(page.getByTestId("low-data-toggle")).toHaveAttribute("aria-checked", "true", {
+      timeout: 40_000,
+    });
     // Degrading images must not cost the user the actual content.
     await expect(page.getByTestId("scope-covered")).toBeVisible({ timeout: 60_000 });
   });

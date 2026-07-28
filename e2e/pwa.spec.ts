@@ -40,7 +40,15 @@ test.describe("D28 PWA", () => {
     await expect(toggle).toHaveAttribute("aria-checked", "true");
     expect(await page.evaluate(() => document.cookie)).toContain("milk_lowdata=1");
     await page.reload();
-    await expect(page.getByTestId("low-data-toggle")).toHaveAttribute("aria-checked", "true");
+    // 30s, not the 5s default: LowDataToggle is client-only
+    // (useSyncExternalStore over document.cookie) and its SSR snapshot is
+    // ALWAYS false by design, so ISR pages never vary on cookies. The server
+    // therefore renders "false" after a reload and the client corrects it on
+    // hydration - this assertion is really waiting for hydration, which on a
+    // loaded CI runner takes longer than 5s (D29).
+    await expect(page.getByTestId("low-data-toggle")).toHaveAttribute("aria-checked", "true", {
+      timeout: 30_000,
+    });
   });
 
   test("offline navigation falls back to the shell with helplines and last prices", async ({
@@ -50,7 +58,9 @@ test.describe("D28 PWA", () => {
     const page = await context.newPage();
     await page.goto(`${MILK}/coimbatore/641001`); // registers SW + writes last-seen
     await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, undefined, {
-      timeout: 20_000,
+      // 45s: D29 roughly doubled this job's test count, so by the time the PWA
+      // specs run the runner is busy and SW install+activate misses 20s.
+      timeout: 45_000,
     });
     await context.setOffline(true);
     await page.goto(`${MILK}/my-needs`).catch(() => {

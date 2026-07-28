@@ -95,11 +95,17 @@ export function NotificationsPanel({
   }
   return (
     <section aria-label={strings.title}>
-      <div className="mb-3 flex items-center justify-between">
+      {/* flex-wrap + max-w-full, not a plain row: `flex-none` sizes the button
+          to max-content, so a label longer than the space left over pushes the
+          row past the viewport instead of wrapping. English "Mark all read" is
+          13 chars and fits; Tamil is 28 ("அனைத்தையும் படித்ததாகக் குறி") and
+          overflowed a 393px phone by 15px (D29). Wrapping lets the button drop
+          to its own line, and max-w-full lets its own text wrap after that. */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-[18px] font-extrabold text-ink">{strings.title}</h2>
         <Button
           variant="ghost"
-          className="flex-none"
+          className="max-w-full flex-none"
           disabled={busy}
           onClick={() => void markAllRead()}
         >

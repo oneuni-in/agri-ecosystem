@@ -376,11 +376,102 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install chromium --with-deps
+      # D16 claim evidence and D17 product media upload through shared.storage,
+      # which is MinIO-backed. Without it _store_evidence 500s and the claim
+      # journey fails with a generic "something went wrong" that says nothing
+      # about the cause. Run as a step, not a service: service containers
+      # cannot override the image command, and minio/minio needs `server /data`.
+      # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
+      - name: start MinIO (claim evidence + product media)
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo 'MinIO never became healthy' >&2; docker logs minio >&2; exit 1; fi
+            sleep 2
+          done
       - run: pnpm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-traces
+          path: test-results
+          if-no-files-found: ignore
+
+  # D29 device matrix: the @matrix-tagged specs on a low-end Android proxy
+  # (Pixel 5 / Chromium) and iOS Safari (iPhone 13 / WebKit). Split from
+  # e2e-auth rather than lengthening it so runtime stays bounded and a failure
+  # names the device instead of hiding in one long serial run.
+  e2e-matrix:
+    runs-on: ubuntu-latest
+    # 35, not 20: the suite itself is ~9min locally, but CI adds a webkit +
+    # chromium install with system deps on top of pnpm/pip install, migrations
+    # and the seed. The first run hit the 20min cap mid-suite and was killed,
+    # which reads as a failure rather than a timeout.
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app # CI-only credentials
+          POSTGRES_DB: agri
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U app -d agri"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@localhost:5432/agri
+      DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
+      REDIS_URL: redis://localhost:6379/0
+      API_BASE_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/core/pyproject.toml
+      - run: pip install -e backend/core
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # webkit as well as chromium - mobile-safari is the whole point of this job
+      - run: pnpm exec playwright install chromium webkit --with-deps
+      # D16 claim evidence and D17 product media upload through shared.storage,
+      # which is MinIO-backed. Without it _store_evidence 500s and the claim
+      # journey fails with a generic "something went wrong" that says nothing
+      # about the cause. Run as a step, not a service: service containers
+      # cannot override the image command, and minio/minio needs `server /data`.
+      # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
+      - name: start MinIO (claim evidence + product media)
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
+            if [ "$i" = 30 ]; then echo 'MinIO never became healthy' >&2; docker logs minio >&2; exit 1; fi
+            sleep 2
+          done
+      - run: pnpm run e2e:matrix
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces-matrix
           path: test-results
           if-no-files-found: ignore
 

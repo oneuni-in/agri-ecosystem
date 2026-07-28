@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
@@ -9,10 +9,29 @@ export default defineConfig({
     baseURL: "http://localhost:3003",
     trace: "retain-on-failure",
   },
+  // D29 device matrix. All three projects share the one `webServer` list below
+  // - Playwright boots those once for the whole run, not per project.
+  projects: [
+    // The full suite, exactly as e2e-auth has always run it.
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    // Low-end Android proxy. Only @matrix specs run here: layout, tap targets,
+    // locale, a11y and the core journeys are device-sensitive; API-shaped specs
+    // (bff-path-traversal, sso) are not, and running them 3x buys nothing.
+    { name: "mobile-chrome", use: { ...devices["Pixel 5"] }, grep: /@matrix/ },
+    { name: "mobile-safari", use: { ...devices["iPhone 13"] }, grep: /@matrix/ },
+  ],
   webServer: [
     {
       command: "pnpm run e2e:api",
-      url: "http://127.0.0.1:8000/health",
+      // Probe a peek-ONLY route, not /health. The dev docker stack also serves
+      // :8000 but without OTP_TEST_PEEK, so /health could not tell the two
+      // apart: reuseExistingServer would silently adopt the peek-less API and
+      // every OTP-driven spec then died with "no OTP recorded" - ten opaque
+      // failures for one environment mistake (D09's port-8000 trap, D29).
+      // A peek-enabled API answers 200 {"code":null} for an unknown phone;
+      // one without the flag 404s, so Playwright refuses to reuse it and the
+      // resulting port clash names the problem outright.
+      url: "http://127.0.0.1:8000/auth/otp/_peek?phone=%2B910000000000",
       timeout: 120_000,
       reuseExistingServer: !process.env.CI,
     },

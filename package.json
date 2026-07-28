@@ -15,10 +15,12 @@
     "check:hex": "node scripts/check-hex.mjs",
     "baseline": "node scripts/capture-baseline.mjs",
     "gen:types": "turbo run gen:types",
-    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "e2e": "playwright test --config e2e/playwright.config.ts --project=desktop",
+    "e2e:matrix": "playwright test --config e2e/playwright.config.ts --project=mobile-chrome --project=mobile-safari",
     "e2e:api": "node scripts/e2e-api.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@lhci/cli": "0.15.1",
     "@playwright/test": "1.61.1",
     "playwright": "1.61.1",

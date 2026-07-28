@@ -1,23 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MILK = "http://localhost:3000";
-const API = "http://localhost:8000";
-
-/** Same convention as e2e/milk-home.spec.ts: wait out the silent-SSO bounce
- * before interacting. */
-async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
-}
-
-/** Resolve the seeded vendor's slug from the live API instead of hardcoding
- * it — survives seed renames. */
-async function seededSlug(request: import("@playwright/test").APIRequestContext): Promise<string> {
-  const res = await request.get(`${API}/catalog/milk/home/641001`);
-  expect(res.ok()).toBeTruthy();
-  const data = (await res.json()) as { vendors: { slug: string }[] };
-  expect(data.vendors.length).toBeGreaterThan(0);
-  return data.vendors[0].slug;
-}
+import { MILK, fixtureSlug as seededSlug, waitForHeaderSettled } from "./helpers";
 
 test.describe("D24 vendor profile", () => {
   test("renders with valid LocalBusiness JSON-LD (non-negotiable 2)", async ({

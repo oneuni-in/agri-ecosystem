@@ -89,7 +89,16 @@ export default function VendorMap({
       markersRef.current.set(pin.id, marker);
       bounds.extend([pin.lng, pin.lat]);
     }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 48, maxZoom: 14 });
+    // fitBounds MUST wait for `load`. Called synchronously after the
+    // constructor it is silently dropped - the style has not loaded, so the
+    // camera jump never applies and the map stays at its default world view
+    // (measured: only z=1 tiles ever requested, and every pin collapsed to
+    // within 0.007px of every other, i.e. ~83,000 m/px). That made the map
+    // useless for real data and hid itself in CI, where the single-vendor
+    // fixture has no second pin to reveal the collapse (D29).
+    map.on("load", () => {
+      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 48, maxZoom: 14, animate: false });
+    });
     mapRef.current = map;
     return () => {
       markersRef.current.clear();

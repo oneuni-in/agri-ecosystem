@@ -70,7 +70,14 @@ async function seededBusinessId(ctx: APIRequestContext): Promise<string> {
   expect(home.ok()).toBeTruthy();
   const data = (await home.json()) as { vendors: { slug: string }[] };
   expect(data.vendors.length).toBeGreaterThan(0);
-  const biz = await ctx.get(`${API}/directory/businesses/${data.vendors[0].slug}`);
+  // Resolve the fixture BY SLUG, never by position. milk_home orders by
+  // distance, so `vendors[0]` is whichever listing is nearest the pincode
+  // centroid - a D27 seed vendor locally, the fixture only in CI. This context
+  // is authenticated as the fixture's owner, so picking someone else's
+  // business here fails the ownership check further down (D29).
+  const fixture = data.vendors.find((v) => v.slug === "e2e-milk-vendor");
+  expect(fixture, "seed fixture missing - run seed_e2e_milk.py").toBeTruthy();
+  const biz = await ctx.get(`${API}/directory/businesses/${fixture!.slug}`);
   expect(biz.ok()).toBeTruthy();
   return ((await biz.json()) as { business: { id: string } }).business.id;
 }
@@ -81,6 +88,20 @@ test.describe("D25 post my need", () => {
   }) => {
     const phone = randomPhone();
     await resetOtpThrottle(phone);
+
+    // Snapshot the vendor's queue BEFORE posting. A local DB accumulates
+    // "new" inquiries across runs (24 of them when this was written), so
+    // matching merely on type+pincode picks up some earlier run's need,
+    // belonging to a different random user - the response then lands on that
+    // stale inquiry and THIS user's My-needs stays empty. CI never sees it
+    // because its DB is fresh every run (D29).
+    const vendor = await vendorApi();
+    const businessId = await seededBusinessId(vendor);
+    const before = await vendor.get(`/leads/inbox?business_id=${businessId}&status=new`);
+    expect(before.ok()).toBeTruthy();
+    const preexisting = new Set(
+      ((await before.json()) as { items: { id: string }[] }).items.map((i) => i.id),
+    );
 
     // 1. Guest fills the icon-first form at 641001, then goes through OTP —
     //    the draft survives the login round-trip (progressive account, D07/D11).
@@ -101,15 +122,15 @@ test.describe("D25 post my need", () => {
     await expect(posted).toContainText(/sent to [1-9]/i); // routed_count >= 1 (non-negotiable 1)
 
     // 2. Vendor sees it in the D18 inbox and responds via API.
-    const vendor = await vendorApi();
-    const businessId = await seededBusinessId(vendor);
     const inbox = await vendor.get(`/leads/inbox?business_id=${businessId}&status=new`);
     expect(inbox.ok()).toBeTruthy();
     const { items } = (await inbox.json()) as {
       items: { id: string; type: string; pincode: string }[];
     };
-    const routed = items.find((i) => i.type === "milk_subscription" && i.pincode === "641001");
-    expect(routed).toBeTruthy();
+    const routed = items.find(
+      (i) => !preexisting.has(i.id) && i.type === "milk_subscription" && i.pincode === "641001",
+    );
+    expect(routed, "no NEW inquiry reached the vendor for this run").toBeTruthy();
     const respond = await vendor.post(`/leads/inquiries/${routed!.id}/responses`, {
       data: { body: "We deliver daily at 6am. Fresh cow milk." },
     });

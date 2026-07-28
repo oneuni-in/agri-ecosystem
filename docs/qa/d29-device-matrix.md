@@ -22,9 +22,17 @@ nothing in them is device-dependent.
 
 ## 2. Journeys (spec D29.A)
 
-Local run, 2026-07-28: **desktop 75 passed**; **matrix 81 passed, 5 skipped**
-(every skip documented in §4). CI runs the same two suites as `e2e-auth` and
-`e2e-matrix`.
+Verified in CI, run
+[30349985590](https://github.com/oneuni-in/agri-ecosystem/actions/runs/30349985590)
+(2026-07-28, commit `4241fb1`), all 11 jobs green:
+
+- `e2e-auth` (desktop, full suite): **75 passed**
+- `e2e-matrix` (mobile-chrome + mobile-safari, `@matrix`): **81 passed, 5 skipped**
+
+The 5 skips are all WebKit and all documented in §4: three signed-in journeys
+(discover→call, the signed-in locale sweep, review round-trip) blocked by the
+`Secure`-cookie limit, and two throttled-3G specs that need CDP. These figures
+are from the CI run, not a local one.
 
 | Journey | Spec | desktop | mobile-chrome | mobile-safari |
 |---|---|---|---|---|
@@ -160,7 +168,27 @@ screen readers a control they cannot describe, and put an extra tab stop before
 every card. Click-to-select is unchanged, and map pins are real `<button>`s, so
 pin → card still works from the keyboard.
 
-### 6.5 Test-harness defects that were hiding real state
+### 6.5 Tamil broke the notifications header on a phone
+
+`ta/notifications` overflowed a 393px Pixel 5 by 15px (408px). The
+mark-all-read button sat in a plain flex row pinned `flex-none`, which sizes to
+max-content, so a label longer than the space left over pushes the row past the
+viewport instead of wrapping. English "Mark all read" is 13 characters and
+fits; Tamil is 28 — "அனைத்தையும் படித்ததாகக் குறி" — and does not. Fixed with
+`flex-wrap` plus `max-w-full` on the button.
+
+Two things made this easy to miss. The header only renders with **at least one
+notification** (an empty inbox renders `EmptyState`), and a fresh signup only
+gets one once the notify worker delivers — CI was slow enough, a dev box was
+not. And it is font-metric dependent, so it reproduces on the CI runner's font
+stack and not necessarily locally. The overflow assertion now names the widest
+offending elements, because "the page is 15px too wide" cannot be fixed without
+reproducing it otherwise.
+
+This is D29's non-negotiable 2, and it was found only because the matrix runs a
+real phone viewport.
+
+### 6.6 Test-harness defects that were hiding real state
 
 - **`/c/milk` is not a category.** `DAIRY_CATEGORIES` is
   `veterinarian | feed-supplier | dairy-farm | cooperative`, so that route 404s
@@ -173,6 +201,12 @@ pin → card still works from the keyboard.
   snapshot.
 - **Position-keyed fixtures.** `vendors[0]` is distance-ordered — a D27 demo
   listing locally, the fixture only in CI. Resolved by slug now.
+- **CI had no object storage.** D16 claim evidence uploads through
+  `shared.storage`, which is MinIO-backed, and neither e2e job provided it — so
+  `_store_evidence` 500s and the claim journey died with a generic "something
+  went wrong" naming no cause. Both jobs now start MinIO (as a step, not a
+  service: service containers cannot override the image command and
+  `minio/minio` needs `server /data`).
 - **The suite could adopt the wrong API.** The dev docker stack serves `:8000`
   without `OTP_TEST_PEEK`; probing `/health` could not tell it apart from the
   e2e API, so `reuseExistingServer` took it and ten OTP specs failed with "no

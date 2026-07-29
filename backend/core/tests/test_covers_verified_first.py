@@ -99,11 +99,21 @@ async def test_tier_then_distance_still_order_within_a_verification_band(
 async def test_keyset_pages_across_the_verified_boundary(
     db_session: AsyncSession, tn_geo_sample: None
 ) -> None:
-    """The half that fails silently: no gaps, no dupes, across the boundary."""
+    """The half that fails silently: no gaps, no dupes, across the boundary.
+
+    Creation order deliberately OPPOSES sort order (unverified businesses get
+    the lower UUIDv7 ids but must sort last) and distance varies within each
+    band, so a predicate that degenerates to the id tiebreak alone cannot
+    produce the expected sequence."""
     for i in range(3):
-        await _covered_business(db_session, f"Ver{i}", verification="verified")
+        await _covered_business(db_session, f"Unver{i}", branch_at=(10.9232 + i * 0.02, 76.9686))
     for i in range(3):
-        await _covered_business(db_session, f"Unver{i}")
+        await _covered_business(
+            db_session,
+            f"Ver{i}",
+            verification="verified",
+            branch_at=(10.9232 + i * 0.02, 76.9686),
+        )
     seen: list[str] = []
     cursor: str | None = None
     for _ in range(10):
@@ -114,7 +124,7 @@ async def test_keyset_pages_across_the_verified_boundary(
             break
     assert len(seen) == 6
     assert len(set(seen)) == 6
-    assert all(n.startswith("Ver") for n in seen[:3])
+    assert seen == ["Ver0", "Ver1", "Ver2", "Unver0", "Unver1", "Unver2"]
 
 
 async def test_cursor_round_trip_is_four_fields() -> None:

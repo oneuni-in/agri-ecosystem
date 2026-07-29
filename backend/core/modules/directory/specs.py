@@ -25,6 +25,32 @@ class SpecValidationError(ValueError):
         super().__init__(f"{code}: {field}" if field else code)
 
 
+class OptionMeta(BaseModel):
+    """Presentation metadata for ONE enum option (M1). Never read by
+    validate_specs - it exists so a taxonomy value carries its own labels
+    and icon key, and adding a value needs no frontend change."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: dict[str, str]  # i18n, must include "en" (Translated locales only)
+    icon: str  # icon KEY, resolved to a glyph by the frontend, never a glyph
+
+    @field_validator("label")
+    @classmethod
+    def _label_i18n(cls, v: dict[str, str]) -> dict[str, str]:
+        Translated.from_dict(v)  # locale allowlist + string values
+        if not v.get("en"):
+            raise ValueError("option label must include en")
+        return v
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_shape(cls, v: str) -> str:
+        if not _KEY_RE.fullmatch(v.replace("-", "_")):
+            raise ValueError(f"bad icon key: {v!r}")
+        return v
+
+
 class FieldDef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,6 +59,7 @@ class FieldDef(BaseModel):
     type: str  # string | number | boolean | enum
     unit: str | None = None  # number fields only
     options: list[str] | None = None  # enum fields only, non-empty, unique
+    option_meta: dict[str, OptionMeta] | None = None  # enum fields only
     min: float | None = None  # number fields only
     max: float | None = None
     required: bool = False
@@ -68,8 +95,15 @@ class FieldDef(BaseModel):
         if self.type == "enum":
             if not self.options or len(set(self.options)) != len(self.options):
                 raise ValueError("enum fields need non-empty unique options")
-        elif self.options is not None:
-            raise ValueError("options only allowed on enum fields")
+            if self.option_meta is not None:
+                unknown = set(self.option_meta) - set(self.options)
+                if unknown:
+                    raise ValueError(f"option_meta for non-options: {sorted(unknown)}")
+        else:
+            if self.options is not None:
+                raise ValueError("options only allowed on enum fields")
+            if self.option_meta is not None:
+                raise ValueError("option_meta only allowed on enum fields")
         if self.type != "number" and (
             self.min is not None or self.max is not None or self.unit is not None
         ):

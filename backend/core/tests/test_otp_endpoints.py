@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 from redis.asyncio import Redis
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
@@ -22,6 +23,7 @@ from modules.identity.otp_service import consume_otp_proof
 from modules.identity.service import create_user
 from settings import get_settings
 from shared.db import get_engine, get_session, reset_engine
+from shared.flags import FeatureFlag, reset_flag_cache
 
 REGISTERED = "+919876543210"
 UNKNOWN = "+919876500001"
@@ -165,3 +167,29 @@ async def test_device_fingerprint_is_accepted_and_stored(
     response = await request_otp(client, REGISTERED, device_fingerprint="fp-abc")
     assert response.status_code == 200
     assert int(await redis.get("otp:day:dev:fp-abc") or 0) == 1
+
+
+async def test_request_is_refused_when_signup_is_gated(
+    api: tuple[httpx.AsyncClient, AsyncSession, Redis],
+) -> None:
+    """D30.B: with the gate closed the route answers 503 signup_unavailable.
+
+    The detail string is a contract - web-id keys the "login coming shortly"
+    notice off it, so changing it silently degrades that screen to a generic
+    error.
+    """
+    client, session, _redis = api
+    await session.execute(
+        update(FeatureFlag).where(FeatureFlag.key == "signup_enabled").values(enabled=False)
+    )
+    await session.flush()
+    reset_flag_cache()
+    try:
+        response = await request_otp(client, REGISTERED)
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "signup_unavailable"}
+        # and no code was issued
+        assert MockDriver.last_code(REGISTERED) is None
+    finally:
+        reset_flag_cache()

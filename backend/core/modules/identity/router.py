@@ -28,6 +28,7 @@ from modules.identity.otp_service import (
 )
 from modules.identity.otp_throttle import OtpRateLimited
 from modules.identity.phone import normalize_phone
+from modules.identity.signup_gate import signup_allowed
 from settings import get_settings
 from shared.db import get_session
 from shared.security import SecureRouter
@@ -89,6 +90,12 @@ def _rate_limited(exc: OtpRateLimited) -> HTTPException:
 @otp_router.post("/request", public=True)
 async def request_otp(body: OtpRequestIn, request: Request, session: SessionDep) -> OtpRequestOut:
     """Issue a code. The 200 body is identical for known and unknown phones."""
+    if not await signup_allowed(session=session):
+        # 503, not 403: this is "temporarily unavailable", and must not read as
+        # an auth failure to a client or an uptime monitor. The detail string is
+        # a contract - web-id renders the "login coming shortly" notice off it
+        # rather than a generic error (D30.B).
+        raise HTTPException(status_code=503, detail="signup_unavailable")
     try:
         await issue_otp(
             session,

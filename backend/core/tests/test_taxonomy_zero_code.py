@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.directory import catalog_service, service
+from modules.directory.catalog_models import Vertical
 from modules.directory.specs import parse_fields
 from shared.db import get_session
 from shared.security import register_principal_resolver
@@ -110,3 +111,30 @@ async def test_new_value_is_accepted_as_a_product_spec(
     )
     assert product.specs["category"] == NEW_VALUE
     assert product.schema_version == 3
+
+
+async def test_hidden_vertical_is_indistinguishable_from_missing_for_anonymous(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """This route is public (M1), so the status != "active" check at
+    catalog_router.py is the ONLY thing standing between an anonymous caller
+    and every unlaunched vertical's taxonomy. Give the hidden vertical a real
+    schema version, so the sole reason for a 404 is the status check, not a
+    missing schema row - and require the body to be byte-identical to a
+    vertical that does not exist at all, so a future change can't leak a
+    distinguishing detail string while still returning 404."""
+    hidden = Vertical(slug="secret-vertical", name={"en": "Secret Vertical"}, status="hidden")
+    db_session.add(hidden)
+    await db_session.flush()
+    await catalog_service.create_schema_version(
+        db_session,
+        vertical_slug="secret-vertical",
+        fields_raw=[{"key": "note", "label": {"en": "Note"}, "type": "string"}],
+    )
+
+    hidden_res = await client.get("/catalog/verticals/secret-vertical/schema")
+    missing_res = await client.get("/catalog/verticals/does-not-exist/schema")
+
+    assert hidden_res.status_code == 404
+    assert missing_res.status_code == 404
+    assert hidden_res.json() == missing_res.json()

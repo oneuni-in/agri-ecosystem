@@ -30,6 +30,7 @@ export function LoginFlow({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [gated, setGated] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [handle, setHandle] = useState("");
   const [handleState, setHandleState] = useState<string | null>(null);
@@ -62,6 +63,13 @@ export function LoginFlow({
       setCooldown(RESEND_SECONDS);
       setStep("otp");
     } catch (err) {
+      // 503 signup_unavailable is the D30 launch gate, not a user mistake:
+      // show the explanation instead of "enter a valid mobile number", which
+      // would send people round the same failing loop retyping a fine number.
+      if (err instanceof ApiError && err.status === 503 && err.detail === "signup_unavailable") {
+        setGated(true);
+        return;
+      }
       setError(
         err instanceof ApiError && err.status === 429 ? t("otp.locked") : t("phone.invalid"),
       );
@@ -135,6 +143,15 @@ export function LoginFlow({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-center gap-4 px-4 py-8">
       <Card className="p-6">
+        {/* The D30 launch gate wins over every step: signup is closed until
+            DLT approval lands, so there is no partial flow worth showing. */}
+        {gated ? (
+          <div className="flex flex-col gap-2">
+            <h1 className="font-display text-xl font-bold text-ink">{t("gated.title")}</h1>
+            <p className="text-sm text-sub">{t("gated.body")}</p>
+          </div>
+        ) : (
+          <>
         {step === "phone" && (
           <form
             className="flex flex-col gap-3"
@@ -268,6 +285,8 @@ export function LoginFlow({
               />
             </div>
           </div>
+        )}
+          </>
         )}
       </Card>
     </main>

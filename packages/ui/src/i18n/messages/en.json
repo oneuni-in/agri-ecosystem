@@ -139,6 +139,10 @@
         },
         "devices": "Manage devices",
         "error": "That didn't work — try again"
+      },
+      "gated": {
+        "title": "Login coming shortly",
+        "body": "We're finishing SMS verification with our provider. The rest of Milk.in works without an account."
       }
     },
     "categories": {

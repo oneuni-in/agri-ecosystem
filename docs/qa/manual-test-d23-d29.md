@@ -121,5 +121,9 @@ server misbehaves after a crashed session.
 
 ## Known-open items (do not file as new bugs)
 
-- Landing perf CI floor temporarily 0.80 (issue #42) — must return to 0.90 by D32.
+- Landing perf CI floor temporarily 0.80 (issue #45) — must return to 0.90 by D32.
 - Real-device push confirmation is owner-run hardware work (checklist above).
+
+---
+
+*Perf tracking moved from #42 to [#45](https://github.com/oneuni-in/agri-ecosystem/issues/45): the original issue was deleted, and #45 carries the accumulated findings forward.*

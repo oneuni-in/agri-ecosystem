@@ -23,6 +23,7 @@ from modules.directory.models import Category
 from modules.directory.search_sync import business_event_payload, product_event_payload
 from modules.identity.models import User
 from shared.db import get_sessionmaker
+from shared.dev_only import refuse_in_prod
 from shared.events import publish
 
 # A few realistic milk products (mirrors data/seeds/coimbatore/products.csv).
@@ -35,6 +36,7 @@ DEFAULT_PRODUCTS = [
 
 
 async def run(args: argparse.Namespace) -> None:
+    refuse_in_prod("make_business.py")
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         owner = await session.scalar(select(User).where(User.phone == args.phone))

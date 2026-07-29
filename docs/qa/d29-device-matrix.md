@@ -232,11 +232,11 @@ Emulation cannot cover these. Tick and date each.
 | Item | Status | Deadline |
 |---|---|---|
 | **Web push has never completed a real subscription** | Open. Not a code bug: headless Chromium reports notifications denied and has no FCM channel, so `pushManager.subscribe()` cannot complete in automation. `notify.push_subscriptions` has never held a row. 2-minute manual proof per `docs/runbooks/web-push.md`. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is inlined at **build** time, so it must be present during `next build` in the deploy pipeline. | **D31**, mandatory before D32 |
-| **Issue #42 — landing perf floor 0.80, not 0.90** | Open. D29's time-boxed attempt found the standard lever cannot work: `experimental.optimizeCss` (critters) runs at build time over prerendered HTML, but `ƒ /[locale]/[city]/[pincode]` is dynamically server-rendered, so critical CSS is never inlined for exactly these pages. Reverted. Remaining paths — make the pages static/ISR over covered pincodes, or runtime inlining — are both larger than a QA spec. `cssChunking: false` still does not merge the two stylesheets (25.8KB + 12.3KB; the cost is round trips, not bytes). | before **D32** |
+| **Issue #45 — landing perf floor 0.80, not 0.90** | Open. D29's time-boxed attempt found the standard lever cannot work: `experimental.optimizeCss` (critters) runs at build time over prerendered HTML, but `ƒ /[locale]/[city]/[pincode]` is dynamically server-rendered, so critical CSS is never inlined for exactly these pages. Reverted. Remaining paths — make the pages static/ISR over covered pincodes, or runtime inlining — are both larger than a QA spec. `cssChunking: false` still does not merge the two stylesheets (25.8KB + 12.3KB; the cost is round trips, not bytes). | before **D32** |
 | **Co-located map pins are mutually unclickable** | Open, D24. `VendorMap.spread()` offsets duplicates by 0.0004° (~44m), which is ~1.3px at the zoom `fitBounds` settles on — far too small to separate a 28px marker. The D27 import puts vendors on the pincode centroid, so real data stacks them. Proper fix is clustering/spiderfy, i.e. a feature. `map-sync.spec.ts` works around it by clicking the topmost (last-rendered) pin. | unscheduled |
 | **Hindi readers see Tamil sublabels** | Open, by design. `MILK_TYPE_META` hardcodes `vern` as Tamil for every locale — "English + mother tongue" for a TN-first product. Spec D29.C asks for filters *in Tamil*, which holds. Whether `/hi` should carry Hindi sublabels is a product decision. | unscheduled |
 | **`.bg-call` / `.bg-glass` contrast** | Open, owner-deferred. See §5. | unscheduled |
-| **CI Lighthouse fixture has one vendor** | Open. The gate protects the shell but not listing-count regressions. Deliberately not changed in D29: it would alter the very page issue #42 measures, and the plan gated that on perf clearing first, which it did not. | with #42 |
+| **CI Lighthouse fixture has one vendor** | Open. The gate protects the shell but not listing-count regressions. Deliberately not changed in D29: it would alter the very page issue #45 measures, and the plan gated that on perf clearing first, which it did not. | with #45 |
 | **Local Lighthouse is unreliable on Windows** | Informational. Run 3 of 3 crashed (exit 1) during the D29 baseline. Measure perf in CI (ubuntu), not locally. | — |
 
 ## 9. Reproducing
@@ -258,3 +258,7 @@ pnpm run e2e:matrix
 
 If OTP specs fail with "no OTP recorded", the dev docker API is holding `:8000`
 without `OTP_TEST_PEEK` — `docker stop agri-dev-api-1` and re-run.
+
+---
+
+*Perf tracking moved from #42 to [#45](https://github.com/oneuni-in/agri-ecosystem/issues/45): the original issue was deleted, and #45 carries the accumulated findings forward.*

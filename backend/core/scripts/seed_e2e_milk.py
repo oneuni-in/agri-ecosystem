@@ -29,6 +29,7 @@ from modules.directory.models import Branch, Business
 from modules.identity import service as identity_service
 from modules.identity.models import Role, UserRole
 from shared.db import get_sessionmaker
+from shared.dev_only import refuse_in_prod
 
 _OWNER_PHONE = "+919000000023"
 _BUSINESS_NAME = "E2E Milk Vendor"
@@ -140,6 +141,7 @@ async def _ensure_claimable(session: AsyncSession) -> None:
 
 
 async def run() -> None:
+    refuse_in_prod("seed_e2e_milk.py")
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         existing = await session.scalar(select(Business).where(Business.name == _BUSINESS_NAME))

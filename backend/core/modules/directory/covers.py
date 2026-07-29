@@ -140,6 +140,21 @@ _CATEGORY_PREDICATE = """
   )
 """
 
+# M1: the milk *product* taxonomy (specs->>'category'), orthogonal to the D27
+# business category above - both may be supplied and then AND together.
+# Same product predicate as milk_home._COVERED_PINCODES_SQL; keep them
+# identical so "sells this" cannot mean two things. Raw SQL bypasses the ORM
+# soft-delete listener, hence the explicit deleted_at IS NULL (module rule).
+_PRODUCT_CATEGORY_PREDICATE = """
+  AND EXISTS (
+      SELECT 1 FROM directory.products pr
+      WHERE pr.business_id = b.id AND pr.vertical_slug = 'milk'
+        AND pr.specs->>'category' = :product_category
+        AND pr.moderation_status = 'approved' AND pr.status = 'active'
+        AND pr.deleted_at IS NULL
+  )
+"""
+
 
 async def covers(
     session: AsyncSession,
@@ -148,7 +163,11 @@ async def covers(
     cursor: str | None = None,
     limit: int = DEFAULT_PAGE_SIZE,
     category: str | None = None,
+    product_category: str | None = None,
 ) -> CoversPage:
+    """Filters are pushed into the SQL, never applied to the returned page:
+    the keyset must walk the FILTERED set or a match ranked past the first
+    page becomes an invisible false empty state (the M1 ghee defect)."""
     if limit < 1:
         raise ValueError(f"limit must be >= 1, got {limit}")
     limit = min(limit, MAX_PAGE_SIZE)
@@ -157,6 +176,9 @@ async def covers(
     if category is not None:
         sql += _CATEGORY_PREDICATE
         params["category"] = category
+    if product_category is not None:
+        sql += _PRODUCT_CATEGORY_PREDICATE
+        params["product_category"] = product_category
     if cursor is not None:
         cursor_verified, cursor_tier, cursor_distance, cursor_id = decode_covers_cursor(cursor)
         sql += _CURSOR_PREDICATE

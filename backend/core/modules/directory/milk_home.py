@@ -185,6 +185,33 @@ async def covered_pincodes(
     return items, next_cursor
 
 
+async def _approved_milk_products(
+    session: AsyncSession, business_ids: Sequence[uuid.UUID]
+) -> list[Product]:
+    """The one definition of a listable milk product. Must stay in step with
+    covers()' _PRODUCT_CATEGORY_PREDICATE and _COVERED_PINCODES_SQL above."""
+    if not business_ids:
+        return []
+    return list(
+        await session.scalars(
+            select(Product).where(
+                Product.business_id.in_(business_ids),
+                Product.vertical_slug == "milk",
+                Product.moderation_status == "approved",
+                Product.status == "active",
+                Product.deleted_at.is_(None),
+            )
+        )
+    )
+
+
+def _group_by_business(products: Sequence[Product]) -> dict[uuid.UUID, list[Product]]:
+    by_biz: dict[uuid.UUID, list[Product]] = {}
+    for product in products:
+        by_biz.setdefault(product.business_id, []).append(product)
+    return by_biz
+
+
 async def milk_home(
     session: AsyncSession,
     *,
@@ -227,38 +254,32 @@ async def milk_home(
     state = await session.scalar(select(State).where(State.id == district.state_id))
     state_name = state.name if state is not None else None
 
-    page = await covers(session, pincode=pincode, cursor=cursor, limit=limit)
-    business_ids = [item.id for item in page.items]
-    if not business_ids:
-        return MilkHomeResult(
-            scope="tn_no_vendors",
-            district=district.name,
-            state=state_name,
-            filters=filters,
-            product_categories=product_categories,
-            bands=[],
-            seller_count=0,
-            vendors=[],
-            brands=[],
-            next_cursor=None,
+    # Two covers() reads when (and only when) a product-category filter is
+    # active. `scope_page` is deliberately UNFILTERED: `scope` and the price
+    # banner describe coverage at this pincode, not the caller's chip, so a
+    # filter that matches nothing must still yield covered + empty cards -
+    # never tn_no_vendors. `page` is the filtered one and owns the cards and
+    # next_cursor, so the keyset walks the FILTERED set (M1: a ghee seller
+    # ranked past page 1 used to vanish behind a false empty state).
+    category_filter = product_category if product_category not in (None, "all") else None
+    scope_page = await covers(session, pincode=pincode, cursor=cursor, limit=limit)
+    page = scope_page
+    if category_filter is not None:
+        page = await covers(
+            session,
+            pincode=pincode,
+            cursor=cursor,
+            limit=limit,
+            product_category=category_filter,
         )
 
-    products = list(
-        await session.scalars(
-            select(Product).where(
-                Product.business_id.in_(business_ids),
-                Product.vertical_slug == "milk",
-                Product.moderation_status == "approved",
-                Product.status == "active",
-                Product.deleted_at.is_(None),
-            )
-        )
-    )
-    by_biz: dict[uuid.UUID, list[Product]] = {}
-    for product in products:
-        by_biz.setdefault(product.business_id, []).append(product)
-
-    if not by_biz:
+    products = await _approved_milk_products(session, [item.id for item in scope_page.items])
+    # 'covered' = some business covering this pincode has a listable milk
+    # product. The unfiltered window proves it; so does any row on the
+    # filtered page, whose SQL predicate already demands an approved+active
+    # milk product - that clause is what stops a match found deeper than the
+    # unfiltered window from being discarded as tn_no_vendors.
+    if not products and not (category_filter is not None and page.items):
         return MilkHomeResult(
             scope="tn_no_vendors",
             district=district.name,
@@ -273,8 +294,14 @@ async def milk_home(
         )
 
     # Banner + seller_count are UNFILTERED (reflect all milk on offer here,
-    # not just the milk_type chip the caller has selected).
+    # not just the chips the caller has selected).
     bands, seller_count = compute_price_banner(products)
+
+    by_biz = _group_by_business(
+        products
+        if category_filter is None
+        else await _approved_milk_products(session, [item.id for item in page.items])
+    )
 
     vendors: list[MilkCard] = []
     brands: list[MilkCard] = []

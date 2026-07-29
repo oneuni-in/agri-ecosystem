@@ -215,7 +215,7 @@ owner's judgement, and neither blocks launch — forward migration is unaffected
 |---|---|---|
 | Critical | 0 | — |
 | High | 1 | §5.1 fixture seeds could write to production — **FIXED** |
-| Medium | 2 | §4.1 uncapped anonymous inquiries; §7.1 migration 0026 irreversible with data |
+| Medium | 3 | §4.1 uncapped anonymous inquiries; §4.2 per-path rate-limit keying does not bound scraping; §7.1 migration 0026 irreversible with data |
 | Informational | 1 | §3.1 validation precedes authorisation |
 
 **Zero Critical or High findings remain open**, which is D30's non-negotiable 1.
@@ -231,6 +231,8 @@ owner's judgement, and neither blocks launch — forward migration is unaffected
 ### Deferred, with reasons
 - **§4.1** — proportionate control is the edge tier; a per-business cap wants
   real launch traffic before tuning.
+- **§4.2** — mitigated at the edge (Cloudflare rule 3.4) rather than in the
+  app; tightening the per-path limiter would punish genuine browsing.
 - **§7.1** — belongs to a migration change, needs the owner's call on
   reversible-vs-documented-irreversible.
 - **§3.1** — framework behaviour, no action.

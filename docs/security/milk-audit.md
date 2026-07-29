@@ -100,6 +100,31 @@ integrity, so it is not a High. The proportionate control is the edge tier —
 per-business daily cap risks suppressing genuine demand at launch, which wants
 real traffic data before it is tuned. Revisit if abuse appears.
 
+### 4.2 — The app rate limiter is keyed per path, so it does not bound scraping *(Medium, mitigated at the edge)*
+
+`rate_limit()` builds its key as `ratelimit:{client_ip}:{request.url.path}`
+(`shared/security.py:154`) — **including the path parameters**. Measured
+directly: a burst of 80 requests to one pincode returns exactly 60 × 200 then
+20 × 429, and the 61st request to a *different* pincode succeeds immediately.
+
+So the effective allowance is 60/min **per pincode**, not 60/min for the browse
+surface. Walking Tamil Nadu's ~10,000 pincodes yields a ~600,000/min budget from
+a single IP without ever tripping the limiter. The same applies to
+`/directory/businesses/{slug}` — one bucket per business.
+
+This is the correct design for *fairness* (a user browsing many pages is not
+punished for it) and it is what the limiter was built for. It is simply not a
+scraping control, and should not be mistaken for one.
+
+Discovered while building the D30.D load test, which initially measured the
+limiter rather than the application: 86% of requests returned 429 because six
+pincodes were being hammered from one IP.
+
+**Mitigation** is the edge tier: `docs/runbooks/cloudflare.md` rule 3.4 applies
+a volumetric limit across the whole browse surface, which is the layer that can
+see the aggregate a per-path counter cannot. No application change proposed —
+tightening the app limiter would penalise genuine browsing to no benefit.
+
 ## 5 — Seed and fixture data
 
 ### 5.1 — Fixture seeds could write to production *(High — FIXED in this spec)*
@@ -215,8 +240,15 @@ owner's judgement, and neither blocks launch — forward migration is unaffected
   `docs/runbooks/cloudflare.md` but **not applied**: the VPS is provisioned at
   D31 and DNS cutover is D32, so no origin exists to put them in front of.
   Applies at D31.
-- **Non-negotiable 4 (k6 within budget).** Local baseline only; dev-mode Next on
-  a workstation is not a production p95. Re-run against staging at D31.
+- **Non-negotiable 4 (k6 within budget).** Local baseline recorded
+  (`load/README.md`): under 500 concurrent browsers the application does **not**
+  start erroring (0.02% failures against a <1% bar) and the D18 reveal contract
+  held on every one of ~3,400 profile responses. But the 13.16s p95 is a
+  single-process dev server saturating one CPU, not a production figure, so the
+  budget half of this non-negotiable is **unmet**. Re-measure on staging at D31.
+  The auth scenario is throttle-bound by design — 17 of 2,701 OTP requests
+  issued, the rest 429 — which is the D07 per-IP ladder behaving exactly as it
+  should against single-source load.
 - **Issue #42** — landing-page Lighthouse floor still 0.80 against the
   Constitution's 0.90, carried from D29. Still due before D32.
 

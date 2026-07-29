@@ -254,6 +254,18 @@ owner's judgement, and neither blocks launch — forward migration is unaffected
 - **Issue #42** — landing-page Lighthouse floor still 0.80 against the
   Constitution's 0.90, carried from D29. Still due before D32.
 
+  New evidence from this spec's CI: **web-milk home scored 0.88 against its
+  0.90 floor, then passed on a re-run of the identical commit** (run
+  30426975792). D30 changed 31 frontend lines, none of them in web-milk — the
+  only thing reaching that page was +183 bytes of i18n JSON, which cannot cost
+  two performance points on a 562ms-RTT profile. So the home page now sits close
+  enough to its floor that ordinary runner noise tips it under, the same
+  headroom problem #42 describes on the landing pages. The threshold was NOT
+  lowered; "no gate soft-disable" is on this spec's DO-NOT list, and a gate
+  re-baselined every time it flakes stops being a gate. It does mean #42's real
+  fix (static/ISR over covered pincodes) buys margin on home as well, and that
+  both pages will keep flaking until something buys it.
+
 ## The DLT decision (D30.B, non-negotiable 2)
 
 DLT registration **had not been started** when D30 began. Approval is a

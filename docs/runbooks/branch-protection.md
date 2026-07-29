@@ -87,3 +87,32 @@ gh api repos/oneuni-in/agri-ecosystem/rulesets | python -m json.tool
 | 2026-07-11 | dev, main | (pending human: add `e2e-auth` to the ruleset's required checks) | D09 adds the 8th required check: `e2e-auth` (Playwright auth flows) |
 | 2026-07-14 | dev, main | (pending human: add `backend-storm` to the ruleset's required checks) | D14 adds the 9th required check: `backend-storm` (10k-coins-storm concurrency proof, D13) |
 | 2026-07-16 | dev, main | (pending human: add `docker-build` to the ruleset's required checks) | adds the 10th required check: `docker-build` (builds backend/core/Dockerfile + validates docker-compose.dev.yml; a stale/broken local image was invisible to CI until this job existed) |
+| 2026-07-29 | dev, main | claude (verified by fresh API read) | **`e2e-matrix` ADDED to the live ruleset** (D29 device matrix: mobile-chrome + mobile-safari). Required checks now number **8**. |
+| 2026-07-29 | dev, main | claude | **Audit of the live ruleset against this document.** Three checks listed above as "pending human" were never added and are STILL NOT ENFORCED: `e2e-auth` (since 2026-07-11), `backend-storm` (since 2026-07-14), `docker-build` (since 2026-07-16). All three run on every PR and go green, but a PR could merge with any of them red. Owner decision needed - see the note below. |
+
+
+## Live-vs-documented gap (found 2026-07-29)
+
+The live ruleset was read directly from the API
+(`gh api repos/oneuni-in/agri-ecosystem/rulesets/18756958`) and compared with
+this document. It enforces:
+
+`web` · `design-tokens` · `backend` · `public-routes` · `security` ·
+`lighthouse` · `conventional-commits` · `e2e-matrix`
+
+**Three documented required checks are absent from it**, each carried as
+"pending human" in the log above and never actioned:
+
+| Check | Documented since | What is unguarded without it |
+|---|---|---|
+| `e2e-auth` | 2026-07-11 (D09) | every Playwright journey - auth, SSO, the whole D23-D29 milk surface |
+| `backend-storm` | 2026-07-14 (D14) | the D13 10k-coins-storm concurrency proof |
+| `docker-build` | 2026-07-16 (D16) | a broken Dockerfile or a compose file drifted from pyproject |
+
+They run on every PR and report status; they simply do not block a merge. The
+practical effect is that the e2e suite - the single most expensive signal in CI,
+and the one D29 and D30 both leaned on - has never gated anything.
+
+Adding them is a one-line change to the same ruleset and was deliberately NOT
+done alongside `e2e-matrix`: it changes merge behaviour for three more jobs and
+is the owner's policy call, not a documentation fix.

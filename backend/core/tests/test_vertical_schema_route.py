@@ -62,7 +62,10 @@ async def test_unknown_vertical_404(api: tuple[httpx.AsyncClient, AsyncSession])
     assert response.status_code == 404
 
 
-async def test_requires_auth(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+async def test_anonymous_access_allowed(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    """PUBLIC (M1): web-milk SSRs the taxonomy with no user session, so the
+    route must serve anonymous requests, not just logged-in vendors."""
     http, _session = api
     response = await http.get("/catalog/verticals/milk/schema")
-    assert response.status_code == 401
+    assert response.status_code == 200
+    assert response.json()["vertical_slug"] == "milk"

@@ -5,10 +5,10 @@ business's primary_pincode; UNLOCATABLE_M sentinel when neither resolves so
 every covering business still appears (last). Distances are integer metres so
 the (distance_m, id) keyset comparison is exact.
 
-Keyset, not offset: the cursor encodes (tier_rank, distance_m, last_id) and
-the page predicate is a strict lexicographic step - deep-offset enumeration
-is structurally impossible (THREAT: covers() scraping; rate limit is the
-other half of that defence).
+Keyset, not offset: the cursor encodes (verified_rank, tier_rank, distance_m,
+last_id) and the page predicate is a strict lexicographic step - deep-offset
+enumeration is structurally impossible (THREAT: covers() scraping; rate limit
+is the other half of that defence).
 
 Raw SQL bypasses the ORM soft-delete filter, so deleted_at IS NULL is
 enforced explicitly on both businesses and branches.
@@ -48,18 +48,20 @@ class CoversPage:
     next_cursor: str | None
 
 
-def encode_covers_cursor(tier_rank: int, distance_m: int, last_id: uuid.UUID) -> str:
-    raw = f"{tier_rank}:{distance_m}:{last_id.hex}".encode()
+def encode_covers_cursor(
+    verified_rank: int, tier_rank: int, distance_m: int, last_id: uuid.UUID
+) -> str:
+    raw = f"{verified_rank}:{tier_rank}:{distance_m}:{last_id.hex}".encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-def decode_covers_cursor(cursor: str) -> tuple[int, int, uuid.UUID]:
+def decode_covers_cursor(cursor: str) -> tuple[int, int, int, uuid.UUID]:
     try:
         padded = cursor + "=" * (-len(cursor) % 4)
         parts = base64.urlsafe_b64decode(padded).decode().split(":")
-        if len(parts) != 3:  # pre-D26 2-field cursors land here too
-            raise ValueError(f"expected 3 fields, got {len(parts)}")
-        return int(parts[0]), int(parts[1]), uuid.UUID(hex=parts[2])
+        if len(parts) != 4:  # pre-D26 2-field and pre-M1 3-field cursors land here
+            raise ValueError(f"expected 4 fields, got {len(parts)}")
+        return int(parts[0]), int(parts[1]), int(parts[2]), uuid.UUID(hex=parts[3])
     except (ValueError, TypeError) as exc:
         raise InvalidCursorError(f"malformed cursor: {cursor!r}") from exc
 
@@ -79,6 +81,11 @@ _PRIMARY_DISTANCE = _haversine_m("q.lat", "q.lon", "p.centroid_lat", "p.centroid
 
 _TIER_RANK = "CASE WHEN b.subscription_tier = 'premium' THEN 0 ELSE 1 END"
 
+# Only 'verified' ranks up. 'pending' sorts with 'unverified' on purpose:
+# the D16 admin decision is the sole path to the badge AND to this boost,
+# so queueing a claim cannot buy placement (M1 threat model).
+_VERIFIED_RANK = "CASE WHEN b.verification_status = 'verified' THEN 0 ELSE 1 END"
+
 _BASE_SQL = f"""
 WITH q AS (
     SELECT centroid_lat AS lat, centroid_lon AS lon
@@ -86,7 +93,7 @@ WITH q AS (
 )
 SELECT b.id, b.name, b.slug, b.type, b.verification_status,
        b.subscription_tier, b.primary_pincode, d.distance_m, nb.lat, nb.lng,
-       {_TIER_RANK} AS tier_rank
+       {_VERIFIED_RANK} AS verified_rank, {_TIER_RANK} AS tier_rank
 FROM directory.businesses b
 JOIN directory.business_coverage c
   ON c.business_id = b.id AND c.pincode = :pincode
@@ -115,13 +122,15 @@ WHERE b.status = 'active' AND b.deleted_at IS NULL
 """
 
 _CURSOR_PREDICATE = f"""
-  AND ({_TIER_RANK} > :cursor_tier
-       OR ({_TIER_RANK} = :cursor_tier AND d.distance_m > :cursor_distance)
-       OR ({_TIER_RANK} = :cursor_tier AND d.distance_m = :cursor_distance
-           AND b.id > :cursor_id))
+  AND ({_VERIFIED_RANK} > :cursor_verified
+       OR ({_VERIFIED_RANK} = :cursor_verified AND {_TIER_RANK} > :cursor_tier)
+       OR ({_VERIFIED_RANK} = :cursor_verified AND {_TIER_RANK} = :cursor_tier
+           AND d.distance_m > :cursor_distance)
+       OR ({_VERIFIED_RANK} = :cursor_verified AND {_TIER_RANK} = :cursor_tier
+           AND d.distance_m = :cursor_distance AND b.id > :cursor_id))
 """
 
-_ORDER_LIMIT = "\nORDER BY tier_rank, d.distance_m, b.id\nLIMIT :lim"
+_ORDER_LIMIT = "\nORDER BY verified_rank, tier_rank, d.distance_m, b.id\nLIMIT :lim"
 
 _CATEGORY_PREDICATE = """
   AND EXISTS (
@@ -149,9 +158,10 @@ async def covers(
         sql += _CATEGORY_PREDICATE
         params["category"] = category
     if cursor is not None:
-        cursor_tier, cursor_distance, cursor_id = decode_covers_cursor(cursor)
+        cursor_verified, cursor_tier, cursor_distance, cursor_id = decode_covers_cursor(cursor)
         sql += _CURSOR_PREDICATE
         params |= {
+            "cursor_verified": cursor_verified,
             "cursor_tier": cursor_tier,
             "cursor_distance": cursor_distance,
             "cursor_id": cursor_id,
@@ -174,6 +184,7 @@ async def covers(
     ]
     next_cursor = (
         encode_covers_cursor(
+            0 if items[-1].verification_status == "verified" else 1,
             0 if items[-1].subscription_tier == "premium" else 1,
             items[-1].distance_m,
             items[-1].id,

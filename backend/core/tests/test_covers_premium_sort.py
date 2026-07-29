@@ -123,4 +123,9 @@ async def test_old_two_field_cursor_is_invalid(
 
 def test_cursor_roundtrip() -> None:
     last_id = uuid.uuid4()
-    assert decode_covers_cursor(encode_covers_cursor(0, 987, last_id)) == (0, 987, last_id)
+    assert decode_covers_cursor(encode_covers_cursor(1, 0, 987, last_id)) == (
+        1,
+        0,
+        987,
+        last_id,
+    )

@@ -73,7 +73,7 @@ async def _approved_product(
         business_id=business.id,
         vertical_slug="milk",
         name=name,
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     await catalog_service.moderate_product(session, product_id=product.id, approve=True)
     return product.id
@@ -86,7 +86,11 @@ async def test_create_product_anon_401(
     business = await _business(session, USER_A)
     response = await client.post(
         f"/catalog/businesses/{business.id}/products",
-        json={"vertical_slug": "milk", "name": "A2 Milk", "specs": {"milk_type": "a2"}},
+        json={
+            "vertical_slug": "milk",
+            "name": "A2 Milk",
+            "specs": {"category": "milk", "milk_type": "a2"},
+        },
     )
     assert response.status_code == 401
 
@@ -101,14 +105,21 @@ async def test_create_product_owner_pins_version(
         json={
             "vertical_slug": "milk",
             "name": "A2 Full Cream",
-            "specs": {"milk_type": "a2", "fat_percent": 4.5, "pack_size": "500ml"},
+            "specs": {
+                "category": "milk",
+                "milk_type": "a2",
+                "fat_percent": 4.5,
+                "pack_size": "500ml",
+            },
             "price_display": "₹80/500ml",
         },
         headers=_as(USER_A),
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["schema_version"] == 1
+    # M1 (0029): the active milk schema starts each test at v2 (db_session
+    # rolls back per-test, so this is stable, not a race with other tests).
+    assert body["schema_version"] == 2
     assert body["moderation_status"] == "pending"
     assert body["slug"] == "a2-full-cream"
     assert body["images"] == []
@@ -121,7 +132,11 @@ async def test_create_product_bad_specs_422(
     business = await _business(session, USER_A)
     response = await client.post(
         f"/catalog/businesses/{business.id}/products",
-        json={"vertical_slug": "milk", "name": "Goat Milk", "specs": {"milk_type": "goat"}},
+        json={
+            "vertical_slug": "milk",
+            "name": "Goat Milk",
+            "specs": {"category": "milk", "milk_type": "goat"},
+        },
         headers=_as(USER_A),
     )
     assert response.status_code == 422
@@ -135,7 +150,11 @@ async def test_create_product_idor_404(
     business = await _business(session, USER_A)
     response = await client.post(
         f"/catalog/businesses/{business.id}/products",
-        json={"vertical_slug": "milk", "name": "Stolen", "specs": {"milk_type": "cow"}},
+        json={
+            "vertical_slug": "milk",
+            "name": "Stolen",
+            "specs": {"category": "milk", "milk_type": "cow"},
+        },
         headers=_as(USER_B),
     )
     assert response.status_code == 404
@@ -152,7 +171,7 @@ async def test_public_product_detail_pending_then_approved(
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Toned",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     pending = await client.get(f"/catalog/products/{product.slug}")
     assert pending.status_code == 404

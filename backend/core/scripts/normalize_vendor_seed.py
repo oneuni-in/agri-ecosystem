@@ -48,7 +48,8 @@ not change, only which raw columns feed it):
 - specs_json, if present, is used as-is (parsed + schema-validated).
   Otherwise, for vertical_slug == "milk" (the only vertical seeded so
   far - D17), specs are built from milk_type/fat_percent/pack_size
-  (fat_percent/pack_size optional, milk_type required by the schema).
+  (fat_percent/pack_size optional, milk_type required by the schema) plus
+  an always-stamped category="milk" (M1/0029 - see MILK_SPEC_FIELDS).
 - ref is OPTIONAL and blank by default. Rows sharing a non-blank ref
   merge into a SINGLE business (e.g. a brand like Aavin with a dozen
   parlours): the first row of the group is canonical for the business
@@ -96,12 +97,43 @@ CATEGORY_SLUGS = frozenset(
     | {"veterinarian", "feed-supplier", "dairy-farm", "cooperative"}
 )
 
-# Mirrors alembic/versions/0018_catalog_v1.py MILK_SCHEMA_V1_FIELDS exactly.
-# Duplicated rather than imported - migrations are one-shot scripts, not a
-# stable import surface - but kept byte-for-byte identical so this script
-# validates products.csv specs_json for real (modules.directory.specs is
-# the actual runtime contract), not decoratively.
+# Started as an exact mirror of alembic/versions/0018_catalog_v1.py
+# MILK_SCHEMA_V1_FIELDS. M1 (0029) published a real v2 that makes `category`
+# required on every write, so `_build_product` below now always stamps
+# category="milk" (the only category this tool's raw-sheet contract
+# produces today) - the `category` field here exists so that stamped value
+# validates for real. It is a PARTIAL v2 mirror only: milk_type stays
+# required (matching this tool's own raw-sheet contract, not yet redesigned
+# for the multi-category taxonomy) and does not carry option_meta (never
+# consulted by validate_specs). Task 7 owns replacing this with the full
+# byte-for-byte v2 mirror and redesigning the raw-sheet contract around
+# `category`. Duplicated rather than imported - migrations are one-shot
+# scripts, not a stable import surface.
 MILK_SPEC_FIELDS: list[dict[str, object]] = [
+    {
+        "key": "category",
+        "label": {"en": "Category", "ta": "வகை", "hi": "श्रेणी"},
+        "type": "enum",
+        "options": [
+            "milk",
+            "ghee",
+            "paneer",
+            "milk-powder",
+            "yogurt",
+            "lassi",
+            "curd",
+            "buttermilk",
+            "cheese",
+            "butter",
+            "cream",
+            "khoa",
+            "flavoured-milk",
+        ],
+        "required": True,
+        "filterable": True,
+        "facet": True,
+        "group": "basics",
+    },
     {
         "key": "milk_type",
         "label": {"en": "Milk type", "ta": "பால் வகை", "hi": "दूध का प्रकार"},
@@ -287,7 +319,11 @@ def _build_product(
         except json.JSONDecodeError:
             return None, "invalid_specs_json"
     elif vertical_slug == "milk":
-        specs = {}
+        # M1 (0029): category is required by the real active schema. This
+        # tool's raw-sheet contract has no category column yet (Task 7),
+        # so every row it emits is stamped with the only value it can be
+        # truthful about - every product built here IS the milk category.
+        specs = {"category": "milk"}
         milk_type = raw.get("milk_type", "").strip().lower()
         if milk_type:
             specs["milk_type"] = milk_type

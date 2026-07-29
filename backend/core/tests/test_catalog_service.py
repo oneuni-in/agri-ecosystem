@@ -33,21 +33,23 @@ async def _business(session: AsyncSession, owner: uuid.UUID) -> Business:
 
 
 async def test_active_schema_is_highest_version(db_session: AsyncSession) -> None:
-    v1 = await catalog_service.active_schema(db_session, "milk")
-    assert v1 is not None
-    assert v1.version == 1
-    v2 = await catalog_service.create_schema_version(
+    # M1 (0029) seeded a real v2 - assert MAX(version) resolution relative
+    # to whatever is active, not a hardcoded absolute version number.
+    base = await catalog_service.active_schema(db_session, "milk")
+    assert base is not None
+    starting_version = base.version
+    v_next = await catalog_service.create_schema_version(
         db_session,
         vertical_slug="milk",
         fields_raw=[
-            *v1.fields,
+            *base.fields,
             {"key": "source_farm", "label": {"en": "Source farm"}, "type": "string"},
         ],
     )
-    assert v2.version == 2
+    assert v_next.version == starting_version + 1
     latest = await catalog_service.active_schema(db_session, "milk")
     assert latest is not None
-    assert latest.version == 2
+    assert latest.version == starting_version + 1
 
 
 async def test_create_schema_version_validates_fields(db_session: AsyncSession) -> None:
@@ -77,16 +79,23 @@ async def test_list_verticals_hides_hidden(db_session: AsyncSession) -> None:
 async def test_create_product_pins_active_version(db_session: AsyncSession) -> None:
     owner = uuid.uuid4()
     business = await _business(db_session, owner)
+    active = await catalog_service.active_schema(db_session, "milk")
+    assert active is not None
     product = await catalog_service.create_product(
         db_session,
         owner_user_id=owner,
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "500ml"},
+        specs={
+            "category": "milk",
+            "milk_type": "a2",
+            "fat_percent": 4.5,
+            "pack_size": "500ml",
+        },
         price_display="₹80/500ml",
     )
-    assert product.schema_version == 1
+    assert product.schema_version == active.version
     assert product.moderation_status == "pending"  # UGC default
     assert product.slug == "a2-full-cream"
 
@@ -101,7 +110,7 @@ async def test_create_product_rejects_bad_specs(db_session: AsyncSession) -> Non
             business_id=business.id,
             vertical_slug="milk",
             name="Goat Milk",
-            specs={"milk_type": "goat"},
+            specs={"category": "milk", "milk_type": "goat"},
         )
     assert exc_info.value.code == "invalid_enum_value"
     with pytest.raises(SpecValidationError) as exc_info:
@@ -111,7 +120,7 @@ async def test_create_product_rejects_bad_specs(db_session: AsyncSession) -> Non
             business_id=business.id,
             vertical_slug="milk",
             name="Hacked",
-            specs={"hacked": 1, "milk_type": "cow"},
+            specs={"category": "milk", "hacked": 1, "milk_type": "cow"},
         )
     assert exc_info.value.code == "unknown_field"
 
@@ -126,34 +135,42 @@ async def test_create_product_owner_scoped_idor(db_session: AsyncSession) -> Non
             business_id=business.id,
             vertical_slug="milk",
             name="Stolen",
-            specs={"milk_type": "cow"},
+            specs={"category": "milk", "milk_type": "cow"},
         )
 
 
 async def test_old_products_keep_rendering_after_schema_v2(db_session: AsyncSession) -> None:
-    """NON-NEGOTIABLE 1: version pinning honored across schema evolution."""
+    """NON-NEGOTIABLE 1: version pinning honored across schema evolution.
+
+    M1 (0029) means the real "active" schema when this test starts is
+    already v2 (category required) - so pinning/version-arithmetic below is
+    relative to that starting point, not a hardcoded v1/v2 pair.
+    """
     owner = uuid.uuid4()
     business = await _business(db_session, owner)
+    schema_before = await catalog_service.active_schema(db_session, "milk")
+    assert schema_before is not None
+    pinned_version = schema_before.version
     product = await catalog_service.create_product(
         db_session,
         owner_user_id=owner,
         business_id=business.id,
         vertical_slug="milk",
         name="Old Toned",
-        specs={"milk_type": "toned"},
+        specs={"category": "milk", "milk_type": "toned"},
         price_display="₹30/500ml",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
-    # schema evolves: v2 adds a REQUIRED field old products don't have
-    v1 = await catalog_service.active_schema(db_session, "milk")
-    assert v1 is not None
+    # schema evolves further: the next version adds a REQUIRED field old
+    # products don't have
     await catalog_service.create_schema_version(
-        db_session, vertical_slug="milk", fields_raw=[*v1.fields, MILK_V2_EXTRA]
+        db_session, vertical_slug="milk", fields_raw=[*schema_before.fields, MILK_V2_EXTRA]
     )
-    # old product still publicly renders with its pinned v1
+    next_version = pinned_version + 1
+    # old product still publicly renders with its originally pinned version
     got = await catalog_service.get_public_product(db_session, product.slug)
-    assert got is not None and got[0].schema_version == 1
-    # new writes must satisfy v2
+    assert got is not None and got[0].schema_version == pinned_version
+    # new writes must satisfy the newest version
     with pytest.raises(SpecValidationError) as excinfo:
         await catalog_service.create_product(
             db_session,
@@ -161,17 +178,17 @@ async def test_old_products_keep_rendering_after_schema_v2(db_session: AsyncSess
             business_id=business.id,
             vertical_slug="milk",
             name="New Cow",
-            specs={"milk_type": "cow"},
+            specs={"category": "milk", "milk_type": "cow"},
         )
     assert excinfo.value.code == "missing_required"
-    # editing the old product's specs re-pins to v2 and re-validates
+    # editing the old product's specs re-pins to the newest version and re-validates
     updated = await catalog_service.update_product(
         db_session,
         owner_user_id=owner,
         product_id=product.id,
-        patch={"specs": {"milk_type": "toned", "source_farm": "Anaimalai"}},
+        patch={"specs": {"category": "milk", "milk_type": "toned", "source_farm": "Anaimalai"}},
     )
-    assert updated.schema_version == 2
+    assert updated.schema_version == next_version
 
 
 async def test_public_reads_hide_pending_archived_and_suspended(db_session: AsyncSession) -> None:
@@ -183,7 +200,7 @@ async def test_public_reads_hide_pending_archived_and_suspended(db_session: Asyn
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     # pending -> hidden
     assert await catalog_service.get_public_product(db_session, product.slug) is None
@@ -231,7 +248,7 @@ async def test_hidden_vertical_rejects_creates_and_empties_lists(db_session: Asy
         business_id=business.id,
         vertical_slug="milk",
         name="Hidden Later",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
     # visible while the vertical is active
@@ -248,7 +265,7 @@ async def test_hidden_vertical_rejects_creates_and_empties_lists(db_session: Asy
             business_id=business.id,
             vertical_slug="milk",
             name="Nope",
-            specs={"milk_type": "cow"},
+            specs={"category": "milk", "milk_type": "cow"},
         )
     empty_page = await catalog_service.list_vertical_products(db_session, "milk")
     assert empty_page.items == []
@@ -263,7 +280,7 @@ async def test_slug_collision_suffixes(db_session: AsyncSession) -> None:
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     second = await catalog_service.create_product(
         db_session,
@@ -271,7 +288,7 @@ async def test_slug_collision_suffixes(db_session: AsyncSession) -> None:
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     assert first.slug == "a2-full-cream"
     assert second.slug == "a2-full-cream-2"
@@ -286,7 +303,7 @@ async def test_update_rejects_immutable_fields(db_session: AsyncSession) -> None
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     for patch in ({"slug": "new-slug"}, {"business_id": uuid.uuid4()}):
         with pytest.raises(ValueError):
@@ -304,7 +321,7 @@ async def test_image_add_remove_and_cap(db_session: AsyncSession) -> None:
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Full Cream",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     for i in range(catalog_service.MAX_PRODUCT_IMAGES):
         product = await catalog_service.add_product_image(
@@ -338,7 +355,7 @@ async def test_list_my_products_shows_pending(db_session: AsyncSession) -> None:
         business_id=business.id,
         vertical_slug="milk",
         name="First",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     second = await catalog_service.create_product(
         db_session,
@@ -346,7 +363,7 @@ async def test_list_my_products_shows_pending(db_session: AsyncSession) -> None:
         business_id=business.id,
         vertical_slug="milk",
         name="Second",
-        specs={"milk_type": "buffalo"},
+        specs={"category": "milk", "milk_type": "buffalo"},
     )
     await catalog_service.moderate_product(db_session, product_id=second.id, approve=True)
     page = await catalog_service.list_my_products(db_session, owner, business.id, limit=1)

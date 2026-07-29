@@ -88,7 +88,7 @@ async def _pending_product(
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     return product.id
 
@@ -268,8 +268,9 @@ async def test_create_schema_flag_on_creates_version_and_audits(
     )
     assert response.status_code == 201
     body = response.json()
+    # M1 (0029) seeded a real v2, so the version created here is v3, not v2.
     assert body["vertical_slug"] == "milk"
-    assert body["version"] == 2
+    assert body["version"] == 3
     assert body["fields"][0]["key"] == "fat_percent"
 
     entry = await session.scalar(
@@ -278,8 +279,8 @@ async def test_create_schema_flag_on_creates_version_and_audits(
     assert entry is not None
     assert entry.actor_user_id == SUPER_ADMIN
     assert entry.target_type == "spec_schema"
-    assert entry.target_id == "milk:2"
-    assert entry.meta == {"vertical_slug": "milk", "version": 2, "field_count": 1}
+    assert entry.target_id == "milk:3"
+    assert entry.meta == {"vertical_slug": "milk", "version": 3, "field_count": 1}
 
 
 async def test_create_schema_malformed_fields_is_422(

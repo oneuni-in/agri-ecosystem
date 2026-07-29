@@ -57,7 +57,7 @@ async def test_reindex_publishes_for_all_rows(
         business_id=live.id,
         vertical_slug="milk",
         name="A2 Milk 500ml",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     # A real reindex run opens a brand-new session with nothing preloaded;
     # without this, session.get() below would short-circuit through the
@@ -105,7 +105,7 @@ async def test_reindex_tolerates_soft_deleted_product(
         business_id=biz.id,
         vertical_slug="milk",
         name="Recalled Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
     product.deleted_at = datetime.now(UTC)
@@ -142,7 +142,7 @@ async def test_product_event_payload_tolerates_soft_delete_directly(
         business_id=biz.id,
         vertical_slug="milk",
         name="Direct Check Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     product.deleted_at = datetime.now(UTC)
     await db_session.flush()

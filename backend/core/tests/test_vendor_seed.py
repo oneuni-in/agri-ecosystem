@@ -231,7 +231,7 @@ class TestNormalizeRow:
         assert reason is None
         assert record is not None
         specs = json.loads(record.products[0]["specs_json"])
-        assert specs == {"milk_type": "cow"}
+        assert specs == {"category": "milk", "milk_type": "cow"}
 
     def test_missing_required_milk_type_rejected(self) -> None:
         _, reason = normalize_row(_row(milk_type=""), GEO)

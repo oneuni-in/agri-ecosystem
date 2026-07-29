@@ -271,12 +271,22 @@ async def seed_milk_vendor(db_session: AsyncSession, tn_geo_sample: None) -> Bus
     for name, specs, price in (
         (
             "Fresh Cow Milk",
-            {"milk_type": "cow", "fat_percent": 4.2, "pack_size": "500ml"},
+            {
+                "category": "milk",
+                "milk_type": "cow",
+                "fat_percent": 4.2,
+                "pack_size": "500ml",
+            },
             "₹32/500ml",
         ),
         (
             "Buffalo Milk",
-            {"milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"},
+            {
+                "category": "milk",
+                "milk_type": "buffalo",
+                "fat_percent": 6.5,
+                "pack_size": "1l",
+            },
             "₹68/1l",
         ),
     ):
@@ -329,7 +339,12 @@ async def seed_milk_vendor_unapproved(db_session: AsyncSession, tn_geo_sample: N
         business_id=business.id,
         vertical_slug="milk",
         name="Unapproved Cow Milk",
-        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        specs={
+            "category": "milk",
+            "milk_type": "cow",
+            "fat_percent": 4.0,
+            "pack_size": "500ml",
+        },
         price_display="₹30/500ml",
     )
     # deliberately NOT moderated - stays at the default `pending` state

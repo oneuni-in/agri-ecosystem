@@ -176,7 +176,7 @@ async def test_milk_home_covered_excludes_unapproved_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Unapproved A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     # deliberately not moderated - stays `pending`
@@ -206,7 +206,7 @@ async def test_milk_home_excludes_archived_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Archived A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
@@ -240,7 +240,7 @@ async def test_milk_home_excludes_soft_deleted_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Deleted A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
@@ -290,7 +290,7 @@ async def test_milk_home_excludes_lab_businesses(
         business_id=business.id,
         vertical_slug="milk",
         name="Lab Test Milk Sample",
-        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        specs={"category": "milk", "milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
         price_display="₹35/500ml",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
@@ -386,7 +386,7 @@ async def test_milk_home_cards_carry_branch_coords(
         business_id=business.id,
         vertical_slug="milk",
         name="Cow Milk",
-        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "cow", "fat_percent": 4.0, "pack_size": "1l"},
         price_display="₹55/L",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)

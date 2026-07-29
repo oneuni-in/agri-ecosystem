@@ -54,8 +54,16 @@ _CLAIMABLE_NAME = "E2E Claimable Dairy"
 _CLAIMABLE_LAT = Decimal("10.923220")
 _CLAIMABLE_LNG = Decimal("76.968600")
 _PRODUCTS = [
-    ("Fresh Cow Milk", {"milk_type": "cow", "fat_percent": 4.2, "pack_size": "1l"}, "₹55/L"),
-    ("Buffalo Milk", {"milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"}, "₹70/L"),
+    (
+        "Fresh Cow Milk",
+        {"category": "milk", "milk_type": "cow", "fat_percent": 4.2, "pack_size": "1l"},
+        "₹55/L",
+    ),
+    (
+        "Buffalo Milk",
+        {"category": "milk", "milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"},
+        "₹70/L",
+    ),
 ]
 
 

@@ -14,6 +14,7 @@ from modules.directory.milk_home import MilkCard, MilkHomeResult
 
 
 class MilkProductOut(BaseModel):
+    category: str | None
     milk_type: str | None
     fat_percent: float | None
     pack_size: str | None
@@ -55,6 +56,7 @@ class MilkHomeOut(BaseModel):
     scope: Literal["covered", "tn_no_vendors", "out_of_area"]
     location: MilkLocationOut | None
     filters: list[str]
+    product_categories: list[str]
     price_banner: PriceBannerOut | None
     vendors: list[MilkCardOut]
     brands: list[MilkCardOut]
@@ -84,6 +86,7 @@ def _card_out(card: MilkCard) -> MilkCardOut:
         lng=float(card.lng) if card.lng is not None else None,
         products=[
             MilkProductOut(
+                category=p.specs.get("category"),
                 milk_type=p.specs.get("milk_type"),
                 fat_percent=p.specs.get("fat_percent"),
                 pack_size=p.specs.get("pack_size"),
@@ -115,6 +118,7 @@ def milk_home_out(pincode: str, result: MilkHomeResult) -> MilkHomeOut:
         scope=result.scope,
         location=location,
         filters=result.filters,
+        product_categories=result.product_categories,
         price_banner=price_banner,
         vendors=[_card_out(c) for c in result.vendors],
         brands=[_card_out(c) for c in result.brands],

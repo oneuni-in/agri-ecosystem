@@ -400,6 +400,7 @@ async def milk_home(
     pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
     session: SessionDep,
     type: str | None = None,
+    product_category: Annotated[str | None, Query(max_length=64)] = None,
     cursor: str | None = None,
     limit: LimitQuery = DEFAULT_PAGE_SIZE,
 ) -> MilkHomeOut:
@@ -408,7 +409,12 @@ async def milk_home(
     Public + keyset-only + rate-limited (pincode-enumeration defence)."""
     try:
         result = await milk_home_module.milk_home(
-            session, pincode=pincode, milk_type=type, cursor=cursor, limit=limit
+            session,
+            pincode=pincode,
+            milk_type=type,
+            product_category=product_category,
+            cursor=cursor,
+            limit=limit,
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc

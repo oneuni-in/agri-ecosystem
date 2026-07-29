@@ -50,6 +50,8 @@ def _rupees(text: str | None) -> list[int]:
 
 def compute_price_banner(products: Sequence[ProductLike]) -> tuple[list[PriceBand], int]:
     """Group parseable ₹ prices by milk_type → (low, high) band per type.
+    Only products in the `milk` category contribute (M1): other dairy
+    categories have no milk price band and must not inflate seller_count.
     unit = the shared pack_size when uniform for that type, else None.
     seller_count = distinct businesses among the passed products.
     Products with no milk_type or no parseable ₹ number are skipped from
@@ -57,6 +59,9 @@ def compute_price_banner(products: Sequence[ProductLike]) -> tuple[list[PriceBan
     prices: dict[str, list[int]] = {}
     packs: dict[str, set[str]] = {}
     for p in products:
+        if p.specs.get("category") not in (None, "milk"):
+            continue  # ghee/paneer/... never carry a milk price band, and must
+            # not inflate seller_count under a milk-only banner (M1)
         milk_type = p.specs.get("milk_type")
         nums = _rupees(p.price_display)
         if not isinstance(milk_type, str) or not milk_type or not nums:
@@ -72,7 +77,9 @@ def compute_price_banner(products: Sequence[ProductLike]) -> tuple[list[PriceBan
         unit = next(iter(pack_set)) if len(pack_set) == 1 else None
         bands.append(PriceBand(milk_type=milk_type, low=min(nums), high=max(nums), unit=unit))
 
-    seller_count = len({p.business_id for p in products})
+    seller_count = len(
+        {p.business_id for p in products if p.specs.get("category") in (None, "milk")}
+    )
     return bands, seller_count
 
 
@@ -96,6 +103,7 @@ class MilkHomeResult:
     district: str | None
     state: str | None
     filters: list[str]
+    product_categories: list[str]
     bands: list[PriceBand]
     seller_count: int
     vendors: list[MilkCard]
@@ -111,6 +119,18 @@ async def _milk_filter_keys(session: AsyncSession) -> list[str]:
         return ["all"]
     for field in parse_fields(schema.fields):
         if field.key == "milk_type" and field.options:
+            return ["all", *field.options]
+    return ["all"]
+
+
+async def _product_category_keys(session: AsyncSession) -> list[str]:
+    """Schema-driven category chips: ['all', *category options]. Same rule as
+    _milk_filter_keys - the taxonomy is never hardcoded here (M1 NN#1)."""
+    schema = await catalog_service.active_schema(session, "milk")
+    if schema is None:
+        return ["all"]
+    for field in parse_fields(schema.fields):
+        if field.key == "category" and field.options:
             return ["all", *field.options]
     return ["all"]
 
@@ -170,6 +190,7 @@ async def milk_home(
     *,
     pincode: str,
     milk_type: str | None,
+    product_category: str | None,
     cursor: str | None,
     limit: int,
 ) -> MilkHomeResult:
@@ -184,6 +205,10 @@ async def milk_home(
     Filter keys are always schema-driven, even in the empty-state branches,
     so the chip row never flashes/reflows once data arrives."""
     filters = await _milk_filter_keys(session)
+    product_categories = await _product_category_keys(session)
+    # An unrecognised value is treated as absent, never a 422 (D27 precedent).
+    if product_category is not None and product_category not in product_categories:
+        product_category = None
 
     district = await district_for_pincode(session, pincode)
     if district is None:
@@ -192,6 +217,7 @@ async def milk_home(
             district=None,
             state=None,
             filters=filters,
+            product_categories=product_categories,
             bands=[],
             seller_count=0,
             vendors=[],
@@ -209,6 +235,7 @@ async def milk_home(
             district=district.name,
             state=state_name,
             filters=filters,
+            product_categories=product_categories,
             bands=[],
             seller_count=0,
             vendors=[],
@@ -237,6 +264,7 @@ async def milk_home(
             district=district.name,
             state=state_name,
             filters=filters,
+            product_categories=product_categories,
             bands=[],
             seller_count=0,
             vendors=[],
@@ -256,6 +284,10 @@ async def milk_home(
         biz_products = by_biz.get(item.id)
         if not biz_products:
             continue  # covering business with no milk products -> not a card
+        if product_category and product_category != "all":
+            biz_products = [p for p in biz_products if p.specs.get("category") == product_category]
+            if not biz_products:
+                continue
         if milk_type and milk_type != "all":
             biz_products = [p for p in biz_products if p.specs.get("milk_type") == milk_type]
             if not biz_products:
@@ -279,6 +311,7 @@ async def milk_home(
         district=district.name,
         state=state_name,
         filters=filters,
+        product_categories=product_categories,
         bands=bands,
         seller_count=seller_count,
         vendors=vendors,

@@ -19,7 +19,7 @@ Create Date: 2026-07-29
 #   empty field list rather than an error (catalog_router.py:333 passes
 #   `schema.fields if schema else []`). Accepted: forward-only in practice.
 # locks: one INSERT into spec_schemas; one full UPDATE of
-#   directory.products WHERE vertical_slug='milk' (~130 rows in the seeded
+#   directory.products WHERE vertical_slug='milk' (~160 rows in the seeded
 #   dev/staging DB, 0 in a fresh CI DB). Row-level locks for the duration of
 #   a single small statement; no table rewrite, no index rebuild.
 # rollout: spec_schemas is append-only BY GRANT (0018 revoked UPDATE/DELETE

@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from main import create_app
 from modules.ads import service
 from modules.ads.models import Campaign, Creative, Placement
+from modules.directory import service as directory_service
+from modules.directory.models import Business
 from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import get_session
@@ -85,6 +87,19 @@ async def _split_chennai_district(session: AsyncSession) -> None:
     await session.flush()
 
 
+async def _advertiser(session: AsyncSession) -> uuid.UUID:
+    """A real, active directory business: serve-time is_servable (M1.5.E) is
+    fail-closed, so a dangling advertiser id would never serve."""
+    business = await directory_service.create_business(
+        session,
+        owner_user_id=uuid.uuid4(),
+        name=f"Advertiser {uuid.uuid4().hex[:8]}",
+        type_="shop",
+        primary_pincode=COIMBATORE_PINCODE,
+    )
+    return business.id
+
+
 async def _seed_ad(
     session: AsyncSession,
     *,
@@ -98,7 +113,7 @@ async def _seed_ad(
 ) -> Placement:
     today = date.today()
     campaign = Campaign(
-        advertiser_business_id=uuid.uuid4(),
+        advertiser_business_id=await _advertiser(session),
         name="Kovai Mills - kharif push",
         status=campaign_status,
         flight_start=today - timedelta(days=1),
@@ -173,6 +188,38 @@ async def test_geo_district_placement_serves_641001_not_600001(
 
     miss = await client.get(
         "/ads/serve", params={"slot": "directory_browse", "pincode": CHENNAI_PINCODE}
+    )
+    assert miss.status_code == 200
+    assert miss.json() == {"ad": None}
+
+
+async def test_suspended_advertiser_ads_stop_serving(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M1.5 threat model: a suspended vendor's ads must not keep serving.
+    Serve-time is_servable check (the M3 seam, live already)."""
+    client, session = api
+    await _enable_ads(session)
+    await _split_chennai_district(session)
+    placement = await _seed_ad(session, geo_target={"district": COIMBATORE_DISTRICT_LGD})
+
+    hit = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert hit.status_code == 200
+    assert hit.json()["ad"] is not None
+
+    campaign = await session.get(Campaign, placement.campaign_id)
+    assert campaign is not None
+    business = await session.get(Business, campaign.advertiser_business_id)
+    assert business is not None
+    business.status = "suspended"
+    await session.flush()
+
+    miss = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
     )
     assert miss.status_code == 200
     assert miss.json() == {"ad": None}

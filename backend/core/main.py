@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
+from modules.ads.service import pause_active_campaigns
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.router import router as billing_router
@@ -23,7 +24,7 @@ from modules.directory.catalog_admin_router import admin_router as catalog_admin
 from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
 from modules.directory.leads_router import router as leads_engine_router
-from modules.directory.lookups import business_ref, owned_business_refs
+from modules.directory.lookups import business_is_servable, business_ref, owned_business_refs
 from modules.directory.moderation_sources import register_directory_moderation_sources
 from modules.directory.needs_router import router as needs_router
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
@@ -52,8 +53,10 @@ from shared.cache import check_cache, close_redis
 from shared.db import check_database
 from shared.lookups import (
     register_business_resolver,
+    register_campaign_pauser,
     register_contact_resolver,
     register_owned_businesses_resolver,
+    register_servable_resolver,
 )
 from shared.metrics import render
 from shared.middleware import SlugRedirectMiddleware
@@ -185,6 +188,10 @@ def create_app() -> FastAPI:
     register_business_resolver(business_ref)
     register_owned_businesses_resolver(owned_business_refs)
     register_contact_resolver(notify_contact)
+    # M1.5: directory answers serve-time status (ads consume it - the M3
+    # seam); ads pause an advertiser's campaigns when directory disables it.
+    register_servable_resolver(business_is_servable)
+    register_campaign_pauser(pause_active_campaigns)
     # D21: unified moderation queue - owning modules register their sources
     # (same dependency-inversion pattern as the resolvers above).
     register_directory_moderation_sources()

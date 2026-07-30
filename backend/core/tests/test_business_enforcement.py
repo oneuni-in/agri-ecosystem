@@ -333,6 +333,93 @@ async def test_enforcement_audits_and_reinstate_restores_prior_state(
     assert third.json()["detail"] == "not_enforced"
 
 
+# --- is_servable seam + campaign auto-pause (non-negotiable 3) -------------
+
+
+async def test_is_servable_reflects_enforcement(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The M3 ad-serving contract, written now (spec): serve-time status
+    check via shared.lookups.is_servable. Fail closed on unknowns."""
+    from shared.lookups import is_servable
+
+    http, session = api
+    b = await _business(session)
+    assert await is_servable(session, b.id) is True
+
+    await http.post(
+        f"/admin/directory/businesses/{b.id}/suspend",
+        json={"reason": "x"},
+        headers=_as(STAFF, "staff"),
+    )
+    await session.refresh(b)
+    assert await is_servable(session, b.id) is False
+
+    await http.post(
+        f"/admin/directory/businesses/{b.id}/disable",
+        json={"reason": "y"},
+        headers=_as(STAFF, "staff"),
+    )
+    await session.refresh(b)
+    assert await is_servable(session, b.id) is False
+
+    # unknown business: fail closed
+    assert await is_servable(session, uuid.uuid4()) is False
+
+
+async def test_disable_auto_pauses_active_campaigns(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    from datetime import date, timedelta
+
+    from modules.ads.models import Campaign
+
+    http, session = api
+    b = await _business(session)
+    today = date.today()
+
+    def _campaign(status: str) -> Campaign:
+        return Campaign(
+            advertiser_business_id=b.id,
+            name=f"{status} campaign",
+            status=status,
+            flight_start=today - timedelta(days=1),
+            flight_end=today + timedelta(days=30),
+        )
+
+    active, draft, archived = _campaign("active"), _campaign("draft"), _campaign("archived")
+    other_business_campaign = Campaign(
+        advertiser_business_id=uuid.uuid4(),
+        name="unrelated",
+        status="active",
+        flight_start=today,
+        flight_end=today + timedelta(days=7),
+    )
+    session.add_all([active, draft, archived, other_business_campaign])
+    await session.flush()
+
+    resp = await http.post(
+        f"/admin/directory/businesses/{b.id}/disable",
+        json={"reason": "fraud confirmed"},
+        headers=_as(STAFF, "staff"),
+    )
+    assert resp.status_code == 200
+
+    for campaign in (active, draft, archived, other_business_campaign):
+        await session.refresh(campaign)
+    assert active.status == "paused"  # auto-paused; no refund logic v1
+    assert draft.status == "draft"  # only ACTIVE campaigns pause
+    assert archived.status == "archived"
+    assert other_business_campaign.status == "active"  # other advertisers untouched
+
+    # the audit row flags the paused campaigns for manual handling
+    entry = await session.scalar(
+        select(AuditEntry).where(AuditEntry.action == "directory.business_disabled")
+    )
+    assert entry is not None
+    assert entry.meta["campaigns_paused"] == [str(active.id)]
+
+
 # --- admin lookup + enforcement log ----------------------------------------
 
 

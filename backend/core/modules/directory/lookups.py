@@ -20,6 +20,15 @@ async def business_ref(session: AsyncSession, business_id: uuid.UUID) -> Busines
     return _ref(business) if business is not None else None
 
 
+async def business_is_servable(session: AsyncSession, business_id: uuid.UUID) -> bool:
+    """M1.5.E status accessor for shared.lookups.is_servable: may this
+    business be shown/served anywhere (ads included)? Only status='active'
+    qualifies; unknown or soft-deleted rows answer False (fail closed).
+    Soft-deleted rows are filtered by the ORM listener already."""
+    status = await session.scalar(select(Business.status).where(Business.id == business_id))
+    return status == "active"
+
+
 async def owned_business_refs(session: AsyncSession, owner_user_id: uuid.UUID) -> list[BusinessRef]:
     businesses = (
         await session.scalars(

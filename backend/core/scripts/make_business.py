@@ -29,9 +29,21 @@ from shared.events import publish
 # A few realistic milk products (mirrors data/seeds/coimbatore/products.csv).
 # Every product is created then approved so it shows in the public catalog API.
 DEFAULT_PRODUCTS = [
-    ("Fresh Cow Milk", {"milk_type": "cow", "fat_percent": 4.2, "pack_size": "500ml"}, "₹32/500ml"),
-    ("Buffalo Milk", {"milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"}, "₹68/1l"),
-    ("A2 Cow Milk", {"milk_type": "a2", "fat_percent": 4.8, "pack_size": "500ml"}, "₹45/500ml"),
+    (
+        "Fresh Cow Milk",
+        {"category": "milk", "milk_type": "cow", "fat_percent": 4.2, "pack_size": "500ml"},
+        "₹32/500ml",
+    ),
+    (
+        "Buffalo Milk",
+        {"category": "milk", "milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"},
+        "₹68/1l",
+    ),
+    (
+        "A2 Cow Milk",
+        {"category": "milk", "milk_type": "a2", "fat_percent": 4.8, "pack_size": "500ml"},
+        "₹45/500ml",
+    ),
 ]
 
 

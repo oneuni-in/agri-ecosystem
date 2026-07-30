@@ -28,6 +28,18 @@ from .indexing import index_uid
 MAX_DEPTH = 500  # bounded exploration; deep scraping goes through covers()/lists instead
 
 
+def _verified_first(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stable partition of ONE result page: verified businesses lead (M1).
+
+    Deliberately not a Meili sort. `verified` is filterable but not
+    sortable, and M1 forbids an index rebuild - so this reorders the page
+    that was already fetched. Limitation, stated rather than hidden: a
+    verified result on page 3 is NOT pulled onto page 1. Promoting
+    `verified` to a sortable attribute is a settings change plus a full
+    reindex, out of scope here."""
+    return [h for h in hits if h.get("verified")] + [h for h in hits if not h.get("verified")]
+
+
 class InvalidSearchCursor(ValueError):
     pass
 
@@ -102,7 +114,7 @@ async def run_search(
     result = await get_meili().search(index_uid(site), body)
     hits = result["hits"]
     has_more = len(hits) > limit
-    items = hits[:limit]
+    items = _verified_first(hits[:limit])
     next_start = start + limit
     next_cursor = (
         encode_search_cursor(next_start, qhash) if has_more and next_start < MAX_DEPTH else None

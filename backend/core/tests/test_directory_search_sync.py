@@ -186,7 +186,7 @@ async def test_product_snapshot_requires_approved(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk 500ml",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     assert await search_sync.product_snapshot(db_session, prod.id) is None  # pending
     await catalog_service.moderate_product(db_session, product_id=prod.id, approve=True)
@@ -214,7 +214,7 @@ async def test_product_snapshot_none_when_business_suspended(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     await catalog_service.moderate_product(db_session, product_id=prod.id, approve=True)
     biz.status = "suspended"
@@ -275,7 +275,7 @@ async def test_product_event_payload_carries_doc_id(
         business_id=biz.id,
         vertical_slug="milk",
         name="Payload Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     payload = await search_sync.product_event_payload(db_session, prod.id)
     assert payload["doc_id"] == f"product_{prod.id.hex}"
@@ -611,7 +611,11 @@ async def test_create_product_publishes_created(
     biz = await _business(session, owner)
     resp = await http.post(
         f"/catalog/businesses/{biz.id}/products",
-        json={"vertical_slug": "milk", "name": "A2 Milk", "specs": {"milk_type": "a2"}},
+        json={
+            "vertical_slug": "milk",
+            "name": "A2 Milk",
+            "specs": {"category": "milk", "milk_type": "a2"},
+        },
         headers=_as(owner),
     )
     assert resp.status_code == 201
@@ -637,7 +641,7 @@ async def test_update_product_and_moderation_approve_publish_updated(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     patched = await http.patch(
         f"/catalog/products/{product.id}",
@@ -676,7 +680,7 @@ async def test_product_moderation_reject_tombstones_search_doc(
         business_id=biz.id,
         vertical_slug="milk",
         name="Recalled Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     admin = uuid.uuid4()
     approved = await http.post(
@@ -719,7 +723,7 @@ async def test_set_coverage_republishes_products(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     await catalog_service.moderate_product(session, product_id=product.id, approve=True)
     captured_events.clear()
@@ -766,7 +770,7 @@ async def test_verification_approve_republishes_products_verified(
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     await catalog_service.moderate_product(session, product_id=product.id, approve=True)
 
@@ -811,7 +815,7 @@ async def test_product_approve_puts_business_into_milk_site(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     captured_events.clear()
     admin = uuid.uuid4()
@@ -846,7 +850,7 @@ async def test_owner_archive_product_republishes_business_out_of_milk_site(
         business_id=biz.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "a2"},
+        specs={"category": "milk", "milk_type": "a2"},
     )
     await catalog_service.moderate_product(session, product_id=product.id, approve=True)
 

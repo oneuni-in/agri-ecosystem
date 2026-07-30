@@ -32,6 +32,19 @@ field labels (`backend/core/alembic/versions/0018_catalog_v1.py`).
 | fat % | கொழுப்பு % | वसा % |
 | pack size | பேக் அளவு | पैक आकार |
 | km away | கிமீ தொலைவில் | किमी दूर |
+| ghee | நெய் | घी |
+| paneer | பன்னீர் | पनीर |
+| milk powder | பால் பொடி | दूध पाउडर |
+| yogurt | யோகர்ட் | योगर्ट |
+| lassi | லஸ்சி | लस्सी |
+| curd | தயிர் | दही |
+| buttermilk | மோர் | छाछ |
+| cheese | சீஸ் | चीज़ |
+| butter | வெண்ணெய் | मक्खन |
+| cream | கிரீம் | क्रीम |
+| khoa | கோவா | खोया |
+| flavoured milk | சுவையூட்டப்பட்ட பால் | फ्लेवर्ड दूध |
+| mixed milk | கலப்பு பால் | मिश्रित दूध |
 
 ## Notes
 
@@ -51,3 +64,8 @@ field labels (`backend/core/alembic/versions/0018_catalog_v1.py`).
   `ui.search.results.kindBusiness`, `ui.badges.verified`, `ui.location.find`,
   `ui.auth.profile.visibilityKeys.language`) so this table codifies what is
   already shipped rather than contradicting it.
+- The dairy product taxonomy (`ghee`, `paneer`, `curd`, …) is taken verbatim
+  from the milk spec-schema v2 `category` field's `option_meta`
+  (`0029_milk_schema_v2.py`) — that JSONB is the source of truth and this
+  table mirrors it. Do not re-translate these strings in UI code: the
+  frontend renders the schema's labels directly.

@@ -3,7 +3,9 @@ import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 
+import { CategoryTileRow } from "@/components/organisms/CategoryTileRow";
 import { Link } from "@/i18n/navigation";
+import { fetchProductCategories } from "@/lib/taxonomy";
 
 import { PincodeHeroFinder } from "./pincode-hero";
 
@@ -65,6 +67,7 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const categories = await fetchProductCategories(locale);
   return (
     <main className="bg-header-gradient">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd() }} />
@@ -75,6 +78,9 @@ export default async function HomePage({
       >
         <PincodeHeroFinder />
       </PincodeHero>
+      <div className="mx-auto w-full max-w-[720px] pt-4">
+        <CategoryTileRow categories={categories} heading="Dairy categories" />
+      </div>
       {/* The killer flow (D25): demand posts its need, covering vendors reply. */}
       <div className="mx-auto max-w-[720px] px-4 pb-6">
         <Link

@@ -68,7 +68,7 @@ async def _pending_product(session: AsyncSession, owner: uuid.UUID, business: Bu
         business_id=business.id,
         vertical_slug="milk",
         name="A2 Milk",
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
 
 

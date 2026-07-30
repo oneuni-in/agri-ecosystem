@@ -39,7 +39,7 @@ not change, only which raw columns feed it):
     description_en, description_ta, description_hi,
     address, state, district, pincode, lat, lng, coverage_pincodes,
     vertical_slug, product_name, specs_json,
-    milk_type, fat_percent, pack_size, price_display
+    product_category, milk_type, fat_percent, pack_size, price_display
 
 - category_slugs / coverage_pincodes are ";"-separated.
 - pincode/lat/lng default to primary_pincode's branch when blank
@@ -47,8 +47,15 @@ not change, only which raw columns feed it):
 - vertical_slug blank => no product row emitted for that business.
 - specs_json, if present, is used as-is (parsed + schema-validated).
   Otherwise, for vertical_slug == "milk" (the only vertical seeded so
-  far - D17), specs are built from milk_type/fat_percent/pack_size
-  (fat_percent/pack_size optional, milk_type required by the schema).
+  far - D17), specs are built from
+  product_category/milk_type/fat_percent/pack_size against the live v2
+  schema (M1/0029 - see MILK_SPEC_FIELDS). product_category is REQUIRED
+  and has NO default - a blank one is a rejection
+  (`missing_product_category`), because an uncategorised listing renders
+  nowhere. milk_type is optional in v2 (a ghee product has no milk type)
+  but is still required for product_category == "milk"
+  (`missing_milk_type_for_milk_category`); fat_percent/pack_size stay
+  optional.
 - ref is OPTIONAL and blank by default. Rows sharing a non-blank ref
   merge into a SINGLE business (e.g. a brand like Aavin with a dozen
   parlours): the first row of the group is canonical for the business
@@ -96,18 +103,80 @@ CATEGORY_SLUGS = frozenset(
     | {"veterinarian", "feed-supplier", "dairy-farm", "cooperative"}
 )
 
-# Mirrors alembic/versions/0018_catalog_v1.py MILK_SCHEMA_V1_FIELDS exactly.
-# Duplicated rather than imported - migrations are one-shot scripts, not a
-# stable import surface - but kept byte-for-byte identical so this script
-# validates products.csv specs_json for real (modules.directory.specs is
-# the actual runtime contract), not decoratively.
+# Exact mirror of alembic/versions/0029_milk_schema_v2.py
+# MILK_SCHEMA_V2_FIELDS - the live milk spec-schema (M1). The taxonomy
+# tuples and the _option_meta() helper are copied across with it so the
+# mirror stays byte-for-byte comparable against the migration rather than
+# being a hand-flattened paraphrase of it. Duplicated rather than imported -
+# migrations are one-shot scripts, not a stable import surface.
+#
+# What matters for this tool: `category` is REQUIRED (fed by the raw
+# sheet's product_category column - see _build_product) and `milk_type` is
+# OPTIONAL, because only the `milk` category has one. v2 cannot express
+# "required only for this category", so _build_product enforces that pairing
+# itself (reason `missing_milk_type_for_milk_category`).
+
+# (value, en, ta, hi, icon_key) - the taxonomy. Adding a value later means
+# publishing version N+1 with this list extended; no code changes anywhere.
+DAIRY_TAXONOMY: list[tuple[str, str, str, str, str]] = [
+    ("milk", "Milk", "பால்", "दूध", "milk"),
+    ("ghee", "Ghee", "நெய்", "घी", "ghee"),
+    ("paneer", "Paneer", "பன்னீர்", "पनीर", "paneer"),
+    ("milk-powder", "Milk Powder", "பால் பொடி", "दूध पाउडर", "milk-powder"),
+    ("yogurt", "Yogurt", "யோகர்ட்", "योगर्ट", "yogurt"),
+    ("lassi", "Lassi", "லஸ்சி", "लस्सी", "lassi"),
+    ("curd", "Curd", "தயிர்", "दही", "curd"),
+    ("buttermilk", "Buttermilk", "மோர்", "छाछ", "buttermilk"),
+    ("cheese", "Cheese", "சீஸ்", "चीज़", "cheese"),
+    ("butter", "Butter", "வெண்ணெய்", "मक्खन", "butter"),
+    ("cream", "Cream", "கிரீம்", "क्रीम", "cream"),
+    ("khoa", "Khoa", "கோவா", "खोया", "khoa"),
+    ("flavoured-milk", "Flavoured Milk", "சுவையூட்டப்பட்ட பால்", "फ्लेवर्ड दूध", "flavoured-milk"),
+]
+
+# APPEND-ONLY: the first five are v1's options, repeated verbatim.
+MILK_TYPES: list[tuple[str, str, str, str]] = [
+    ("cow", "Cow", "பசு", "गाय"),
+    ("buffalo", "Buffalo", "எருமை", "भैंस"),
+    ("a2", "A2", "A2", "A2"),
+    ("toned", "Toned", "டோன்ட்", "टोन्ड"),
+    ("organic", "Organic", "ஆர்கானிக்", "ऑर्गेनिक"),
+    ("mixed", "Mixed", "கலப்பு பால்", "मिश्रित दूध"),
+]
+
+
+def _option_meta(rows: Sequence[tuple[str, ...]]) -> dict[str, dict[str, object]]:
+    return {
+        row[0]: {
+            "label": {"en": row[1], "ta": row[2], "hi": row[3]},
+            "icon": row[4] if len(row) > 4 else row[0],
+        }
+        for row in rows
+    }
+
+
 MILK_SPEC_FIELDS: list[dict[str, object]] = [
+    {
+        "key": "category",
+        "label": {"en": "Category", "ta": "வகை", "hi": "श्रेणी"},
+        "type": "enum",
+        "options": [row[0] for row in DAIRY_TAXONOMY],
+        "option_meta": _option_meta(DAIRY_TAXONOMY),
+        "required": True,
+        "filterable": True,
+        "facet": True,
+        "group": "basics",
+    },
     {
         "key": "milk_type",
         "label": {"en": "Milk type", "ta": "பால் வகை", "hi": "दूध का प्रकार"},
         "type": "enum",
-        "options": ["cow", "buffalo", "a2", "toned", "organic"],
-        "required": True,
+        "options": [row[0] for row in MILK_TYPES],
+        "option_meta": _option_meta(MILK_TYPES),
+        # NOT required in v2: only the `milk` category has a milk type. The
+        # seed normalizer enforces "milk category => milk_type present";
+        # no runtime guard, because that would hardcode the taxonomy.
+        "required": False,
         "filterable": True,
         "facet": True,
         "group": "basics",
@@ -286,8 +355,19 @@ def _build_product(
             specs = json.loads(raw_specs_json)
         except json.JSONDecodeError:
             return None, "invalid_specs_json"
+        if not isinstance(specs, dict):
+            # Valid JSON, wrong shape (`[1,2]`, `"cow"`, `3`). Caught here
+            # rather than left to validate_specs, because the milk-category
+            # guard below reads specs.get() before validate_specs runs.
+            return None, "invalid_specs_json"
     elif vertical_slug == "milk":
         specs = {}
+        product_category = raw.get("product_category", "").strip().lower()
+        if not product_category:
+            # Required, deliberately with no default: an uncategorised seed row
+            # would render nowhere. Seed quality is a stated M1 threat.
+            return None, "missing_product_category"
+        specs["category"] = product_category
         milk_type = raw.get("milk_type", "").strip().lower()
         if milk_type:
             specs["milk_type"] = milk_type
@@ -305,6 +385,11 @@ def _build_product(
         # treatment as milk below (a *_SPEC_FIELDS constant + a
         # validate_specs() call) instead of shipping unvalidated specs.
         specs = {}
+
+    if vertical_slug == "milk" and specs.get("category") == "milk" and "milk_type" not in specs:
+        # v2 cannot express "required only for this category", so the seed
+        # tool enforces it. A milk listing with no type has no price band.
+        return None, "missing_milk_type_for_milk_category"
 
     if vertical_slug == "milk":
         try:

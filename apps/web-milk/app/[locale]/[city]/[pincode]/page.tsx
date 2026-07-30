@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { ListBusinessCta } from "@/components/molecules/ListBusinessCta";
 import { Link } from "@/i18n/navigation";
 import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
 import { fetchCovers } from "@/lib/directory";
@@ -28,12 +29,12 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Params;
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; product_category?: string }>;
 }): Promise<Metadata> {
   const { locale, city, pincode } = await params;
   setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) return { title: "Milk.in", robots: { index: false, follow: true } };
-  const { category } = await searchParams;
+  const { category, product_category } = await searchParams;
 
   const data = await fetchMilkHome(pincode);
   // Canonical always carries the CORRECT city slug (the page 301s wrong-city
@@ -60,6 +61,11 @@ export async function generateMetadata({
 
   const place = data?.location ? `${data.location.district} (${pincode})` : pincode;
   const covered = data?.scope === "covered";
+  // `?product_category=` views (Task 10) are thin filtered duplicates of this
+  // page, same treatment as `?category=` above — canonical stays the bare
+  // `/{city}/{pincode}` and the view self-noindexes.
+  const isProductCategoryFiltered =
+    product_category !== undefined && product_category !== "all";
   return {
     ...buildMetadata({
       title: `Milk in ${place} — Milk.in`,
@@ -67,7 +73,7 @@ export async function generateMetadata({
       canonical: canonicalUrl(SITE, path),
       siteName: "Milk.in",
       // Thin/empty pincode pages self-noindex until they have real listings.
-      noIndex: !covered,
+      noIndex: !covered || isProductCategoryFiltered,
     }),
     // hreflang: default-locale URL is canonical; ta/hi are prefixed (D27
     // pattern — metadata is the single hreflang source, alternateLinks off).
@@ -122,12 +128,12 @@ export default async function PincodePage({
   searchParams,
 }: {
   params: Params;
-  searchParams: Promise<{ type?: string; category?: string }>;
+  searchParams: Promise<{ type?: string; category?: string; product_category?: string }>;
 }) {
   const { locale, city, pincode } = await params;
   setRequestLocale(locale);
   if (!PIN_RE.test(pincode)) notFound();
-  const { type = "all", category } = await searchParams;
+  const { type = "all", category, product_category } = await searchParams;
   const base = `/${city}/${pincode}`;
 
   // ---- Category browse (D27 Task 13) ----
@@ -159,7 +165,7 @@ export default async function PincodePage({
     );
   }
 
-  const data = await fetchMilkHome(pincode, type);
+  const data = await fetchMilkHome(pincode, type, product_category);
   if (!data) notFound(); // backend unreachable / non-ok — genuine error, not a warm state
 
   // Wrong (or stale) city slug → 301 to the canonical URL, preserving the
@@ -170,6 +176,7 @@ export default async function PincodePage({
       const qs = new URLSearchParams();
       if (type !== "all") qs.set("type", type);
       if (category !== undefined) qs.set("category", category);
+      if (product_category !== undefined) qs.set("product_category", product_category);
       const suffix = qs.size > 0 ? `?${qs.toString()}` : "";
       permanentRedirect(`/${canonicalCity}/${pincode}${suffix}`);
     }
@@ -194,13 +201,7 @@ export default async function PincodePage({
           Be the first to know when a dairy lists here.
         </p>
         <NotifyMe pincode={pincode} {...(district ? { district } : {})} />
-        {/* D24 will wire a real "list your dairy" onboarding flow — this is a
-            warm pointer only, no live link yet. */}
-        <p className="text-[13px] text-sub">
-          Run a dairy here?{" "}
-          <span className="font-bold text-brand-deep">List your dairy on Milk.in</span> — coming
-          soon.
-        </p>
+        <ListBusinessCta />
       </main>
     );
   }

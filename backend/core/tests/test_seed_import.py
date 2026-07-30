@@ -190,7 +190,7 @@ def _sample_bundle() -> list[SeedBusiness]:
                 SeedProduct(
                     vertical_slug="milk",
                     name="Fresh Cow Milk",
-                    specs={"milk_type": "cow", "fat_percent": 4.2},
+                    specs={"category": "milk", "milk_type": "cow", "fat_percent": 4.2},
                     price_display="₹32/500ml",
                 ),
             ),

@@ -117,7 +117,7 @@ async def _product(
         business_id=business.id,
         vertical_slug="milk",
         name=name,
-        specs={"milk_type": "cow"},
+        specs={"category": "milk", "milk_type": "cow"},
     )
     return product.id
 

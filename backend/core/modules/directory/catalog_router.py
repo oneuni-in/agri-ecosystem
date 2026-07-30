@@ -277,14 +277,16 @@ async def delete_product_image(
     return _product_out(product)
 
 
-@router.get("/verticals/{vertical}/schema")
+@router.get("/verticals/{vertical}/schema", public=True)
 async def get_vertical_schema(
     request: Request, vertical: str, session: SessionDep
 ) -> SchemaVersionOut:
-    """Active field definitions for a vertical (D26 products console) - the
-    create form's source of truth. Authed, NOT public: vendors are logged in
-    to reach the products console, and keeping this private avoids widening
-    the anonymous surface for no reason."""
+    """The active spec-schema for a vertical. PUBLIC (M1): the milk taxonomy
+    (category options + their i18n labels and icon keys) is what web-milk's
+    home tile row and /p/{category} pages render, and both are SSR/ISR with
+    no user session. Admin-authored config with no PII; rate-limited like
+    every public route. One source, read by both the D26 console and the
+    public site - a second endpoint would drift."""
     found = await catalog_service.get_vertical(session, vertical)
     if found is None or found.status != "active":
         raise HTTPException(status_code=404, detail="Vertical not found")
@@ -400,6 +402,7 @@ async def milk_home(
     pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
     session: SessionDep,
     type: str | None = None,
+    product_category: Annotated[str | None, Query(max_length=64)] = None,
     cursor: str | None = None,
     limit: LimitQuery = DEFAULT_PAGE_SIZE,
 ) -> MilkHomeOut:
@@ -408,7 +411,12 @@ async def milk_home(
     Public + keyset-only + rate-limited (pincode-enumeration defence)."""
     try:
         result = await milk_home_module.milk_home(
-            session, pincode=pincode, milk_type=type, cursor=cursor, limit=limit
+            session,
+            pincode=pincode,
+            milk_type=type,
+            product_category=product_category,
+            cursor=cursor,
+            limit=limit,
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc

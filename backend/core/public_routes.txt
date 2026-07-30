@@ -18,6 +18,10 @@
 /catalog/products/{slug}
 /catalog/businesses/{slug}/products
 /catalog/verticals/{vertical}/products
+# /catalog/verticals/{vertical}/schema: the active spec-schema (M1) - the
+# dairy taxonomy's values, i18n labels and icon keys. Config only, no PII;
+# web-milk's home tile row and /p/{category} pages SSR from it.
+/catalog/verticals/{vertical}/schema
 # /catalog/milk/home/{pincode}: pincode-first milk homepage blend (D23) -
 # vendors + brands + schema-driven filters + computed price banner behind a
 # 3-way empty-state scope. Anonymous visitors land here before signup.

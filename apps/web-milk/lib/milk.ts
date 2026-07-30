@@ -11,6 +11,7 @@ const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 export type MilkScope = "covered" | "tn_no_vendors" | "out_of_area";
 
 export interface MilkProduct {
+  category: string | null;
   milk_type: string | null;
   fat_percent: number | null;
   pack_size: string | null;
@@ -41,6 +42,7 @@ export interface MilkHome {
   scope: MilkScope;
   location: { pincode: string; district: string; state: string | null } | null;
   filters: string[];
+  product_categories: string[];
   price_banner: { lines: PriceBand[]; seller_count: number } | null;
   vendors: MilkCard[];
   brands: MilkCard[];
@@ -103,10 +105,19 @@ export async function fetchCoveredPincodes(
 /** Server-side public read — direct to backend (NOT the BFF proxy), with
  * `next: { revalidate: 300 }` for ISR. Returns null on any non-ok response
  * or thrown error so the page can degrade gracefully instead of crashing. */
-export async function fetchMilkHome(pincode: string, type?: string): Promise<MilkHome | null> {
-  const qs = type && type !== "all" ? `?type=${encodeURIComponent(type)}` : "";
+export async function fetchMilkHome(
+  pincode: string,
+  type?: string,
+  productCategory?: string,
+): Promise<MilkHome | null> {
+  const qs = new URLSearchParams();
+  if (type && type !== "all") qs.set("type", type);
+  if (productCategory && productCategory !== "all") {
+    qs.set("product_category", productCategory);
+  }
+  const suffix = qs.toString() ? `?${qs}` : "";
   try {
-    const res = await fetch(`${API}/catalog/milk/home/${encodeURIComponent(pincode)}${qs}`, {
+    const res = await fetch(`${API}/catalog/milk/home/${encodeURIComponent(pincode)}${suffix}`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) return null;

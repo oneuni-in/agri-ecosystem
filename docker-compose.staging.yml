@@ -66,6 +66,21 @@ services:
 
   web-milk:
     image: ghcr.io/oneuni-in/agri-web-milk:${TAG:-dev}
+    # Task 11: the "List your dairy business" CTA reads NEXT_PUBLIC_CONSOLE_URL
+    # at build time (NEXT_PUBLIC_ vars are inlined into the JS bundle in
+    # apps/Dockerfile's builder stage — same as NEXT_PUBLIC_RELEASE/GIT_SHA).
+    # deploy-staging.yml's build-push job sources it from the repo variable
+    # `NEXT_PUBLIC_CONSOLE_URL` (Settings → Variables) and passes it as the
+    # `CONSOLE_URL` --build-arg — see docs/runbooks/staging-deploy.md's
+    # "Repository variables" section for the required setup. If that repo
+    # variable is unset, the web-milk image build fails on purpose
+    # (apps/web-milk/lib/console.ts throws at build time) rather than
+    # silently shipping a dead cross-origin link — set the variable, don't
+    # lower this gate. An `environment:` entry on this service would NOT
+    # substitute for it: the var is inlined at build time, not read at
+    # container-start time, so building this image locally (`docker build
+    # -f apps/Dockerfile --build-arg APP=web-milk --build-arg
+    # CONSOLE_URL=<console-origin> .`) needs the same --build-arg too.
     ports:
       - "3100:3000"
     healthcheck: &web-health

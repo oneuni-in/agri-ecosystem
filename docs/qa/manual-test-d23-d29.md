@@ -1,6 +1,6 @@
-# Manual UI test guide — D23 → D29 (milk.in sprint 3)
+# Manual UI test guide — D23 → M1 (milk.in sprint 3 + 3.5)
 
-Owner-facing walkthrough for hand-testing everything shipped in D23–D29 on a dev box.
+Owner-facing walkthrough for hand-testing everything shipped in D23–D30 and M1 on a dev box.
 Automated coverage for most of these journeys lives in `e2e/` (see
 `docs/qa/d29-device-matrix.md` for what automation already proves and what is
 hardware-only). This guide is the human pass: eyes on the UI, real clicks.
@@ -118,6 +118,38 @@ server misbehaves after a crashed session.
    (WebKit-over-http can't set Secure cookies — those checks are hardware-only.)
 3. Spot-check D29's four fixes: map fits pins on open; category chips ≥44px;
    TA/HI contrast + no nested-interactive cards; pincode page usable on throttled 3G.
+
+## D30 — Security freeze
+
+1. Signup gate: the two-layer gate holds — an un-invited/ungated fresh phone gets the
+   launch-gate response on signup, existing accounts log in normally (dev flags may
+   open the gate locally; check settings before filing a bug).
+2. Rate limits: hammer a public endpoint (reload a pincode page rapidly ~30x or curl
+   the covers API in a loop) → 429s appear, then recover after the window. Limits are
+   per-path — one throttled path must not lock out the others.
+3. No seed/test credentials work against anything but dev: OTP peek routes 404 unless
+   `OTP_TEST_PEEK=true`.
+
+## M1 — Product taxonomy + verified-first + onboarding CTA (:3000)
+
+1. Home `/en`: category tile row (milk, curd, ghee, paneer, …) — every tile 44px+,
+   localized in TA/HI.
+2. Tiles → `/en/p/{category}` auto-generated category pages (e.g. `/en/p/ghee`):
+   ISR, populated from the taxonomy, indexable.
+3. Pincode page: schema-driven category chips; `?product_category=ghee` filters the
+   vendor list server-side (covers() SQL, not client filtering). Filtered views are
+   noindex and the canonical stays the unfiltered page.
+4. Verified-first: on any pincode page and in `/en/search`, ✔ Verified businesses
+   rank above unverified ones; within each block, distance order still holds.
+   Paginate past the verified/unverified boundary — no dupes or gaps (4-field cursor).
+5. Product create (vendor console, D26 walk): `category` is now REQUIRED — the form
+   offers the schema values and rejects a missing category (schema v2 repin).
+6. "List your dairy business" CTA: header, footer, and empty states → lands on the
+   vendor console (`NEXT_PUBLIC_CONSOLE_URL`); 44px target.
+7. Hidden verticals stay hidden: the public vertical-schema route serves the milk
+   taxonomy but must NOT enumerate unlaunched verticals.
+8. Seed: every dairy category has at least one seeded product (incl. the ghee product
+   on the covered vendor), so no category page or chip renders empty at 641001.
 
 ## Known-open items (do not file as new bugs)
 

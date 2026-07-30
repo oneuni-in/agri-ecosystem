@@ -35,11 +35,13 @@ async def test_milk_vertical_seeded_active(db_session: AsyncSession) -> None:
 
 
 async def test_milk_schema_v1_seeded(db_session: AsyncSession) -> None:
+    # M1 (0029) appended a v2 schema row - spec_schemas is append-only, so v1
+    # must still be present and unchanged; scope the query to it explicitly.
     row = (
         await db_session.execute(
             text(
                 "SELECT version, jsonb_array_length(fields) AS n "
-                "FROM directory.spec_schemas WHERE vertical_slug = 'milk'"
+                "FROM directory.spec_schemas WHERE vertical_slug = 'milk' AND version = 1"
             )
         )
     ).one()

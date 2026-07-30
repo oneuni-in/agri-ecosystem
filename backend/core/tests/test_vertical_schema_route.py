@@ -13,17 +13,18 @@ from tests.d26_helpers import _as, api  # noqa: F401
 pytestmark = pytest.mark.asyncio
 
 # Seeding: the "milk" vertical + its v1 schema (3 fields: milk_type,
-# fat_percent, pack_size) are seeded by migration 0018 itself (see
+# fat_percent, pack_size) are seeded by migration 0018, and a v2 schema (the
+# 13-value category taxonomy) is seeded on top by migration 0029 (M1) - see
 # tests/test_catalog_router.py / test_catalog_admin.py, which both use
-# vertical_slug="milk" directly with no per-test Vertical row). db_session
-# rolls back to that baseline after every test, so publishing a v2 here below
-# is exactly what proves "active" means the highest version, not just
-# whatever the migration seeded.
+# vertical_slug="milk" directly with no per-test Vertical row. db_session
+# rolls back to that baseline (active = v2) after every test, so publishing a
+# v3 here below is exactly what proves "active" means the highest version,
+# not just whatever the migrations seeded.
 
 
 async def _seed_milk_vertical(session: AsyncSession) -> None:
-    """Publish milk schema v2 on top of the migration-seeded v1, so the route
-    under test has to pick the ACTIVE (highest) version, not just v1."""
+    """Publish milk schema v3 on top of the migration-seeded v1/v2, so the
+    route under test has to pick the ACTIVE (highest) version, not just v2."""
     await catalog_service.create_schema_version(
         session,
         vertical_slug="milk",
@@ -50,7 +51,7 @@ async def test_returns_active_schema_fields(
     assert response.status_code == 200
     body = response.json()
     assert body["vertical_slug"] == "milk"
-    assert body["version"] == 2
+    assert body["version"] == 3
     assert isinstance(body["fields"], list) and body["fields"]
     assert body["fields"][0]["key"] == "qty"
 
@@ -61,7 +62,10 @@ async def test_unknown_vertical_404(api: tuple[httpx.AsyncClient, AsyncSession])
     assert response.status_code == 404
 
 
-async def test_requires_auth(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+async def test_anonymous_access_allowed(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    """PUBLIC (M1): web-milk SSRs the taxonomy with no user session, so the
+    route must serve anonymous requests, not just logged-in vendors."""
     http, _session = api
     response = await http.get("/catalog/verticals/milk/schema")
-    assert response.status_code == 401
+    assert response.status_code == 200
+    assert response.json()["vertical_slug"] == "milk"

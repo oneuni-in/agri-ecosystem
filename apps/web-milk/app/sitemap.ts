@@ -3,15 +3,25 @@ import type { MetadataRoute } from "next";
 
 import { DAIRY_CATEGORIES } from "@/lib/categories";
 import { fetchCoveredPincodes } from "@/lib/milk";
+import { fetchProductCategories } from "@/lib/taxonomy";
 
 const SITE = "https://milk.in";
 const MAX_PAGES = 30; // 30 × 100 = 3000 URLs > every TN pincode; hard stop, never infinite
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Backend down ⇒ [] (same fetchProductCategories contract as
+  // fetchCoveredPincodes below) ⇒ this list degrades to the static entries
+  // above rather than failing the build.
+  const productCategories = await fetchProductCategories("en");
   const entries: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, changeFrequency: "daily", priority: 1 },
     ...DAIRY_CATEGORIES.map((category) => ({
       url: `${SITE}/c/${category}`,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+    })),
+    ...productCategories.map((category) => ({
+      url: `${SITE}/p/${category.value}`,
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),

@@ -2,9 +2,9 @@
 
 Routing rule (locked by plan): an explicit business_id must cover the
 pincode (else BusinessNotCoveredError - non-negotiable 4); no business_id
-means nearest covering business wins (covers() distance order), category-
-filtered when given. One inquiry -> one inbox; no fan-out (guest-spam
-amplification).
+means the first business in covers() order wins (verified first, then
+premium tier, then distance), category-filtered when given. One inquiry ->
+one inbox; no fan-out (guest-spam amplification).
 
 AUTO-routing (business_id=None) requires the searched pincode to resolve
 in geo.pincodes to establish a distance anchor for covers(); if the pincode

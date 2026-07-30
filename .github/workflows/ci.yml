@@ -44,6 +44,12 @@ jobs:
           # launch prep (docs/runbooks/monitoring.md); unset -> builds skip it
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          # Task 11 fix round 1 / Finding 2: `next build` always runs with
+          # NODE_ENV=production, and ListBusinessCta now throws at build time
+          # if this is unset in production (apps/web-milk/lib/console.ts) —
+          # this job builds web-milk via the turbo `build` task above, so it
+          # needs the var same as the lighthouse/e2e-auth/e2e-matrix jobs.
+          NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
 
   # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
   design-tokens:
@@ -271,6 +277,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
         with:
@@ -361,6 +370,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -437,6 +449,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

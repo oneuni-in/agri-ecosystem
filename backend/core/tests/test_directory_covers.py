@@ -143,7 +143,12 @@ async def test_tampered_cursor_rejected(db_session: AsyncSession, tn_geo_sample:
 
 def test_cursor_roundtrip() -> None:
     last_id = uuid.uuid4()
-    assert decode_covers_cursor(encode_covers_cursor(1, 12345, last_id)) == (1, 12345, last_id)
+    assert decode_covers_cursor(encode_covers_cursor(1, 1, 12345, last_id)) == (
+        1,
+        1,
+        12345,
+        last_id,
+    )
 
 
 async def test_covers_returns_nearest_branch_coords(

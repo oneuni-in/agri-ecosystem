@@ -94,7 +94,7 @@ def test_price_banner_unit_none_when_pack_sizes_differ() -> None:
 async def test_milk_home_out_of_area_non_tn(db_session: AsyncSession) -> None:
     # 110001 (Delhi) is not present in the geo fixture at all -> non-TN.
     result = await milk_home_mod.milk_home(
-        db_session, pincode="110001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="110001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "out_of_area"
     assert result.district is None
@@ -110,7 +110,7 @@ async def test_milk_home_tn_no_vendors(db_session: AsyncSession, tn_geo_sample: 
     # business_coverage row - proven by test_directory_covers.py, where every
     # covered business in the fixture covers 641001, never 600001.
     result = await milk_home_mod.milk_home(
-        db_session, pincode="600001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="600001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "tn_no_vendors"
     assert result.district is not None  # geo resolved a TN district
@@ -121,7 +121,7 @@ async def test_milk_home_tn_no_vendors(db_session: AsyncSession, tn_geo_sample: 
 async def test_milk_home_covered(db_session: AsyncSession, seed_milk_vendor: object) -> None:
     # seed_milk_vendor fixture: a `vendor` covering 641001 with ≥1 approved milk product
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     assert result.seller_count >= 1
@@ -138,7 +138,7 @@ async def test_milk_home_tn_no_vendors_when_no_qualifying_product(
     # by_biz ends up empty. This is the SECOND tn_no_vendors branch, distinct
     # from the covers()-empty case in test_milk_home_tn_no_vendors above.
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "tn_no_vendors"
     assert result.district is not None
@@ -153,7 +153,7 @@ async def test_milk_home_filter_zero_matches_keeps_covered_scope(
     # "a2" is a valid schema option the vendor does NOT stock: filtering must
     # drop the card, never flip the scope away from 'covered'.
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type="a2", cursor=None, limit=20
+        db_session, pincode="641001", milk_type="a2", product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     assert result.vendors == [] and result.brands == []
@@ -176,13 +176,13 @@ async def test_milk_home_covered_excludes_unapproved_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Unapproved A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     # deliberately not moderated - stays `pending`
 
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     names = {p.name for card in result.vendors for p in card.products}
@@ -206,7 +206,7 @@ async def test_milk_home_excludes_archived_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Archived A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
@@ -214,7 +214,7 @@ async def test_milk_home_excludes_archived_product(
     await db_session.flush()
 
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     names = {p.name for card in result.vendors for p in card.products}
@@ -240,7 +240,7 @@ async def test_milk_home_excludes_soft_deleted_product(
         business_id=seed_milk_vendor.id,
         vertical_slug="milk",
         name="Deleted A2 Milk",
-        specs={"milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "a2", "fat_percent": 4.5, "pack_size": "1l"},
         price_display="₹999/1l",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
@@ -248,7 +248,7 @@ async def test_milk_home_excludes_soft_deleted_product(
     await db_session.flush()
 
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     names = {p.name for card in result.vendors for p in card.products}
@@ -290,13 +290,13 @@ async def test_milk_home_excludes_lab_businesses(
         business_id=business.id,
         vertical_slug="milk",
         name="Lab Test Milk Sample",
-        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
+        specs={"category": "milk", "milk_type": "cow", "fat_percent": 4.0, "pack_size": "500ml"},
         price_display="₹35/500ml",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
 
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     ids = {c.id for c in (*result.vendors, *result.brands)}
@@ -306,7 +306,7 @@ async def test_milk_home_excludes_lab_businesses(
 @pytest.mark.asyncio
 async def test_milk_home_filters_match_schema(db_session: AsyncSession) -> None:
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     from modules.directory.specs import parse_fields
 
@@ -386,13 +386,13 @@ async def test_milk_home_cards_carry_branch_coords(
         business_id=business.id,
         vertical_slug="milk",
         name="Cow Milk",
-        specs={"milk_type": "cow", "fat_percent": 4.0, "pack_size": "1l"},
+        specs={"category": "milk", "milk_type": "cow", "fat_percent": 4.0, "pack_size": "1l"},
         price_display="₹55/L",
     )
     await catalog_service.moderate_product(db_session, product_id=product.id, approve=True)
 
     result = await milk_home_mod.milk_home(
-        db_session, pincode="641001", milk_type=None, cursor=None, limit=20
+        db_session, pincode="641001", milk_type=None, product_category=None, cursor=None, limit=20
     )
     assert result.scope == "covered"
     card = result.vendors[0]

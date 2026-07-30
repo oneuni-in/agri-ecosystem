@@ -1,128 +1,154 @@
 business_ref,vertical_slug,name,specs_json,price_display
-aavin-641001,milk,Aavin Green Magic Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹22/500ml
-aavin-641001,milk,Aavin Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-aavin-641001,milk,Aavin Standardised Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹56/1l
-arokya-641025,milk,Arokya Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹36/500ml
-arokya-641025,milk,Arokya Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
-arokya-641025,milk,Arokya Standardised Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹60/1l
-sakthi-dairy-641103,milk,Sakthi Standardised Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹31/500ml
-sakthi-dairy-641103,milk,Sakthi Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
-sakthi-dairy-641103,milk,Sakthi Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹58/1l
-amul-641402,milk,Amul Gold Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹36/500ml
-amul-641402,milk,Amul Taaza Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-amul-641402,milk,Amul Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹62/1l
-heritage-642127,milk,Heritage Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
-heritage-642127,milk,Heritage Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
-dodla-dairy-641002,milk,Dodla Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
-dodla-dairy-641002,milk,Dodla Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹29/500ml
-thirumala-milk-641007,milk,Thirumala Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
-thirumala-milk-641007,milk,Thirumala Full Cream Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹66/1l
-milky-mist-641012,milk,Milky Mist Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹31/500ml
-milky-mist-641012,milk,Milky Mist Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
-sri-balaji-milk-supply-town-hall-641001,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-sri-balaji-milk-supply-town-hall-641001,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-amman-milk-supply-ram-nagar-641002,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-sri-amman-milk-supply-ram-nagar-641002,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-murugan-milk-supply-r-s-puram-641004,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-murugan-milk-supply-r-s-puram-641004,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-saibaba-milk-supply-singanallur-641005,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-saibaba-milk-supply-singanallur-641005,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-sri-vinayaga-milk-supply-ramanathapuram-641006,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-vinayaga-milk-supply-ramanathapuram-641006,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-annapoorna-milk-supply-uppilipalayam-641007,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-annapoorna-milk-supply-uppilipalayam-641007,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-kongu-milk-supply-gandhipuram-641009,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-kongu-milk-supply-gandhipuram-641009,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-velan-milk-supply-ganapathy-641011,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-velan-milk-supply-ganapathy-641011,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-lakshmi-milk-supply-peelamedu-641012,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-lakshmi-milk-supply-peelamedu-641012,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-karpagam-milk-supply-ondipudur-641015,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-karpagam-milk-supply-ondipudur-641015,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-senthil-milk-supply-rathinapuri-641018,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-senthil-milk-supply-rathinapuri-641018,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-arun-milk-supply-kuniyamuthur-641021,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-arun-milk-supply-kuniyamuthur-641021,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-vetri-milk-supply-ukkadam-641025,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-sri-vetri-milk-supply-ukkadam-641025,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-bharathi-milk-supply-podanur-641035,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-bharathi-milk-supply-podanur-641035,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-ganga-milk-supply-kavundampalayam-641037,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-nandhini-milk-supply-thudiyalur-641041,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-selvam-milk-supply-vadavalli-641045,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-vijay-milk-supply-maruthamalai-641046,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-ram-milk-supply-saravanampatti-641048,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-kaveri-milk-supply-nava-india-641062,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-sri-balaji-fresh-milk-centre-perur-641103,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-amman-fresh-milk-centre-vellakinar-641107,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-murugan-fresh-milk-centre-thondamuthur-641114,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-saibaba-fresh-milk-centre-kinathukadavu-641202,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-vinayaga-fresh-milk-centre-mettupalayam-641301,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-annapoorna-fresh-milk-centre-sulur-641402,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-kongu-fresh-milk-centre-pollachi-642001,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-velan-fresh-milk-centre-pollachi-east-642002,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-lakshmi-fresh-milk-centre-valparai-642126,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-karpagam-fresh-milk-centre-valparai-town-642127,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-senthil-fresh-milk-centre-tiruppur-641604,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-arun-fresh-milk-centre-palladam-638051,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-sri-vetri-fresh-milk-centre-town-hall-641001,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-bharathi-fresh-milk-centre-ram-nagar-641002,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-ganga-fresh-milk-centre-r-s-puram-641004,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-nandhini-fresh-milk-centre-singanallur-641005,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-selvam-fresh-milk-centre-ramanathapuram-641006,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-vijay-fresh-milk-centre-uppilipalayam-641007,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-sri-ram-fresh-milk-centre-gandhipuram-641009,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-kaveri-fresh-milk-centre-ganapathy-641011,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-balaji-dairy-peelamedu-641012,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-amman-dairy-ondipudur-641015,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-murugan-dairy-rathinapuri-641018,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-saibaba-dairy-kuniyamuthur-641021,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-sri-vinayaga-dairy-ukkadam-641025,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-annapoorna-dairy-podanur-641035,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-kongu-dairy-kavundampalayam-641037,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-velan-dairy-thudiyalur-641041,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-lakshmi-dairy-vadavalli-641045,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-sri-karpagam-dairy-maruthamalai-641046,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-senthil-dairy-saravanampatti-641048,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-arun-dairy-nava-india-641062,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
-sri-vetri-dairy-perur-641103,milk,Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-bharathi-dairy-vellakinar-641107,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
-sri-ganga-dairy-thondamuthur-641114,milk,Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
-nandhini-dairy-kinathukadavu-641202,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
-kongu-dairy-farm-mettupalayam-641301,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-green-pastures-dairy-farm-sulur-641402,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-sri-balaji-dairy-farm-pollachi-642001,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-amman-dairy-farm-pollachi-east-642002,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-vellingiri-dairy-farm-valparai-642126,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-murugan-dairy-farm-valparai-town-642127,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-nallur-dairy-farm-tiruppur-641604,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-karpagam-dairy-farm-palladam-638051,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-sri-velan-dairy-farm-town-hall-641001,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-ponni-dairy-farm-ram-nagar-641002,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-sri-lakshmi-dairy-farm-r-s-puram-641004,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-thendral-dairy-farm-singanallur-641005,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-kongu-dairy-farm-ramanathapuram-641006,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-green-pastures-dairy-farm-uppilipalayam-641007,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-sri-balaji-dairy-farm-gandhipuram-641009,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-amman-dairy-farm-ganapathy-641011,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-vellingiri-dairy-farm-peelamedu-641012,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-sri-murugan-dairy-farm-ondipudur-641015,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-nallur-dairy-farm-rathinapuri-641018,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-karpagam-dairy-farm-kuniyamuthur-641021,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-sri-velan-dairy-farm-ukkadam-641025,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-ponni-dairy-farm-podanur-641035,milk,Fresh Buffalo Milk,"{""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
-sri-lakshmi-dairy-farm-kavundampalayam-641037,milk,A2 Cow Milk,"{""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
-thendral-dairy-farm-thudiyalur-641041,milk,Organic Cow Milk,"{""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
-kongu-dairy-farm-vadavalli-641045,milk,Farm Fresh Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
-kongu-town-hall-milk-producers-cooperative-society-641001,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-nallur-ram-nagar-cooperative-dairy-641002,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
-ponni-r-s-puram-milk-sangam-641004,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-vellingiri-singanallur-milk-producers-cooperative-society-641005,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
-thendral-ramanathapuram-cooperative-dairy-641006,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-velan-uppilipalayam-milk-sangam-641007,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
-kongu-gandhipuram-milk-producers-cooperative-society-641009,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-nallur-ganapathy-cooperative-dairy-641011,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
-ponni-peelamedu-milk-sangam-641012,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-vellingiri-ondipudur-milk-producers-cooperative-society-641015,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
-thendral-rathinapuri-cooperative-dairy-641018,milk,Cooperative Toned Milk,"{""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
-sri-velan-kuniyamuthur-milk-sangam-641021,milk,Cooperative Cow Milk,"{""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+aavin-641001,milk,Aavin Green Magic Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹22/500ml
+aavin-641001,milk,Aavin Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+aavin-641001,milk,Aavin Standardised Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹56/1l
+aavin-641001,milk,Aavin Cow Ghee,"{""category"": ""ghee"", ""pack_size"": ""500ml""}",₹300/500ml
+aavin-641001,milk,Aavin Fresh Paneer,"{""category"": ""paneer""}",₹95/200g
+aavin-641001,milk,Aavin Curd,"{""category"": ""curd""}",₹30/500g
+aavin-641001,milk,Aavin Table Butter,"{""category"": ""butter""}",₹58/100g
+aavin-641001,milk,Aavin Khoa,"{""category"": ""khoa""}",₹120/250g
+arokya-641025,milk,Arokya Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹36/500ml
+arokya-641025,milk,Arokya Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
+arokya-641025,milk,Arokya Standardised Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹60/1l
+arokya-641025,milk,Arokya Spiced Buttermilk,"{""category"": ""buttermilk""}",₹15/200ml
+sakthi-dairy-641103,milk,Sakthi Standardised Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹31/500ml
+sakthi-dairy-641103,milk,Sakthi Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
+sakthi-dairy-641103,milk,Sakthi Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""1l""}",₹58/1l
+sakthi-dairy-641103,milk,Sakthi Fresh Cream,"{""category"": ""cream"", ""pack_size"": ""250ml""}",₹85/250ml
+amul-641402,milk,Amul Gold Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹36/500ml
+amul-641402,milk,Amul Taaza Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+amul-641402,milk,Amul Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹62/1l
+amul-641402,milk,Amul Instant Milk Powder,"{""category"": ""milk-powder""}",₹255/500g
+heritage-642127,milk,Heritage Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
+heritage-642127,milk,Heritage Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
+heritage-642127,milk,Heritage Set Yogurt,"{""category"": ""yogurt""}",₹25/100g
+dodla-dairy-641002,milk,Dodla Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
+dodla-dairy-641002,milk,Dodla Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹29/500ml
+dodla-dairy-641002,milk,Dodla Sweet Lassi,"{""category"": ""lassi"", ""pack_size"": ""250ml""}",₹25/250ml
+thirumala-milk-641007,milk,Thirumala Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹30/500ml
+thirumala-milk-641007,milk,Thirumala Full Cream Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹66/1l
+thirumala-milk-641007,milk,Thirumala Badam Flavoured Milk,"{""category"": ""flavoured-milk""}",₹30/180ml
+milky-mist-641012,milk,Milky Mist Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹31/500ml
+milky-mist-641012,milk,Milky Mist Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹35/500ml
+milky-mist-641012,milk,Milky Mist Cheese Block,"{""category"": ""cheese""}",₹135/200g
+sri-balaji-milk-supply-town-hall-641001,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+sri-balaji-milk-supply-town-hall-641001,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-amman-milk-supply-ram-nagar-641002,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+sri-amman-milk-supply-ram-nagar-641002,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-murugan-milk-supply-r-s-puram-641004,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-murugan-milk-supply-r-s-puram-641004,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+saibaba-milk-supply-singanallur-641005,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+saibaba-milk-supply-singanallur-641005,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+sri-vinayaga-milk-supply-ramanathapuram-641006,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-vinayaga-milk-supply-ramanathapuram-641006,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+annapoorna-milk-supply-uppilipalayam-641007,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+annapoorna-milk-supply-uppilipalayam-641007,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+kongu-milk-supply-gandhipuram-641009,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+kongu-milk-supply-gandhipuram-641009,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+velan-milk-supply-ganapathy-641011,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+velan-milk-supply-ganapathy-641011,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-lakshmi-milk-supply-peelamedu-641012,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-lakshmi-milk-supply-peelamedu-641012,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-karpagam-milk-supply-ondipudur-641015,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-karpagam-milk-supply-ondipudur-641015,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+senthil-milk-supply-rathinapuri-641018,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+senthil-milk-supply-rathinapuri-641018,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+arun-milk-supply-kuniyamuthur-641021,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+arun-milk-supply-kuniyamuthur-641021,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-vetri-milk-supply-ukkadam-641025,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+sri-vetri-milk-supply-ukkadam-641025,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+bharathi-milk-supply-podanur-641035,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+bharathi-milk-supply-podanur-641035,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-ganga-milk-supply-kavundampalayam-641037,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+nandhini-milk-supply-thudiyalur-641041,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-selvam-milk-supply-vadavalli-641045,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+vijay-milk-supply-maruthamalai-641046,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-ram-milk-supply-saravanampatti-641048,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+kaveri-milk-supply-nava-india-641062,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+sri-balaji-fresh-milk-centre-perur-641103,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-amman-fresh-milk-centre-vellakinar-641107,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-murugan-fresh-milk-centre-thondamuthur-641114,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+saibaba-fresh-milk-centre-kinathukadavu-641202,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-vinayaga-fresh-milk-centre-mettupalayam-641301,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+annapoorna-fresh-milk-centre-sulur-641402,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+kongu-fresh-milk-centre-pollachi-642001,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+velan-fresh-milk-centre-pollachi-east-642002,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-lakshmi-fresh-milk-centre-valparai-642126,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-karpagam-fresh-milk-centre-valparai-town-642127,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+senthil-fresh-milk-centre-tiruppur-641604,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+arun-fresh-milk-centre-palladam-638051,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+sri-vetri-fresh-milk-centre-town-hall-641001,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+bharathi-fresh-milk-centre-ram-nagar-641002,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-ganga-fresh-milk-centre-r-s-puram-641004,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+nandhini-fresh-milk-centre-singanallur-641005,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-selvam-fresh-milk-centre-ramanathapuram-641006,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+vijay-fresh-milk-centre-uppilipalayam-641007,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+sri-ram-fresh-milk-centre-gandhipuram-641009,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+kaveri-fresh-milk-centre-ganapathy-641011,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-balaji-dairy-peelamedu-641012,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-amman-dairy-ondipudur-641015,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-murugan-dairy-rathinapuri-641018,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+saibaba-dairy-kuniyamuthur-641021,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+sri-vinayaga-dairy-ukkadam-641025,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+annapoorna-dairy-podanur-641035,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+kongu-dairy-kavundampalayam-641037,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+velan-dairy-thudiyalur-641041,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-lakshmi-dairy-vadavalli-641045,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+sri-karpagam-dairy-maruthamalai-641046,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+senthil-dairy-saravanampatti-641048,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+arun-dairy-nava-india-641062,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""500ml""}",₹52/500ml
+sri-vetri-dairy-perur-641103,milk,Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+bharathi-dairy-vellakinar-641107,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹56/500ml
+sri-ganga-dairy-thondamuthur-641114,milk,Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+nandhini-dairy-kinathukadavu-641202,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹44/500ml
+kongu-dairy-farm-mettupalayam-641301,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+green-pastures-dairy-farm-sulur-641402,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+sri-balaji-dairy-farm-pollachi-642001,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+amman-dairy-farm-pollachi-east-642002,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+vellingiri-dairy-farm-valparai-642126,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-murugan-dairy-farm-valparai-town-642127,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+nallur-dairy-farm-tiruppur-641604,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+karpagam-dairy-farm-palladam-638051,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+sri-velan-dairy-farm-town-hall-641001,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+ponni-dairy-farm-ram-nagar-641002,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+sri-lakshmi-dairy-farm-r-s-puram-641004,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+thendral-dairy-farm-singanallur-641005,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+kongu-dairy-farm-ramanathapuram-641006,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+green-pastures-dairy-farm-uppilipalayam-641007,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+sri-balaji-dairy-farm-gandhipuram-641009,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+amman-dairy-farm-ganapathy-641011,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+vellingiri-dairy-farm-peelamedu-641012,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+sri-murugan-dairy-farm-ondipudur-641015,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+nallur-dairy-farm-rathinapuri-641018,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+karpagam-dairy-farm-kuniyamuthur-641021,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+sri-velan-dairy-farm-ukkadam-641025,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+ponni-dairy-farm-podanur-641035,milk,Fresh Buffalo Milk,"{""category"": ""milk"", ""fat_percent"": 6.5, ""milk_type"": ""buffalo"", ""pack_size"": ""500ml""}",₹45/500ml
+sri-lakshmi-dairy-farm-kavundampalayam-641037,milk,A2 Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.3, ""milk_type"": ""a2"", ""pack_size"": ""1l""}",₹98/1l
+thendral-dairy-farm-thudiyalur-641041,milk,Organic Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.1, ""milk_type"": ""organic"", ""pack_size"": ""500ml""}",₹58/500ml
+kongu-dairy-farm-vadavalli-641045,milk,Farm Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""1l""}",₹64/1l
+kongu-town-hall-milk-producers-cooperative-society-641001,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+nallur-ram-nagar-cooperative-dairy-641002,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+ponni-r-s-puram-milk-sangam-641004,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+vellingiri-singanallur-milk-producers-cooperative-society-641005,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+thendral-ramanathapuram-cooperative-dairy-641006,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-velan-uppilipalayam-milk-sangam-641007,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+kongu-gandhipuram-milk-producers-cooperative-society-641009,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+nallur-ganapathy-cooperative-dairy-641011,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+ponni-peelamedu-milk-sangam-641012,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+vellingiri-ondipudur-milk-producers-cooperative-society-641015,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+thendral-rathinapuri-cooperative-dairy-641018,milk,Cooperative Toned Milk,"{""category"": ""milk"", ""fat_percent"": 3.0, ""milk_type"": ""toned"", ""pack_size"": ""500ml""}",₹28/500ml
+sri-velan-kuniyamuthur-milk-sangam-641021,milk,Cooperative Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹32/500ml
+kovai-ghee-house-641001,milk,Kovai Hand-Churned Cow Ghee,"{""category"": ""ghee"", ""pack_size"": ""500ml""}",₹340/500ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Fresh Cow Milk,"{""category"": ""milk"", ""fat_percent"": 4.0, ""milk_type"": ""cow"", ""pack_size"": ""500ml""}",₹34/500ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Cow Ghee,"{""category"": ""ghee"", ""pack_size"": ""500ml""}",₹310/500ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Fresh Paneer,"{""category"": ""paneer""}",₹90/200g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Instant Milk Powder,"{""category"": ""milk-powder""}",₹250/500g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Set Yogurt,"{""category"": ""yogurt""}",₹25/100g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Sweet Lassi,"{""category"": ""lassi"", ""pack_size"": ""250ml""}",₹25/250ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Thick Curd,"{""category"": ""curd""}",₹32/500g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Spiced Buttermilk,"{""category"": ""buttermilk""}",₹15/200ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Cheese Block,"{""category"": ""cheese""}",₹130/200g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Table Butter,"{""category"": ""butter""}",₹56/100g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Fresh Cream,"{""category"": ""cream"", ""pack_size"": ""250ml""}",₹80/250ml
+coimbatore-dairy-mart-641001,milk,Dairy Mart Khoa,"{""category"": ""khoa""}",₹115/250g
+coimbatore-dairy-mart-641001,milk,Dairy Mart Badam Flavoured Milk,"{""category"": ""flavoured-milk""}",₹30/180ml

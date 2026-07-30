@@ -35,7 +35,9 @@ phone/email-shaped text that got them rejected), so it must never enter
 git history. Regenerate and inspect locally, then discard it. Each
 rejected row carries a machine-readable reason (`pincode_not_found`,
 `pincode_outside_service_area`, `invalid_type:...`, `invalid_category:...`,
-`pii_detected:<field>`, `invalid_specs:<code>:<field>`, `duplicate`, ...).
+`pii_detected:<field>`, `invalid_specs:<code>:<field>`,
+`missing_product_category`, `missing_milk_type_for_milk_category`,
+`duplicate`, ...).
 
 ## Output contract (what D27 loads)
 
@@ -81,12 +83,25 @@ stripping it.
   service categories seeded by `alembic/versions/0026_dairy_categories.py`:
   `veterinarian`, `feed-supplier`, `dairy-farm`, `cooperative`.
 - Product `specs_json` is validated for real against the seeded milk
-  spec-schema (`alembic/versions/0018_catalog_v1.py` /
-  `modules/directory/specs.py`) — `milk_type` (required enum: `cow`,
-  `buffalo`, `a2`, `toned`, `organic`), `fat_percent` (optional, `0`–
-  `15`), `pack_size` (optional enum: `250ml`, `500ml`, `1l`, `5l`,
-  `bulk`). A row with an invalid spec is rejected, not shipped with bad
-  data.
+  spec-schema — v2 as of M1 (`alembic/versions/0029_milk_schema_v2.py` /
+  `modules/directory/specs.py`), mirrored byte-for-byte by the
+  normalizer's `MILK_SPEC_FIELDS`:
+  - `category` — **required**, fed by the raw sheet's `product_category`
+    column, one of the 13 dairy values (`milk`, `ghee`, `paneer`,
+    `milk-powder`, `yogurt`, `lassi`, `curd`, `buttermilk`, `cheese`,
+    `butter`, `cream`, `khoa`, `flavoured-milk`). There is **no default**:
+    a blank `product_category` is a hard rejection
+    (`missing_product_category`), because an uncategorised listing renders
+    on no category page at all.
+  - `milk_type` — optional in v2 (a ghee product has no milk type), enum
+    `cow`, `buffalo`, `a2`, `toned`, `organic`, `mixed`. v2 cannot express
+    "required only for this category", so the normalizer enforces
+    `category == "milk"` ⇒ `milk_type` present
+    (`missing_milk_type_for_milk_category`).
+  - `fat_percent` (optional, `0`–`15`), `pack_size` (optional enum:
+    `250ml`, `500ml`, `1l`, `5l`, `bulk`).
+
+  A row with an invalid spec is rejected, not shipped with bad data.
 - Names are whitespace-collapsed and casing-normalized; rows are
   deduped by `(name, primary_pincode)` — first occurrence wins, later
   duplicates are rejected.
@@ -131,3 +146,32 @@ data. Types are a realistic mix of `farm` (milk producer), `vendor`
 `specs_json` validates against the live milk spec-schema — see
 `backend/core/tests/test_vendor_seed.py::TestStarterSeed` for the tests
 that hold this sample to the same contract as any future real import.
+
+### Category coverage and the two fixture brands (M1)
+
+**Every one of the 13 `category` values has at least one real Coimbatore
+listing** — a taxonomy value with no listing renders an empty category
+page, so this is a DoD gate, held by
+`TestStarterSeed::test_every_dairy_category_has_a_listing`. Twelve
+already-seeded brands carry the non-milk categories they really sell
+(Aavin: ghee/paneer/curd/butter/khoa; Arokya: buttermilk; Sakthi: cream;
+Amul: milk-powder; Heritage: yogurt; Dodla: lassi; Thirumala:
+flavoured-milk; Milky Mist: cheese).
+
+Two purpose-built brands prove the M1 spec's item 4 — that a brand
+selling ONE product and a brand selling ALL of them both render:
+
+| brand | products |
+|---|---|
+| `Kovai Ghee House` | exactly one (`ghee`) |
+| `Coimbatore Dairy Mart` | all thirteen, one per category |
+
+They are written exactly like the other multi-row brands: one raw-sheet
+row per counter, each carrying its own branch and one product, all rows
+sharing a `ref`. The rendering side is tested against these two names in
+`backend/core/tests/test_catalog_one_vs_all.py`.
+
+Note that `import_vendor_seed` is idempotent at the **business** level
+(`(name, primary_pincode)`), so re-importing into an already-seeded
+database skips existing brands wholesale — products newly attached to an
+existing brand only land on a fresh import.

@@ -71,9 +71,22 @@ MODULES: dict[str, dict[str, str]] = {
         "review.approved, lead.created, lead.responded on the directory\n"
         "event stream. D26 adds owner tier-selection (intent only;\n"
         "subscription_tier is admin-set via /admin/directory .../tier, audited),\n"
-        "premium-first covers() ordering, a public profile-view beacon\n"
+        "tier-then-distance covers() ordering (M1 puts verified ahead of it -\n"
+        "see below), a public profile-view beacon\n"
         "(/directory/businesses/{slug}/view, daily-rotating pseudonym,\n"
-        "append-only), and owner analytics (/directory/businesses/{id}/analytics).",
+        "append-only), and owner analytics (/directory/businesses/{id}/analytics).\n"
+        "M1 makes the dairy taxonomy schema-driven, not code-driven: milk\n"
+        "spec-schema v2 carries a REQUIRED `category` enum whose FieldDef\n"
+        "option_meta holds the en/ta/hi labels + icon key every consumer\n"
+        "renders from, `milk_type` is optional (ghee has none), and\n"
+        "GET /catalog/verticals/{vertical}/schema is PUBLIC so the storefront\n"
+        "can read the value set with no build-time backend dependency. Adding a\n"
+        "category value must light it up everywhere with zero code change -\n"
+        "never hardcode a category list. covers() orders verified-first\n"
+        "(verified_rank, tier_rank, distance_m, b.id) with a matching 4-field\n"
+        "cursor, and takes an optional product_category that EXISTS-filters on\n"
+        "approved+active products in that category; `pending` verification\n"
+        "must never rank above `unverified`.",
         "spec": "docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).",
         "pii_note": "holds business contact data (phones, emails)",
         "extra_never": "- Never render contact details without the lead/verification\n"
@@ -123,7 +136,10 @@ MODULES: dict[str, dict[str, str]] = {
         "spec": "docs/Execution schedule v5.MD - cross-cutting; ADR-0007.",
         "pii_note": "must not index private fields into public documents",
         "extra_never": "- Never index a field the owning module marks private;\n"
-        "  Postgres is the source of truth - indexes are rebuildable.",
+        "  Postgres is the source of truth - indexes are rebuildable.\n"
+        "- Never assume the M1 verified-first re-rank is global: it reorders\n"
+        "  each RETURNED page in Python (no index/settings change), so it is\n"
+        "  page-local by construction - do not present it as index ranking.",
     },
     "billing": {
         "purpose": "Razorpay payments: subscriptions, slot purchases, invoices.",

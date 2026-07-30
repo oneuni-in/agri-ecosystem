@@ -61,6 +61,7 @@ def _row(**overrides: str) -> dict[str, str]:
         "coverage_pincodes": "641001;641045",
         "vertical_slug": "milk",
         "product_name": "Fresh Cow Milk",
+        "product_category": "milk",
         "milk_type": "cow",
         "fat_percent": "4.2",
         "pack_size": "500ml",
@@ -231,11 +232,51 @@ class TestNormalizeRow:
         assert reason is None
         assert record is not None
         specs = json.loads(record.products[0]["specs_json"])
-        assert specs == {"milk_type": "cow"}
+        assert specs == {"category": "milk", "milk_type": "cow"}
 
-    def test_missing_required_milk_type_rejected(self) -> None:
+    def test_missing_milk_type_on_milk_category_rejected(self) -> None:
+        # v2 demoted milk_type to optional (a ghee product has no milk type),
+        # so this is the normalizer's own guard, not a schema rejection.
         _, reason = normalize_row(_row(milk_type=""), GEO)
-        assert reason is not None and reason.startswith("invalid_specs")
+        assert reason == "missing_milk_type_for_milk_category"
+
+    def test_missing_product_category_rejected(self) -> None:
+        # No default: an uncategorised seed row would render nowhere.
+        _, reason = normalize_row(_row(product_category=""), GEO)
+        assert reason == "missing_product_category"
+
+    def test_rejects_unknown_product_category(self) -> None:
+        _, reason = normalize_row(_row(product_category="kefir"), GEO)
+        assert reason == "invalid_specs:invalid_enum_value:category"
+
+    def test_non_milk_category_needs_no_milk_type(self) -> None:
+        record, reason = normalize_row(
+            _row(
+                product_category="ghee",
+                product_name="Cow Ghee",
+                milk_type="",
+                fat_percent="",
+                pack_size="500ml",
+            ),
+            GEO,
+        )
+        assert reason is None
+        assert record is not None
+        specs = json.loads(record.products[0]["specs_json"])
+        assert specs == {"category": "ghee", "pack_size": "500ml"}
+
+    def test_product_category_casing_normalized(self) -> None:
+        record, reason = normalize_row(_row(product_category="  GHEE  ", milk_type=""), GEO)
+        assert reason is None
+        assert record is not None
+        assert json.loads(record.products[0]["specs_json"])["category"] == "ghee"
+
+    @pytest.mark.parametrize("payload", ["[1, 2]", '"cow"', "3", "null"])
+    def test_rejects_well_formed_json_of_the_wrong_shape(self, payload: str) -> None:
+        # specs_json must be an object. Rejected before the milk-category
+        # guard reads it, which would otherwise blow up on a list.
+        _, reason = normalize_row(_row(specs_json=payload), GEO)
+        assert reason == "invalid_specs_json"
 
 
 class TestDedupe:
@@ -493,6 +534,31 @@ class TestStarterSeed:
         for row in products:
             specs = json.loads(row["specs_json"])
             validate_specs(specs, fields)  # raises SpecValidationError on failure
+
+    def test_every_dairy_category_has_a_listing(self) -> None:
+        """M1 DoD: every value of the v2 `category` enum is actually seeded.
+        A taxonomy value with no listing renders an empty category page."""
+        category = next(f for f in parse_fields(MILK_SPEC_FIELDS) if f.key == "category")
+        assert category.options is not None
+        seeded = {
+            json.loads(row["specs_json"]).get("category") for row in self._rows("products.csv")
+        }
+        assert set(category.options) - seeded == set()
+
+    def test_item_4_fixture_brands_are_seeded(self) -> None:
+        """Spec item 4: a brand selling ONE product and a brand selling ALL
+        of them, both present in the shipped seed."""
+        refs = {row["name"]: row["ref"] for row in self._rows("businesses.csv")}
+        one, every = refs["Kovai Ghee House"], refs["Coimbatore Dairy Mart"]
+        by_ref: dict[str, list[str]] = {}
+        for row in self._rows("products.csv"):
+            by_ref.setdefault(row["business_ref"], []).append(
+                json.loads(row["specs_json"])["category"]
+            )
+        assert by_ref[one] == ["ghee"]
+        category = next(f for f in parse_fields(MILK_SPEC_FIELDS) if f.key == "category")
+        assert category.options is not None
+        assert sorted(by_ref[every]) == sorted(category.options)
 
     def test_no_pii_columns_in_contract(self) -> None:
         for name in ("businesses.csv", "branches.csv", "coverage.csv", "products.csv"):

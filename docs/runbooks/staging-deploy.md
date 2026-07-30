@@ -38,6 +38,26 @@ sha if smoke fails. There is no auto-deploy and no prod yet.
 Follow [secrets.md](secrets.md) to commit `secrets/staging.sops.env`. The
 deploy fails loudly at the decrypt step until this exists with real values.
 
+### Repository variables (Settings → Secrets and variables → Actions → Variables tab)
+
+- `NEXT_PUBLIC_CONSOLE_URL` — the Business Console's public origin (the
+  web-agri app, e.g. its `agri.in` host). `deploy-staging.yml`'s
+  `build-push` job passes this as the `CONSOLE_URL` build-arg to
+  `apps/Dockerfile` when building the `web-milk` image (Task 11 fix round
+  2). It is a plain repo **variable**, not a secret — a hostname isn't
+  sensitive, and secrets get masked in Action logs, which would make a
+  misconfigured value harder to diagnose.
+  - This is a `NEXT_PUBLIC_` var: Next.js inlines it into the JS bundle at
+    build time. There is no runtime knob for it — changing the value
+    requires rebuilding and redeploying the `web-milk` image, not just
+    restarting the container.
+  - If this variable is unset, the `web-milk` image build **fails on
+    purpose** (`apps/web-milk/lib/console.ts` throws a
+    `NEXT_PUBLIC_CONSOLE_URL is not set` error at build time) rather than
+    silently shipping a dead cross-origin "List your dairy business" link
+    to real visitors. Set the variable and re-run the `build-push` job (or
+    re-push to `dev`) to clear the failure.
+
 ## Running a deploy
 
 1. Merge a PR into `dev` (or run `deploy-staging` via *Actions → Run workflow*).

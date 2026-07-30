@@ -15,10 +15,21 @@ ARG APP
 # NEXT_OUTPUT switches next.config.ts to standalone output (kept off for
 # local/CI builds - symlink tracing breaks on Windows dev boxes)
 ENV NEXT_OUTPUT=standalone
-# release tag for sentry (set by deploy-staging.yml); NEXT_PUBLIC_ vars are
-# inlined at build time, so this must exist in the builder stage
+# release tag for sentry (set by deploy-staging.yml), and the Business
+# Console origin web-milk's ListBusinessCta links to (Task 11 fix round 2,
+# sourced from the `NEXT_PUBLIC_CONSOLE_URL` repo variable — see
+# docs/runbooks/staging-deploy.md). Both are NEXT_PUBLIC_ vars, inlined at
+# build time, so they must exist in the builder stage. Defaulting
+# CONSOLE_URL to "" is deliberate: apps that don't import
+# apps/web-milk/lib/console.ts (web-organic, web-agri, web-id, web-admin)
+# never read NEXT_PUBLIC_CONSOLE_URL and are unaffected either way; web-milk
+# itself fails loudly at build time if it's empty in production (see
+# apps/web-milk/lib/console.ts) rather than silently inlining a blank/wrong
+# origin — no hostname is invented here.
 ARG GIT_SHA=""
+ARG CONSOLE_URL=""
 ENV NEXT_PUBLIC_RELEASE=$GIT_SHA
+ENV NEXT_PUBLIC_CONSOLE_URL=$CONSOLE_URL
 RUN pnpm exec turbo run build --filter=@agri/${APP}
 
 FROM node:24-alpine AS runner

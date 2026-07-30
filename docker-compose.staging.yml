@@ -69,19 +69,18 @@ services:
     # Task 11: the "List your dairy business" CTA reads NEXT_PUBLIC_CONSOLE_URL
     # at build time (NEXT_PUBLIC_ vars are inlined into the JS bundle in
     # apps/Dockerfile's builder stage — same as NEXT_PUBLIC_RELEASE/GIT_SHA).
-    # deploy-staging.yml's build-push job does not yet pass it as a
-    # --build-arg. As of fix round 1 (Finding 2) this is no longer a silent
-    # localhost fallback: apps/web-milk/lib/console.ts throws at build time
-    # when NODE_ENV=production and the var is unset, so the web-milk image
-    # in the build-push matrix will now FAIL TO BUILD until a real staging
-    # console hostname (web-agri lives at :3102 there) is threaded through as
-    # a --build-arg — intended behaviour, not a bug: a loud build failure
-    # beats silently shipping a dead cross-origin link to real users.
-    # Fast-follow: add that build-arg to apps/Dockerfile + deploy-staging.yml
-    # once the real staging hostname is settled — VPS/staging wiring stays
-    # owner-deferred, not done here. An `environment:` entry on this service
-    # would NOT fix it either way: the var is inlined at build time, not read
-    # at container-start time.
+    # deploy-staging.yml's build-push job sources it from the repo variable
+    # `NEXT_PUBLIC_CONSOLE_URL` (Settings → Variables) and passes it as the
+    # `CONSOLE_URL` --build-arg — see docs/runbooks/staging-deploy.md's
+    # "Repository variables" section for the required setup. If that repo
+    # variable is unset, the web-milk image build fails on purpose
+    # (apps/web-milk/lib/console.ts throws at build time) rather than
+    # silently shipping a dead cross-origin link — set the variable, don't
+    # lower this gate. An `environment:` entry on this service would NOT
+    # substitute for it: the var is inlined at build time, not read at
+    # container-start time, so building this image locally (`docker build
+    # -f apps/Dockerfile --build-arg APP=web-milk --build-arg
+    # CONSOLE_URL=<console-origin> .`) needs the same --build-arg too.
     ports:
       - "3100:3000"
     healthcheck: &web-health

@@ -57,6 +57,7 @@ jobs:
           build-args: |
             APP=${{ matrix.name }}
             GIT_SHA=${{ github.sha }}
+            CONSOLE_URL=${{ vars.NEXT_PUBLIC_CONSOLE_URL }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/agri-${{ matrix.name }}:${{ github.sha }}

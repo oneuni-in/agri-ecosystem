@@ -1,11 +1,12 @@
 """Directory API request/response schemas (D15)."""
 
+import re
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 BusinessType = Literal["vendor", "shop", "lab", "farm"]
 Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -13,6 +14,23 @@ Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 PINCODE_PATTERN = r"^\d{6}$"
 SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+# M1.5.C: About is plain text v1, length-capped. Locale-key validation stays
+# in Translated.from_dict (the 400 path test_create_rejects_unknown_locale
+# pins); this validator adds the cap + the no-HTML gate as 422s.
+ABOUT_MAX_LEN = 2000
+_HTML_RE = re.compile(r"<[^>]*>")
+
+
+def _validate_description(v: dict[str, str] | None) -> dict[str, str] | None:
+    if v is None:
+        return v
+    for key, value in v.items():
+        if len(value) > ABOUT_MAX_LEN:
+            raise ValueError(f"description[{key}] exceeds {ABOUT_MAX_LEN} characters")
+        if _HTML_RE.search(value):
+            raise ValueError(f"description[{key}] must be plain text (no HTML)")
+    return v
 
 
 class DeliveryWindowIn(BaseModel):
@@ -33,6 +51,8 @@ class BusinessCreateIn(BaseModel):
     primary_pincode: str = Field(pattern=PINCODE_PATTERN)
     description: dict[str, str] | None = None
 
+    _check_description = field_validator("description")(_validate_description)
+
 
 class BusinessPatchIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
@@ -40,6 +60,8 @@ class BusinessPatchIn(BaseModel):
     primary_pincode: str | None = Field(default=None, pattern=PINCODE_PATTERN)
     description: dict[str, str] | None = None
     delivery_windows: list[DeliveryWindowIn] | None = Field(default=None, max_length=7)
+
+    _check_description = field_validator("description")(_validate_description)
 
 
 ReportReason = Literal["fake_listing", "wrong_info", "abusive", "fraud_scam", "other"]

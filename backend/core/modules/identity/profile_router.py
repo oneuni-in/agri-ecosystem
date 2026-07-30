@@ -8,6 +8,7 @@ Avatar upload (POST /identity/profile/avatar) - multipart image upload,
 type sniffed from magic bytes only, stored via shared.storage.put_object.
 """
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, UploadFile
@@ -63,6 +64,9 @@ class ProfileOut(IdentityPublicSchema):
     has_avatar: bool
     completion_score: int
     visibility: dict[str, bool]
+    # M1.5.D: "Member since {month year}" - the account's created_at is not
+    # PII (no phone, no UUID; the schema guard enforces that at import time)
+    member_since: datetime
 
 
 async def _load_user(session: AsyncSession, principal: PrincipalDep) -> User:
@@ -83,6 +87,7 @@ async def _profile_out(session: AsyncSession, user: User, profile: Profile | Non
         has_avatar=bool(profile is not None and profile.avatar_key),
         completion_score=live_score(user, profile),
         visibility=await get_visibility(session, user.id),
+        member_since=user.created_at,
     )
 
 

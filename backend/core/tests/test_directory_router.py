@@ -88,6 +88,64 @@ async def test_create_rejects_unknown_locale(api: tuple[httpx.AsyncClient, Async
     assert response.status_code == 400
 
 
+async def test_description_length_capped(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    """M1.5.C: About is plain text, max 2000 chars per locale."""
+    http, _ = api
+    created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
+    business_id = created.json()["id"]
+    too_long = await http.patch(
+        f"/directory/businesses/{business_id}",
+        json={"description": {"en": "x" * 2001}},
+        headers=_as(USER_A),
+    )
+    assert too_long.status_code == 422
+    at_cap = await http.patch(
+        f"/directory/businesses/{business_id}",
+        json={"description": {"en": "x" * 2000}},
+        headers=_as(USER_A),
+    )
+    assert at_cap.status_code == 200
+
+
+async def test_description_rejects_html(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    """M1.5.C: no HTML in About v1 - reject, don't strip."""
+    http, _ = api
+    created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
+    business_id = created.json()["id"]
+    html = await http.patch(
+        f"/directory/businesses/{business_id}",
+        json={"description": {"en": "Best <b>milk</b> in town"}},
+        headers=_as(USER_A),
+    )
+    assert html.status_code == 422
+    create_html = await http.post(
+        "/directory/businesses",
+        json=CREATE_BODY | {"description": {"en": "<script>alert(1)</script>"}},
+        headers=_as(USER_A),
+    )
+    assert create_html.status_code == 422
+
+
+async def test_description_three_locales_roundtrip(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, _ = api
+    created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))
+    business_id = created.json()["id"]
+    about = {
+        "en": "Family dairy since 1998",
+        "ta": "1998 முதல் குடும்ப பால் பண்ணை",
+        "hi": "1998 से पारिवारिक डेयरी",
+    }
+    patched = await http.patch(
+        f"/directory/businesses/{business_id}",
+        json={"description": about},
+        headers=_as(USER_A),
+    )
+    assert patched.status_code == 200
+    assert patched.json()["description"] == about
+
+
 async def test_patch_is_idor_safe(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     http, _ = api
     created = await http.post("/directory/businesses", json=CREATE_BODY, headers=_as(USER_A))

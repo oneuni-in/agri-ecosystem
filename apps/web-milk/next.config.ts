@@ -34,6 +34,22 @@ const nextConfig: NextConfig = {
   // renders). Rewrites barrel imports to direct module imports at build time.
   experimental: {
     optimizePackageImports: ["@agri/ui"],
+    // Issue #45: every page ships exactly two render-blocking stylesheets
+    // (compiled Tailwind + the fonts/design-token CSS from the [locale]
+    // layout), ~8 KB transferred (~38 KB raw) total, which Lighthouse
+    // estimates at ~1.4s of savings on the CI mobile/3G profile. The
+    // pincode landing route (`/[locale]/[city]/[pincode]`) is dynamically
+    // rendered (`ƒ`, forced by its own `searchParams` read) and so can
+    // never benefit from build-time critical-CSS inlining — that's why
+    // D29's `optimizeCss` attempt did nothing for it. `inlineCss` inlines
+    // all CSS as `<style>` tags in the document for both static and
+    // dynamic rendering, eliminating both blocking requests everywhere.
+    // Trade-off accepted: every HTML document now carries the ~8 KB
+    // inline instead of one cacheable CSS URL shared across pages — fine
+    // at this CSS size; revisit (e.g. critical-CSS extraction) if the
+    // bundle grows meaningfully. Scoped to web-milk only for now; other
+    // apps should opt in deliberately, not inherit this by default.
+    inlineCss: true,
   },
   eslint: {
     // Linting is its own turbo task (`pnpm lint`, --max-warnings 0). Running

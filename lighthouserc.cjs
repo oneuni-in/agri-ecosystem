@@ -57,20 +57,20 @@ module.exports = {
           // when the API is up (scripts/lhci-affected.mjs), which the CI
           // lighthouse job now provides.
           //
-          // perf floor 0.80, owner-approved 2026-07-27 (D28b). First CI
-          // measurement was 0.82 / 0.83 / 0.83 - stable, not runner variance,
-          // so 0.90 would fail deterministically rather than flakily. The cost
-          // is the shared shell, not the listings: LCP render delay 3664ms of
-          // a ~4.0s LCP, of which render-blocking CSS is 1559ms across two
-          // small stylesheets (each request costs a ~560ms round trip on this
-          // 3G profile); CLS is 0 and TTFB 40ms. 0.80 leaves ~3pts headroom so
-          // the gate protects against regressions TODAY; raising it to the
-          // Constitution's 0.90 is tracked as a follow-up (critical-CSS
-          // delivery + font strategy in packages/ui). a11y/seo hold the full
-          // floor - they measure 0.96 / 1.00.
+          // The 0.80 carve-out was owner-approved 2026-07-27 (D28b) against a
+          // diagnosis of two render-blocking stylesheets (shared Tailwind +
+          // fonts/tokens CSS) costing ~1559ms of a ~3664ms LCP render delay -
+          // a cost this route couldn't shed via build-time critical-CSS
+          // inlining because it's dynamically rendered (`ƒ`, forced by its
+          // own `searchParams` read). Issue #45's fix (`experimental.inlineCss`
+          // in apps/web-milk/next.config.ts) inlines all CSS as `<style>`
+          // tags for dynamic renders too, removing that cost entirely. With
+          // the render-blocking-CSS cause gone, the landing pages bind to the
+          // Constitution's 0.90 floor like every other public page - no more
+          // carve-out. Issue #45 closes when this passes in CI.
           matchingUrlPattern: "/[a-z][a-z-]*/\\d{6}$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.8, aggregationMethod: "median-run" }],
+            "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
             "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
             "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
           },

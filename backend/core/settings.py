@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     need_post_daily_cap: int = 5
     need_fanout_limit: int = 10
 
+    # Business reports (M1.5 trust & safety). Daily cap is the brigading
+    # brake (fail-closed like the reveal cap); one-pending-per-target is a
+    # DB partial unique index, not a setting.
+    report_daily_cap: int = 5
+
     # Profile-view beacon (D26 analytics-lite). The secret salts the ads-style
     # daily-rotating viewer pseudonym; dedupe is the DB unique index, so a
     # missing Redis costs nothing here.

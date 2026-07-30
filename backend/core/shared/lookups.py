@@ -31,10 +31,18 @@ class NotifyContact:
 BusinessResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[BusinessRef | None]]
 OwnedBusinessesResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[list[BusinessRef]]]
 ContactResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[NotifyContact | None]]
+# M1.5.E: directory answers "may this business be served/shown at all?"
+# (status == 'active'); ads consumes it at serve time - the M3 seam.
+ServableResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[bool]]
+# M1.5.B: ads pauses an advertiser's active campaigns on disable, in the
+# caller's transaction; returns the paused campaign ids for the audit row.
+CampaignPauser = Callable[[AsyncSession, uuid.UUID], Awaitable[list[str]]]
 
 _business_resolver: BusinessResolver | None = None
 _owned_businesses_resolver: OwnedBusinessesResolver | None = None
 _contact_resolver: ContactResolver | None = None
+_servable_resolver: ServableResolver | None = None
+_campaign_pauser: CampaignPauser | None = None
 
 
 def register_business_resolver(resolver: BusinessResolver) -> None:
@@ -52,11 +60,24 @@ def register_contact_resolver(resolver: ContactResolver) -> None:
     _contact_resolver = resolver
 
 
+def register_servable_resolver(resolver: ServableResolver) -> None:
+    global _servable_resolver
+    _servable_resolver = resolver
+
+
+def register_campaign_pauser(pauser: CampaignPauser) -> None:
+    global _campaign_pauser
+    _campaign_pauser = pauser
+
+
 def reset_lookup_resolvers() -> None:
     global _business_resolver, _owned_businesses_resolver, _contact_resolver
+    global _servable_resolver, _campaign_pauser
     _business_resolver = None
     _owned_businesses_resolver = None
     _contact_resolver = None
+    _servable_resolver = None
+    _campaign_pauser = None
 
 
 async def resolve_business(session: AsyncSession, business_id: uuid.UUID) -> BusinessRef | None:
@@ -77,3 +98,18 @@ async def resolve_contact(session: AsyncSession, user_id: uuid.UUID) -> NotifyCo
     if _contact_resolver is None:
         return None
     return await _contact_resolver(session, user_id)
+
+
+async def is_servable(session: AsyncSession, business_id: uuid.UUID) -> bool:
+    """Serve-time enforcement check (M1.5.E). FAIL CLOSED: no resolver or an
+    unknown business means False - a suspended vendor's ads must never serve
+    because wiring was missing."""
+    if _servable_resolver is None:
+        return False
+    return await _servable_resolver(session, business_id)
+
+
+async def pause_campaigns_for_business(session: AsyncSession, business_id: uuid.UUID) -> list[str]:
+    if _campaign_pauser is None:
+        return []
+    return await _campaign_pauser(session, business_id)

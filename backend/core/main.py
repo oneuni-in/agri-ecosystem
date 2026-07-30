@@ -5,7 +5,8 @@ from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from modules.ads.admin_router import admin_router as ads_admin_router
@@ -28,6 +29,7 @@ from modules.directory.needs_router import router as needs_router
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
+from modules.directory.service import BusinessDisabledError
 from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.location_router import location_router as identity_location_router
 from modules.identity.lookups import notify_contact
@@ -188,6 +190,14 @@ def create_app() -> FastAPI:
     register_directory_moderation_sources()
     register_ads_moderation_sources()
     app = FastAPI(title="agri core", lifespan=lifespan)
+
+    # M1.5.B: the disabled-business console lock surfaces from every
+    # owner-scoped route via service.get_owned_business - one app-level
+    # mapping instead of N per-route excepts.
+    async def _business_disabled_handler(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": "business_disabled"})
+
+    app.add_exception_handler(BusinessDisabledError, _business_disabled_handler)
     app.add_middleware(SlugRedirectMiddleware)
     # added last so it runs outermost: every request gets an id before
     # anything else, and the access line covers slug redirects too

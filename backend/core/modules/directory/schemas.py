@@ -89,10 +89,38 @@ class BusinessOut(BaseModel):
     description: dict[str, str] | None
     delivery_windows: list[dict[str, Any]] | None
     created_at: datetime
+    # M1.5: owner-facing while enforced; always None on public surfaces
+    # (public reads only ever serve status='active' businesses)
+    enforcement_reason: str | None = None
 
 
 class BusinessPageOut(BaseModel):
     items: list[BusinessOut]
+    next_cursor: str | None
+
+
+class EnforceIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ReinstateIn(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class AdminBusinessDetailOut(BusinessOut):
+    enforcement_prior_status: str | None = None
+
+
+class EnforcementLogEntryOut(BaseModel):
+    id: uuid.UUID
+    action: str
+    actor_user_id: uuid.UUID | None
+    created_at: datetime
+    metadata: dict[str, Any] | None
+
+
+class EnforcementLogPageOut(BaseModel):
+    items: list[EnforcementLogEntryOut]
     next_cursor: str | None
 
 

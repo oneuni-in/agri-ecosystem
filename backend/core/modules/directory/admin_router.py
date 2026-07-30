@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.directory import claims, search_sync
 from modules.directory.models import Business, Claim, Verification
 from modules.directory.schemas import (
+    AdminBusinessDetailOut,
     AdminClaimOut,
     AdminClaimPageOut,
     AdminTierIn,
@@ -27,13 +28,18 @@ from modules.directory.schemas import (
     AdminVerificationPageOut,
     BusinessOut,
     DecisionIn,
+    EnforceIn,
+    EnforcementLogEntryOut,
+    EnforcementLogPageOut,
+    ReinstateIn,
     RejectIn,
 )
 from shared import storage
-from shared.audit import audit
+from shared.audit import AuditEntry, audit
 from shared.db import get_session
 from shared.events import publish
-from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
+from shared.lookups import pause_campaigns_for_business
+from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
 
@@ -103,6 +109,7 @@ def _admin_business_out(business: Business) -> BusinessOut:
         description=business.description.to_dict() if business.description else None,
         delivery_windows=business.delivery_windows,
         created_at=business.created_at,
+        enforcement_reason=business.enforcement_reason,
     )
 
 
@@ -382,6 +389,190 @@ async def reject_verification(
     for product_payload in product_payloads:
         await _publish_best_effort("product.updated", product_payload)
     return out
+
+
+# --- enforcement (M1.5.B): suspend / disable / reinstate -------------------
+#
+# Soft-state one-liners on Business (Constitution soft-delete: no data is
+# ever deleted). Status is snapshot-visible, so every action republishes the
+# fat events; a non-active status makes business_snapshot() return None and
+# the search worker tombstones the docs. Enforcement is ALWAYS a human
+# decision - nothing here is reachable from report counts.
+
+
+async def _load_business_for_enforcement(session: AsyncSession, business_id: uuid.UUID) -> Business:
+    business = await session.scalar(select(Business).where(Business.id == business_id))
+    if business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return business
+
+
+async def _finish_enforcement(
+    session: AsyncSession,
+    business: Business,
+    *,
+    action: str,
+    admin_id: uuid.UUID,
+    metadata: dict[str, object],
+    ip: str | None,
+) -> BusinessOut:
+    await session.flush()
+    await audit(
+        session,
+        action=action,
+        actor_user_id=admin_id,
+        target_type="business",
+        target_id=str(business.id),
+        metadata=metadata,
+        ip=ip,
+    )
+    # capture BEFORE commit - ORM attributes expire at commit
+    search_payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
+    out = _admin_business_out(business)
+    await session.commit()
+    await _publish_best_effort("business.updated", search_payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
+    return out
+
+
+@admin_router.post("/businesses/{business_id}/suspend")
+async def suspend_business(
+    request: Request, business_id: uuid.UUID, body: EnforceIn, session: SessionDep
+) -> BusinessOut:
+    """Delist (M1.5.B): hidden from covers/search/ads, profile 410s, owner
+    keeps console access and sees the reason."""
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    business = await _load_business_for_enforcement(session, business_id)
+    if business.status == "suspended":
+        raise HTTPException(status_code=409, detail="already_suspended")
+    if business.status == "disabled":
+        # de-escalation goes through reinstate, never sideways
+        raise HTTPException(status_code=409, detail="business_disabled")
+    prior = business.status
+    business.enforcement_prior_status = prior
+    business.status = "suspended"
+    business.enforcement_reason = body.reason
+    return await _finish_enforcement(
+        session,
+        business,
+        action="directory.business_suspended",
+        admin_id=admin_id,
+        metadata={"reason": body.reason, "prior_status": prior},
+        ip=request.client.host if request.client else None,
+    )
+
+
+@admin_router.post("/businesses/{business_id}/disable")
+async def disable_business(
+    request: Request, business_id: uuid.UUID, body: EnforceIn, session: SessionDep
+) -> BusinessOut:
+    """Hard-off (M1.5.B): owner console locked (service.get_owned_business
+    raises app-wide 403), all serving stops; active ad campaigns auto-pause
+    (no refund logic v1 - the audit row's campaigns_paused list is the
+    manual-handling flag)."""
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    business = await _load_business_for_enforcement(session, business_id)
+    if business.status == "disabled":
+        raise HTTPException(status_code=409, detail="already_disabled")
+    prior = business.status
+    business.enforcement_prior_status = prior
+    business.status = "disabled"
+    business.enforcement_reason = body.reason
+    paused = await pause_campaigns_for_business(session, business.id)
+    return await _finish_enforcement(
+        session,
+        business,
+        action="directory.business_disabled",
+        admin_id=admin_id,
+        metadata={"reason": body.reason, "prior_status": prior, "campaigns_paused": paused},
+        ip=request.client.host if request.client else None,
+    )
+
+
+@admin_router.post("/businesses/{business_id}/reinstate")
+async def reinstate_business(
+    request: Request, business_id: uuid.UUID, body: ReinstateIn, session: SessionDep
+) -> BusinessOut:
+    """Restore the prior state (spec: disable-over-suspend reinstates back to
+    suspended first; a second reinstate clears to active). Paused campaigns
+    stay paused - un-pausing is the advertiser's explicit call."""
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    business = await _load_business_for_enforcement(session, business_id)
+    if business.status == "active":
+        raise HTTPException(status_code=409, detail="not_enforced")
+    prior = business.status
+    restored = business.enforcement_prior_status or "active"
+    business.status = restored
+    business.enforcement_prior_status = None
+    if restored == "active":
+        business.enforcement_reason = None
+    return await _finish_enforcement(
+        session,
+        business,
+        action="directory.business_reinstated",
+        admin_id=admin_id,
+        metadata={"note": body.note, "prior_status": prior, "restored_status": restored},
+        ip=request.client.host if request.client else None,
+    )
+
+
+@admin_router.get("/businesses/{slug}")
+async def admin_business_lookup(
+    request: Request, slug: str, session: SessionDep
+) -> AdminBusinessDetailOut:
+    """Enforcement console lookup by slug (admin sees any status)."""
+    _require_role(request, STAFF, SUPER_ADMIN)
+    business = await session.scalar(select(Business).where(Business.slug == slug))
+    if business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    base = _admin_business_out(business)
+    return AdminBusinessDetailOut(
+        **base.model_dump(), enforcement_prior_status=business.enforcement_prior_status
+    )
+
+
+_ENFORCEMENT_ACTIONS = (
+    "directory.business_suspended",
+    "directory.business_disabled",
+    "directory.business_reinstated",
+)
+
+
+@admin_router.get("/businesses/{business_id}/enforcement-log")
+async def enforcement_log(
+    request: Request,
+    business_id: uuid.UUID,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> EnforcementLogPageOut:
+    """Append-only trail (who, when, why, prior state) straight from the
+    hash-chained audit log - newest first."""
+    _require_role(request, STAFF, SUPER_ADMIN)
+    query = select(AuditEntry).where(
+        AuditEntry.action.in_(_ENFORCEMENT_ACTIONS),
+        AuditEntry.target_type == "business",
+        AuditEntry.target_id == str(business_id),
+    )
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return EnforcementLogPageOut(
+        items=[
+            EnforcementLogEntryOut(
+                id=entry.id,
+                action=entry.action,
+                actor_user_id=entry.actor_user_id,
+                created_at=entry.created_at,
+                metadata=entry.meta,
+            )
+            for entry in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )
 
 
 @admin_router.post("/businesses/{business_id}/tier")

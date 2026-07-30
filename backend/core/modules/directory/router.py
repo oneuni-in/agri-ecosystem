@@ -126,6 +126,7 @@ def _business_out(business: Business) -> BusinessOut:
         description=business.description.to_dict() if business.description else None,
         delivery_windows=business.delivery_windows,
         created_at=business.created_at,
+        enforcement_reason=business.enforcement_reason,
     )
 
 
@@ -456,10 +457,14 @@ async def list_categories(
 
 @router.get("/businesses/{slug}", public=True)
 async def get_business_detail(slug: str, session: SessionDep) -> BusinessDetailOut:
-    """Public business profile (SSR source). Suspended/deleted -> 404; renamed
+    """Public business profile (SSR source). Deleted -> 404; suspended or
+    disabled -> 410 (same code for both - no enforcement-state leak); renamed
     slugs 301 via SlugRedirectMiddleware reading slug_redirects."""
     result = await service.get_by_slug(session, slug)
     if result is None:
+        enforced = await service.get_by_slug_any_status(session, slug)
+        if enforced is not None and enforced.status != "active":
+            raise HTTPException(status_code=410, detail="business_unavailable")
         raise HTTPException(status_code=404, detail="Business not found")
     business, branches, categories = result
     pincodes = (

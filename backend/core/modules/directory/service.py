@@ -35,6 +35,11 @@ class BusinessNotFoundError(Exception):
     """No such business - or not yours. The router 404s both identically."""
 
 
+class BusinessDisabledError(Exception):
+    """M1.5.B hard-off: the owner console is locked while status='disabled'.
+    Mapped app-wide to 403 'business_disabled' (main.create_app handler)."""
+
+
 def _slugify(name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return base or "business"
@@ -96,6 +101,11 @@ async def get_owned_business(
     business = await session.scalar(query)
     if business is None:
         raise BusinessNotFoundError(str(business_id))
+    if business.status == "disabled":
+        # every owner-console read/write funnels through here: the lock is
+        # one check, not N route guards. list_my_businesses stays unfiltered
+        # so the console can render the locked card.
+        raise BusinessDisabledError(str(business_id))
     return business
 
 
@@ -332,6 +342,13 @@ async def list_categories(
     session: AsyncSession, *, cursor: str | None = None, limit: int = DEFAULT_PAGE_SIZE
 ) -> Page[Category]:
     return await paginate(session, select(Category), cursor=cursor, limit=limit)
+
+
+async def get_by_slug_any_status(session: AsyncSession, slug: str) -> Business | None:
+    """Enforcement-state lookup for the public 410 branch (M1.5). Soft-deleted
+    rows stay invisible via the ORM listener; suspended/disabled are returned."""
+    business: Business | None = await session.scalar(select(Business).where(Business.slug == slug))
+    return business
 
 
 async def get_by_slug(

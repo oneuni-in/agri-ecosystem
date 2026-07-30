@@ -236,7 +236,11 @@
       "pincodeLabel": "Your pincode",
       "find": "Find shops",
       "empty": "No shops found near {pincode}.",
-      "kmAway": "{km} km away"
+      "kmAway": "{km} km away",
+      "about": "About",
+      "onSince": "On Milk.in since {date}",
+      "unavailableTitle": "This listing is unavailable",
+      "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
     },
     "localeSwitcher": {
       "label": "Language"
@@ -266,6 +270,30 @@
     },
     "lowData": {
       "label": "Data saver"
+    },
+    "report": {
+      "trigger": "Report this listing",
+      "title": "Report listing",
+      "description": "Tell us what's wrong. Reports go to the Milk.in team and are never shown publicly.",
+      "reasonLabel": "Reason",
+      "reasonRequired": "Please choose a reason.",
+      "reasons": {
+        "fake_listing": "Fake or duplicate listing",
+        "wrong_info": "Wrong or outdated information",
+        "abusive": "Abusive content or behaviour",
+        "fraud_scam": "Fraud or scam",
+        "other": "Something else"
+      },
+      "detailLabel": "Details (optional)",
+      "detailLabelRequired": "Details (required)",
+      "detailRequired": "Please add details for this reason.",
+      "submit": "Submit report",
+      "submitting": "Submitting...",
+      "done": "Thanks — our team will review this report.",
+      "alreadyReported": "You already have a report open for this listing.",
+      "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
+      "error": "Could not submit — please try again.",
+      "loginCta": "Login to report this listing"
     }
   },
   "coins": {

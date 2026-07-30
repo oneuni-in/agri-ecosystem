@@ -1,3 +1,5 @@
+import { ListBusinessCta } from "@/components/molecules/ListBusinessCta";
+
 import { NotifyMe } from "./notify-me";
 
 /** Warm empty state for non-TN pincodes (never an error screen) — shared by
@@ -17,6 +19,7 @@ export function OutOfArea({ pincode }: { pincode: string }) {
         we&apos;ll reach out the moment milk vendors arrive.
       </p>
       <NotifyMe pincode={pincode} />
+      <ListBusinessCta />
     </main>
   );
 }

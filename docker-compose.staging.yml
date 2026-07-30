@@ -66,6 +66,17 @@ services:
 
   web-milk:
     image: ghcr.io/oneuni-in/agri-web-milk:${TAG:-dev}
+    # Task 11: the "List your dairy business" CTA reads NEXT_PUBLIC_CONSOLE_URL
+    # at build time (NEXT_PUBLIC_ vars are inlined into the JS bundle in
+    # apps/Dockerfile's builder stage — same as NEXT_PUBLIC_RELEASE/GIT_SHA).
+    # deploy-staging.yml's build-push job does not yet pass it as a
+    # --build-arg, so this image falls back to the http://localhost:3002
+    # default baked into the bundle, which is wrong for staging (web-agri
+    # lives at :3102 there). Fast-follow: thread a CONSOLE_URL build-arg
+    # through apps/Dockerfile + deploy-staging.yml once the real staging
+    # hostname is settled — VPS/staging wiring is owner-deferred, not done
+    # here. An `environment:` entry would NOT fix it: this var is inlined at
+    # build time, not read at container-start time.
     ports:
       - "3100:3000"
     healthcheck: &web-health

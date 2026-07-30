@@ -271,6 +271,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
         with:
@@ -361,6 +364,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -437,6 +443,9 @@ jobs:
       DATABASE_ADMIN_URL: postgresql+asyncpg://app:app@localhost:5432/agri
       REDIS_URL: redis://localhost:6379/0
       API_BASE_URL: http://127.0.0.1:8000
+      # Task 11: web-milk's header/footer/empty-state CTA reads this at
+      # build+render time; matches the console's dev/CI port (3002).
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3002
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

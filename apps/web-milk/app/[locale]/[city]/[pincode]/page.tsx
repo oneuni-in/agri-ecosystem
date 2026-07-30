@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { ListBusinessCta } from "@/components/molecules/ListBusinessCta";
 import { Link } from "@/i18n/navigation";
 import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
 import { fetchCovers } from "@/lib/directory";
@@ -200,13 +201,7 @@ export default async function PincodePage({
           Be the first to know when a dairy lists here.
         </p>
         <NotifyMe pincode={pincode} {...(district ? { district } : {})} />
-        {/* D24 will wire a real "list your dairy" onboarding flow — this is a
-            warm pointer only, no live link yet. */}
-        <p className="text-[13px] text-sub">
-          Run a dairy here?{" "}
-          <span className="font-bold text-brand-deep">List your dairy on Milk.in</span> — coming
-          soon.
-        </p>
+        <ListBusinessCta />
       </main>
     );
   }

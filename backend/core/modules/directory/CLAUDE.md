@@ -21,9 +21,22 @@ shell (shared.media.validate_audio, auth-gated playback). Emits
 review.approved, lead.created, lead.responded on the directory
 event stream. D26 adds owner tier-selection (intent only;
 subscription_tier is admin-set via /admin/directory .../tier, audited),
-premium-first covers() ordering, a public profile-view beacon
+tier-then-distance covers() ordering (M1 puts verified ahead of it -
+see below), a public profile-view beacon
 (/directory/businesses/{slug}/view, daily-rotating pseudonym,
 append-only), and owner analytics (/directory/businesses/{id}/analytics).
+M1 makes the dairy taxonomy schema-driven, not code-driven: milk
+spec-schema v2 carries a REQUIRED `category` enum whose FieldDef
+option_meta holds the en/ta/hi labels + icon key every consumer
+renders from, `milk_type` is optional (ghee has none), and
+GET /catalog/verticals/{vertical}/schema is PUBLIC so the storefront
+can read the value set with no build-time backend dependency. Adding a
+category value must light it up everywhere with zero code change -
+never hardcode a category list. covers() orders verified-first
+(verified_rank, tier_rank, distance_m, b.id) with a matching 4-field
+cursor, and takes an optional product_category that EXISTS-filters on
+approved+active products in that category; `pending` verification
+must never rank above `unverified`.
 
 **Spec pointer:** docs/Execution schedule v5.MD SS E1 (~60% of verticals build on it).
 

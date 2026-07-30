@@ -25,3 +25,6 @@ Meilisearch indexing + query facade for all modules.
 - Never bypass rate limiting or add an undeclared public route.
 - Never index a field the owning module marks private;
   Postgres is the source of truth - indexes are rebuildable.
+- Never assume the M1 verified-first re-rank is global: it reorders
+  each RETURNED page in Python (no index/settings change), so it is
+  page-local by construction - do not present it as index ranking.

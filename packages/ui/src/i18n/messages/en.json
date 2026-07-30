@@ -138,7 +138,8 @@
           "avatar": "Photo"
         },
         "devices": "Manage devices",
-        "error": "That didn't work — try again"
+        "error": "That didn't work — try again",
+        "memberSince": "Member since {date}"
       },
       "gated": {
         "title": "Login coming shortly",

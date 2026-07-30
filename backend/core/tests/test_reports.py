@@ -211,6 +211,131 @@ async def test_report_suspended_business_404(
     assert resp.status_code == 404
 
 
+STAFF = uuid.uuid4()
+
+
+async def _reported_business(
+    http: httpx.AsyncClient,
+    session: AsyncSession,
+    *,
+    reason: str = "fake_listing",
+    detail: str | None = "Not a real dairy",
+) -> tuple[Business, uuid.UUID]:
+    b = await _business(session)
+    resp = await http.post(
+        f"/directory/businesses/{b.slug}/report",
+        json=_report_body(reason, detail),
+        headers=_as(REPORTER),
+    )
+    assert resp.status_code == 201
+    report_id = await session.scalar(select(Report.id).where(Report.business_id == b.id))
+    assert report_id is not None
+    return b, report_id
+
+
+async def test_report_in_moderation_summary_and_queue(
+    api: tuple[httpx.AsyncClient, AsyncSession], no_cap: None
+) -> None:
+    """Non-negotiable 1: the report lands in the unified ops queue."""
+    http, session = api
+    b, _ = await _reported_business(http, session)
+
+    summary = await http.get("/admin/moderation/summary", headers=_as(STAFF, "staff"))
+    assert summary.status_code == 200
+    assert summary.json()["counts"]["report"] == 1
+
+    queue = await http.get("/admin/moderation/queue?type=report", headers=_as(STAFF, "staff"))
+    assert queue.status_code == 200
+    items = queue.json()["items"]
+    assert len(items) == 1
+    payload = items[0]["payload"]
+    assert payload["business_id"] == str(b.id)
+    assert payload["business_slug"] == b.slug
+    assert payload["business_name"] == b.name
+    assert payload["reason"] == "fake_listing"
+    assert payload["detail"] == "Not a real dairy"
+    # reporter identity IS admin-visible (brigading patterns), with a 30d count
+    assert payload["reporter_user_id"] == str(REPORTER)
+    assert payload["reporter_reports_30d"] == 1
+
+
+async def test_report_queue_requires_staff_role(
+    api: tuple[httpx.AsyncClient, AsyncSession], no_cap: None
+) -> None:
+    http, session = api
+    await _reported_business(http, session)
+    resp = await http.get("/admin/moderation/queue?type=report", headers=_as(REPORTER))
+    assert resp.status_code == 403
+
+
+async def test_report_approve_actions_and_audits(
+    api: tuple[httpx.AsyncClient, AsyncSession], no_cap: None
+) -> None:
+    http, session = api
+    b, report_id = await _reported_business(http, session)
+
+    resp = await http.post(
+        f"/admin/moderation/report/{report_id}/approve",
+        json={"note": "verified fake"},
+        headers=_as(STAFF, "staff"),
+    )
+    assert resp.status_code == 200
+    report = await session.get(Report, report_id)
+    assert report is not None
+    assert report.moderation_status == "approved"
+    # approving a report never auto-suspends: enforcement is a human decision
+    await session.refresh(b)
+    assert b.status == "active"
+
+    from shared.audit import AuditEntry
+
+    entry = await session.scalar(
+        select(AuditEntry).where(AuditEntry.action == "directory.report_actioned")
+    )
+    assert entry is not None
+    assert entry.actor_user_id == STAFF
+    assert entry.target_type == "business_report"
+    assert entry.target_id == str(report_id)
+
+    again = await http.post(
+        f"/admin/moderation/report/{report_id}/approve",
+        json={"note": "twice"},
+        headers=_as(STAFF, "staff"),
+    )
+    assert again.status_code == 409
+    assert again.json()["detail"] == "already_decided"
+
+
+async def test_report_reject_dismisses(
+    api: tuple[httpx.AsyncClient, AsyncSession], no_cap: None
+) -> None:
+    http, session = api
+    _, report_id = await _reported_business(http, session)
+
+    no_note = await http.post(
+        f"/admin/moderation/report/{report_id}/reject", json={}, headers=_as(STAFF, "staff")
+    )
+    assert no_note.status_code == 422  # reject always requires a note
+
+    resp = await http.post(
+        f"/admin/moderation/report/{report_id}/reject",
+        json={"note": "listing checks out"},
+        headers=_as(STAFF, "staff"),
+    )
+    assert resp.status_code == 200
+    report = await session.get(Report, report_id)
+    assert report is not None
+    assert report.moderation_status == "rejected"
+
+    from shared.audit import AuditEntry
+
+    entry = await session.scalar(
+        select(AuditEntry).where(AuditEntry.action == "directory.report_dismissed")
+    )
+    assert entry is not None
+    assert entry.meta == {"note": "listing checks out", "reason": "fake_listing"}
+
+
 async def test_reports_invisible_on_public_surfaces(
     api: tuple[httpx.AsyncClient, AsyncSession], no_cap: None, tn_geo_sample: None
 ) -> None:

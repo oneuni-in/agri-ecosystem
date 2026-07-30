@@ -11,9 +11,9 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import claims, reviews_service, search_sync
+from modules.directory import claims, reports_service, reviews_service, search_sync
 from modules.directory.admin_router import _product_payloads
-from modules.directory.models import Business, Claim, Verification
+from modules.directory.models import Business, Claim, Report, Verification
 from modules.directory.reviews_models import Review
 from shared.audit import audit
 from shared.moderation import (
@@ -444,7 +444,116 @@ class ReviewSource:
             raise DecisionConflictError("already_decided") from exc
 
 
+async def _report_item(session: AsyncSession, report: Report) -> ModItem:
+    business = await session.get(Business, report.business_id)
+    name = business.name if business else str(report.business_id)
+    slug = business.slug if business else ""
+    reports_30d = await reports_service.reporter_report_count(
+        session, report.reporter_user_id, now=datetime.now(UTC)
+    )
+    return ModItem(
+        type_key="report",
+        id=report.id,
+        created_at=report.created_at,
+        title=f"Report: {name}",
+        summary=f"{report.reason}: {report.detail or ''}"[:200].rstrip(": "),
+        payload={
+            "business_id": str(report.business_id),
+            "business_slug": slug,
+            "business_name": name,
+            "reason": report.reason,
+            "detail": report.detail,
+            # reporter identity is ADMIN-ONLY (brigading patterns); it must
+            # never reach any public surface or the reported vendor
+            "reporter_user_id": str(report.reporter_user_id),
+            "reporter_reports_30d": reports_30d,
+            "status": report.moderation_status,
+        },
+    )
+
+
+class ReportSource:
+    """M1.5.A: user reports of businesses. approve = actioned (report was
+    valid - any enforcement on the business is a SEPARATE human action via
+    /admin/directory/businesses/{id}/suspend|disable, never automatic),
+    reject = dismissed. No downstream events either way."""
+
+    type_key = "report"
+
+    async def count_pending(self, session: AsyncSession) -> int:
+        return (
+            await session.scalar(
+                select(func.count())
+                .select_from(Report)
+                .where(Report.moderation_status == "pending")
+            )
+        ) or 0
+
+    async def list_pending(
+        self, session: AsyncSession, *, cursor: str | None, limit: int
+    ) -> Page[ModItem]:
+        page = await reports_service.list_for_moderation(
+            session, status="pending", cursor=cursor, limit=limit
+        )
+        return Page(
+            items=[await _report_item(session, r) for r in page.items],
+            next_cursor=page.next_cursor,
+        )
+
+    async def approve(
+        self,
+        session: AsyncSession,
+        *,
+        item_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        note: str | None,
+        ip: str | None,
+    ) -> ModDecision:
+        report = await self._moderate(session, item_id, approve=True)
+        await audit(
+            session,
+            action="directory.report_actioned",
+            actor_user_id=actor_user_id,
+            target_type="business_report",
+            target_id=str(report.id),
+            metadata={"note": note, "reason": report.reason},
+            ip=ip,
+        )
+        return ModDecision(item=await _report_item(session, report), events=())
+
+    async def reject(
+        self,
+        session: AsyncSession,
+        *,
+        item_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        note: str | None,
+        ip: str | None,
+    ) -> ModDecision:
+        report = await self._moderate(session, item_id, approve=False)
+        await audit(
+            session,
+            action="directory.report_dismissed",
+            actor_user_id=actor_user_id,
+            target_type="business_report",
+            target_id=str(report.id),
+            metadata={"note": note, "reason": report.reason},
+            ip=ip,
+        )
+        return ModDecision(item=await _report_item(session, report), events=())
+
+    @staticmethod
+    async def _moderate(session: AsyncSession, item_id: uuid.UUID, *, approve: bool) -> Report:
+        try:
+            return await reports_service.moderate(session, report_id=item_id, approve=approve)
+        except reports_service.ReportNotFoundError as exc:
+            raise ItemNotFoundError(str(item_id)) from exc
+        except reports_service.ReportDecisionConflictError as exc:
+            raise DecisionConflictError("already_decided") from exc
+
+
 def register_directory_moderation_sources() -> None:
     register_moderation_source(ClaimSource())
     register_moderation_source(VerificationSource())
     register_moderation_source(ReviewSource())
+    register_moderation_source(ReportSource())

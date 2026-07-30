@@ -42,6 +42,27 @@ class BusinessPatchIn(BaseModel):
     delivery_windows: list[DeliveryWindowIn] | None = Field(default=None, max_length=7)
 
 
+ReportReason = Literal["fake_listing", "wrong_info", "abusive", "fraud_scam", "other"]
+
+
+class ReportIn(BaseModel):
+    reason: ReportReason
+    detail: str | None = Field(default=None, min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def _other_requires_detail(self) -> "ReportIn":
+        if self.reason == "other" and not self.detail:
+            raise ValueError("detail is required when reason is 'other'")
+        return self
+
+
+class ReportCreatedOut(BaseModel):
+    """Deliberately opaque: the reporter learns only that the report was
+    filed. No report id, no queue position - reports are ops-console-only."""
+
+    status: Literal["pending"] = "pending"
+
+
 class RenameIn(BaseModel):
     new_slug: str = Field(pattern=SLUG_PATTERN, min_length=3, max_length=80)
 

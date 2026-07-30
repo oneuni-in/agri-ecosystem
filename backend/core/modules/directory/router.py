@@ -19,7 +19,7 @@ from pydantic import BeforeValidator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import analytics, leads_service, search_sync, service
+from modules.directory import analytics, leads_service, reports_service, search_sync, service
 from modules.directory import covers as covers_module
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
@@ -54,6 +54,8 @@ from modules.directory.schemas import (
     PincodeCountOut,
     PublicBranchOut,
     RenameIn,
+    ReportCreatedOut,
+    ReportIn,
     TierSelectionIn,
     TierSelectionOut,
     ViewBeaconIn,
@@ -473,6 +475,39 @@ async def get_business_detail(slug: str, session: SessionDep) -> BusinessDetailO
         categories=[_category_out(c) for c in categories],
         coverage_pincodes=list(pincodes),
     )
+
+
+@router.post("/businesses/{slug}/report", status_code=201)
+async def report_business(
+    request: Request, slug: str, body: ReportIn, session: SessionDep
+) -> ReportCreatedOut:
+    """Login-gated business report (M1.5.A). Cap FIRST (never bypassed), then
+    the one-open-report-per-target insert. The report is visible ONLY in the
+    Ops Console; the response deliberately confirms nothing but receipt."""
+    user_id = _principal_user_id(request)
+    business = await session.scalar(
+        select(Business).where(Business.slug == slug, Business.status == "active")
+    )
+    if business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    try:
+        await reports_service.claim_report_slot(user_id, now=datetime.now(UTC))
+    except reports_service.ReportCapExceededError as exc:
+        raise HTTPException(status_code=429, detail="report_cap_exceeded") from exc
+    except reports_service.ReportsUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="report_unavailable") from exc
+    try:
+        await reports_service.create_report(
+            session,
+            business_id=business.id,
+            reporter_user_id=user_id,
+            reason=body.reason,
+            detail=body.detail,
+        )
+    except reports_service.ReportExistsError as exc:
+        raise HTTPException(status_code=409, detail="report_exists") from exc
+    await session.commit()
+    return ReportCreatedOut()
 
 
 @router.post("/branches/{branch_id}/reveal")

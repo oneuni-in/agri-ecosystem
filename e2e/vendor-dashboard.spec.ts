@@ -107,6 +107,11 @@ test.describe("vendor dashboard (D26)", () => {
       await page.goto(`${AGRI}/business/products`);
       await expect(page.getByLabel(/milk type/i)).toBeVisible({ timeout: 15_000 });
       await page.getByLabel("Name", { exact: true }).fill("E2E Cow Milk 1L");
+      // `category` is REQUIRED as of milk spec-schema v2 (M1, migration 0029)
+      // and this form is schema-driven, so the field appeared here with no
+      // console code change - which is the M1 integration surface working as
+      // designed. Omitting it now 422s, so fill it like a real vendor would.
+      await page.getByLabel(/^category/i).selectOption("milk");
       await page.getByLabel(/milk type/i).selectOption("cow");
       await page.getByRole("button", { name: "Add product" }).click();
       await expect(page.getByText("E2E Cow Milk 1L")).toBeVisible({ timeout: 15_000 });

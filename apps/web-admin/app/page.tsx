@@ -23,6 +23,11 @@ export default function Page() {
         </Link>
       </p>
       <p className="text-sm">
+        <Link href="/businesses" className="text-brand underline">
+          Businesses
+        </Link>
+      </p>
+      <p className="text-sm">
         <Link href="/ads" className="text-brand underline">
           Ads
         </Link>

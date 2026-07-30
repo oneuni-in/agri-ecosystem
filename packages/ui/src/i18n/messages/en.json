@@ -183,6 +183,42 @@
         "language": "Language",
         "interests": "Interests",
         "error": "That didn't work — try again"
+      },
+      "businesses": {
+        "title": "Businesses",
+        "hint": "Look up a business by its public slug to review or enforce it.",
+        "searchLabel": "Business slug",
+        "searchPlaceholder": "e.g. anbu-milk-farm",
+        "search": "Look up",
+        "empty": "No business with that slug.",
+        "error": "Something went wrong — try again.",
+        "status": {
+          "active": "Active",
+          "suspended": "Suspended",
+          "disabled": "Disabled"
+        },
+        "reasonShown": "Enforcement reason",
+        "suspend": "Suspend",
+        "disable": "Disable",
+        "reinstate": "Reinstate",
+        "confirm_suspend": "Suspend {name}?",
+        "confirm_suspend_body": "Delisted everywhere (browse, search, ads); the public profile shows an unavailable page. The owner keeps dashboard access and sees the reason below.",
+        "confirm_disable": "Disable {name}?",
+        "confirm_disable_body": "Hard-off: the owner's dashboard access is locked, all serving stops and active ad campaigns are paused (no automatic refunds — handle manually).",
+        "confirm_reinstate": "Reinstate {name}?",
+        "confirm_reinstate_body": "Restores the state this business was in before the last enforcement action.",
+        "reasonLabel": "Reason (required, shown to the owner and logged)",
+        "noteLabel": "Note (optional, logged)",
+        "reasonRequired": "A reason is required.",
+        "suspendDone": "Business suspended.",
+        "disableDone": "Business disabled.",
+        "reinstateDone": "Business reinstated.",
+        "working": "Working...",
+        "cancel": "Cancel",
+        "logTitle": "Enforcement log",
+        "logEmpty": "No enforcement actions yet.",
+        "byActor": "by {actor}",
+        "loadMore": "Load more"
       }
     },
     "profileNudge": {

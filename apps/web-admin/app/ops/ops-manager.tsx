@@ -21,6 +21,7 @@ const TYPES = [
   { key: "verification", label: "Verifications" },
   { key: "review", label: "Reviews" },
   { key: "creative", label: "Ad Creatives" },
+  { key: "report", label: "Reports" },
 ] as const;
 
 type TypeKey = (typeof TYPES)[number]["key"];
@@ -112,6 +113,30 @@ function creativeRenderItem(item: ModItem): ReactNode {
   );
 }
 
+/** M1.5.A: user reports of businesses. Approve = actioned (valid report -
+ * enforcement itself happens on the Businesses page, never automatically);
+ * reject = dismissed. Reporter identity is admin-only, with a 30-day report
+ * count as the brigading signal. */
+function reportRenderItem(item: ModItem): ReactNode {
+  const reports30d = item.payload.reporter_reports_30d;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-ink">
+          {stringField(item.payload, "business_name") || item.title}
+        </p>
+        <Chip label={stringField(item.payload, "reason") || "—"} />
+      </div>
+      <p className="text-xs text-sub">/{stringField(item.payload, "business_slug")}</p>
+      <p className="text-sm text-ink">{stringField(item.payload, "detail") || "—"}</p>
+      <p className="text-xs text-sub">
+        Reporter {stringField(item.payload, "reporter_user_id") || "—"} ·{" "}
+        {typeof reports30d === "number" ? reports30d : "—"} report(s) in 30d
+      </p>
+    </div>
+  );
+}
+
 function claimMediaUrl(item: ModItem, index: number): string {
   return `/api/admin/directory/claims/${item.id}/evidence/${index}`;
 }
@@ -137,6 +162,8 @@ function queueConfig(typeKey: TypeKey): {
       return { renderItem: reviewRenderItem };
     case "creative":
       return { renderItem: creativeRenderItem, mediaUrl: creativeMediaUrl };
+    case "report":
+      return { renderItem: reportRenderItem };
   }
 }
 

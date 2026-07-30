@@ -20,11 +20,13 @@ Run:
 
 import asyncio
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import catalog_service, service
+from modules.directory.catalog_models import Product
 from modules.directory.models import Branch, Business
 from modules.identity import service as identity_service
 from modules.identity.models import Role, UserRole
@@ -33,6 +35,13 @@ from shared.dev_only import refuse_in_prod
 
 _OWNER_PHONE = "+919000000023"
 _BUSINESS_NAME = "E2E Milk Vendor"
+# milk_home() buckets `vendor`/`farm` into `vendors` and `shop` into `brands`,
+# and helpers.ts fixtureSlug() looks for this fixture in `vendors`. `type` is
+# owner-editable through the D26 console, so a past local run of
+# vendor-dashboard.spec.ts can leave it as `shop` - which fails
+# vendor-profile.spec.ts with a misleading "seed fixture missing". Reconciled
+# below, same reasoning as the branch coordinates.
+_BUSINESS_TYPE = "vendor"
 _PINCODE = "641001"
 # The 641001 centroid, deliberately. D29 tried moving this fixture off-centre
 # to stop map markers overlapping and that was WRONG twice over:
@@ -53,7 +62,10 @@ _STAFF_PHONE = "+919000000029"
 _CLAIMABLE_NAME = "E2E Claimable Dairy"
 _CLAIMABLE_LAT = Decimal("10.923220")
 _CLAIMABLE_LNG = Decimal("76.968600")
-_PRODUCTS = [
+# Annotated: the ghee entry's specs are dict[str, str] while the milk entries'
+# are dict[str, object] (float fat_percent), and mypy joins those to plain
+# `object` - which create_product(specs=...) then rejects.
+_PRODUCTS: list[tuple[str, dict[str, Any], str]] = [
     (
         "Fresh Cow Milk",
         {"category": "milk", "milk_type": "cow", "fat_percent": 4.2, "pack_size": "1l"},
@@ -63,6 +75,14 @@ _PRODUCTS = [
         "Buffalo Milk",
         {"category": "milk", "milk_type": "buffalo", "fat_percent": 6.5, "pack_size": "1l"},
         "₹70/L",
+    ),
+    # M1: a NON-milk category on the one business that covers 641001, so
+    # /p/ghee -> /641001?product_category=ghee has content in a fresh e2e DB.
+    # `milk_type` is optional in milk spec-schema v2 precisely for this shape.
+    (
+        "E2E Cow Ghee",
+        {"category": "ghee", "pack_size": "500ml"},
+        "₹340/500ml",
     ),
 ]
 
@@ -93,6 +113,34 @@ async def _ensure_staff(session: AsyncSession) -> None:
         print(f"seed_e2e_milk: granted staff to {_STAFF_PHONE}")  # noqa: T201
     else:
         await session.commit()  # the create_user above may still be pending
+
+
+async def _ensure_products(session: AsyncSession, business: Business) -> None:
+    """Create-if-missing, keyed on product name, so a database seeded before a
+    new _PRODUCTS entry existed picks it up on the next run instead of needing a
+    volume wipe (same reconcile-don't-backfill rule as the branch coords above).
+    Products default to `pending`; approve so milk_home() surfaces them."""
+    owner_user_id = business.owner_user_id
+    if owner_user_id is None:  # pragma: no cover - defensive; this seed always owns it
+        raise RuntimeError(f"{business.name} has no owner - cannot create products")
+    for name, specs, price in _PRODUCTS:
+        held = await session.scalar(
+            select(Product).where(Product.business_id == business.id, Product.name == name)
+        )
+        if held is not None:
+            continue
+        product = await catalog_service.create_product(
+            session,
+            owner_user_id=owner_user_id,
+            business_id=business.id,
+            vertical_slug="milk",
+            name=name,
+            specs=specs,
+            price_display=price,
+        )
+        await catalog_service.moderate_product(session, product_id=product.id, approve=True)
+        await session.commit()
+        print(f"seed_e2e_milk: added product {name}")  # noqa: T201
 
 
 async def _ensure_claimable(session: AsyncSession) -> None:
@@ -165,6 +213,11 @@ async def run() -> None:
                 print("seed_e2e_milk: reconciled branch coords")  # noqa: T201
             else:
                 print("seed_e2e_milk: already present, nothing to do")  # noqa: T201
+            if existing.type != _BUSINESS_TYPE:
+                existing.type = _BUSINESS_TYPE
+                await session.commit()
+                print(f"seed_e2e_milk: reconciled type -> {_BUSINESS_TYPE}")  # noqa: T201
+            await _ensure_products(session, existing)
             await _ensure_staff(session)
             await _ensure_claimable(session)
             return
@@ -177,7 +230,7 @@ async def run() -> None:
             session,
             owner_user_id=owner.id,
             name=_BUSINESS_NAME,
-            type_="vendor",
+            type_=_BUSINESS_TYPE,
             primary_pincode=_PINCODE,
             description={"en": "Deterministic E2E milk vendor."},
         )
@@ -199,22 +252,11 @@ async def run() -> None:
         await service.set_coverage(
             session, owner_user_id=owner.id, business_id=business.id, pincodes=[_PINCODE]
         )
-        for name, specs, price in _PRODUCTS:
-            product = await catalog_service.create_product(
-                session,
-                owner_user_id=owner.id,
-                business_id=business.id,
-                vertical_slug="milk",
-                name=name,
-                specs=specs,
-                price_display=price,
-            )
-            # products default to pending; approve so milk_home() surfaces it
-            await catalog_service.moderate_product(session, product_id=product.id, approve=True)
-
         slug = business.slug
         await session.commit()
         print(f"seed_e2e_milk: created {slug}")  # noqa: T201
+
+        await _ensure_products(session, business)
 
         await _ensure_staff(session)
         await _ensure_claimable(session)

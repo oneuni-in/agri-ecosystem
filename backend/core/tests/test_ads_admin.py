@@ -120,6 +120,32 @@ async def test_campaign_create_happy(api: httpx.AsyncClient) -> None:
     assert uuid.UUID(body["id"])
 
 
+async def test_campaign_budget_roundtrip(api: httpx.AsyncClient) -> None:
+    """M3: serve-credit budget is settable at create; used starts at 0;
+    omitting it means unlimited (NULL)."""
+    r = await api.post(
+        "/admin/ads/campaigns",
+        json=_campaign_body(budget_serves_total=100),
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["budget_serves_total"] == 100
+    assert body["budget_serves_used"] == 0
+
+    r2 = await api.post("/admin/ads/campaigns", json=_campaign_body(), headers=_as(ADMIN, "staff"))
+    assert r2.json()["budget_serves_total"] is None
+
+
+async def test_campaign_budget_negative_422(api: httpx.AsyncClient) -> None:
+    r = await api.post(
+        "/admin/ads/campaigns",
+        json=_campaign_body(budget_serves_total=-5),
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+
+
 async def test_campaign_create_unknown_business_422(api: httpx.AsyncClient) -> None:
     r = await api.post(
         "/admin/ads/campaigns",

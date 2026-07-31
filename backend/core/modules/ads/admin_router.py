@@ -67,6 +67,7 @@ async def create_campaign(request: Request, body: CampaignIn, session: SessionDe
         advertiser_business_id=body.advertiser_business_id,
         name=body.name,
         budget_display=body.budget_display,
+        budget_serves_total=body.budget_serves_total,
         flight_start=body.flight_start,
         flight_end=body.flight_end,
     )

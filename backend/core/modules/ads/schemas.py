@@ -30,6 +30,8 @@ class CampaignIn(BaseModel):
     advertiser_business_id: uuid.UUID
     name: Annotated[str, Field(min_length=1)]
     budget_display: str = ""
+    # M3 serve-credit ceiling; None = unlimited. Money stays in billing (M5).
+    budget_serves_total: Annotated[int, Field(ge=0)] | None = None
     flight_start: date
     flight_end: date
 
@@ -48,6 +50,8 @@ class CampaignOut(BaseModel):
     name: str
     status: str
     budget_display: str
+    budget_serves_total: int | None
+    budget_serves_used: int
     flight_start: date
     flight_end: date
     created_at: datetime

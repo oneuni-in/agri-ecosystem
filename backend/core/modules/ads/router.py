@@ -75,23 +75,25 @@ async def serve(
     candidates = await service.eligible_placements(
         session, slot_key=slot, pincode=pincode, category=category, today=now.date()
     )
-    pool: list[tuple[Placement, Creative]] = []
-    for placement, creative in candidates:
+    pool: list[service.Candidate] = []
+    for cand in candidates:
         if await service.under_freq_cap(
-            viewer, placement.id, cap=settings.ads_freq_cap_per_day, now=now
+            viewer, cand.placement.id, cap=settings.ads_freq_cap_per_day, now=now
         ):
-            pool.append((placement, creative))
+            pool.append(cand)
     served: list[ServedAdOut] = []
     while pool and len(served) < count:
-        placement, creative = service.pick_weighted(pool, _rng)
-        pool = [c for c in pool if c[0].id != placement.id]
+        cand = service.pick_weighted(pool, _rng, local_boost=settings.ads_local_boost)
+        pool = [c for c in pool if c.placement.id != cand.placement.id]
         try:
-            service.validate_target_url(creative.target_url)  # re-check at serve
+            service.validate_target_url(cand.creative.target_url)  # re-check at serve
         except ValueError:
             continue  # a bad row must never reach a page
-        await service.record_serve(viewer, placement.id, now=now)
+        await service.record_serve(viewer, cand.placement.id, now=now)
         served.append(
-            _to_served(placement, creative, locale=locale, base=settings.media_public_base_url)
+            _to_served(
+                cand.placement, cand.creative, locale=locale, base=settings.media_public_base_url
+            )
         )
     return AdServeOut(ad=served[0] if served else None, ads=served)
 

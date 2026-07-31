@@ -32,6 +32,7 @@ TN_STATE_LGD = 33
 COIMBATORE_PINCODE = "641001"
 CHENNAI_PINCODE = "600001"
 UNKNOWN_PINCODE = "999999"
+DELHI_PINCODE = "110001"  # M3 NN1: valid shape, resolves to no TN district
 
 
 @pytest.fixture
@@ -491,6 +492,113 @@ async def test_serve_without_pincode_only_untargeted_geo(
     await _seed_ad(session, geo_target={})
     r = await client.get("/ads/serve", params={"slot": "directory_browse"})
     assert r.json()["ad"] is not None
+
+
+# --- M3 (SPEC M3): global+local blend, local boost, category independence ---
+
+
+async def test_blend_global_and_local_serve_together(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """NON-NEGOTIABLE 1: an ALL-pincode (global) campaign and a 641001-local
+    campaign BOTH serve at 641001; the local one is absent at 110001."""
+    client, session = api
+    await _enable_ads(session)
+    global_p = await _seed_ad(session, geo_target={})
+    local_p = await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]})
+
+    at_local = await client.get(
+        "/ads/serve",
+        params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE, "count": 5},
+    )
+    assert at_local.status_code == 200, at_local.text
+    local_ids = {ad["placement_id"] for ad in at_local.json()["ads"]}
+    assert {str(global_p.id), str(local_p.id)} <= local_ids
+
+    at_remote = await client.get(
+        "/ads/serve",
+        params={"slot": "directory_browse", "pincode": DELHI_PINCODE, "count": 5},
+    )
+    remote_ids = {ad["placement_id"] for ad in at_remote.json()["ads"]}
+    assert str(local_p.id) not in remote_ids
+    assert str(global_p.id) in remote_ids
+
+
+async def test_local_boost_share_of_voice(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3.A: equal placement weights, but the 641001-targeted placement gets
+    the default 2x local boost -> ~2/3 of single-ad serves."""
+    client, session = api
+    await _enable_ads(session)
+    monkeypatch.setenv("RATE_LIMIT_REQUESTS", "1000")
+    get_settings.cache_clear()
+
+    await _seed_ad(session, geo_target={}, weight=1)
+    local = await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]}, weight=1)
+
+    import modules.ads.router as router_module
+
+    monkeypatch.setattr(router_module, "_rng", random.Random(42))
+
+    async def _always_true(*args: object, **kwargs: object) -> bool:
+        return True
+
+    monkeypatch.setattr(service, "under_freq_cap", _always_true)
+
+    local_hits = 0
+    total = 200
+    for _ in range(total):
+        r = await client.get(
+            "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+        )
+        assert r.status_code == 200
+        if r.json()["ad"]["placement_id"] == str(local.id):
+            local_hits += 1
+
+    ratio = local_hits / total
+    assert 0.55 <= ratio <= 0.80, ratio
+
+
+async def test_ghee_campaign_never_serves_on_paneer_page(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """NON-NEGOTIABLE 2: the category dimension is evaluated independently
+    per slot instance - a ghee campaign never serves on a paneer page."""
+    client, session = api
+    await _enable_ads(session)
+    ghee_p = await _seed_ad(
+        session, geo_target={"categories": ["ghee"]}, slot_key="milk_category_banner"
+    )
+
+    paneer = await client.get(
+        "/ads/serve",
+        params={
+            "slot": "milk_category_banner",
+            "pincode": COIMBATORE_PINCODE,
+            "category": "paneer",
+            "count": 5,
+        },
+    )
+    assert str(ghee_p.id) not in {ad["placement_id"] for ad in paneer.json()["ads"]}
+
+    ghee = await client.get(
+        "/ads/serve",
+        params={
+            "slot": "milk_category_banner",
+            "pincode": COIMBATORE_PINCODE,
+            "category": "ghee",
+            "count": 5,
+        },
+    )
+    assert str(ghee_p.id) in {ad["placement_id"] for ad in ghee.json()["ads"]}
 
 
 async def test_pending_creative_never_serves_on_milk_slot(

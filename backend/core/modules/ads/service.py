@@ -5,11 +5,11 @@ import random
 import re
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads.models import Campaign, Creative, Placement
@@ -92,6 +92,44 @@ def viewer_hash(ip: str, user_agent: str, *, now: datetime) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+class Candidate(NamedTuple):
+    """One servable (placement, newest-approved-creative) pair. `rung` is the
+    geo rung that matched - the M3 blend discriminator: "global" for
+    untargeted placements, else the most specific matched rung. Feeds both
+    the local-boost rotation and the why-served log."""
+
+    placement: Placement
+    creative: Creative
+    campaign: Campaign
+    rung: str
+
+
+def geo_match_rung(
+    geo_target: dict[str, Any],
+    *,
+    pincode: str | None,
+    district_lgd: int | None,
+    state_lgd: int | None,
+) -> str | None:
+    """No geo rung declared = everywhere -> "global" (the M2 `categories` key
+    is NOT a geo rung). Otherwise the most specific declared rung matching
+    the resolved chain; None if nothing matches (non-negotiable 2). An
+    unknown viewer location (pincode=None) matches only geo-untargeted
+    placements - fail closed."""
+    if not any(geo_target.get(k) for k in _GEO_RUNGS):
+        return "global"
+    pincodes = geo_target.get("pincodes") or []
+    if pincode is not None and pincode in pincodes:
+        return "pincode"
+    district = geo_target.get("district")
+    if district is not None and district_lgd is not None and district == district_lgd:
+        return "district"
+    state = geo_target.get("state")
+    if state is not None and state_lgd is not None and state == state_lgd:
+        return "state"
+    return None
+
+
 def geo_matches(
     geo_target: dict[str, Any],
     *,
@@ -99,20 +137,10 @@ def geo_matches(
     district_lgd: int | None,
     state_lgd: int | None,
 ) -> bool:
-    """No geo rung declared = everywhere (the M2 `categories` key is NOT a
-    geo rung). Otherwise ANY declared rung matching the resolved chain is a
-    hit; nothing else matches (non-negotiable 2). An unknown viewer location
-    (pincode=None) matches only geo-untargeted placements - fail closed."""
-    if not any(geo_target.get(k) for k in _GEO_RUNGS):
-        return True
-    pincodes = geo_target.get("pincodes") or []
-    if pincode is not None and pincode in pincodes:
-        return True
-    district = geo_target.get("district")
-    if district is not None and district_lgd is not None and district == district_lgd:
-        return True
-    state = geo_target.get("state")
-    return state is not None and state_lgd is not None and state == state_lgd
+    return (
+        geo_match_rung(geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd)
+        is not None
+    )
 
 
 def category_matches(geo_target: dict[str, Any], category: str | None) -> bool:
@@ -131,12 +159,13 @@ async def eligible_placements(
     pincode: str | None,
     today: date,
     category: str | None = None,
-) -> list[tuple[Placement, Creative]]:
-    """Active placement + active in-flight campaign + latest APPROVED creative
-    + geo match + category match (M2). Row volume per slot is tiny in v1 -
-    geo filtering in Python keeps the JSONB semantics in one testable
-    function. pincode=None (M2 global slots before any location is known)
-    skips resolution entirely: only geo-untargeted placements can match."""
+) -> list[Candidate]:
+    """Active placement + active in-flight in-budget campaign + latest
+    APPROVED creative + geo match + category match (M2). Row volume per slot
+    is tiny in v1 - geo filtering in Python keeps the JSONB semantics in one
+    testable function. pincode=None (M2 global slots before any location is
+    known) skips resolution entirely: only geo-untargeted placements can
+    match."""
     district_lgd = None
     state_lgd = None
     if pincode is not None:
@@ -152,7 +181,7 @@ async def eligible_placements(
 
     rows = (
         await session.execute(
-            select(Placement, Creative, Campaign.advertiser_business_id)
+            select(Placement, Creative, Campaign)
             .join(Campaign, Campaign.id == Placement.campaign_id)
             .join(Creative, Creative.campaign_id == Campaign.id)
             .where(
@@ -161,6 +190,12 @@ async def eligible_placements(
                 Campaign.status == "active",
                 Campaign.flight_start <= today,
                 Campaign.flight_end >= today,
+                # M3: in-budget (NULL total = unlimited); the serve-time
+                # consume_budget UPDATE closes the concurrent-race window.
+                or_(
+                    Campaign.budget_serves_total.is_(None),
+                    Campaign.budget_serves_used < Campaign.budget_serves_total,
+                ),
                 Creative.moderation_status == "approved",
             )
             .order_by(Creative.id.desc())
@@ -171,20 +206,21 @@ async def eligible_placements(
     # row says. One lookup per distinct advertiser; fail closed on unknowns.
     servable = {
         business_id: await is_servable(session, business_id)
-        for business_id in {advertiser_id for _, _, advertiser_id in rows}
+        for business_id in {campaign.advertiser_business_id for _, _, campaign in rows}
     }
     seen: set[uuid.UUID] = set()
-    out: list[tuple[Placement, Creative]] = []
-    for placement, creative, advertiser_id in rows:
+    out: list[Candidate] = []
+    for placement, creative, campaign in rows:
         if placement.id in seen:  # newest approved creative per placement
             continue
-        if not servable.get(advertiser_id, False):
+        if not servable.get(campaign.advertiser_business_id, False):
             continue
-        if geo_matches(
+        rung = geo_match_rung(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
-        ) and category_matches(placement.geo_target, category):
+        )
+        if rung is not None and category_matches(placement.geo_target, category):
             seen.add(placement.id)
-            out.append((placement, creative))
+            out.append(Candidate(placement, creative, campaign, rung))
     return out
 
 
@@ -208,9 +244,14 @@ async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) 
 
 
 def pick_weighted(
-    candidates: list[tuple[Placement, Creative]], rand: random.Random
-) -> tuple[Placement, Creative]:
-    weights = [p.weight for p, _ in candidates]
+    candidates: list[Candidate], rand: random.Random, *, local_boost: float = 1.0
+) -> Candidate:
+    """Weighted rotation with the M3 blend boost: local-targeted candidates
+    (any matched geo rung) count local_boost x their placement weight so
+    village advertisers aren't drowned by national ALL-pincode brands."""
+    weights = [
+        c.placement.weight * (local_boost if c.rung != "global" else 1.0) for c in candidates
+    ]
     return rand.choices(candidates, weights=weights, k=1)[0]
 
 

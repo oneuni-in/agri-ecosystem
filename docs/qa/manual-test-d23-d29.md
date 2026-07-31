@@ -255,6 +255,39 @@ Slots: `milk_home_hero` (carousel), `milk_global_header`, `milk_category_banner`
 7. Perf: home Lighthouse ≥0.90 WITH the carousel live (the #45 fix — inline CSS +
    SVG Devanagari — raised the CI gate back to 0.90; keep it there).
 
+## M3 — Delivery blend + sponsored listings (:3000 + :3004/ads, this branch)
+
+Engine: global (ALL-pincode) and local campaigns blend per slot; local gets a 2×
+rotation boost (`ADS_LOCAL_BOOST`). Campaigns can carry a serve-credit budget
+(blank = unlimited); serves decrement it atomically. Sponsored listings are a new
+slot `milk_sponsored_listing` injected into result lists at render (positions 1
+and 6, max 2). Seed with `scripts/seed_house_ads.py --with-sponsored-listing`
+(the e2e bootstrap passes it) to get a global house listing card.
+
+1. Blend: create a local campaign (placement targeting pincodes `["641001"]`) plus
+   the seeded global house card → both serve at `/coimbatore/641001`; at a non-TN
+   pincode (e.g. 110001) only the global one serves.
+2. Sponsored listing card: first cell of the "Local vendors" grid (and position 6
+   when ≥2 ads) carries ★ Sponsored, links out with `rel="nofollow sponsored"`,
+   fires visibility-gated impression + click beacons. Organic vendor count and
+   the load-more cursor are identical with the ads flag on/off; the JSON-LD
+   ItemList never mentions the ad. Same injection on `?category=` browse and
+   `/search` results.
+3. Recommended rail: on the unfiltered landing view, verified vendors with
+   ratings/fast lead responses/fresh coverage appear under "⭐ Recommended"
+   (max 3). Flip a vendor to premium or give it a campaign → rail order must NOT
+   change (paid can never buy the label). Chip-filtered and cursor pages show no
+   rail.
+4. Budget: create a campaign with serve budget 2 → its ad serves twice, then
+   stops (admin card shows `2/2 serves`); blank budget shows `∞`.
+5. Why-served log: `SELECT why_served, pincode, slot_key FROM ads.delivery_decisions`
+   (sampled — set `ADS_DELIVERY_LOG_SAMPLE=1.0` in dev to see every serve;
+   `local_pincode`/`global` values, viewer hash only, no user ids). UPDATE/DELETE
+   on the table must fail (append-only).
+6. Geo-context: `/api/ads/serve` ignores a client-forged `pincode` query param —
+   the BFF overwrites it from the `agri_loc` cookie (change location via the pill
+   → served local inventory follows).
+
 ## Known-open items (do not file as new bugs)
 
 - ~~Landing perf CI floor temporarily 0.80 (issue #45)~~ — RESOLVED: PR #48 (inline

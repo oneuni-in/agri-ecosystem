@@ -47,6 +47,9 @@ export interface MilkHome {
   vendors: MilkCard[];
   brands: MilkCard[];
   next_cursor: string | null;
+  /** M3.C organic-only Recommended rail — populated exclusively by the
+   * backend ranking fn; paid signals never enter it. */
+  recommended: MilkCard[];
 }
 
 /** Display metadata for a schema-driven milk_type KEY. The filter SET is

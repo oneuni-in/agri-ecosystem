@@ -262,6 +262,9 @@
       },
       "browseCta": "अपने पिनकोड में खोजें"
     },
+    "recommended": {
+      "heading": "अनुशंसित"
+    },
     "categoryBrowse": {
       "heading": "{place} में {category}",
       "empty": "यहाँ अभी कुछ सूचीबद्ध नहीं है — जल्द ही फिर देखें।",

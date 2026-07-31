@@ -15,6 +15,7 @@ import { CategoryResults } from "./category-results";
 import { LastSeenWriter } from "./last-seen-writer";
 import { NotifyMe } from "./notify-me";
 import { OutOfArea } from "./out-of-area";
+import { RecommendedRail } from "./recommended-rail";
 import { TypeFilterRow } from "./type-filter-row";
 import { VendorResults } from "./vendor-results";
 
@@ -266,6 +267,8 @@ export default async function PincodePage({
         🥛 Post my need — vendors here reply to you{" "}
         <span className="vern font-normal text-sub">· என் தேவை</span>
       </Link>
+
+      {!filteredEmpty ? <RecommendedRail cards={data.recommended} pincode={pincode} /> : null}
 
       {filteredEmpty ? (
         <p className="text-[14px] text-sub" data-testid="filtered-empty">

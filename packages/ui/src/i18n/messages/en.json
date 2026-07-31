@@ -262,6 +262,9 @@
       },
       "browseCta": "Find near your pincode"
     },
+    "recommended": {
+      "heading": "Recommended"
+    },
     "categoryBrowse": {
       "heading": "{category} in {place}",
       "empty": "Nothing listed here yet — check back soon.",

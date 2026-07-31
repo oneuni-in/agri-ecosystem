@@ -14,7 +14,7 @@ from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstrai
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
-from shared.db import Base, SoftDeleteMixin, TimestampMixin, UUIDv7PKMixin
+from shared.db import Base, SoftDeleteMixin, TimestampMixin, UGCMixin, UUIDv7PKMixin
 from shared.i18n import Translated, TranslatedString
 from shared.slugs import ImmutableSlugMixin
 
@@ -22,7 +22,7 @@ business_type_enum = postgresql.ENUM(
     "vendor", "shop", "lab", "farm", name="business_type", schema="directory", create_type=False
 )
 business_status_enum = postgresql.ENUM(
-    "active", "suspended", name="business_status", schema="directory", create_type=False
+    "active", "suspended", "disabled", name="business_status", schema="directory", create_type=False
 )
 verification_status_enum = postgresql.ENUM(
     "unverified",
@@ -64,6 +64,12 @@ class Business(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, ImmutableSlugMixi
     # D26: list of {"days": [...], "open": "HH:MM", "close": "HH:MM"}
     delivery_windows: Mapped[list[dict[str, Any]] | None] = mapped_column(
         postgresql.JSONB, nullable=True
+    )
+    # M1.5 enforcement soft-state: reason shown to the owner while enforced;
+    # prior status restored by reinstate. Both NULL when status='active'.
+    enforcement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enforcement_prior_status: Mapped[str | None] = mapped_column(
+        business_status_enum, nullable=True
     )
 
 
@@ -205,6 +211,50 @@ class Claim(UUIDv7PKMixin, TimestampMixin, Base):
     decided_at: Mapped[datetime | None] = mapped_column(
         postgresql.TIMESTAMP(timezone=True), nullable=True
     )
+
+
+report_reason_enum = postgresql.ENUM(
+    "fake_listing",
+    "wrong_info",
+    "abusive",
+    "fraud_scam",
+    "other",
+    name="report_reason",
+    schema="directory",
+    create_type=False,
+)
+
+
+class Report(UUIDv7PKMixin, TimestampMixin, UGCMixin, Base):
+    """User report of a business (M1.5). Ops-Console-only: never rendered on
+    any public surface, and the reporter is never revealed to the vendor.
+    moderation_status semantics: approved = actioned (admin found it valid;
+    enforcement itself is a separate human decision on the business),
+    rejected = dismissed."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        # one open report per user per business; re-reportable after a decision
+        Index(
+            "uq_directory_reports_one_pending",
+            "business_id",
+            "reporter_user_id",
+            unique=True,
+            postgresql_where=text("moderation_status = 'pending'"),
+        ),
+        Index("ix_directory_reports_status_id", "moderation_status", "id"),
+        {"schema": "directory"},
+    )
+
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("directory.businesses.id"), nullable=False
+    )
+    # plain UUID, never an FK into identity (module independence)
+    reporter_user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    reason: Mapped[str] = mapped_column(report_reason_enum, nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Verification(UUIDv7PKMixin, TimestampMixin, Base):

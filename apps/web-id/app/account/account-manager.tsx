@@ -20,6 +20,7 @@ export interface ProfileData {
   has_avatar: boolean;
   completion_score: number;
   visibility: Record<string, boolean>;
+  member_since: string;
 }
 
 const LANGUAGES = ["en", "ta", "hi"] as const;
@@ -94,6 +95,13 @@ export function AccountManager({ initial }: { initial: ProfileData }) {
       <Card className="p-4">
         <p className="text-sm font-semibold text-ink">
           {t("completion", { score: profile.completion_score })}
+        </p>
+        <p className="mt-1 text-sm text-sub" data-testid="member-since">
+          {t("memberSince", {
+            date: new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(
+              new Date(profile.member_since),
+            ),
+          })}
         </p>
         <div
           className="mt-2 h-2 rounded-pill bg-line"

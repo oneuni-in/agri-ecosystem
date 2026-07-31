@@ -57,6 +57,25 @@ async def geo_row(db_session: AsyncSession) -> str:
     return "638001"
 
 
+async def test_profile_includes_member_since(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """M1.5.D: 'Member since {month year}' renders from AgriID created_at."""
+    from datetime import datetime
+
+    from sqlalchemy import select
+
+    from modules.identity.models import User
+
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    body = (await http.get("/identity/profile")).json()
+    user = await session.scalar(select(User).where(User.phone == PHONE))
+    assert user is not None
+    got = datetime.fromisoformat(body["member_since"].replace("Z", "+00:00"))
+    assert got == user.created_at
+
+
 async def test_get_profile_before_any_update_scores_phone_only(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:

@@ -18,11 +18,14 @@ interface BusinessOut {
   name: string;
   slug: string;
   type: BusinessType;
+  status: string;
   primary_pincode: string;
   description: Record<string, string> | null;
   delivery_windows: DeliveryWindow[] | null;
   verification_status: string;
   subscription_tier: string;
+  // M1.5: set while suspended/disabled; the owner-facing notice text
+  enforcement_reason: string | null;
 }
 
 const FIELD =
@@ -65,6 +68,8 @@ export function ListingsClient() {
   const [type, setType] = useState<BusinessType>("vendor");
   const [primaryPincode, setPrimaryPincode] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionTa, setDescriptionTa] = useState("");
+  const [descriptionHi, setDescriptionHi] = useState("");
   const [windows, setWindows] = useState<DeliveryWindow[]>([]);
   const [coverage, setCoverage] = useState<string[]>([]);
   const [coverageInput, setCoverageInput] = useState("");
@@ -115,6 +120,8 @@ export function ListingsClient() {
     setType(selected.type);
     setPrimaryPincode(selected.primary_pincode);
     setDescriptionEn(selected.description?.en ?? "");
+    setDescriptionTa(selected.description?.ta ?? "");
+    setDescriptionHi(selected.description?.hi ?? "");
     setWindows(selected.delivery_windows ?? []);
     setDetailLoading(true);
     setNotice(null);
@@ -164,19 +171,22 @@ export function ListingsClient() {
     setSaving("listing");
     setNotice(null);
     try {
+      // M1.5.C: all three About locales are editable here. Start from the
+      // server snapshot (preserves any key this console doesn't know about),
+      // then set/clear each edited locale - a blanked box deletes only its
+      // own key.
       const existingDescription = businessesRef.current?.find((b) => b.id === savedFor)?.description ?? null;
-      const trimmedEn = descriptionEn.trim();
-      let description: Record<string, string> | null;
-      if (trimmedEn) {
-        description = { ...existingDescription, en: trimmedEn };
-      } else if (existingDescription) {
-        // Empty EN box must only clear the `en` key - never wipe seeded/claimed
-        // ta/hi translations that this EN-only console never displays.
-        const { en: _en, ...rest } = existingDescription;
-        description = Object.keys(rest).length > 0 ? rest : null;
-      } else {
-        description = null;
+      const merged: Record<string, string> = { ...existingDescription };
+      const edits: [string, string][] = [
+        ["en", descriptionEn.trim()],
+        ["ta", descriptionTa.trim()],
+        ["hi", descriptionHi.trim()],
+      ];
+      for (const [key, value] of edits) {
+        if (value) merged[key] = value;
+        else delete merged[key];
       }
+      const description = Object.keys(merged).length > 0 ? merged : null;
       const trimmedName = name.trim();
       await patchJson(`/api/directory/businesses/${savedFor}`, {
         name: trimmedName,
@@ -199,13 +209,13 @@ export function ListingsClient() {
       setNotice({ kind: "ok", text: "Listing saved." });
     } catch (err) {
       if (selectedIdRef.current !== savedFor) return;
-      setNotice({
-        kind: "error",
-        text:
-          err instanceof ApiError && err.status === 422
-            ? "Check the highlighted fields — delivery windows need valid days and open < close times."
-            : "Could not save — please try again.",
-      });
+      const text =
+        err instanceof ApiError && err.status === 403 && err.detail === "business_disabled"
+          ? "This listing has been disabled by Milk.in administrators — changes are locked."
+          : err instanceof ApiError && err.status === 422
+            ? "Check the highlighted fields — the About text must be plain text (max 2000 characters per language) and delivery windows need valid days and open < close times."
+            : "Could not save — please try again.";
+      setNotice({ kind: "error", text });
     } finally {
       setSaving(null);
     }
@@ -261,6 +271,9 @@ export function ListingsClient() {
     );
   }
 
+  const selected = businesses.find((b) => b.id === selectedId) ?? null;
+  const isDisabled = selected?.status === "disabled";
+
   return (
     <div className="mt-4 space-y-4">
       {businesses.length === 0 ? (
@@ -298,10 +311,31 @@ export function ListingsClient() {
             </select>
           </label>
 
+          {selected?.status === "suspended" ? (
+            <div data-testid="suspension-notice">
+              <AlertNotice>
+                This listing is suspended and hidden from Milk.in
+                {selected.enforcement_reason ? <> — reason: {selected.enforcement_reason}</> : null}.
+                You can still edit it; contact support to resolve the suspension.
+              </AlertNotice>
+            </div>
+          ) : null}
+
+          {isDisabled ? (
+            <div data-testid="disabled-notice">
+              <AlertNotice>
+                This listing has been disabled by Milk.in administrators. Dashboard access to it is
+                locked and nothing is served — contact support.
+              </AlertNotice>
+            </div>
+          ) : null}
+
           {notice ? (
             notice.kind === "ok" ? <OkNotice>{notice.text}</OkNotice> : <AlertNotice>{notice.text}</AlertNotice>
           ) : null}
 
+          {isDisabled ? null : (
+          <>
           <Card className="space-y-3 p-4">
             <p className="text-[13px] font-extrabold text-ink">Listing details</p>
             <label className={LABEL}>
@@ -321,9 +355,21 @@ export function ListingsClient() {
               <input className={FIELD} value={primaryPincode} maxLength={6} inputMode="numeric" onChange={(e) => setPrimaryPincode(e.target.value)} />
             </label>
             <label className={LABEL}>
-              Description (English)
+              About (English)
               <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionEn} maxLength={2000} onChange={(e) => setDescriptionEn(e.target.value)} />
             </label>
+            <label className={LABEL}>
+              About (Tamil)
+              <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionTa} maxLength={2000} lang="ta" onChange={(e) => setDescriptionTa(e.target.value)} />
+            </label>
+            <label className={LABEL}>
+              About (Hindi)
+              <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionHi} maxLength={2000} lang="hi" onChange={(e) => setDescriptionHi(e.target.value)} />
+            </label>
+            <p className="text-[12px] text-sub">
+              Shown as “About” on your public profile. Plain text only — up to 2000 characters per
+              language.
+            </p>
 
             <p className="text-[13px] font-extrabold text-ink">Delivery windows</p>
             {windows.map((window, index) => (
@@ -426,6 +472,8 @@ export function ListingsClient() {
               {saving === "coverage" ? "Saving..." : "Save coverage"}
             </Button>
           </Card>
+          </>
+          )}
         </>
       )}
     </div>

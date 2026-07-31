@@ -27,6 +27,7 @@ export interface BusinessDetail {
     claimable: boolean;
     primary_pincode: string;
     description: LocalizedText | null;
+    created_at: string;
   };
   branches: PublicBranch[];
   categories: { id: string; slug: string; name: LocalizedText }[];
@@ -64,11 +65,14 @@ export type ReviewItem = {
 };
 
 /** Server-side public read, direct to backend (mirrors web-agri's business
- * page): 404 -> null (notFound), other non-ok -> throw (real error). */
-export async function fetchBusiness(slug: string): Promise<BusinessDetail | null> {
+ * page): 404 -> null (notFound), 410 -> "gone" (suspended/disabled business,
+ * M1.5 unavailable page - deliberately indistinguishable which), other
+ * non-ok -> throw (real error). */
+export async function fetchBusiness(slug: string): Promise<BusinessDetail | "gone" | null> {
   const res = await fetch(`${API}/directory/businesses/${encodeURIComponent(slug)}`, {
     next: { revalidate: 300 },
   });
+  if (res.status === 410) return "gone";
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`directory fetch failed: ${res.status}`);
   return (await res.json()) as BusinessDetail;

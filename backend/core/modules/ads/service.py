@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.ads.models import Campaign, Creative, Placement
 from settings import get_settings
 from shared.cache import get_redis
+from shared.lookups import is_servable
 
 SLOT_KEYS: frozenset[str] = frozenset({"directory_browse"})
 MAX_TARGET_URL = 2048
@@ -103,7 +104,7 @@ async def eligible_placements(
 
     rows = (
         await session.execute(
-            select(Placement, Creative)
+            select(Placement, Creative, Campaign.advertiser_business_id)
             .join(Campaign, Campaign.id == Placement.campaign_id)
             .join(Creative, Creative.campaign_id == Campaign.id)
             .where(
@@ -117,10 +118,19 @@ async def eligible_placements(
             .order_by(Creative.id.desc())
         )
     ).all()
+    # M1.5.E serve-time enforcement check (the M3 seam, live now): a
+    # suspended/disabled advertiser's ads never serve, whatever the campaign
+    # row says. One lookup per distinct advertiser; fail closed on unknowns.
+    servable = {
+        business_id: await is_servable(session, business_id)
+        for business_id in {advertiser_id for _, _, advertiser_id in rows}
+    }
     seen: set[uuid.UUID] = set()
     out: list[tuple[Placement, Creative]] = []
-    for placement, creative in rows:
+    for placement, creative, advertiser_id in rows:
         if placement.id in seen:  # newest approved creative per placement
+            continue
+        if not servable.get(advertiser_id, False):
             continue
         if geo_matches(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
@@ -128,6 +138,25 @@ async def eligible_placements(
             seen.add(placement.id)
             out.append((placement, creative))
     return out
+
+
+async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) -> list[str]:
+    """M1.5.B disable hook (registered as shared.lookups' campaign pauser):
+    pause the advertiser's ACTIVE campaigns in the caller's transaction and
+    return their ids - the audit row's manual-handling flag (no refund logic
+    v1). Draft/paused/archived rows are untouched; nothing un-pauses here."""
+    campaigns = (
+        await session.scalars(
+            select(Campaign).where(
+                Campaign.advertiser_business_id == business_id,
+                Campaign.status == "active",
+            )
+        )
+    ).all()
+    for campaign in campaigns:
+        campaign.status = "paused"
+    await session.flush()
+    return [str(campaign.id) for campaign in campaigns]
 
 
 def pick_weighted(

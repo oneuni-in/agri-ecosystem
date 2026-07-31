@@ -19,6 +19,7 @@ import {
 
 import { LeadForm } from "./lead-form";
 import { NearbyShops } from "./nearby-shops";
+import { ReportDialog } from "./report-dialog";
 import { RevealContact } from "./reveal-contact";
 import { ReviewForm } from "./review-form";
 import { ReviewsSection } from "./reviews-section";
@@ -40,11 +41,16 @@ export async function generateMetadata({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const detail = await fetchBusiness(slug);
+  if (detail === "gone") {
+    // M1.5 enforcement: 410-style unavailable page, never indexed
+    return { title: "Listing unavailable | Milk.in", robots: { index: false, follow: false } };
+  }
   if (!detail) {
     return { title: "Vendor not found", robots: { index: false, follow: true } };
   }
   const { business } = detail;
   const description =
+    business.description?.[locale] ??
     business.description?.en ??
     `Milk from ${business.name} — prices, coverage and contact on Milk.in.`;
   return buildMetadata({
@@ -69,15 +75,19 @@ function businessJsonLd(
   canonical: string,
   summary: RatingSummary,
   isBrand: boolean,
+  locale: string,
 ): string {
   const { business, branches } = detail;
   const firstBranch = branches[0];
+  // M1.5.C: the About text IS the LocalBusiness description (locale-aware,
+  // EN fallback - same resolution the visible About section uses)
+  const about = business.description?.[locale] ?? business.description?.en;
   const data = {
     "@context": "https://schema.org",
     "@type": isBrand ? ["Organization", "Brand"] : "LocalBusiness",
     name: business.name,
     url: canonical,
-    ...(business.description?.en ? { description: business.description.en } : {}),
+    ...(about ? { description: about } : {}),
     ...(firstBranch
       ? {
           address: {
@@ -154,6 +164,23 @@ export default async function VendorProfilePage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const detail = await fetchBusiness(slug);
+  if (detail === "gone") {
+    // M1.5 enforcement: suspended/disabled listing. 410-style unavailable
+    // page - not notFound(), and no hint WHICH enforcement state applies.
+    const tGone = await getTranslations("ui.brandPage");
+    return (
+      <main>
+        <Wrap className="max-w-[720px] py-16">
+          <Card className="space-y-2 p-6 text-center">
+            <h1 className="font-display text-[22px] font-extrabold text-ink">
+              {tGone("unavailableTitle")}
+            </h1>
+            <p className="text-[14px] text-sub">{tGone("unavailableBody")}</p>
+          </Card>
+        </Wrap>
+      </main>
+    );
+  }
   if (!detail) notFound();
   const { business, branches, categories, coverage_pincodes } = detail;
   // A renamed business reaches us through the backend's 301 (D03
@@ -173,6 +200,11 @@ export default async function VendorProfilePage({
   const t = await getTranslations("ui");
   const shownPincodes = coverage_pincodes.slice(0, MAX_PINCODES_SHOWN);
   const morePincodes = coverage_pincodes.length - shownPincodes.length;
+  // M1.5.C/D: locale-aware About + "On Milk.in since {month year}"
+  const about = business.description?.[locale] ?? business.description?.en;
+  const sinceDate = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
+    new Date(business.created_at),
+  );
 
   return (
     <main>
@@ -181,7 +213,9 @@ export default async function VendorProfilePage({
       </Suspense>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: businessJsonLd(detail, canonical, summary, isBrand) }}
+        dangerouslySetInnerHTML={{
+          __html: businessJsonLd(detail, canonical, summary, isBrand, locale),
+        }}
       />
       <Wrap className="max-w-[720px] py-6">
         <header className="space-y-1.5">
@@ -192,11 +226,9 @@ export default async function VendorProfilePage({
             ) : null}
           </div>
           <p className="text-[13px] font-semibold text-sub">
-            {business.type} · {business.primary_pincode}
+            {business.type} · {business.primary_pincode} ·{" "}
+            <span data-testid="on-since">{t("brandPage.onSince", { date: sinceDate })}</span>
           </p>
-          {business.description?.en ? (
-            <p className="text-[15px] text-ink">{business.description.en}</p>
-          ) : null}
           {categories.length > 0 ? (
             <div className="flex flex-wrap gap-2" data-testid="category-chips">
               {categories.map((category) =>
@@ -218,6 +250,17 @@ export default async function VendorProfilePage({
             </div>
           ) : null}
         </header>
+
+        {about ? (
+          <section className="mt-6 space-y-1.5" aria-labelledby="about-h">
+            <h2 id="about-h" className="font-display text-[16px] font-extrabold text-ink">
+              {t("brandPage.about")}
+            </h2>
+            <p className="whitespace-pre-line text-[15px] text-ink" data-testid="about-text">
+              {about}
+            </p>
+          </section>
+        ) : null}
 
         {products.length > 0 ? (
           <section className="mt-6 space-y-2.5" aria-labelledby="products-h">
@@ -282,6 +325,10 @@ export default async function VendorProfilePage({
 
         <div className="mt-6">
           <ReviewForm businessId={business.id} slug={business.slug} />
+        </div>
+
+        <div className="mt-6">
+          <ReportDialog slug={business.slug} />
         </div>
       </Wrap>
     </main>

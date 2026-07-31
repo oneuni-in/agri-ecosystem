@@ -138,7 +138,8 @@
           "avatar": "Photo"
         },
         "devices": "Manage devices",
-        "error": "That didn't work — try again"
+        "error": "That didn't work — try again",
+        "memberSince": "Member since {date}"
       },
       "gated": {
         "title": "Login coming shortly",
@@ -183,6 +184,42 @@
         "language": "Language",
         "interests": "Interests",
         "error": "That didn't work — try again"
+      },
+      "businesses": {
+        "title": "Businesses",
+        "hint": "Look up a business by its public slug to review or enforce it.",
+        "searchLabel": "Business slug",
+        "searchPlaceholder": "e.g. anbu-milk-farm",
+        "search": "Look up",
+        "empty": "No business with that slug.",
+        "error": "Something went wrong — try again.",
+        "status": {
+          "active": "Active",
+          "suspended": "Suspended",
+          "disabled": "Disabled"
+        },
+        "reasonShown": "Enforcement reason",
+        "suspend": "Suspend",
+        "disable": "Disable",
+        "reinstate": "Reinstate",
+        "confirm_suspend": "Suspend {name}?",
+        "confirm_suspend_body": "Delisted everywhere (browse, search, ads); the public profile shows an unavailable page. The owner keeps dashboard access and sees the reason below.",
+        "confirm_disable": "Disable {name}?",
+        "confirm_disable_body": "Hard-off: the owner's dashboard access is locked, all serving stops and active ad campaigns are paused (no automatic refunds — handle manually).",
+        "confirm_reinstate": "Reinstate {name}?",
+        "confirm_reinstate_body": "Restores the state this business was in before the last enforcement action.",
+        "reasonLabel": "Reason (required, shown to the owner and logged)",
+        "noteLabel": "Note (optional, logged)",
+        "reasonRequired": "A reason is required.",
+        "suspendDone": "Business suspended.",
+        "disableDone": "Business disabled.",
+        "reinstateDone": "Business reinstated.",
+        "working": "Working...",
+        "cancel": "Cancel",
+        "logTitle": "Enforcement log",
+        "logEmpty": "No enforcement actions yet.",
+        "byActor": "by {actor}",
+        "loadMore": "Load more"
       }
     },
     "profileNudge": {
@@ -236,7 +273,11 @@
       "pincodeLabel": "Your pincode",
       "find": "Find shops",
       "empty": "No shops found near {pincode}.",
-      "kmAway": "{km} km away"
+      "kmAway": "{km} km away",
+      "about": "About",
+      "onSince": "On Milk.in since {date}",
+      "unavailableTitle": "This listing is unavailable",
+      "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
     },
     "localeSwitcher": {
       "label": "Language"
@@ -266,6 +307,30 @@
     },
     "lowData": {
       "label": "Data saver"
+    },
+    "report": {
+      "trigger": "Report this listing",
+      "title": "Report listing",
+      "description": "Tell us what's wrong. Reports go to the Milk.in team and are never shown publicly.",
+      "reasonLabel": "Reason",
+      "reasonRequired": "Please choose a reason.",
+      "reasons": {
+        "fake_listing": "Fake or duplicate listing",
+        "wrong_info": "Wrong or outdated information",
+        "abusive": "Abusive content or behaviour",
+        "fraud_scam": "Fraud or scam",
+        "other": "Something else"
+      },
+      "detailLabel": "Details (optional)",
+      "detailLabelRequired": "Details (required)",
+      "detailRequired": "Please add details for this reason.",
+      "submit": "Submit report",
+      "submitting": "Submitting...",
+      "done": "Thanks — our team will review this report.",
+      "alreadyReported": "You already have a report open for this listing.",
+      "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
+      "error": "Could not submit — please try again.",
+      "loginCta": "Login to report this listing"
     }
   },
   "coins": {

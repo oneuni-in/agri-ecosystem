@@ -1,4 +1,4 @@
-# Manual UI test guide — D23 → M2 (milk.in sprint 3 + 3.5)
+# Manual UI test guide — D01 → M2 (platform + milk.in)
 
 Owner-facing walkthrough for hand-testing everything shipped in D23–D30 and M1 on a dev box.
 Automated coverage for most of these journeys lives in `e2e/` (see
@@ -17,7 +17,9 @@ pnpm --filter @agri/web-admin dev                   # :3004  staff moderation (/
 
 Fresh DB only (from `backend/core`, venv python):
 `alembic upgrade head` → `scripts/load_geo.py` → `scripts/seed_e2e_milk.py` →
-`scripts/import_vendor_seed.py` (150+ Coimbatore vendors/brands; idempotent; `--dry-run` first).
+`scripts/import_vendor_seed.py` (150+ Coimbatore vendors/brands; idempotent; `--dry-run` first) →
+`scripts/seed_house_ads.py --enable-flag` → `scripts/seed_sample_media.py` (placeholder
+images for ad creatives + up to 80 products, uploaded through the real media pipeline).
 
 Accounts:
 - Consumer: chan `+916374344282` (super_admin — also works for /ops).
@@ -31,6 +33,75 @@ Old `/en/641001` URLs 301 to the city form.
 Gotchas: ISR caches public pages ~5 min (clear `apps/web-milk/.next/cache/fetch-cache`
 to see data changes immediately); kill stray processes on ports 8000/3000-3003 if a
 server misbehaves after a crashed session.
+
+## Platform layer (D01–D22) — the foundation under milk.in
+
+These are exercised implicitly by the milk sections below; this section tests them
+head-on. Apps: web-agri `:3002` (agri.in consumer + console), web-id `:3003`
+(identity hub), web-organic `:3001`, web-admin `:3004`.
+
+### Identity, sessions, devices (D06–D10)
+
+1. `:3003/account` — profile: AG- agri-id shown, handle, display name, language,
+   pincode lookup (needs geo loaded — a broken lookup means run `load_geo.py`).
+   Handle change: the free change is consumed at signup; a later change costs coins.
+2. `:3003/devices` — log in from a second browser, both sessions listed; revoke the
+   other one → that browser is signed out on next action. "Logout everywhere" kills
+   both at once.
+3. Cross-app SSO (D10): log in on milk.in `:3000` → open organic `:3001` → header is
+   already logged-in (silent SSO); logout-everywhere signs out every app.
+4. Wrong OTP: 3 bad codes → burn/lockout UX with a clear message, then recovery.
+
+### Agricoins (D13)
+
+1. `:3003/coins` — balance + ledger. Earn a row: submit a review on any business,
+   approve it in `:3004/ops` → +coins (rule `review_approved`, capped 5/week);
+   the CoinsBalancePill in the headers updates.
+2. `:3004/coins` (staff) — coins admin: search a user, manual adjustment with a
+   reason code → shows in the user's ledger with the reason.
+
+### Claims & verification (D16) — on agri.in
+
+1. `:3002/directory/businesses/aavin` (also `arokya`, `sakthi-dairy` — seeded
+   ownerless, hence claimable) → "Is this your business?" card → claim form:
+   upload 1–5 evidence photos (≤5MiB each; a 6th or oversized file is rejected).
+2. `:3004/claims` (staff) → approve with a note → claimant now owns the listing
+   (it appears under their `:3002/business` console) and the verified badge path
+   opens. Reject requires a reason (≥3 chars).
+3. IDOR: a different user cannot see or decide someone else's claim.
+
+### Search freshness (D19)
+
+1. `/en/search` on milk.in: typo query ("mlik", "panner") still finds results
+   (Meilisearch typo tolerance).
+2. Freshness: rename a product in the vendor console → within ~a minute (search
+   worker consumes the event) the new name is searchable; the old one isn't.
+
+### Notifications (D12)
+
+1. `:3002/notifications` and `:3003/notifications` — the same in-app feed follows
+   you across apps; mark-read state persists.
+2. Every notification in the feed traces to a real event (lead, response, review
+   decision, claim decision) — no orphan templates.
+
+### Billing surface stays dark (D20)
+
+1. `:3002/business/billing` — with the billing flag off this renders the
+   "activation at launch" state: no payment inputs, no charge paths reachable.
+
+### Admin & RBAC (D11, D21)
+
+1. `:3004/users` (staff) — user search shows phone LAST-4 ONLY (never the full
+   number), role assignment audited.
+2. `:3004/businesses` — tier is ADMIN-set here (vendor console only records
+   intent); suspend/reinstate lives in `/ops` enforcement.
+3. A non-staff account opening any `:3004` page gets denied — no data leak in the
+   denial.
+
+### Design-system kitchen sink (D02)
+
+1. `:3002/demo` — every token/component in one page (the Lighthouse-gated
+   reference); nothing raw-hex, tap targets ≥44px, focus rings visible.
 
 ## D23 — Pincode home
 
@@ -183,6 +254,39 @@ Slots: `milk_home_hero` (carousel), `milk_global_header`, `milk_category_banner`
    images only.
 7. Perf: home Lighthouse ≥0.90 WITH the carousel live (the #45 fix — inline CSS +
    SVG Devanagari — raised the CI gate back to 0.90; keep it there).
+
+## M3 — Delivery blend + sponsored listings (:3000 + :3004/ads, this branch)
+
+Engine: global (ALL-pincode) and local campaigns blend per slot; local gets a 2×
+rotation boost (`ADS_LOCAL_BOOST`). Campaigns can carry a serve-credit budget
+(blank = unlimited); serves decrement it atomically. Sponsored listings are a new
+slot `milk_sponsored_listing` injected into result lists at render (positions 1
+and 6, max 2). Seed with `scripts/seed_house_ads.py --with-sponsored-listing`
+(the e2e bootstrap passes it) to get a global house listing card.
+
+1. Blend: create a local campaign (placement targeting pincodes `["641001"]`) plus
+   the seeded global house card → both serve at `/coimbatore/641001`; at a non-TN
+   pincode (e.g. 110001) only the global one serves.
+2. Sponsored listing card: first cell of the "Local vendors" grid (and position 6
+   when ≥2 ads) carries ★ Sponsored, links out with `rel="nofollow sponsored"`,
+   fires visibility-gated impression + click beacons. Organic vendor count and
+   the load-more cursor are identical with the ads flag on/off; the JSON-LD
+   ItemList never mentions the ad. Same injection on `?category=` browse and
+   `/search` results.
+3. Recommended rail: on the unfiltered landing view, verified vendors with
+   ratings/fast lead responses/fresh coverage appear under "⭐ Recommended"
+   (max 3). Flip a vendor to premium or give it a campaign → rail order must NOT
+   change (paid can never buy the label). Chip-filtered and cursor pages show no
+   rail.
+4. Budget: create a campaign with serve budget 2 → its ad serves twice, then
+   stops (admin card shows `2/2 serves`); blank budget shows `∞`.
+5. Why-served log: `SELECT why_served, pincode, slot_key FROM ads.delivery_decisions`
+   (sampled — set `ADS_DELIVERY_LOG_SAMPLE=1.0` in dev to see every serve;
+   `local_pincode`/`global` values, viewer hash only, no user ids). UPDATE/DELETE
+   on the table must fail (append-only).
+6. Geo-context: `/api/ads/serve` ignores a client-forged `pincode` query param —
+   the BFF overwrites it from the `agri_loc` cookie (change location via the pill
+   → served local inventory follows).
 
 ## Known-open items (do not file as new bugs)
 

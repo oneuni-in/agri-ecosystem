@@ -5,14 +5,14 @@ import random
 import re
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any
+from typing import Any, NamedTuple, cast
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import CursorResult, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign, Creative, Placement
+from modules.ads.models import Campaign, Creative, DeliveryDecision, Placement
 from settings import get_settings
 from shared.cache import get_redis
 from shared.lookups import is_servable
@@ -27,6 +27,10 @@ SLOT_KEYS: frozenset[str] = frozenset(
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",
+        # M3.B: sponsored listings injected into result lists at the render
+        # layer (positions 1+6, max 2/page - enforced client-side; the engine
+        # just serves count<=MAX_SERVE_COUNT like any slot).
+        "milk_sponsored_listing",
     }
 )
 MAX_TARGET_URL = 2048
@@ -92,6 +96,44 @@ def viewer_hash(ip: str, user_agent: str, *, now: datetime) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+class Candidate(NamedTuple):
+    """One servable (placement, newest-approved-creative) pair. `rung` is the
+    geo rung that matched - the M3 blend discriminator: "global" for
+    untargeted placements, else the most specific matched rung. Feeds both
+    the local-boost rotation and the why-served log."""
+
+    placement: Placement
+    creative: Creative
+    campaign: Campaign
+    rung: str
+
+
+def geo_match_rung(
+    geo_target: dict[str, Any],
+    *,
+    pincode: str | None,
+    district_lgd: int | None,
+    state_lgd: int | None,
+) -> str | None:
+    """No geo rung declared = everywhere -> "global" (the M2 `categories` key
+    is NOT a geo rung). Otherwise the most specific declared rung matching
+    the resolved chain; None if nothing matches (non-negotiable 2). An
+    unknown viewer location (pincode=None) matches only geo-untargeted
+    placements - fail closed."""
+    if not any(geo_target.get(k) for k in _GEO_RUNGS):
+        return "global"
+    pincodes = geo_target.get("pincodes") or []
+    if pincode is not None and pincode in pincodes:
+        return "pincode"
+    district = geo_target.get("district")
+    if district is not None and district_lgd is not None and district == district_lgd:
+        return "district"
+    state = geo_target.get("state")
+    if state is not None and state_lgd is not None and state == state_lgd:
+        return "state"
+    return None
+
+
 def geo_matches(
     geo_target: dict[str, Any],
     *,
@@ -99,20 +141,10 @@ def geo_matches(
     district_lgd: int | None,
     state_lgd: int | None,
 ) -> bool:
-    """No geo rung declared = everywhere (the M2 `categories` key is NOT a
-    geo rung). Otherwise ANY declared rung matching the resolved chain is a
-    hit; nothing else matches (non-negotiable 2). An unknown viewer location
-    (pincode=None) matches only geo-untargeted placements - fail closed."""
-    if not any(geo_target.get(k) for k in _GEO_RUNGS):
-        return True
-    pincodes = geo_target.get("pincodes") or []
-    if pincode is not None and pincode in pincodes:
-        return True
-    district = geo_target.get("district")
-    if district is not None and district_lgd is not None and district == district_lgd:
-        return True
-    state = geo_target.get("state")
-    return state is not None and state_lgd is not None and state == state_lgd
+    return (
+        geo_match_rung(geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd)
+        is not None
+    )
 
 
 def category_matches(geo_target: dict[str, Any], category: str | None) -> bool:
@@ -131,12 +163,13 @@ async def eligible_placements(
     pincode: str | None,
     today: date,
     category: str | None = None,
-) -> list[tuple[Placement, Creative]]:
-    """Active placement + active in-flight campaign + latest APPROVED creative
-    + geo match + category match (M2). Row volume per slot is tiny in v1 -
-    geo filtering in Python keeps the JSONB semantics in one testable
-    function. pincode=None (M2 global slots before any location is known)
-    skips resolution entirely: only geo-untargeted placements can match."""
+) -> list[Candidate]:
+    """Active placement + active in-flight in-budget campaign + latest
+    APPROVED creative + geo match + category match (M2). Row volume per slot
+    is tiny in v1 - geo filtering in Python keeps the JSONB semantics in one
+    testable function. pincode=None (M2 global slots before any location is
+    known) skips resolution entirely: only geo-untargeted placements can
+    match."""
     district_lgd = None
     state_lgd = None
     if pincode is not None:
@@ -152,7 +185,7 @@ async def eligible_placements(
 
     rows = (
         await session.execute(
-            select(Placement, Creative, Campaign.advertiser_business_id)
+            select(Placement, Creative, Campaign)
             .join(Campaign, Campaign.id == Placement.campaign_id)
             .join(Creative, Creative.campaign_id == Campaign.id)
             .where(
@@ -161,6 +194,12 @@ async def eligible_placements(
                 Campaign.status == "active",
                 Campaign.flight_start <= today,
                 Campaign.flight_end >= today,
+                # M3: in-budget (NULL total = unlimited); the serve-time
+                # consume_budget UPDATE closes the concurrent-race window.
+                or_(
+                    Campaign.budget_serves_total.is_(None),
+                    Campaign.budget_serves_used < Campaign.budget_serves_total,
+                ),
                 Creative.moderation_status == "approved",
             )
             .order_by(Creative.id.desc())
@@ -171,21 +210,46 @@ async def eligible_placements(
     # row says. One lookup per distinct advertiser; fail closed on unknowns.
     servable = {
         business_id: await is_servable(session, business_id)
-        for business_id in {advertiser_id for _, _, advertiser_id in rows}
+        for business_id in {campaign.advertiser_business_id for _, _, campaign in rows}
     }
     seen: set[uuid.UUID] = set()
-    out: list[tuple[Placement, Creative]] = []
-    for placement, creative, advertiser_id in rows:
+    out: list[Candidate] = []
+    for placement, creative, campaign in rows:
         if placement.id in seen:  # newest approved creative per placement
             continue
-        if not servable.get(advertiser_id, False):
+        if not servable.get(campaign.advertiser_business_id, False):
             continue
-        if geo_matches(
+        rung = geo_match_rung(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
-        ) and category_matches(placement.geo_target, category):
+        )
+        if rung is not None and category_matches(placement.geo_target, category):
             seen.add(placement.id)
-            out.append((placement, creative))
+            out.append(Candidate(placement, creative, campaign, rung))
     return out
+
+
+async def consume_budget(session: AsyncSession, campaign: Campaign) -> bool:
+    """Atomic serve-credit decrement (M3 threat: budget race on concurrent
+    serves). Unlimited campaigns (budget_serves_total IS NULL) never touch
+    the row - no hot-row contention on house ads. The conditional UPDATE is
+    the atomicity: a concurrent loser blocks on the row lock, re-evaluates
+    the WHERE against the committed value, and matches zero rows once the
+    last credit is gone - it must then NOT serve. The caller owns the
+    commit."""
+    if campaign.budget_serves_total is None:
+        return True
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(Campaign)
+            .where(
+                Campaign.id == campaign.id,
+                Campaign.budget_serves_used < Campaign.budget_serves_total,
+            )
+            .values(budget_serves_used=Campaign.budget_serves_used + 1)
+        ),
+    )
+    return result.rowcount == 1
 
 
 async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) -> list[str]:
@@ -208,9 +272,14 @@ async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) 
 
 
 def pick_weighted(
-    candidates: list[tuple[Placement, Creative]], rand: random.Random
-) -> tuple[Placement, Creative]:
-    weights = [p.weight for p, _ in candidates]
+    candidates: list[Candidate], rand: random.Random, *, local_boost: float = 1.0
+) -> Candidate:
+    """Weighted rotation with the M3 blend boost: local-targeted candidates
+    (any matched geo rung) count local_boost x their placement weight so
+    village advertisers aren't drowned by national ALL-pincode brands."""
+    weights = [
+        c.placement.weight * (local_boost if c.rung != "global" else 1.0) for c in candidates
+    ]
     return rand.choices(candidates, weights=weights, k=1)[0]
 
 
@@ -219,17 +288,54 @@ def _seconds_to_utc_midnight(now: datetime) -> int:
     return max(int((midnight - now).total_seconds()), 60)
 
 
-def _freq_key(viewer: str, placement_id: uuid.UUID, now: datetime) -> str:
-    return f"ads:freq:{viewer}:{placement_id}:{now:%Y%m%d}"
+def _freq_key(viewer: str, creative_id: uuid.UUID, now: datetime) -> str:
+    # M3.A: capped per user-session per CREATIVE. The daily-rotating
+    # viewer_hash IS the session pseudonym; keys expire at UTC midnight with it.
+    return f"ads:freq:{viewer}:{creative_id}:{now:%Y%m%d}"
 
 
-async def under_freq_cap(viewer: str, placement_id: uuid.UUID, *, cap: int, now: datetime) -> bool:
-    count = await get_redis().get(_freq_key(viewer, placement_id, now))
+async def under_freq_cap(viewer: str, creative_id: uuid.UUID, *, cap: int, now: datetime) -> bool:
+    count = await get_redis().get(_freq_key(viewer, creative_id, now))
     return int(count or 0) < cap
 
 
-async def record_serve(viewer: str, placement_id: uuid.UUID, *, now: datetime) -> None:
-    key = _freq_key(viewer, placement_id, now)
+async def record_serve(viewer: str, creative_id: uuid.UUID, *, now: datetime) -> None:
+    key = _freq_key(viewer, creative_id, now)
     redis = get_redis()
     await redis.incr(key)
     await redis.expire(key, _seconds_to_utc_midnight(now))
+
+
+def log_delivery(
+    session: AsyncSession,
+    *,
+    candidate: Candidate,
+    slot_key: str,
+    pincode: str | None,
+    category: str | None,
+    viewer: str,
+    now: datetime,
+    rand: random.Random,
+) -> bool:
+    """M3.E: append-only, SAMPLED why-served row for advertiser analytics
+    (M5) and dispute resolution. Returns True when a row was staged - the
+    caller owns the commit. pincode/category are serve context (fine to
+    keep); viewer is the daily-rotating hash - never any other user
+    identifier (threat: delivery-log PII)."""
+    rate = get_settings().ads_delivery_log_sample
+    if rate <= 0 or rand.random() >= rate:
+        return False
+    session.add(
+        DeliveryDecision(
+            campaign_id=candidate.campaign.id,
+            placement_id=candidate.placement.id,
+            creative_id=candidate.creative.id,
+            slot_key=slot_key,
+            pincode=pincode,
+            category=category,
+            why_served="global" if candidate.rung == "global" else f"local_{candidate.rung}",
+            viewer_hash=viewer,
+            occurred_at=now,
+        )
+    )
+    return True

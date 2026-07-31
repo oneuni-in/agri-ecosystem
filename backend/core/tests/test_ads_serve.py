@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import httpx
 import pytest
 from redis.asyncio import Redis
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
@@ -32,6 +32,7 @@ TN_STATE_LGD = 33
 COIMBATORE_PINCODE = "641001"
 CHENNAI_PINCODE = "600001"
 UNKNOWN_PINCODE = "999999"
+DELHI_PINCODE = "110001"  # M3 NN1: valid shape, resolves to no TN district
 
 
 @pytest.fixture
@@ -425,6 +426,7 @@ async def test_milk_slot_keys_are_registered(
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",
+        "milk_sponsored_listing",  # M3.B listing-injection inventory
     ):
         await _seed_ad(session, geo_target={}, slot_key=slot)
         r = await client.get("/ads/serve", params={"slot": slot, "pincode": COIMBATORE_PINCODE})
@@ -491,6 +493,219 @@ async def test_serve_without_pincode_only_untargeted_geo(
     await _seed_ad(session, geo_target={})
     r = await client.get("/ads/serve", params={"slot": "directory_browse"})
     assert r.json()["ad"] is not None
+
+
+# --- M3 (SPEC M3): global+local blend, local boost, category independence ---
+
+
+async def test_blend_global_and_local_serve_together(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """NON-NEGOTIABLE 1: an ALL-pincode (global) campaign and a 641001-local
+    campaign BOTH serve at 641001; the local one is absent at 110001."""
+    client, session = api
+    await _enable_ads(session)
+    global_p = await _seed_ad(session, geo_target={})
+    local_p = await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]})
+
+    at_local = await client.get(
+        "/ads/serve",
+        params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE, "count": 5},
+    )
+    assert at_local.status_code == 200, at_local.text
+    local_ids = {ad["placement_id"] for ad in at_local.json()["ads"]}
+    assert {str(global_p.id), str(local_p.id)} <= local_ids
+
+    at_remote = await client.get(
+        "/ads/serve",
+        params={"slot": "directory_browse", "pincode": DELHI_PINCODE, "count": 5},
+    )
+    remote_ids = {ad["placement_id"] for ad in at_remote.json()["ads"]}
+    assert str(local_p.id) not in remote_ids
+    assert str(global_p.id) in remote_ids
+
+
+async def test_local_boost_share_of_voice(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3.A: equal placement weights, but the 641001-targeted placement gets
+    the default 2x local boost -> ~2/3 of single-ad serves."""
+    client, session = api
+    await _enable_ads(session)
+    monkeypatch.setenv("RATE_LIMIT_REQUESTS", "1000")
+    get_settings.cache_clear()
+
+    await _seed_ad(session, geo_target={}, weight=1)
+    local = await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]}, weight=1)
+
+    import modules.ads.router as router_module
+
+    monkeypatch.setattr(router_module, "_rng", random.Random(42))
+
+    async def _always_true(*args: object, **kwargs: object) -> bool:
+        return True
+
+    monkeypatch.setattr(service, "under_freq_cap", _always_true)
+
+    local_hits = 0
+    total = 200
+    for _ in range(total):
+        r = await client.get(
+            "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+        )
+        assert r.status_code == 200
+        if r.json()["ad"]["placement_id"] == str(local.id):
+            local_hits += 1
+
+    ratio = local_hits / total
+    assert 0.55 <= ratio <= 0.80, ratio
+
+
+async def test_budget_exhaustion_stops_serving(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M3.A in-budget: a 2-credit campaign serves exactly twice, then the SQL
+    predicate excludes it and `used` never exceeds `total`."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(session, geo_target={})
+    campaign = await session.get(Campaign, placement.campaign_id)
+    assert campaign is not None
+    campaign.budget_serves_total = 2
+    await session.flush()
+
+    results = []
+    for _ in range(3):
+        r = await client.get(
+            "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+        )
+        assert r.status_code == 200
+        results.append(r.json()["ads"])
+    assert results[0] and results[1]  # two credits -> two serves
+    assert results[2] == []  # out of budget -> excluded
+    await session.refresh(campaign)
+    assert campaign.budget_serves_used == 2
+
+
+async def test_ghee_campaign_never_serves_on_paneer_page(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """NON-NEGOTIABLE 2: the category dimension is evaluated independently
+    per slot instance - a ghee campaign never serves on a paneer page."""
+    client, session = api
+    await _enable_ads(session)
+    ghee_p = await _seed_ad(
+        session, geo_target={"categories": ["ghee"]}, slot_key="milk_category_banner"
+    )
+
+    paneer = await client.get(
+        "/ads/serve",
+        params={
+            "slot": "milk_category_banner",
+            "pincode": COIMBATORE_PINCODE,
+            "category": "paneer",
+            "count": 5,
+        },
+    )
+    assert str(ghee_p.id) not in {ad["placement_id"] for ad in paneer.json()["ads"]}
+
+    ghee = await client.get(
+        "/ads/serve",
+        params={
+            "slot": "milk_category_banner",
+            "pincode": COIMBATORE_PINCODE,
+            "category": "ghee",
+            "count": 5,
+        },
+    )
+    assert str(ghee_p.id) in {ad["placement_id"] for ad in ghee.json()["ads"]}
+
+
+async def test_freq_cap_keyed_per_creative(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M3.A: the cap is per user-session (daily viewer_hash) per CREATIVE -
+    the redis key carries the creative id, not the placement id."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(session, geo_target={})
+    creative_id = await session.scalar(
+        select(Creative.id).where(Creative.campaign_id == placement.campaign_id)
+    )
+    assert creative_id is not None
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+
+    keys = [key async for key in ads_redis.scan_iter(match="ads:freq:*")]
+    assert len(keys) == 1
+    key = keys[0].decode() if isinstance(keys[0], bytes) else keys[0]
+    assert str(creative_id) in key
+    assert str(placement.id) not in key
+
+
+async def test_delivery_log_written_with_why_served(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3.E: sampled append-only why-served log - local rung recorded, no
+    user identifier beyond the daily-rotating viewer hash."""
+    monkeypatch.setattr(get_settings(), "ads_delivery_log_sample", 1.0)
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]})
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+
+    row = (
+        await session.execute(
+            text(
+                "SELECT campaign_id, why_served, pincode, category, viewer_hash "
+                "FROM ads.delivery_decisions"
+            )
+        )
+    ).one()
+    assert row.why_served == "local_pincode"
+    assert row.pincode == COIMBATORE_PINCODE
+    assert row.category is None
+    assert len(row.viewer_hash) == 64  # sha256 pseudonym, never a raw ip/user id
+
+
+async def test_delivery_log_sampling_zero_writes_nothing(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_settings(), "ads_delivery_log_sample", 0.0)
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={})
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+    count = await session.scalar(text("SELECT count(*) FROM ads.delivery_decisions"))
+    assert count == 0
 
 
 async def test_pending_creative_never_serves_on_milk_slot(

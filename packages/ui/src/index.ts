@@ -52,13 +52,16 @@ export type { LocContext, LocSource } from "./lib/location";
 export { LOW_DATA_COOKIE, lowDataCookieString, parseLowDataCookie } from "./lib/low-data-core";
 export { LowDataToggle, setLowData, useLowData } from "./lib/low-data";
 export {
+  injectSponsored,
   isSafeMediaUrl,
   isSafeTargetUrl,
+  MAX_SPONSORED_PER_PAGE,
   parseServedAd,
   parseServeResponse,
   serveQuery,
+  SPONSORED_POSITIONS,
 } from "./lib/sponsored";
-export type { AdServeContext, ServedAd } from "./lib/sponsored";
+export type { AdServeContext, ListEntry, ServedAd } from "./lib/sponsored";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
 export { AD_CAROUSEL_INTERVAL_MS, AD_CAROUSEL_MAX, AdCarousel } from "./composites/ad-carousel";
@@ -79,5 +82,6 @@ export { PincodeHero } from "./composites/pincode-hero";
 export { ProductCard, ProductGrid } from "./composites/product-card";
 export { CardsRow, Section, Wrap } from "./composites/section";
 export { SponsoredAd } from "./composites/sponsored-ad";
+export { SponsoredListingCard } from "./composites/sponsored-listing-card";
 export { TodayCard, TodayStrip } from "./composites/today-strip";
 export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";

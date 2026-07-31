@@ -1,4 +1,4 @@
-import { AdSlot, Card, EmptyState } from "@agri/ui";
+import { AdSlot, Card, EmptyState, injectSponsored, SponsoredListingCard } from "@agri/ui";
 import { LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { cookies } from "next/headers";
 
 import { Link } from "@/i18n/navigation";
+import { fetchSponsoredListings } from "@/lib/ads";
 
 import { SearchForm } from "./search-form";
 
@@ -122,6 +123,13 @@ export default async function SearchPage({
     // Backend unreachable — same graceful empty state.
   }
 
+  // M3.B: render-layer injection only - page.items and next_cursor (the
+  // load-more link below) are byte-identical with sponsorship on or off.
+  const sponsoredAds =
+    page.items.length > 0
+      ? await fetchSponsoredListings({ pincode: loc?.pincode ?? null, locale })
+      : [];
+
   const t = await getTranslations("ui.search");
 
   return (
@@ -141,7 +149,15 @@ export default async function SearchPage({
         <EmptyState icon="🔍" title={t("results.empty")} />
       ) : (
         <ul className="flex flex-col gap-3" data-testid="search-results">
-          {page.items.map((hit) => {
+          {injectSponsored(page.items, sponsoredAds).map((entry) => {
+            if (entry.kind === "sponsored") {
+              return (
+                <li key={`s-${entry.ad.placement_id}`}>
+                  <SponsoredListingCard ad={entry.ad} />
+                </li>
+              );
+            }
+            const hit = entry.item;
             const place = placeLabel(hit);
             const description = pickDescription(hit.description);
             return (

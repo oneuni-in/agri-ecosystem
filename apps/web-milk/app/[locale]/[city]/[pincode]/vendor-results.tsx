@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@agri/ui";
+import { Button, injectSponsored, type ListEntry, type ServedAd, SponsoredListingCard } from "@agri/ui";
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 
@@ -18,10 +18,15 @@ export function VendorResults({
   vendors,
   brands,
   pincode,
+  sponsored = [],
 }: {
   vendors: MilkCard[];
   brands: MilkCard[];
   pincode: string;
+  /** M3.B sponsored listings, injected at the render layer into the FIRST
+   * non-empty section only (page positions 1 and 6). The organic arrays -
+   * and the JSON-LD/cursor built from them upstream - are never touched. */
+  sponsored?: ServedAd[];
 }) {
   const [showMap, setShowMap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -38,26 +43,37 @@ export function VendorResults({
       ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
-  const renderSection = (title: string, cards: MilkCard[]) =>
-    cards.length > 0 ? (
+  const primary: "vendors" | "brands" = vendors.length > 0 ? "vendors" : "brands";
+
+  const renderSection = (title: string, cards: MilkCard[], withSponsored: boolean) => {
+    if (cards.length === 0) return null;
+    const entries: ListEntry<MilkCard>[] = withSponsored
+      ? injectSponsored(cards, sponsored)
+      : cards.map((item) => ({ kind: "organic" as const, item }));
+    return (
       <section className="flex flex-col gap-2.5">
         <h2 className="font-display text-[16px] font-extrabold text-ink">{title}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          {cards.map((c) => (
-            <VendorCard
-              key={c.id}
-              card={c}
-              pincode={pincode}
-              selected={selectedId === c.id}
-              onSelect={setSelectedId}
-            />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === "sponsored" ? (
+              <SponsoredListingCard key={`s-${entry.ad.placement_id}`} ad={entry.ad} />
+            ) : (
+              <VendorCard
+                key={entry.item.id}
+                card={entry.item}
+                pincode={pincode}
+                selected={selectedId === entry.item.id}
+                onSelect={setSelectedId}
+              />
+            ),
+          )}
         </div>
       </section>
-    ) : null;
+    );
+  };
 
   return (
-    <div ref={listRef} className="flex flex-col gap-5">
+    <div ref={listRef} className="flex flex-col gap-5" data-testid="vendor-results">
       {pins.length > 0 ? (
         <div>
           <Button
@@ -76,8 +92,8 @@ export function VendorResults({
           ) : null}
         </div>
       ) : null}
-      {renderSection("Local vendors", vendors)}
-      {renderSection("Brands & shops nearby", brands)}
+      {renderSection("Local vendors", vendors, primary === "vendors")}
+      {renderSection("Brands & shops nearby", brands, primary === "brands")}
     </div>
   );
 }

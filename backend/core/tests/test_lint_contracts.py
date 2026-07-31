@@ -18,8 +18,13 @@ LEDGER_ALLOWED = {
 }
 
 # shared.media.reencode_image is the ONE place allowed to touch PIL directly
-# (Sprint-2 rule A5, D17).
-MEDIA_ALLOWED = {CORE / "shared" / "media.py"}
+# (Sprint-2 rule A5, D17). seed_sample_media.py is the one exemption: a
+# dev-only seed that DRAWS first-party placeholder assets from scratch - it
+# never decodes untrusted input, which is the threat A5 guards against.
+MEDIA_ALLOWED = {
+    CORE / "shared" / "media.py",
+    CORE / "scripts" / "seed_sample_media.py",
+}
 
 
 def test_every_migration_has_a_filled_threat_notes_block() -> None:

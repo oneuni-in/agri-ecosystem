@@ -9,6 +9,8 @@ import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from dataclasses import field as dc_field
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal, Protocol
 
@@ -18,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.directory import catalog_service
 from modules.directory.catalog_models import Product
 from modules.directory.covers import covers
+from modules.directory.recommended import rank_recommended
 from modules.directory.specs import parse_fields
 from shared.geo.models import State
 from shared.geo.service import district_for_pincode
@@ -109,6 +112,9 @@ class MilkHomeResult:
     vendors: list[MilkCard]
     brands: list[MilkCard]
     next_cursor: str | None
+    # M3.C organic-only rail: populated exclusively by rank_recommended()
+    # on the unfiltered first page; empty everywhere else.
+    recommended: list[MilkCard] = dc_field(default_factory=list)
 
 
 async def _milk_filter_keys(session: AsyncSession) -> list[str]:
@@ -333,6 +339,22 @@ async def milk_home(
         )
         (vendors if item.type in _VENDOR_TYPES else brands).append(card)
 
+    # M3.C: the Recommended rail rides the canonical (unfiltered, first-page)
+    # view only - chip filters and cursor pages never re-rank. rank_recommended
+    # is the ONLY label source; paid signals never enter it.
+    recommended: list[MilkCard] = []
+    unfiltered_view = (
+        cursor is None
+        and milk_type in (None, "all")
+        and product_category in (None, "all")
+        and (vendors or brands)
+    )
+    if unfiltered_view:
+        all_cards = [*vendors, *brands]
+        ranked = await rank_recommended(session, all_cards, now=datetime.now(UTC))
+        by_id = {card.id: card for card in all_cards}
+        recommended = [by_id[business_id] for business_id in ranked]
+
     return MilkHomeResult(
         scope="covered",
         district=district.name,
@@ -344,4 +366,5 @@ async def milk_home(
         vendors=vendors,
         brands=brands,
         next_cursor=page.next_cursor,
+        recommended=recommended,
     )

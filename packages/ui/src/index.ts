@@ -43,13 +43,20 @@ export {
   locLabel,
   parseLocationResponse,
   parseLocCookie,
+  pincodeFromCookieHeader,
   serializeLocCookie,
 } from "./lib/location";
 export type { LocContext, LocSource } from "./lib/location";
 export { LOW_DATA_COOKIE, lowDataCookieString, parseLowDataCookie } from "./lib/low-data-core";
 export { LowDataToggle, setLowData, useLowData } from "./lib/low-data";
-export { isSafeTargetUrl, parseServedAd } from "./lib/sponsored";
-export type { ServedAd } from "./lib/sponsored";
+export {
+  isSafeMediaUrl,
+  isSafeTargetUrl,
+  parseServedAd,
+  parseServeResponse,
+  serveQuery,
+} from "./lib/sponsored";
+export type { AdServeContext, ServedAd } from "./lib/sponsored";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";

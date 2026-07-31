@@ -50,14 +50,17 @@ def upgrade() -> None:
         sa.Column("budget_serves_used", sa.Integer(), nullable=False, server_default="0"),
         schema="ads",
     )
+    # op.f(): the name is final - without it the metadata naming convention
+    # re-wraps it (ck_campaigns_ck_...) and downgrade's drop cannot find it
+    # (caught by CI migrate_check's downgrade-base pass).
     op.create_check_constraint(
-        "ck_ads_campaigns_budget_total",
+        op.f("ck_ads_campaigns_budget_total"),
         "campaigns",
         "budget_serves_total IS NULL OR budget_serves_total >= 0",
         schema="ads",
     )
     op.create_check_constraint(
-        "ck_ads_campaigns_budget_used",
+        op.f("ck_ads_campaigns_budget_used"),
         "campaigns",
         "budget_serves_used >= 0",
         schema="ads",
@@ -94,7 +97,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("delivery_decisions", schema="ads")
-    op.drop_constraint("ck_ads_campaigns_budget_used", "campaigns", schema="ads")
-    op.drop_constraint("ck_ads_campaigns_budget_total", "campaigns", schema="ads")
+    op.drop_constraint(
+        op.f("ck_ads_campaigns_budget_used"), "campaigns", schema="ads", type_="check"
+    )
+    op.drop_constraint(
+        op.f("ck_ads_campaigns_budget_total"), "campaigns", schema="ads", type_="check"
+    )
     op.drop_column("campaigns", "budget_serves_used", schema="ads")
     op.drop_column("campaigns", "budget_serves_total", schema="ads")

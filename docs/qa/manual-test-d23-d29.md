@@ -17,7 +17,9 @@ pnpm --filter @agri/web-admin dev                   # :3004  staff moderation (/
 
 Fresh DB only (from `backend/core`, venv python):
 `alembic upgrade head` → `scripts/load_geo.py` → `scripts/seed_e2e_milk.py` →
-`scripts/import_vendor_seed.py` (150+ Coimbatore vendors/brands; idempotent; `--dry-run` first).
+`scripts/import_vendor_seed.py` (150+ Coimbatore vendors/brands; idempotent; `--dry-run` first) →
+`scripts/seed_house_ads.py --enable-flag` → `scripts/seed_sample_media.py` (placeholder
+images for ad creatives + up to 80 products, uploaded through the real media pipeline).
 
 Accounts:
 - Consumer: chan `+916374344282` (super_admin — also works for /ops).

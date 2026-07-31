@@ -64,7 +64,7 @@ if (seed.status !== 0) process.exit(seed.status ?? 1);
 // exhausts the house placements after a few page loads across specs/runs.
 const houseAds = spawnSync(
   python,
-  ["scripts/seed_house_ads.py", "--enable-flag", "--reset-caps"],
+  ["scripts/seed_house_ads.py", "--enable-flag", "--reset-caps", "--with-sponsored-listing"],
   { cwd: core, env, stdio: "inherit" },
 );
 if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);

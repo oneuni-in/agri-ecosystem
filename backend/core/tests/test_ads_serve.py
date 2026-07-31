@@ -426,6 +426,7 @@ async def test_milk_slot_keys_are_registered(
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",
+        "milk_sponsored_listing",  # M3.B listing-injection inventory
     ):
         await _seed_ad(session, geo_target={}, slot_key=slot)
         r = await client.get("/ads/serve", params={"slot": slot, "pincode": COIMBATORE_PINCODE})

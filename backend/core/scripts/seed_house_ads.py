@@ -174,7 +174,13 @@ async def _reset_caps() -> None:
     print(f"seed_house_ads: cleared {deleted} serve-cap/dedupe keys")  # noqa: T201
 
 
-async def run(base_url: str, console_url: str, enable_flag: bool, reset_caps: bool) -> None:
+async def run(
+    base_url: str,
+    console_url: str,
+    enable_flag: bool,
+    reset_caps: bool,
+    with_sponsored_listing: bool = False,
+) -> None:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         advertiser_id = await _ensure_house_business(session)
@@ -188,6 +194,21 @@ async def run(base_url: str, console_url: str, enable_flag: bool, reset_caps: bo
                     copy=copy,
                     target_url=target_url,
                 )
+        if with_sponsored_listing:
+            # M3.B e2e determinism: a house card at position 1 of every list
+            # is not a prod default, so this slot only seeds behind the flag.
+            await _ensure_house_ad(
+                session,
+                advertiser_id=advertiser_id,
+                slot_key="milk_sponsored_listing",
+                tag="discover",
+                copy={
+                    "en": {"title": "Milk.in Partner Dairy", "body": "Fresh local milk, delivered"},
+                    "ta": {"title": "Milk.in கூட்டாளர் பால் பண்ணை", "body": "புதிய உள்ளூர் பால்"},
+                    "hi": {"title": "Milk.in पार्टनर डेयरी", "body": "ताज़ा स्थानीय दूध"},
+                },
+                target_url=f"{base_url}/coimbatore/641001",
+            )
         if enable_flag:
             await _enable_flag(session)
     if reset_caps:
@@ -200,5 +221,14 @@ if __name__ == "__main__":
     parser.add_argument("--console-url", default="http://localhost:3002/business/listings")
     parser.add_argument("--enable-flag", action="store_true")
     parser.add_argument("--reset-caps", action="store_true")
+    parser.add_argument("--with-sponsored-listing", action="store_true")
     args = parser.parse_args()
-    asyncio.run(run(args.base_url, args.console_url, args.enable_flag, args.reset_caps))
+    asyncio.run(
+        run(
+            args.base_url,
+            args.console_url,
+            args.enable_flag,
+            args.reset_caps,
+            args.with_sponsored_listing,
+        )
+    )

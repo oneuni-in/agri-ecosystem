@@ -27,6 +27,10 @@ SLOT_KEYS: frozenset[str] = frozenset(
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",
+        # M3.B: sponsored listings injected into result lists at the render
+        # layer (positions 1+6, max 2/page - enforced client-side; the engine
+        # just serves count<=MAX_SERVE_COUNT like any slot).
+        "milk_sponsored_listing",
     }
 )
 MAX_TARGET_URL = 2048

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isSafeTargetUrl, parseServedAd } from "./sponsored";
+import { injectSponsored, isSafeTargetUrl, parseServedAd, type ServedAd } from "./sponsored";
 
 const valid = {
   placement_id: "018f0000-0000-7000-8000-000000000001",
@@ -112,5 +112,57 @@ describe("serveQuery", () => {
   });
   it("caps count at 5", () => {
     expect(new URLSearchParams(serveQuery("s", { count: 99 })).get("count")).toBe("5");
+  });
+});
+
+describe("injectSponsored (M3 NN3)", () => {
+  const ad = (id: string): ServedAd => ({
+    ...valid,
+    label: "sponsored",
+    placement_id: id,
+    slot_key: "milk_sponsored_listing",
+  });
+  const ads = [ad("a1"), ad("a2")];
+
+  it("preserves organic order and identity exactly (sponsorship on)", () => {
+    const organic = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }];
+    const entries = injectSponsored(organic, ads);
+    const organicOut = entries
+      .filter((e) => e.kind === "organic")
+      .map((e) => (e.kind === "organic" ? e.item : null));
+    expect(organicOut).toEqual(organic);
+    organicOut.forEach((item, i) => expect(item).toBe(organic[i]));
+  });
+
+  it("is the identity on the organic stream with sponsorship off", () => {
+    const organic = [{ id: 1 }, { id: 2 }];
+    const entries = injectSponsored(organic, []);
+    expect(entries).toEqual(organic.map((item) => ({ kind: "organic", item })));
+  });
+
+  it("places sponsored entries at page positions 1 and 6", () => {
+    const organic = Array.from({ length: 8 }, (_, i) => i);
+    const entries = injectSponsored(organic, ads);
+    expect(entries[0]?.kind).toBe("sponsored");
+    expect(entries[5]?.kind).toBe("sponsored");
+    expect(entries.filter((e) => e.kind === "sponsored")).toHaveLength(2);
+    expect(entries).toHaveLength(10);
+  });
+
+  it("caps at 2 sponsored per page", () => {
+    const five = [ad("1"), ad("2"), ad("3"), ad("4"), ad("5")];
+    const entries = injectSponsored([1, 2, 3, 4, 5, 6, 7], five);
+    expect(entries.filter((e) => e.kind === "sponsored")).toHaveLength(2);
+  });
+
+  it("appends past-the-end positions to short lists", () => {
+    const entries = injectSponsored([1, 2, 3], ads);
+    expect(entries[0]?.kind).toBe("sponsored");
+    expect(entries[entries.length - 1]?.kind).toBe("sponsored");
+    expect(entries.filter((e) => e.kind === "organic").map((e) => (e.kind === "organic" ? e.item : null))).toEqual([1, 2, 3]);
+  });
+
+  it("never injects into an empty organic list (no ad-only pages)", () => {
+    expect(injectSponsored([], ads)).toEqual([]);
   });
 });

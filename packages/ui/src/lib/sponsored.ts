@@ -59,6 +59,33 @@ export function parseServeResponse(raw: unknown): ServedAd[] {
   return out;
 }
 
+/** M3.B sponsored-listing injection — page positions 1 and 6 (0-indexed
+ * display slots 0 and 5), max 2 per page (spec item 6). */
+export const SPONSORED_POSITIONS: readonly number[] = [0, 5];
+export const MAX_SPONSORED_PER_PAGE = 2;
+
+export type ListEntry<T> = { kind: "organic"; item: T } | { kind: "sponsored"; ad: ServedAd };
+
+/** Render-layer injection (M3.B / NN3): the organic array is NEVER
+ * reordered, filtered or re-counted — sponsored entries are spliced into the
+ * RENDERED flow only, so the cursor stream (built from organic items) is
+ * byte-identical with sponsorship on or off. Empty organic list ⇒ nothing is
+ * injected (no ad-only pages); positions past the end clamp to the end. */
+export function injectSponsored<T>(
+  organic: readonly T[],
+  ads: readonly ServedAd[],
+  positions: readonly number[] = SPONSORED_POSITIONS,
+): ListEntry<T>[] {
+  const out: ListEntry<T>[] = organic.map((item) => ({ kind: "organic", item }));
+  if (out.length === 0) return out;
+  ads.slice(0, MAX_SPONSORED_PER_PAGE).forEach((ad, i) => {
+    const pos = positions[i];
+    if (pos === undefined) return;
+    out.splice(Math.min(pos, out.length), 0, { kind: "sponsored", ad });
+  });
+  return out;
+}
+
 const PINCODE_RE = /^\d{6}$/;
 const CATEGORY_RE = /^[a-z0-9-]{1,40}$/;
 const SERVE_LOCALES: ReadonlySet<string> = new Set(["en", "ta", "hi"]);

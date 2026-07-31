@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import httpx
 import pytest
 from redis.asyncio import Redis
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
@@ -627,6 +627,84 @@ async def test_ghee_campaign_never_serves_on_paneer_page(
         },
     )
     assert str(ghee_p.id) in {ad["placement_id"] for ad in ghee.json()["ads"]}
+
+
+async def test_freq_cap_keyed_per_creative(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M3.A: the cap is per user-session (daily viewer_hash) per CREATIVE -
+    the redis key carries the creative id, not the placement id."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(session, geo_target={})
+    creative_id = await session.scalar(
+        select(Creative.id).where(Creative.campaign_id == placement.campaign_id)
+    )
+    assert creative_id is not None
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+
+    keys = [key async for key in ads_redis.scan_iter(match="ads:freq:*")]
+    assert len(keys) == 1
+    key = keys[0].decode() if isinstance(keys[0], bytes) else keys[0]
+    assert str(creative_id) in key
+    assert str(placement.id) not in key
+
+
+async def test_delivery_log_written_with_why_served(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3.E: sampled append-only why-served log - local rung recorded, no
+    user identifier beyond the daily-rotating viewer hash."""
+    monkeypatch.setattr(get_settings(), "ads_delivery_log_sample", 1.0)
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]})
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+
+    row = (
+        await session.execute(
+            text(
+                "SELECT campaign_id, why_served, pincode, category, viewer_hash "
+                "FROM ads.delivery_decisions"
+            )
+        )
+    ).one()
+    assert row.why_served == "local_pincode"
+    assert row.pincode == COIMBATORE_PINCODE
+    assert row.category is None
+    assert len(row.viewer_hash) == 64  # sha256 pseudonym, never a raw ip/user id
+
+
+async def test_delivery_log_sampling_zero_writes_nothing(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_settings(), "ads_delivery_log_sample", 0.0)
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={})
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.json()["ad"] is not None
+    count = await session.scalar(text("SELECT count(*) FROM ads.delivery_decisions"))
+    assert count == 0
 
 
 async def test_pending_creative_never_serves_on_milk_slot(

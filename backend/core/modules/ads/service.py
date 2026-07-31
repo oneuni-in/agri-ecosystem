@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import CursorResult, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign, Creative, Placement
+from modules.ads.models import Campaign, Creative, DeliveryDecision, Placement
 from settings import get_settings
 from shared.cache import get_redis
 from shared.lookups import is_servable
@@ -284,17 +284,54 @@ def _seconds_to_utc_midnight(now: datetime) -> int:
     return max(int((midnight - now).total_seconds()), 60)
 
 
-def _freq_key(viewer: str, placement_id: uuid.UUID, now: datetime) -> str:
-    return f"ads:freq:{viewer}:{placement_id}:{now:%Y%m%d}"
+def _freq_key(viewer: str, creative_id: uuid.UUID, now: datetime) -> str:
+    # M3.A: capped per user-session per CREATIVE. The daily-rotating
+    # viewer_hash IS the session pseudonym; keys expire at UTC midnight with it.
+    return f"ads:freq:{viewer}:{creative_id}:{now:%Y%m%d}"
 
 
-async def under_freq_cap(viewer: str, placement_id: uuid.UUID, *, cap: int, now: datetime) -> bool:
-    count = await get_redis().get(_freq_key(viewer, placement_id, now))
+async def under_freq_cap(viewer: str, creative_id: uuid.UUID, *, cap: int, now: datetime) -> bool:
+    count = await get_redis().get(_freq_key(viewer, creative_id, now))
     return int(count or 0) < cap
 
 
-async def record_serve(viewer: str, placement_id: uuid.UUID, *, now: datetime) -> None:
-    key = _freq_key(viewer, placement_id, now)
+async def record_serve(viewer: str, creative_id: uuid.UUID, *, now: datetime) -> None:
+    key = _freq_key(viewer, creative_id, now)
     redis = get_redis()
     await redis.incr(key)
     await redis.expire(key, _seconds_to_utc_midnight(now))
+
+
+def log_delivery(
+    session: AsyncSession,
+    *,
+    candidate: Candidate,
+    slot_key: str,
+    pincode: str | None,
+    category: str | None,
+    viewer: str,
+    now: datetime,
+    rand: random.Random,
+) -> bool:
+    """M3.E: append-only, SAMPLED why-served row for advertiser analytics
+    (M5) and dispute resolution. Returns True when a row was staged - the
+    caller owns the commit. pincode/category are serve context (fine to
+    keep); viewer is the daily-rotating hash - never any other user
+    identifier (threat: delivery-log PII)."""
+    rate = get_settings().ads_delivery_log_sample
+    if rate <= 0 or rand.random() >= rate:
+        return False
+    session.add(
+        DeliveryDecision(
+            campaign_id=candidate.campaign.id,
+            placement_id=candidate.placement.id,
+            creative_id=candidate.creative.id,
+            slot_key=slot_key,
+            pincode=pincode,
+            category=category,
+            why_served="global" if candidate.rung == "global" else f"local_{candidate.rung}",
+            viewer_hash=viewer,
+            occurred_at=now,
+        )
+    )
+    return True

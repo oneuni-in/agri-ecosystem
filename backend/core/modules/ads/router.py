@@ -78,7 +78,7 @@ async def serve(
     pool: list[service.Candidate] = []
     for cand in candidates:
         if await service.under_freq_cap(
-            viewer, cand.placement.id, cap=settings.ads_freq_cap_per_day, now=now
+            viewer, cand.creative.id, cap=settings.ads_freq_cap_per_day, now=now
         ):
             pool.append(cand)
     served: list[ServedAdOut] = []
@@ -93,7 +93,18 @@ async def serve(
         if not await service.consume_budget(session, cand.campaign):
             continue  # lost the race for the last credit - never over-serve
         dirty = dirty or cand.campaign.budget_serves_total is not None
-        await service.record_serve(viewer, cand.placement.id, now=now)
+        if service.log_delivery(
+            session,
+            candidate=cand,
+            slot_key=slot,
+            pincode=pincode,
+            category=category,
+            viewer=viewer,
+            now=now,
+            rand=_rng,
+        ):
+            dirty = True
+        await service.record_serve(viewer, cand.creative.id, now=now)
         served.append(
             _to_served(
                 cand.placement, cand.creative, locale=locale, base=settings.media_public_base_url

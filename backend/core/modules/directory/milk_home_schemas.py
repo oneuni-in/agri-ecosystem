@@ -61,6 +61,9 @@ class MilkHomeOut(BaseModel):
     vendors: list[MilkCardOut]
     brands: list[MilkCardOut]
     next_cursor: str | None
+    # M3.C: organic-only Recommended rail (rank_recommended is the sole
+    # label source - paid units can never appear here).
+    recommended: list[MilkCardOut] = []
 
 
 class CoveredPincodeOut(BaseModel):
@@ -123,4 +126,5 @@ def milk_home_out(pincode: str, result: MilkHomeResult) -> MilkHomeOut:
         vendors=[_card_out(c) for c in result.vendors],
         brands=[_card_out(c) for c in result.brands],
         next_cursor=result.next_cursor,
+        recommended=[_card_out(c) for c in result.recommended],
     )

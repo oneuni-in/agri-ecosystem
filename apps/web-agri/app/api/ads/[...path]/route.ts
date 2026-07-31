@@ -6,6 +6,7 @@
  * clicks are reachable; everything else 404s. While ads_enabled is off the
  * backend 404s every call.
  */
+import { LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -30,6 +31,17 @@ async function forward(
   if (method === "POST") headers["content-type"] = "application/json";
   const url = new URL(`${API}/ads/${path.map(encodeURIComponent).join("/")}`);
   url.search = req.nextUrl.search;
+  // M3 threat "geo spoofing for cheap-tier arbitrage": for serve, the pincode
+  // comes from the location CONTEXT (agri_loc cookie — D19; kept in sync with
+  // the profile pincode after login by LiveLocationPill), never a bare
+  // client-supplied query param. No cookie -> no pincode (fail closed to
+  // global-only inventory). Honest clients already derive the param from this
+  // same cookie, so behaviour is unchanged for them.
+  if (firstSegment === "serve") {
+    const loc = parseLocCookie(req.cookies.get(LOC_COOKIE)?.value);
+    if (loc?.pincode) url.searchParams.set("pincode", loc.pincode);
+    else url.searchParams.delete("pincode");
+  }
   const upstream = await fetch(url, {
     method,
     headers,

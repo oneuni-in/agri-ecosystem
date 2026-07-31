@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { ListBusinessCta } from "@/components/molecules/ListBusinessCta";
 import { Link } from "@/i18n/navigation";
+import { fetchSponsoredListings } from "@/lib/ads";
 import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
 import { fetchCovers } from "@/lib/directory";
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
@@ -149,6 +150,9 @@ export default async function PincodePage({
   if (category !== undefined && isDairyCategory(category)) {
     const covers = await fetchCovers(pincode, category);
     if (!covers) notFound();
+    // M3.B render-layer injection: sponsored cards never touch covers.items
+    // or its cursor - CategoryResults splices them into the RENDERED grid.
+    const sponsored = await fetchSponsoredListings({ pincode, category, locale });
     const t = await getTranslations("ui");
     const categoryLabel = t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category]}.name`);
     return (
@@ -160,7 +164,12 @@ export default async function PincodePage({
           {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
         </h1>
         <CategoryChips base={base} active={category} />
-        <CategoryResults items={covers.items} categoryLabel={categoryLabel} base={base} />
+        <CategoryResults
+          items={covers.items}
+          categoryLabel={categoryLabel}
+          base={base}
+          sponsored={sponsored}
+        />
       </main>
     );
   }
@@ -208,6 +217,15 @@ export default async function PincodePage({
 
   // ---- Covered ----
   const filteredEmpty = data.vendors.length === 0 && data.brands.length === 0;
+  // M3.B: fetched server-side and injected at the render layer only -
+  // data.vendors/data.brands (and the JSON-LD built from them) stay pristine.
+  const sponsored = filteredEmpty
+    ? []
+    : await fetchSponsoredListings({
+        pincode,
+        category: product_category && product_category !== "all" ? product_category : null,
+        locale,
+      });
   return (
     <main
       className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6"
@@ -259,7 +277,12 @@ export default async function PincodePage({
           .
         </p>
       ) : (
-        <VendorResults vendors={data.vendors} brands={data.brands} pincode={pincode} />
+        <VendorResults
+          vendors={data.vendors}
+          brands={data.brands}
+          pincode={pincode}
+          sponsored={sponsored}
+        />
       )}
     </main>
   );

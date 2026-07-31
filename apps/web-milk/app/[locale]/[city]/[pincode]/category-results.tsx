@@ -1,4 +1,4 @@
-import { Card, EmptyState } from "@agri/ui";
+import { Card, EmptyState, injectSponsored, type ServedAd, SponsoredListingCard } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -21,10 +21,14 @@ export async function CategoryResults({
   items,
   categoryLabel,
   base,
+  sponsored = [],
 }: {
   items: CoversItem[];
   categoryLabel: string;
   base: string; // canonical page path, e.g. /coimbatore/641001 (D28)
+  /** M3.B sponsored listings - render-layer injection at positions 1 and 6;
+   * `items` (and the covers cursor upstream) are never touched. */
+  sponsored?: ServedAd[];
 }) {
   const t = await getTranslations("ui");
 
@@ -48,28 +52,36 @@ export async function CategoryResults({
 
   return (
     <ul className="grid gap-3 sm:grid-cols-2" data-testid="category-results">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Card
-            hover
-            className="flex h-full flex-col gap-1.5 p-4"
-            data-testid={`category-result-${item.slug}`}
-          >
-            <Link
-              href={`/directory/businesses/${item.slug}`}
-              className="flex flex-col gap-1.5 no-underline"
+      {injectSponsored(items, sponsored).map((entry) =>
+        entry.kind === "sponsored" ? (
+          <li key={`s-${entry.ad.placement_id}`}>
+            <SponsoredListingCard ad={entry.ad} />
+          </li>
+        ) : (
+          <li key={entry.item.id}>
+            <Card
+              hover
+              className="flex h-full flex-col gap-1.5 p-4"
+              data-testid={`category-result-${entry.item.slug}`}
             >
-              <h3 className="text-[15.5px] font-extrabold leading-[1.3] text-ink">{item.name}</h3>
-              <p className="text-[12.5px] text-sub">{categoryLabel}</p>
-              {item.distance_m < UNLOCATABLE_M ? (
-                <p className="text-[12.5px] text-sub">
-                  {t("brandPage.kmAway", { km: (item.distance_m / 1000).toFixed(1) })}
-                </p>
-              ) : null}
-            </Link>
-          </Card>
-        </li>
-      ))}
+              <Link
+                href={`/directory/businesses/${entry.item.slug}`}
+                className="flex flex-col gap-1.5 no-underline"
+              >
+                <h3 className="text-[15.5px] font-extrabold leading-[1.3] text-ink">
+                  {entry.item.name}
+                </h3>
+                <p className="text-[12.5px] text-sub">{categoryLabel}</p>
+                {entry.item.distance_m < UNLOCATABLE_M ? (
+                  <p className="text-[12.5px] text-sub">
+                    {t("brandPage.kmAway", { km: (entry.item.distance_m / 1000).toFixed(1) })}
+                  </p>
+                ) : null}
+              </Link>
+            </Card>
+          </li>
+        ),
+      )}
     </ul>
   );
 }

@@ -5,11 +5,11 @@ import random
 import re
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import or_, select, update
+from sqlalchemy import CursorResult, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads.models import Campaign, Creative, Placement
@@ -234,13 +234,16 @@ async def consume_budget(session: AsyncSession, campaign: Campaign) -> bool:
     commit."""
     if campaign.budget_serves_total is None:
         return True
-    result = await session.execute(
-        update(Campaign)
-        .where(
-            Campaign.id == campaign.id,
-            Campaign.budget_serves_used < Campaign.budget_serves_total,
-        )
-        .values(budget_serves_used=Campaign.budget_serves_used + 1)
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(Campaign)
+            .where(
+                Campaign.id == campaign.id,
+                Campaign.budget_serves_used < Campaign.budget_serves_total,
+            )
+            .values(budget_serves_used=Campaign.budget_serves_used + 1)
+        ),
     )
     return result.rowcount == 1
 

@@ -1,4 +1,4 @@
-# Manual UI test guide — D23 → M2 (milk.in sprint 3 + 3.5)
+# Manual UI test guide — D01 → M2 (platform + milk.in)
 
 Owner-facing walkthrough for hand-testing everything shipped in D23–D30 and M1 on a dev box.
 Automated coverage for most of these journeys lives in `e2e/` (see
@@ -33,6 +33,75 @@ Old `/en/641001` URLs 301 to the city form.
 Gotchas: ISR caches public pages ~5 min (clear `apps/web-milk/.next/cache/fetch-cache`
 to see data changes immediately); kill stray processes on ports 8000/3000-3003 if a
 server misbehaves after a crashed session.
+
+## Platform layer (D01–D22) — the foundation under milk.in
+
+These are exercised implicitly by the milk sections below; this section tests them
+head-on. Apps: web-agri `:3002` (agri.in consumer + console), web-id `:3003`
+(identity hub), web-organic `:3001`, web-admin `:3004`.
+
+### Identity, sessions, devices (D06–D10)
+
+1. `:3003/account` — profile: AG- agri-id shown, handle, display name, language,
+   pincode lookup (needs geo loaded — a broken lookup means run `load_geo.py`).
+   Handle change: the free change is consumed at signup; a later change costs coins.
+2. `:3003/devices` — log in from a second browser, both sessions listed; revoke the
+   other one → that browser is signed out on next action. "Logout everywhere" kills
+   both at once.
+3. Cross-app SSO (D10): log in on milk.in `:3000` → open organic `:3001` → header is
+   already logged-in (silent SSO); logout-everywhere signs out every app.
+4. Wrong OTP: 3 bad codes → burn/lockout UX with a clear message, then recovery.
+
+### Agricoins (D13)
+
+1. `:3003/coins` — balance + ledger. Earn a row: submit a review on any business,
+   approve it in `:3004/ops` → +coins (rule `review_approved`, capped 5/week);
+   the CoinsBalancePill in the headers updates.
+2. `:3004/coins` (staff) — coins admin: search a user, manual adjustment with a
+   reason code → shows in the user's ledger with the reason.
+
+### Claims & verification (D16) — on agri.in
+
+1. `:3002/directory/businesses/aavin` (also `arokya`, `sakthi-dairy` — seeded
+   ownerless, hence claimable) → "Is this your business?" card → claim form:
+   upload 1–5 evidence photos (≤5MiB each; a 6th or oversized file is rejected).
+2. `:3004/claims` (staff) → approve with a note → claimant now owns the listing
+   (it appears under their `:3002/business` console) and the verified badge path
+   opens. Reject requires a reason (≥3 chars).
+3. IDOR: a different user cannot see or decide someone else's claim.
+
+### Search freshness (D19)
+
+1. `/en/search` on milk.in: typo query ("mlik", "panner") still finds results
+   (Meilisearch typo tolerance).
+2. Freshness: rename a product in the vendor console → within ~a minute (search
+   worker consumes the event) the new name is searchable; the old one isn't.
+
+### Notifications (D12)
+
+1. `:3002/notifications` and `:3003/notifications` — the same in-app feed follows
+   you across apps; mark-read state persists.
+2. Every notification in the feed traces to a real event (lead, response, review
+   decision, claim decision) — no orphan templates.
+
+### Billing surface stays dark (D20)
+
+1. `:3002/business/billing` — with the billing flag off this renders the
+   "activation at launch" state: no payment inputs, no charge paths reachable.
+
+### Admin & RBAC (D11, D21)
+
+1. `:3004/users` (staff) — user search shows phone LAST-4 ONLY (never the full
+   number), role assignment audited.
+2. `:3004/businesses` — tier is ADMIN-set here (vendor console only records
+   intent); suspend/reinstate lives in `/ops` enforcement.
+3. A non-staff account opening any `:3004` page gets denied — no data leak in the
+   denial.
+
+### Design-system kitchen sink (D02)
+
+1. `:3002/demo` — every token/component in one page (the Lighthouse-gated
+   reference); nothing raw-hex, tap targets ≥44px, focus rings visible.
 
 ## D23 — Pincode home
 

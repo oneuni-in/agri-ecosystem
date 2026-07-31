@@ -142,6 +142,10 @@ class Settings(BaseSettings):
     ads_beacon_secret: str = "dev-ads-beacon-secret"  # dev-only default
     ads_freq_cap_per_day: int = 3
 
+    # M3 delivery
+    ads_local_boost: float = 2.0  # local-targeted placements x this in rotation (item 8)
+    ads_delivery_log_sample: float = 0.1  # why-served log sampling rate (M3.E)
+
 
 @lru_cache
 def get_settings() -> Settings:

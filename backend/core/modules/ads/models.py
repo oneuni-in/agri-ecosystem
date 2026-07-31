@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 import uuid6
-from sqlalchemy import Date, ForeignKey, SmallInteger, Text
+from sqlalchemy import Date, ForeignKey, Index, Integer, SmallInteger, Text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +22,10 @@ class Campaign(UUIDv7PKMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, server_default="draft")
     budget_display: Mapped[str] = mapped_column(Text, server_default="")
+    # M3 serve-credit budget: NULL total = unlimited (house ads). `used` only
+    # moves through service.consume_budget's atomic conditional UPDATE.
+    budget_serves_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    budget_serves_used: Mapped[int] = mapped_column(Integer, server_default="0")
     flight_start: Mapped[date] = mapped_column(Date)
     flight_end: Mapped[date] = mapped_column(Date)
 
@@ -55,6 +59,28 @@ class _TrackingColumns:
     viewer_hash: Mapped[str] = mapped_column(Text)
     pincode: Mapped[str | None] = mapped_column(Text, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), primary_key=True)
+
+
+class DeliveryDecision(UUIDv7PKMixin, Base):
+    """M3.E why-served log: append-only BY GRANT + trigger, SAMPLED at serve
+    time (settings.ads_delivery_log_sample). viewer_hash is the daily-rotating
+    pseudonym - never a user id (threat model: delivery-log PII)."""
+
+    __tablename__ = "delivery_decisions"
+    __table_args__ = (
+        Index("ix_ads_delivery_decisions_campaign_day", "campaign_id", "occurred_at"),
+        {"schema": "ads"},
+    )
+
+    campaign_id: Mapped[uuid.UUID] = mapped_column()
+    placement_id: Mapped[uuid.UUID] = mapped_column()
+    creative_id: Mapped[uuid.UUID] = mapped_column()
+    slot_key: Mapped[str] = mapped_column(Text)
+    pincode: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    why_served: Mapped[str] = mapped_column(Text)
+    viewer_hash: Mapped[str] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
 
 
 class Impression(_TrackingColumns, Base):

@@ -117,6 +117,81 @@ async def test_append_only_trigger_cascades_to_partitions(db_session: AsyncSessi
         assert count == 1, f"missing append-only trigger on ads.{table}"
 
 
+async def test_campaign_budget_columns_exist(db_session: AsyncSession) -> None:
+    """M3: serve-credit budget columns (NULL total = unlimited)."""
+    cols = set(
+        (
+            await db_session.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema = 'ads' AND table_name = 'campaigns'"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert {"budget_serves_total", "budget_serves_used"} <= cols
+
+
+async def test_campaign_budget_check_constraints(db_session: AsyncSession) -> None:
+    with pytest.raises(Exception, match="ck_ads_campaigns_budget_total"):
+        await db_session.execute(
+            text(
+                "INSERT INTO ads.campaigns "
+                "(id, advertiser_business_id, name, status, budget_display, "
+                " flight_start, flight_end, budget_serves_total) "
+                "VALUES (gen_random_uuid(), gen_random_uuid(), 'bad-budget', 'draft', '', "
+                "'2026-08-01', '2026-08-10', -1)"
+            )
+        )
+    await db_session.rollback()
+
+
+async def _insert_delivery_decision(session: AsyncSession) -> uuid.UUID:
+    row_id = uuid.uuid4()
+    await session.execute(
+        text(
+            "INSERT INTO ads.delivery_decisions "
+            "(id, campaign_id, placement_id, creative_id, slot_key, pincode, category, "
+            " why_served, viewer_hash, occurred_at) "
+            "VALUES (:id, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), "
+            "'milk_sponsored_listing', '641001', NULL, 'local_pincode', 'vh-test', now())"
+        ),
+        {"id": row_id},
+    )
+    return row_id
+
+
+async def test_delivery_decisions_append_only_for_app_rt(db_session: AsyncSession) -> None:
+    """M3.E: the why-served log is append-only BY GRANT for app_rt."""
+    row_id = await _insert_delivery_decision(db_session)
+    with pytest.raises(ProgrammingError, match="permission denied"):
+        await db_session.execute(
+            text("UPDATE ads.delivery_decisions SET slot_key = 'x' WHERE id = :a"),
+            {"a": row_id},
+        )
+    await db_session.rollback()
+    with pytest.raises(ProgrammingError, match="permission denied"):
+        await db_session.execute(
+            text("DELETE FROM ads.delivery_decisions WHERE id = :a"), {"a": row_id}
+        )
+    await db_session.rollback()
+
+
+async def test_delivery_decisions_append_only_trigger(db_session: AsyncSession) -> None:
+    """Trigger-level immutability holds against the owner role too (reuses
+    0022's ads.forbid_tracking_mutation)."""
+    count = await db_session.scalar(
+        text(
+            "SELECT count(*) FROM pg_trigger "
+            "WHERE tgrelid = CAST('ads.delivery_decisions' AS regclass) "
+            "AND tgname LIKE '%append_only%' AND NOT tgisinternal"
+        )
+    )
+    assert count == 1
+
+
 async def test_campaigns_flight_check_constraint(db_session: AsyncSession) -> None:
     with pytest.raises(Exception, match="ck_ads_campaigns_flight"):
         await db_session.execute(

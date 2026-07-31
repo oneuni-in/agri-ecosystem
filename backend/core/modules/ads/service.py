@@ -9,7 +9,7 @@ from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads.models import Campaign, Creative, Placement
@@ -222,6 +222,27 @@ async def eligible_placements(
             seen.add(placement.id)
             out.append(Candidate(placement, creative, campaign, rung))
     return out
+
+
+async def consume_budget(session: AsyncSession, campaign: Campaign) -> bool:
+    """Atomic serve-credit decrement (M3 threat: budget race on concurrent
+    serves). Unlimited campaigns (budget_serves_total IS NULL) never touch
+    the row - no hot-row contention on house ads. The conditional UPDATE is
+    the atomicity: a concurrent loser blocks on the row lock, re-evaluates
+    the WHERE against the committed value, and matches zero rows once the
+    last credit is gone - it must then NOT serve. The caller owns the
+    commit."""
+    if campaign.budget_serves_total is None:
+        return True
+    result = await session.execute(
+        update(Campaign)
+        .where(
+            Campaign.id == campaign.id,
+            Campaign.budget_serves_used < Campaign.budget_serves_total,
+        )
+        .values(budget_serves_used=Campaign.budget_serves_used + 1)
+    )
+    return result.rowcount == 1
 
 
 async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) -> list[str]:

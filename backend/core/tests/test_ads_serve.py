@@ -565,6 +565,34 @@ async def test_local_boost_share_of_voice(
     assert 0.55 <= ratio <= 0.80, ratio
 
 
+async def test_budget_exhaustion_stops_serving(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M3.A in-budget: a 2-credit campaign serves exactly twice, then the SQL
+    predicate excludes it and `used` never exceeds `total`."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(session, geo_target={})
+    campaign = await session.get(Campaign, placement.campaign_id)
+    assert campaign is not None
+    campaign.budget_serves_total = 2
+    await session.flush()
+
+    results = []
+    for _ in range(3):
+        r = await client.get(
+            "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+        )
+        assert r.status_code == 200
+        results.append(r.json()["ads"])
+    assert results[0] and results[1]  # two credits -> two serves
+    assert results[2] == []  # out of budget -> excluded
+    await session.refresh(campaign)
+    assert campaign.budget_serves_used == 2
+
+
 async def test_ghee_campaign_never_serves_on_paneer_page(
     api: tuple[httpx.AsyncClient, AsyncSession],
     tn_geo_sample: None,

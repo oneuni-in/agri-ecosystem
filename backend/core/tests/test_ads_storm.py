@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from modules.ads import service
 from modules.ads.models import Campaign, Impression, Placement
 
 pytestmark = pytest.mark.asyncio
@@ -107,4 +108,51 @@ async def test_storm_beacon_inserts_across_day_boundary(database_url: str) -> No
         # impressions is append-only (grant + trigger) so there is nothing to
         # clean up; the agri_test DB is dropped and recreated once per
         # session (conftest.database_url).
+        await engine.dispose()
+
+
+@pytest.mark.slow
+async def test_budget_race_never_oversells(database_url: str) -> None:
+    """M3 threat model: concurrent serves must never spend more credits than
+    exist. 100 racers against 50 credits -> exactly 50 winners, used == 50."""
+    engine = create_async_engine(database_url, poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    campaign_id = uuid.uuid4()
+    today = datetime.now(UTC).date()
+    sem = asyncio.Semaphore(CONCURRENCY)
+
+    async def spend() -> bool:
+        async with sem, maker() as s:
+            campaign = await s.get(Campaign, campaign_id)
+            assert campaign is not None
+            ok = await service.consume_budget(s, campaign)
+            await s.commit()
+            return ok
+
+    try:
+        async with maker() as s:
+            s.add(
+                Campaign(
+                    id=campaign_id,
+                    advertiser_business_id=uuid.uuid4(),
+                    name="budget race",
+                    status="active",
+                    budget_display="",
+                    budget_serves_total=50,
+                    flight_start=today,
+                    flight_end=today,
+                )
+            )
+            await s.commit()
+
+        results = await asyncio.gather(*(spend() for _ in range(100)))
+        assert sum(results) == 50, "conditional UPDATE let a credit be spent twice"
+
+        async with maker() as s:
+            used = await s.scalar(
+                text("SELECT budget_serves_used FROM ads.campaigns WHERE id = :c"),
+                {"c": campaign_id},
+            )
+        assert used == 50
+    finally:
         await engine.dispose()

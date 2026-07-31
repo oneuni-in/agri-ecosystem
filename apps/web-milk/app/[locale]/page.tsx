@@ -1,10 +1,12 @@
-import { PincodeHero } from "@agri/ui";
+import { AdSlot, PincodeHero } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 
+import { HouseAdCard } from "@/components/molecules/HouseAdCard";
 import { CategoryTileRow } from "@/components/organisms/CategoryTileRow";
 import { Link } from "@/i18n/navigation";
+import { CONSOLE_URL, listingsHref } from "@/lib/console";
 import { fetchProductCategories } from "@/lib/taxonomy";
 
 import { PincodeHeroFinder } from "./pincode-hero";
@@ -80,6 +82,20 @@ export default async function HomePage({
       </PincodeHero>
       <div className="mx-auto w-full max-w-[720px] pt-4">
         <CategoryTileRow categories={categories} heading="Dairy categories" />
+      </div>
+      {/* M2: milk_home_hero ad slot. */}
+      <div className="mx-auto w-full max-w-[720px] px-4 pt-4">
+        <AdSlot
+          slotKey="milk_home_hero"
+          heightClass="h-[84px]"
+          fallback={
+            <HouseAdCard
+              title="List your dairy business"
+              vern="உங்கள் வணிகத்தைப் பதிவு செய்யுங்கள்"
+              href={listingsHref(CONSOLE_URL)}
+            />
+          }
+        />
       </div>
       {/* The killer flow (D25): demand posts its need, covering vendors reply. */}
       <div className="mx-auto max-w-[720px] px-4 pb-6">

@@ -1,4 +1,4 @@
-import { Card, EmptyState } from "@agri/ui";
+import { AdSlot, Card, EmptyState } from "@agri/ui";
 import { LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
@@ -132,6 +132,10 @@ export default async function SearchPage({
         inputLabel={t("inputLabel")}
         micLabel={t("micLabel")}
       />
+
+      {/* M2: milk_search_inline - no fallback, collapses when the engine is
+          dark (mid-page slot; the reserved box only shows while loading). */}
+      <AdSlot slotKey="milk_search_inline" pincode={loc?.pincode ?? null} heightClass="h-[64px]" />
 
       {page.items.length === 0 ? (
         <EmptyState icon="🔍" title={t("results.empty")} />

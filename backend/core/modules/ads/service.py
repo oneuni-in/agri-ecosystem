@@ -17,11 +17,25 @@ from settings import get_settings
 from shared.cache import get_redis
 from shared.lookups import is_servable
 
-SLOT_KEYS: frozenset[str] = frozenset({"directory_browse"})
+SLOT_KEYS: frozenset[str] = frozenset(
+    {
+        "directory_browse",
+        # M2 milk surfaces. Naming contract {vertical}_{placement}: a future
+        # theorganic_global_header is one more line here, pure config.
+        "milk_global_header",
+        "milk_home_hero",
+        "milk_category_banner",
+        "milk_search_inline",
+        "milk_profile_footer",
+    }
+)
 MAX_TARGET_URL = 2048
+MAX_SERVE_COUNT = 5  # M2 carousel ceiling
 LOCALES = ("en", "ta", "hi")
 
 _PINCODE_RE = re.compile(r"^\d{6}$")
+_CATEGORY_RE = re.compile(r"^[a-z0-9-]{1,40}$")
+_GEO_RUNGS = ("state", "district", "pincodes")
 
 
 def validate_target_url(url: str) -> None:
@@ -43,6 +57,10 @@ class GeoTargetIn(BaseModel):
     state: int | None = None
     district: int | None = None
     pincodes: list[str] | None = Field(default=None, max_length=50)
+    # M2: category-targetable inventory. Shape-validated only; matched at
+    # serve time by exact string against the M1 schema `category` values, so
+    # a new schema category is targetable with zero code changes here.
+    categories: list[str] | None = Field(default=None, max_length=20)
 
     @field_validator("pincodes")
     @classmethod
@@ -52,6 +70,16 @@ class GeoTargetIn(BaseModel):
         bad = [p for p in value if not _PINCODE_RE.fullmatch(p)]
         if bad:
             raise ValueError(f"invalid pincodes: {bad!r}")
+        return value
+
+    @field_validator("categories")
+    @classmethod
+    def _category_shape(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        bad = [c for c in value if not _CATEGORY_RE.fullmatch(c)]
+        if bad:
+            raise ValueError(f"invalid categories: {bad!r}")
         return value
 
 
@@ -67,16 +95,18 @@ def viewer_hash(ip: str, user_agent: str, *, now: datetime) -> str:
 def geo_matches(
     geo_target: dict[str, Any],
     *,
-    pincode: str,
+    pincode: str | None,
     district_lgd: int | None,
     state_lgd: int | None,
 ) -> bool:
-    """{} = everywhere. Otherwise ANY declared rung matching the resolved
-    chain is a hit; nothing else matches (non-negotiable 2)."""
-    if not geo_target:
+    """No geo rung declared = everywhere (the M2 `categories` key is NOT a
+    geo rung). Otherwise ANY declared rung matching the resolved chain is a
+    hit; nothing else matches (non-negotiable 2). An unknown viewer location
+    (pincode=None) matches only geo-untargeted placements - fail closed."""
+    if not any(geo_target.get(k) for k in _GEO_RUNGS):
         return True
     pincodes = geo_target.get("pincodes") or []
-    if pincode in pincodes:
+    if pincode is not None and pincode in pincodes:
         return True
     district = geo_target.get("district")
     if district is not None and district_lgd is not None and district == district_lgd:
@@ -85,22 +115,40 @@ def geo_matches(
     return state is not None and state_lgd is not None and state == state_lgd
 
 
+def category_matches(geo_target: dict[str, Any], category: str | None) -> bool:
+    """M2: no categories declared = every context; declared = the serve
+    request must carry one of them. Same fail-closed shape as geo."""
+    wanted = geo_target.get("categories") or []
+    if not wanted:
+        return True
+    return category is not None and category in wanted
+
+
 async def eligible_placements(
-    session: AsyncSession, *, slot_key: str, pincode: str, today: date
+    session: AsyncSession,
+    *,
+    slot_key: str,
+    pincode: str | None,
+    today: date,
+    category: str | None = None,
 ) -> list[tuple[Placement, Creative]]:
     """Active placement + active in-flight campaign + latest APPROVED creative
-    + geo match. Row volume per slot is tiny in v1 - geo filtering in Python
-    keeps the JSONB semantics in one testable function."""
-    from shared.geo.service import district_for_pincode
-
-    district = await district_for_pincode(session, pincode)
-    district_lgd = district.lgd_code if district else None
+    + geo match + category match (M2). Row volume per slot is tiny in v1 -
+    geo filtering in Python keeps the JSONB semantics in one testable
+    function. pincode=None (M2 global slots before any location is known)
+    skips resolution entirely: only geo-untargeted placements can match."""
+    district_lgd = None
     state_lgd = None
-    if district is not None:
-        from shared.geo.models import State
+    if pincode is not None:
+        from shared.geo.service import district_for_pincode
 
-        state = await session.get(State, district.state_id)
-        state_lgd = state.lgd_code if state else None
+        district = await district_for_pincode(session, pincode)
+        district_lgd = district.lgd_code if district else None
+        if district is not None:
+            from shared.geo.models import State
+
+            state = await session.get(State, district.state_id)
+            state_lgd = state.lgd_code if state else None
 
     rows = (
         await session.execute(
@@ -134,7 +182,7 @@ async def eligible_placements(
             continue
         if geo_matches(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
-        ):
+        ) and category_matches(placement.geo_target, category):
             seen.add(placement.id)
             out.append((placement, creative))
     return out

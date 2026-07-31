@@ -156,7 +156,8 @@ class ServedAdOut(BaseModel):
 
 
 class AdServeOut(BaseModel):
-    ad: ServedAdOut | None
+    ad: ServedAdOut | None  # legacy single-ad shape (D21 web-agri mount)
+    ads: list[ServedAdOut] = []  # M2 carousel: weighted, distinct placements
 
 
 class BeaconIn(BaseModel):

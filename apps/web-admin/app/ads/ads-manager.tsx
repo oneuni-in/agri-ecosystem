@@ -32,6 +32,7 @@ const SLOT_KEYS = [
   "milk_category_banner",
   "milk_search_inline",
   "milk_profile_footer",
+  "milk_sponsored_listing",
 ] as const;
 const PINCODE_RE = /^\d{6}$/;
 const CATEGORY_RE = /^[a-z0-9-]{1,40}$/;
@@ -45,6 +46,8 @@ interface Campaign {
   name: string;
   status: CampaignStatus;
   budget_display: string;
+  budget_serves_total: number | null;
+  budget_serves_used: number;
   flight_start: string;
   flight_end: string;
   created_at: string;
@@ -109,6 +112,7 @@ function CreateCampaignForm({ onCreated }: { onCreated: (campaign: Campaign) => 
   const [businessId, setBusinessId] = useState("");
   const [name, setName] = useState("");
   const [budgetDisplay, setBudgetDisplay] = useState("");
+  const [budgetServes, setBudgetServes] = useState("");
   const [flightStart, setFlightStart] = useState("");
   const [flightEnd, setFlightEnd] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -126,6 +130,8 @@ function CreateCampaignForm({ onCreated }: { onCreated: (campaign: Campaign) => 
         advertiser_business_id: businessId.trim(),
         name: name.trim(),
         budget_display: budgetDisplay.trim(),
+        // M3 serve-credit ceiling: blank = unlimited (never send "")
+        ...(budgetServes.trim() !== "" ? { budget_serves_total: Number(budgetServes) } : {}),
         flight_start: flightStart,
         flight_end: flightEnd,
       });
@@ -134,6 +140,7 @@ function CreateCampaignForm({ onCreated }: { onCreated: (campaign: Campaign) => 
       setBusinessId("");
       setName("");
       setBudgetDisplay("");
+      setBudgetServes("");
       setFlightStart("");
       setFlightEnd("");
     } catch (error) {
@@ -178,6 +185,17 @@ function CreateCampaignForm({ onCreated }: { onCreated: (campaign: Campaign) => 
           value={budgetDisplay}
           onChange={(event) => setBudgetDisplay(event.target.value)}
           placeholder="e.g. Rs 50,000 / month"
+        />
+      </label>
+      <label className="block text-sm font-semibold text-ink">
+        Serve budget (blank = unlimited)
+        <input
+          type="number"
+          min={0}
+          className="mt-1 min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-ink"
+          value={budgetServes}
+          onChange={(event) => setBudgetServes(event.target.value)}
+          placeholder="e.g. 10000 serves"
         />
       </label>
       <div className="flex gap-2">
@@ -243,6 +261,8 @@ function CampaignRow({
           <p className="font-semibold text-ink">{campaign.name}</p>
           <p className="text-xs text-sub">
             {campaign.budget_display || "—"} · {campaign.flight_start} → {campaign.flight_end}
+            {" · "}
+            {campaign.budget_serves_used}/{campaign.budget_serves_total ?? "∞"} serves
           </p>
           <p className="break-all text-xs text-sub">Business: {campaign.advertiser_business_id}</p>
         </div>

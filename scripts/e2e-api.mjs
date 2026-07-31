@@ -52,6 +52,16 @@ const seed = spawnSync(python, ["scripts/seed_e2e_milk.py"], {
 });
 if (seed.status !== 0) process.exit(seed.status ?? 1);
 
+// M2: house-ad fill + ads_enabled so e2e/ads-surfaces.spec.ts is
+// deterministic. Idempotent (keyed on campaign name); --enable-flag is
+// dev/test-only (refused in prod inside the script).
+const houseAds = spawnSync(python, ["scripts/seed_house_ads.py", "--enable-flag"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);
+
 const server = spawn(
   python,
   ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],

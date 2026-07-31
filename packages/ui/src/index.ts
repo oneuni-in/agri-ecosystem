@@ -5,6 +5,7 @@
  * docs/design-reference/preview_frontend.html as the visual source of truth.
  * Server-component-first; only Modal/Toast are client islands.
  */
+export { AdImage } from "./components/ad-image";
 export { Badge } from "./components/badge";
 export { BottomNav } from "./components/bottom-nav";
 export type { BottomNavItem } from "./components/bottom-nav";
@@ -36,6 +37,7 @@ export { RatingStars } from "./components/rating-stars";
 export { SearchBar } from "./components/search-bar";
 export type { SearchBarProps } from "./components/search-bar";
 export { Skeleton } from "./components/skeleton";
+export { SponsoredBadge } from "./components/sponsored-badge";
 export { cn } from "./lib/cn";
 export { fetchCoinsBalance } from "./lib/coins-balance";
 export {
@@ -59,6 +61,8 @@ export {
 export type { AdServeContext, ServedAd } from "./lib/sponsored";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
+export { AD_CAROUSEL_INTERVAL_MS, AD_CAROUSEL_MAX, AdCarousel } from "./composites/ad-carousel";
+export { AdSlot, AdUnit, sendAdBeacon, useImpression } from "./composites/ad-slot";
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";
 export { CategoryGroup } from "./composites/category-group";
 export { CertBar, CertCard } from "./composites/cert-bar";

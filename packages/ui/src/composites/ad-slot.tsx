@@ -50,17 +50,19 @@ export function sendAdBeacon(url: string, ad: ServedAd): void {
  * firing blind on mount is the one thing this must never do (NN2). */
 export function useImpression(ad: ServedAd | null, endpoint: string) {
   const ref = useRef<HTMLAnchorElement | null>(null);
-  const fired = useRef(false);
+  // Keyed on the ad object, not a boolean: React StrictMode re-runs effects
+  // (unmount/remount) in dev, and a boolean reset there double-fired the
+  // beacon for the SAME ad. A new ad object still gets a fresh lifecycle.
+  const fired = useRef<ServedAd | null>(null);
   useEffect(() => {
-    fired.current = false; // new ad -> new impression lifecycle
     const el = ref.current;
-    if (!ad || !el) return;
+    if (!ad || !el || fired.current === ad) return;
     if (typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (fired.current) return;
+        if (fired.current === ad) return;
         if (entries.some((entry) => entry.isIntersecting)) {
-          fired.current = true;
+          fired.current = ad;
           sendAdBeacon(`${endpoint}/impressions`, ad);
           io.disconnect();
         }

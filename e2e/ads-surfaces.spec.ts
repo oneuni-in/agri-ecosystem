@@ -24,13 +24,17 @@ test("global banner serves a labeled house ad on home", async ({ page }) => {
 
 test("impression fires only when the slot becomes visible (NN2)", async ({ page }) => {
   // sendBeacon Blob bodies are not inspectable from Playwright (postData()
-  // is null), so slots are distinguished by TIMING, not payload: settle the
-  // above-the-fold beacons, snapshot the count, and require the off-screen
-  // footer slot to add nothing until it is scrolled into view. Reduced
-  // motion disables the banner autoplay so no new slide can beacon mid-test.
-  let impressions = 0;
+  // is null) - remove sendBeacon so the component's keepalive-fetch fallback
+  // carries a readable JSON body, and assert per-slot on the payload.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "sendBeacon", { value: undefined });
+  });
+  const footerBeacons: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/api/ads/impressions")) impressions += 1;
+    if (!request.url().includes("/api/ads/impressions")) return;
+    if ((request.postData() ?? "").includes("milk_profile_footer")) {
+      footerBeacons.push(request.postData() ?? "");
+    }
   });
   const ctx = await apiAs(VENDOR_PHONE);
   const slug = await fixtureSlug(ctx);
@@ -40,12 +44,10 @@ test("impression fires only when the slot becomes visible (NN2)", async ({ page 
   const slot = page.getByTestId("ad-slot-milk_profile_footer");
   const unit = slot.getByTestId("ad-unit-milk_profile_footer");
   await expect(unit).toBeAttached({ timeout: 15_000 }); // serve resolved, ad rendered below fold
-  await page.waitForTimeout(2000); // let above-the-fold impressions settle
-  const before = impressions;
-  await page.waitForTimeout(1000);
-  expect(impressions).toBe(before); // still off-screen -> NO mount-fired beacon
+  await page.waitForTimeout(1500); // grace: a mount-fired beacon would land here
+  expect(footerBeacons).toHaveLength(0); // still off-screen -> NO mount-fired beacon
   await unit.scrollIntoViewIfNeeded();
-  await expect.poll(() => impressions, { timeout: 10_000 }).toBeGreaterThan(before);
+  await expect.poll(() => footerBeacons.length, { timeout: 10_000 }).toBeGreaterThan(0);
 });
 
 test("click beacon lands in D21 tracking (NN2)", async ({ page }) => {

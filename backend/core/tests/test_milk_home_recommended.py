@@ -110,6 +110,7 @@ async def test_coverage_freshness_breaks_ties(
     outranks an otherwise-identical verified vendor with stale coverage."""
     stale = await _mk_business(db_session)
     fresh = await _mk_business(db_session)
+    assert fresh.owner_user_id is not None
     await directory_service.set_coverage(
         db_session,
         owner_user_id=fresh.owner_user_id,

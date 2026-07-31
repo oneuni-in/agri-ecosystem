@@ -65,10 +65,10 @@ const SERVE_LOCALES: ReadonlySet<string> = new Set(["en", "ta", "hi"]);
 const MAX_SERVE_COUNT = 5;
 
 export interface AdServeContext {
-  pincode?: string | null;
-  category?: string | null;
-  count?: number;
-  locale?: string;
+  pincode?: string | null | undefined;
+  category?: string | null | undefined;
+  count?: number | undefined;
+  locale?: string | undefined;
 }
 
 /** Query string for `GET /ads/serve` — malformed context is dropped

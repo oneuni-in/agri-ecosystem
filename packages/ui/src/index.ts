@@ -82,5 +82,6 @@ export { PincodeHero } from "./composites/pincode-hero";
 export { ProductCard, ProductGrid } from "./composites/product-card";
 export { CardsRow, Section, Wrap } from "./composites/section";
 export { SponsoredAd } from "./composites/sponsored-ad";
+export { SponsoredListingCard } from "./composites/sponsored-listing-card";
 export { TodayCard, TodayStrip } from "./composites/today-strip";
 export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";

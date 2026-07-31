@@ -73,7 +73,7 @@ export function VendorResults({
   };
 
   return (
-    <div ref={listRef} className="flex flex-col gap-5">
+    <div ref={listRef} className="flex flex-col gap-5" data-testid="vendor-results">
       {pins.length > 0 ? (
         <div>
           <Button

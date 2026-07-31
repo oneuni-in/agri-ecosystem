@@ -55,11 +55,13 @@ if (seed.status !== 0) process.exit(seed.status ?? 1);
 // M2: house-ad fill + ads_enabled so e2e/ads-surfaces.spec.ts is
 // deterministic. Idempotent (keyed on campaign name); --enable-flag is
 // dev/test-only (refused in prod inside the script).
-const houseAds = spawnSync(python, ["scripts/seed_house_ads.py", "--enable-flag"], {
-  cwd: core,
-  env,
-  stdio: "inherit",
-});
+// --reset-caps: one machine = one viewer hash, so the 3/day serve cap
+// exhausts the house placements after a few page loads across specs/runs.
+const houseAds = spawnSync(
+  python,
+  ["scripts/seed_house_ads.py", "--enable-flag", "--reset-caps"],
+  { cwd: core, env, stdio: "inherit" },
+);
 if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);
 
 const server = spawn(

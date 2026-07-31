@@ -27,6 +27,7 @@ from modules.ads.models import Campaign, Creative, Placement
 from modules.directory import service as directory_service
 from modules.directory.models import Business
 from settings import get_settings
+from shared.cache import get_redis
 from shared.db import get_sessionmaker
 from shared.flags import FeatureFlag, reset_flag_cache
 
@@ -157,7 +158,23 @@ async def _enable_flag(session: AsyncSession) -> None:
         print("seed_house_ads: ads_enabled -> true")  # noqa: T201
 
 
-async def run(base_url: str, console_url: str, enable_flag: bool) -> None:
+async def _reset_caps() -> None:
+    """e2e/dev determinism: every request from one machine shares a viewer
+    hash (same IP+UA, daily window), so the 3/day serve cap exhausts the
+    house placements after a few page loads and every later assertion sees
+    the fallback instead of a served ad. Never a prod operation."""
+    if get_settings().app_env == "prod":
+        raise SystemExit("--reset-caps refused in prod: serve caps are a fraud control")
+    redis = get_redis()
+    deleted = 0
+    for pattern in ("ads:freq:*", "ads:dedupe:*"):
+        async for key in redis.scan_iter(match=pattern):
+            await redis.delete(key)
+            deleted += 1
+    print(f"seed_house_ads: cleared {deleted} serve-cap/dedupe keys")  # noqa: T201
+
+
+async def run(base_url: str, console_url: str, enable_flag: bool, reset_caps: bool) -> None:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         advertiser_id = await _ensure_house_business(session)
@@ -173,6 +190,8 @@ async def run(base_url: str, console_url: str, enable_flag: bool) -> None:
                 )
         if enable_flag:
             await _enable_flag(session)
+    if reset_caps:
+        await _reset_caps()
 
 
 if __name__ == "__main__":
@@ -180,5 +199,6 @@ if __name__ == "__main__":
     parser.add_argument("--base-url", default="http://localhost:3000")
     parser.add_argument("--console-url", default="http://localhost:3002/business/listings")
     parser.add_argument("--enable-flag", action="store_true")
+    parser.add_argument("--reset-caps", action="store_true")
     args = parser.parse_args()
-    asyncio.run(run(args.base_url, args.console_url, args.enable_flag))
+    asyncio.run(run(args.base_url, args.console_url, args.enable_flag, args.reset_caps))

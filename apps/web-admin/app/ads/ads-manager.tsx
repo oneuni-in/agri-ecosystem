@@ -24,8 +24,17 @@ import { useEffect, useState } from "react";
 import { ApiError, getJson, postJson } from "@/lib/api";
 
 const CAMPAIGN_STATUSES = ["draft", "active", "paused", "archived"] as const;
-const SLOT_KEYS = ["directory_browse"] as const;
+// Mirrors modules/ads/service.py SLOT_KEYS ({vertical}_{placement} - M2).
+const SLOT_KEYS = [
+  "directory_browse",
+  "milk_global_header",
+  "milk_home_hero",
+  "milk_category_banner",
+  "milk_search_inline",
+  "milk_profile_footer",
+] as const;
 const PINCODE_RE = /^\d{6}$/;
+const CATEGORY_RE = /^[a-z0-9-]{1,40}$/;
 
 type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 type PlacementStatus = "active" | "paused";
@@ -60,6 +69,8 @@ interface GeoTarget {
   state?: number;
   district?: number;
   pincodes?: string[];
+  /** M2: M1 schema category values (e.g. ghee) this placement targets. */
+  categories?: string[];
 }
 
 interface Placement {
@@ -518,6 +529,8 @@ function formatGeo(geo: GeoTarget): string {
   if (geo.state != null) parts.push(`state ${geo.state}`);
   if (geo.district != null) parts.push(`district ${geo.district}`);
   if (geo.pincodes && geo.pincodes.length > 0) parts.push(`pincodes ${geo.pincodes.join(", ")}`);
+  if (geo.categories && geo.categories.length > 0)
+    parts.push(`categories ${geo.categories.join(", ")}`);
   return parts.length > 0 ? parts.join(" · ") : "everywhere";
 }
 
@@ -533,6 +546,7 @@ function CreatePlacementForm({
   const [stateLgd, setStateLgd] = useState("");
   const [districtLgd, setDistrictLgd] = useState("");
   const [pincodes, setPincodes] = useState("");
+  const [categories, setCategories] = useState("");
   const [weight, setWeight] = useState("1");
   const [submitting, setSubmitting] = useState(false);
 
@@ -570,6 +584,18 @@ function CreatePlacementForm({
       return;
     }
     if (pincodeList.length > 0) geoTarget.pincodes = pincodeList;
+    const categoryList = categories
+      .split(",")
+      .map((category) => category.trim())
+      .filter((category) => category.length > 0);
+    const badCategories = categoryList.filter((category) => !CATEGORY_RE.test(category));
+    if (badCategories.length > 0) {
+      toast({
+        title: `Categories must be lowercase slugs — invalid: ${badCategories.join(", ")}`,
+      });
+      return;
+    }
+    if (categoryList.length > 0) geoTarget.categories = categoryList;
 
     setSubmitting(true);
     try {
@@ -584,6 +610,7 @@ function CreatePlacementForm({
       setStateLgd("");
       setDistrictLgd("");
       setPincodes("");
+      setCategories("");
       setWeight("1");
     } catch (error) {
       toast({
@@ -646,6 +673,15 @@ function CreatePlacementForm({
           />
         </label>
       </div>
+      <label className="block text-sm font-semibold text-ink">
+        Categories (comma-separated M1 schema values, optional)
+        <input
+          className="mt-1 min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-ink"
+          value={categories}
+          onChange={(event) => setCategories(event.target.value)}
+          placeholder="ghee, milk-powder"
+        />
+      </label>
       <label className="block text-sm font-semibold text-ink">
         Weight (whole number, at least 1)
         <input
@@ -813,14 +849,23 @@ function PlacementsSection({ campaignId }: { campaignId: string }) {
     if (cursor) setLoadingMore(true);
     else setLoading(true);
     try {
-      const params = new URLSearchParams({ slot_key: SLOT_KEYS[0], limit: "50" });
-      if (cursor) params.set("cursor", cursor);
-      const body = await getJson(`/ads/placements?${params}`);
-      const page = (body.items as Placement[]).filter(
-        (placement) => placement.campaign_id === campaignId,
+      // M2: GET /ads/placements filters by ONE slot_key (no campaign_id
+      // param), so fetch every slot in parallel and filter client-side -
+      // same pattern as before, widened from the single D21 slot. Cursoring
+      // stays per-slot; 50-per-slot covers v1 console volume, so load-more
+      // only pages the first slot's overflow (rare) rather than fanning out.
+      const pages = await Promise.all(
+        SLOT_KEYS.map((slotKey) => {
+          const params = new URLSearchParams({ slot_key: slotKey, limit: "50" });
+          if (cursor && slotKey === SLOT_KEYS[0]) params.set("cursor", cursor);
+          return getJson(`/ads/placements?${params}`);
+        }),
       );
+      const page = pages
+        .flatMap((body) => body.items as Placement[])
+        .filter((placement) => placement.campaign_id === campaignId);
       setItems((prev) => (cursor ? [...prev, ...page] : page));
-      setNextCursor((body.next_cursor ?? null) as string | null);
+      setNextCursor((pages[0]?.next_cursor ?? null) as string | null);
     } catch (error) {
       toast({ title: error instanceof ApiError ? error.detail : "Could not load placements" });
     } finally {

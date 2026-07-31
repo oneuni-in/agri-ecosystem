@@ -1,4 +1,4 @@
-# Manual UI test guide — D23 → M1 (milk.in sprint 3 + 3.5)
+# Manual UI test guide — D23 → M2 (milk.in sprint 3 + 3.5)
 
 Owner-facing walkthrough for hand-testing everything shipped in D23–D30 and M1 on a dev box.
 Automated coverage for most of these journeys lives in `e2e/` (see
@@ -151,9 +151,43 @@ server misbehaves after a crashed session.
 8. Seed: every dairy category has at least one seeded product (incl. the ghee product
    on the covered vendor), so no category page or chip renders empty at 641001.
 
+## M1.5 — Trust & safety (merged)
+
+1. Report flow: on a profile, "Report" → submit a reason → recorded, but the business
+   is NEVER auto-suspended (reports queue for staff; check in :3004 /ops).
+2. Enforcement: in /ops suspend a business → its public profile serves **410 Gone**
+   (not 404), it drops out of covers()/search, and its ads stop serving (is_servable
+   fail-closed). Reinstate → everything returns.
+3. Disabled account: a disabled vendor hitting the console gets the locked-out screen,
+   not a crash.
+
+## M2 — Ad surfaces (:3000 + :3004/ads, this branch)
+
+Slots: `milk_home_hero` (carousel), `milk_global_header`, `milk_category_banner`,
+`milk_search_inline`, `milk_profile_footer`. House ads are seeded by
+`scripts/seed_house_ads.py` (e2e bootstrap runs it with `--enable-flag --reset-caps`).
+
+1. House ads visible: at `/en` (hero carousel) and on pincode/category/search/profile
+   surfaces at 641001 — every ad carries the ★ Sponsored badge, images only.
+2. Carousel: autoplays, swipes; with OS "reduce motion" on → NO autoplay.
+3. Impressions are visibility-gated: DevTools Network → load a page with a
+   below-the-fold slot → no impression beacon until you scroll it into view; then
+   exactly one fires. Click an ad → click beacon lands (D21 partitioned tables).
+4. CLS ≈ 0: empty slot, loading slot, and full slot must not shift the page
+   (fallback reserves the box; toggle an ad-blocker → layout collapses gracefully).
+5. Admin (:3004/ads): create a campaign (advertiser business UUID via
+   `GET :8000/directory/businesses/{slug}` → `business.id`), add a creative with
+   slot key + category + pincode targeting. While the creative is PENDING it must
+   never render on milk.in; approve it → it serves at the targeted pincode/category.
+6. CSP: console shows no third-party script loads on ad surfaces; creatives are
+   images only.
+7. Perf: home Lighthouse ≥0.90 WITH the carousel live (the #45 fix — inline CSS +
+   SVG Devanagari — raised the CI gate back to 0.90; keep it there).
+
 ## Known-open items (do not file as new bugs)
 
-- Landing perf CI floor temporarily 0.80 (issue #45) — must return to 0.90 by D32.
+- ~~Landing perf CI floor temporarily 0.80 (issue #45)~~ — RESOLVED: PR #48 (inline
+  CSS + Devanagari SVG) restored the 0.90 gate; it must stay at 0.90.
 - Real-device push confirmation is owner-run hardware work (checklist above).
 
 ---

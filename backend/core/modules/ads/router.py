@@ -38,14 +38,34 @@ def _viewer(request: Request, now: datetime) -> str:
     return service.viewer_hash(ip, request.headers.get("user-agent", ""), now=now)
 
 
+def _to_served(placement: Placement, creative: Creative, *, locale: str, base: str) -> ServedAdOut:
+    copy = creative.copy.get(locale) or creative.copy.get("en") or {}
+    return ServedAdOut(
+        placement_id=placement.id,
+        creative_id=creative.id,
+        slot_key=placement.slot_key,
+        label="sponsored",
+        title=copy.get("title", ""),
+        body=copy.get("body", ""),
+        media_urls=[f"{base}/{key}" for key in creative.media_keys],
+        target_url=creative.target_url,
+    )
+
+
 @router.get("/serve", public=True)
 async def serve(
     request: Request,
     session: SessionDep,
     slot: str,
-    pincode: Annotated[str, Query(min_length=6, max_length=6, pattern=r"^\d{6}$")],
+    pincode: Annotated[str | None, Query(min_length=6, max_length=6, pattern=r"^\d{6}$")] = None,
     locale: Literal["en", "ta", "hi"] = "en",
+    category: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,40}$")] = None,
+    count: Annotated[int, Query(ge=1, le=service.MAX_SERVE_COUNT)] = 1,
 ) -> AdServeOut:
+    """M2: pincode is optional (global slots render before any location is
+    known - only geo-untargeted placements match then), `category` narrows to
+    category-targeted inventory, `count`>1 feeds the carousel (weighted
+    sample without replacement across distinct placements)."""
     await _require_flag(session)
     if slot not in service.SLOT_KEYS:
         raise HTTPException(status_code=422, detail="unknown_slot")
@@ -53,36 +73,27 @@ async def serve(
     viewer = _viewer(request, now)
     settings = get_settings()
     candidates = await service.eligible_placements(
-        session, slot_key=slot, pincode=pincode, today=now.date()
+        session, slot_key=slot, pincode=pincode, category=category, today=now.date()
     )
-    capped: list[tuple[Placement, Creative]] = []
+    pool: list[tuple[Placement, Creative]] = []
     for placement, creative in candidates:
         if await service.under_freq_cap(
             viewer, placement.id, cap=settings.ads_freq_cap_per_day, now=now
         ):
-            capped.append((placement, creative))
-    if not capped:
-        return AdServeOut(ad=None)
-    placement, creative = service.pick_weighted(capped, _rng)
-    try:
-        service.validate_target_url(creative.target_url)  # re-check at serve
-    except ValueError:
-        return AdServeOut(ad=None)  # a bad row must never reach a page
-    await service.record_serve(viewer, placement.id, now=now)
-    copy = creative.copy.get(locale) or creative.copy.get("en") or {}
-    base = settings.media_public_base_url
-    return AdServeOut(
-        ad=ServedAdOut(
-            placement_id=placement.id,
-            creative_id=creative.id,
-            slot_key=placement.slot_key,
-            label="sponsored",
-            title=copy.get("title", ""),
-            body=copy.get("body", ""),
-            media_urls=[f"{base}/{key}" for key in creative.media_keys],
-            target_url=creative.target_url,
+            pool.append((placement, creative))
+    served: list[ServedAdOut] = []
+    while pool and len(served) < count:
+        placement, creative = service.pick_weighted(pool, _rng)
+        pool = [c for c in pool if c[0].id != placement.id]
+        try:
+            service.validate_target_url(creative.target_url)  # re-check at serve
+        except ValueError:
+            continue  # a bad row must never reach a page
+        await service.record_serve(viewer, placement.id, now=now)
+        served.append(
+            _to_served(placement, creative, locale=locale, base=settings.media_public_base_url)
         )
-    )
+    return AdServeOut(ad=served[0] if served else None, ads=served)
 
 
 @router.post("/impressions", public=True)

@@ -190,7 +190,7 @@ async def test_geo_district_placement_serves_641001_not_600001(
         "/ads/serve", params={"slot": "directory_browse", "pincode": CHENNAI_PINCODE}
     )
     assert miss.status_code == 200
-    assert miss.json() == {"ad": None}
+    assert miss.json() == {"ad": None, "ads": []}
 
 
 async def test_suspended_advertiser_ads_stop_serving(
@@ -222,7 +222,7 @@ async def test_suspended_advertiser_ads_stop_serving(
         "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
     )
     assert miss.status_code == 200
-    assert miss.json() == {"ad": None}
+    assert miss.json() == {"ad": None, "ads": []}
 
 
 async def test_geo_pincode_list_and_state_and_empty(
@@ -292,7 +292,7 @@ async def test_unknown_pincode_only_untargeted(
         "/ads/serve", params={"slot": "directory_browse", "pincode": UNKNOWN_PINCODE}
     )
     assert r.status_code == 200
-    assert r.json() == {"ad": None}
+    assert r.json() == {"ad": None, "ads": []}
 
 
 async def test_pending_creative_never_serves(
@@ -308,7 +308,7 @@ async def test_pending_creative_never_serves(
         "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
     )
     assert r.status_code == 200
-    assert r.json() == {"ad": None}
+    assert r.json() == {"ad": None, "ads": []}
 
 
 async def test_freq_cap_skips_exhausted_placement(
@@ -332,7 +332,7 @@ async def test_freq_cap_skips_exhausted_placement(
         "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
     )
     assert exhausted.status_code == 200
-    assert exhausted.json() == {"ad": None}
+    assert exhausted.json() == {"ad": None, "ads": []}
 
 
 async def test_share_of_voice_weighted_rotation(
@@ -407,3 +407,106 @@ async def test_bad_slot_422(
         "/ads/serve", params={"slot": "homepage_hero", "pincode": COIMBATORE_PINCODE}
     )
     assert r.status_code == 422
+
+
+# --- M2 (SPEC M2): milk slots, category targeting, multi-creative serve ---
+
+
+async def test_milk_slot_keys_are_registered(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    for slot in (
+        "milk_global_header",
+        "milk_home_hero",
+        "milk_category_banner",
+        "milk_search_inline",
+        "milk_profile_footer",
+    ):
+        await _seed_ad(session, geo_target={}, slot_key=slot)
+        r = await client.get("/ads/serve", params={"slot": slot, "pincode": COIMBATORE_PINCODE})
+        assert r.status_code == 200, (slot, r.text)
+        assert r.json()["ad"] is not None, slot
+
+
+async def test_serve_count_returns_distinct_placements(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    for _ in range(3):
+        await _seed_ad(session, geo_target={}, slot_key="milk_global_header")
+    r = await client.get(
+        "/ads/serve",
+        params={"slot": "milk_global_header", "pincode": COIMBATORE_PINCODE, "count": 5},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    ids = [ad["placement_id"] for ad in body["ads"]]
+    assert len(ids) == 3 and len(set(ids)) == 3
+    assert body["ad"] == body["ads"][0]  # legacy single-ad shape stays intact
+
+
+async def test_category_targeting(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={"categories": ["ghee"]}, slot_key="milk_category_banner")
+    hit = await client.get(
+        "/ads/serve",
+        params={"slot": "milk_category_banner", "pincode": COIMBATORE_PINCODE, "category": "ghee"},
+    )
+    assert hit.status_code == 200, hit.text
+    assert hit.json()["ad"] is not None
+    miss = await client.get(
+        "/ads/serve",
+        params={"slot": "milk_category_banner", "pincode": COIMBATORE_PINCODE, "category": "milk"},
+    )
+    assert miss.json()["ad"] is None
+    no_ctx = await client.get(
+        "/ads/serve", params={"slot": "milk_category_banner", "pincode": COIMBATORE_PINCODE}
+    )
+    assert no_ctx.json()["ad"] is None  # category-targeted needs category context
+
+
+async def test_serve_without_pincode_only_untargeted_geo(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={"district": COIMBATORE_DISTRICT_LGD})
+    r = await client.get("/ads/serve", params={"slot": "directory_browse"})
+    assert r.status_code == 200, r.text
+    assert r.json()["ad"] is None  # unknown viewer location never matches geo targeting
+    await _seed_ad(session, geo_target={})
+    r = await client.get("/ads/serve", params={"slot": "directory_browse"})
+    assert r.json()["ad"] is not None
+
+
+async def test_pending_creative_never_serves_on_milk_slot(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M2 NON-NEGOTIABLE 1: unapproved/pending creative NEVER renders."""
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(
+        session, geo_target={}, slot_key="milk_global_header", moderation_status="pending"
+    )
+    r = await client.get(
+        "/ads/serve",
+        params={"slot": "milk_global_header", "pincode": COIMBATORE_PINCODE, "count": 5},
+    )
+    assert r.status_code == 200
+    assert r.json()["ad"] is None and r.json()["ads"] == []

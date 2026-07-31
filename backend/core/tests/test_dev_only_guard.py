@@ -44,9 +44,10 @@ def test_the_guard_is_actually_wired_into_the_fixture_scripts() -> None:
         source = (scripts / name).read_text(encoding="utf-8")
         assert "refuse_in_prod(" in source, f"{name} does not call the prod guard"
 
-    for name in ("load_geo.py", "import_vendor_seed.py"):
+    for name in ("load_geo.py", "import_vendor_seed.py", "seed_house_ads.py"):
         source = (scripts / name).read_text(encoding="utf-8")
         assert "refuse_in_prod(" not in source, (
             f"{name} loads real production data (geo reference / the launch "
-            f"vendor catalogue) and must stay runnable against prod"
+            f"vendor catalogue / first-party house ads) and must stay "
+            f"runnable against prod"
         )

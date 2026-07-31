@@ -7,6 +7,7 @@ import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { GlobalAdBanner } from "@/components/organisms/GlobalAdBanner";
 import { routing } from "@/i18n/routing";
 
 import { PwaClient } from "./pwa-client";
@@ -44,6 +45,9 @@ export default async function LocaleLayout({
       <body>
         <NextIntlClientProvider>
           <SiteHeader />
+          {/* M2: milk_global_header ad slot on EVERY page. Client island -
+              the layout stays static (no headers()/cookies() here). */}
+          <GlobalAdBanner />
           {children}
           <SiteFooter />
           <PwaClient />

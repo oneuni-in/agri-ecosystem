@@ -15,7 +15,12 @@ const core = path.join(repoRoot, "backend", "core");
 const venvPython = path.join(core, ".venv", "Scripts", "python.exe");
 const python = process.env.CI ? "python" : existsSync(venvPython) ? venvPython : "python";
 
-const env = { ...process.env, OTP_TEST_PEEK: "true" };
+// ADS_FREQ_CAP_PER_DAY: every request in an e2e run shares one viewer hash
+// (same IP + UA, daily window), so the production 3/day serve cap exhausts
+// the house placements after ~3 page loads of ANY earlier spec (a11y runs
+// before ads-surfaces alphabetically) and every later ad assertion sees the
+// fallback. The cap is a fraud control for paid ads; e2e neutralises it.
+const env = { ...process.env, OTP_TEST_PEEK: "true", ADS_FREQ_CAP_PER_DAY: "100000" };
 
 const migrate = spawnSync(python, ["-m", "alembic", "upgrade", "head"], {
   cwd: core,
@@ -51,6 +56,18 @@ const seed = spawnSync(python, ["scripts/seed_e2e_milk.py"], {
   stdio: "inherit",
 });
 if (seed.status !== 0) process.exit(seed.status ?? 1);
+
+// M2: house-ad fill + ads_enabled so e2e/ads-surfaces.spec.ts is
+// deterministic. Idempotent (keyed on campaign name); --enable-flag is
+// dev/test-only (refused in prod inside the script).
+// --reset-caps: one machine = one viewer hash, so the 3/day serve cap
+// exhausts the house placements after a few page loads across specs/runs.
+const houseAds = spawnSync(
+  python,
+  ["scripts/seed_house_ads.py", "--enable-flag", "--reset-caps"],
+  { cwd: core, env, stdio: "inherit" },
+);
+if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);
 
 const server = spawn(
   python,

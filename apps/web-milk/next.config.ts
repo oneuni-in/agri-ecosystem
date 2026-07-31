@@ -57,6 +57,24 @@ const nextConfig: NextConfig = {
     // actually failed.
     ignoreDuringBuilds: true,
   },
+  // M2 threat-model hardening (creative XSS): creatives are img-only and
+  // URL-sanitized in @agri/ui; this header adds the safe page-level subset
+  // (no plugin content, no <base> hijack, no clickjack framing). A full
+  // img-src allowlist CSP is a tracked fast-follow - it needs the media
+  // domain plumbed into frontend env first.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 const config = withNextIntl(nextConfig);

@@ -299,6 +299,36 @@ async def test_placement_geo_target_unknown_key_422(api: httpx.AsyncClient) -> N
     assert r.status_code == 422
 
 
+async def test_placement_categories_accepted_and_bad_shape_422(api: httpx.AsyncClient) -> None:
+    """M2: category-targetable inventory - values are shape-validated only
+    (matched at serve time against the M1 schema `category` strings)."""
+    campaign_id = await _create_campaign(api)
+    r = await api.post(
+        "/admin/ads/placements",
+        json={
+            "campaign_id": campaign_id,
+            "slot_key": "milk_category_banner",
+            "geo_target": {"categories": ["ghee", "milk-powder"]},
+            "weight": 1,
+        },
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["geo_target"] == {"categories": ["ghee", "milk-powder"]}
+
+    bad = await api.post(
+        "/admin/ads/placements",
+        json={
+            "campaign_id": campaign_id,
+            "slot_key": "milk_category_banner",
+            "geo_target": {"categories": ["Bad Value!"]},
+            "weight": 1,
+        },
+        headers=_as(ADMIN, "staff"),
+    )
+    assert bad.status_code == 422
+
+
 async def test_placement_create_and_status_flip(api: httpx.AsyncClient) -> None:
     campaign_id = await _create_campaign(api)
     r = await api.post(

@@ -167,3 +167,22 @@ describe("locLabel", () => {
     expect(locLabel(null)).toBeNull();
   });
 });
+
+// --- M2 additions ---
+
+import { pincodeFromCookieHeader } from "./location";
+
+describe("pincodeFromCookieHeader", () => {
+  const cookie = (payload: object) => `${LOC_COOKIE}=${encodeURIComponent(JSON.stringify(payload))}`;
+
+  it("finds the pincode among other cookies", () => {
+    const header = `other=1; ${cookie({ p: "641001", d: null, s: null, src: "pincode" })}; x=y`;
+    expect(pincodeFromCookieHeader(header)).toBe("641001");
+  });
+  it("null pincode / missing cookie / garbage -> null", () => {
+    expect(pincodeFromCookieHeader(cookie({ p: null, d: null, s: null, src: "none" }))).toBeNull();
+    expect(pincodeFromCookieHeader("other=1")).toBeNull();
+    expect(pincodeFromCookieHeader(`${LOC_COOKIE}=%7Bnot-json`)).toBeNull();
+    expect(pincodeFromCookieHeader("")).toBeNull();
+  });
+});

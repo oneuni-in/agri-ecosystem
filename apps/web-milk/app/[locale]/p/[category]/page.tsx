@@ -1,8 +1,10 @@
+import { AdSlot } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 
+import { HouseAdCard } from "@/components/molecules/HouseAdCard";
 import { routing } from "@/i18n/routing";
 import { fetchProductCategories } from "@/lib/taxonomy";
 
@@ -70,6 +72,20 @@ export default async function ProductCategoryPage({ params }: { params: Params }
         {match.label} near you
       </h1>
       {match.vern ? <p className="vern text-[15px] text-sub">{match.vern}</p> : null}
+      {/* M2: milk_category_banner - context is the M1 schema category value,
+          so a schema-added category is targetable inventory automatically. */}
+      <AdSlot
+        slotKey="milk_category_banner"
+        category={category}
+        heightClass="h-[72px]"
+        fallback={
+          <HouseAdCard
+            title="🥛 Post your need — vendors reply to you"
+            vern="என் தேவை"
+            href="/post-need"
+          />
+        }
+      />
       <ProductPincodeFinder category={category} />
     </main>
   );

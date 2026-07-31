@@ -56,6 +56,21 @@ export function parseLocCookie(cookieValue: string | undefined): LocContext | nu
 }
 
 /**
+ * Pincode out of a raw `Cookie` header / `document.cookie` string (M2: ad
+ * slots read location context without a provider). Same trust boundary as
+ * `parseLocCookie` - anything malformed is "no location known yet".
+ */
+export function pincodeFromCookieHeader(header: string): string | null {
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() !== LOC_COOKIE) continue;
+    return parseLocCookie(part.slice(eq + 1).trim())?.pincode ?? null;
+  }
+  return null;
+}
+
+/**
  * Validates an untrusted `GET /identity/location` (or `/api/identity/location`
  * BFF proxy) JSON body — same trust boundary as `parseLocCookie`, but the
  * wire shape uses full field names (`pincode`/`district`/`state`/`source`)

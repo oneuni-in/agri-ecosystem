@@ -1,4 +1,4 @@
-import { Badge, Card, Wrap } from "@agri/ui";
+import { AdSlot, Badge, Card, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -329,6 +329,11 @@ export default async function VendorProfilePage({
 
         <div className="mt-6">
           <ReportDialog slug={business.slug} />
+        </div>
+
+        {/* M2: milk_profile_footer - no fallback, collapses when dark. */}
+        <div className="mt-6">
+          <AdSlot slotKey="milk_profile_footer" heightClass="h-[72px]" />
         </div>
       </Wrap>
     </main>

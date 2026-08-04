@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.geo.models import District, Pincode, State
+from shared.geo.models import District, Pincode, PincodeTier, State
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,3 +84,45 @@ async def load_geo(session: AsyncSession, data_dir: Path) -> GeoLoadCounts:
 
     await session.flush()
     return GeoLoadCounts(states=len(states), districts=len(districts), pincodes=len(pincodes))
+
+
+async def load_pincode_population(session: AsyncSession, data_dir: Path) -> int:
+    """Upsert data/geo/pincode_population.csv into geo.pincode_tiers.
+
+    New rows keep tier server-default 4 and computed_at NULL until
+    classify_tiers() runs; re-runs only refresh population + grade.
+    """
+    count = 0
+    batch: list[dict[str, object]] = []
+
+    async def _flush() -> None:
+        nonlocal count
+        if not batch:
+            return
+        stmt = insert(PincodeTier).values(batch)
+        await session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[PincodeTier.pincode],
+                set_={
+                    "population": stmt.excluded.population,
+                    "population_grade": stmt.excluded.population_grade,
+                },
+            )
+        )
+        count += len(batch)
+        batch.clear()
+
+    with (data_dir / "pincode_population.csv").open(encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            batch.append(
+                {
+                    "pincode": row["pincode"],
+                    "population": int(row["population"]),
+                    "population_grade": row["grade"],
+                }
+            )
+            if len(batch) >= 1000:
+                await _flush()
+        await _flush()
+    await session.flush()
+    return count

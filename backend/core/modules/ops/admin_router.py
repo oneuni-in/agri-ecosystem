@@ -40,6 +40,7 @@ from shared.geo.models import PincodeTier
 from shared.geo.tiers import (
     TierDistribution,
     UnknownPincodeTierError,
+    get_pincode_tier_row,
     override_tier,
     tier_distribution,
 )
@@ -244,7 +245,7 @@ async def get_pincode_tier(
     pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
 ) -> PincodeTierOut:
     require_role(request, STAFF, SUPER_ADMIN)
-    row = await session.scalar(select(PincodeTier).where(PincodeTier.pincode == pincode))
+    row = await get_pincode_tier_row(session, pincode)
     if row is None:
         raise HTTPException(status_code=404, detail="unknown pincode")
     return _pincode_tier_out(row)

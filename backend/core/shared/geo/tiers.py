@@ -190,13 +190,23 @@ async def tier_distribution(session: AsyncSession) -> TierDistribution:
     )
 
 
+async def get_pincode_tier_row(session: AsyncSession, pincode: str) -> PincodeTier | None:
+    """The only way outside this module to fetch a raw PincodeTier row (e.g.
+    for the ops single-pincode lookup) - callers must not query the model
+    directly."""
+    row: PincodeTier | None = await session.scalar(
+        select(PincodeTier).where(PincodeTier.pincode == pincode)
+    )
+    return row
+
+
 async def override_tier(
     session: AsyncSession, pincode: str, new_tier: int, *, now: datetime
 ) -> PincodeTier:
     """Admin escape hatch (spec: exists, nothing REQUIRES it). Bypasses
     promote-only; note a demoting override is re-promoted by the next
     nightly run - durable overrides are a v2 concern."""
-    row = await session.scalar(select(PincodeTier).where(PincodeTier.pincode == pincode))
+    row = await get_pincode_tier_row(session, pincode)
     if row is None:
         raise UnknownPincodeTierError(pincode)
     if new_tier != row.tier:

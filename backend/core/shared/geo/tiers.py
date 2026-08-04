@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from settings import Settings, get_settings
@@ -156,3 +156,61 @@ async def classify_tiers(
         },
     )
     return TierRunResult(total=len(rows), changed=changed, skipped_hysteresis=skipped)
+
+
+class UnknownPincodeTierError(LookupError):
+    """No geo.pincode_tiers row for this pincode."""
+
+
+@dataclass(frozen=True, slots=True)
+class TierDistribution:
+    buckets: dict[int, int]
+    by_method: dict[str, int]
+    unclassified: int
+    total: int
+
+
+async def tier_distribution(session: AsyncSession) -> TierDistribution:
+    tier_rows = (
+        await session.execute(select(PincodeTier.tier, func.count()).group_by(PincodeTier.tier))
+    ).all()
+    buckets = {tier: 0 for tier in range(1, 6)}
+    buckets.update({int(t): int(c) for t, c in tier_rows})
+    method_rows = (
+        await session.execute(select(PincodeTier.method, func.count()).group_by(PincodeTier.method))
+    ).all()
+    unclassified = await session.scalar(
+        select(func.count()).select_from(PincodeTier).where(PincodeTier.computed_at.is_(None))
+    )
+    return TierDistribution(
+        buckets=buckets,
+        by_method={str(m): int(c) for m, c in method_rows},
+        unclassified=int(unclassified or 0),
+        total=sum(buckets.values()),
+    )
+
+
+async def override_tier(
+    session: AsyncSession, pincode: str, new_tier: int, *, now: datetime
+) -> PincodeTier:
+    """Admin escape hatch (spec: exists, nothing REQUIRES it). Bypasses
+    promote-only; note a demoting override is re-promoted by the next
+    nightly run - durable overrides are a v2 concern."""
+    row = await session.scalar(select(PincodeTier).where(PincodeTier.pincode == pincode))
+    if row is None:
+        raise UnknownPincodeTierError(pincode)
+    if new_tier != row.tier:
+        session.add(
+            PincodeTierHistory(
+                pincode=pincode,
+                old_tier=row.tier,
+                new_tier=new_tier,
+                old_method=row.method,
+                new_method=row.method,
+                reason="admin_override",
+            )
+        )
+        row.tier = new_tier
+        row.tier_changed_at = now
+    await session.flush()
+    return row

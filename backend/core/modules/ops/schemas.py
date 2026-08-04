@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from shared.moderation import ModItem
 
@@ -58,3 +58,31 @@ class FlagsOut(BaseModel):
 
 class FlagToggleIn(BaseModel):
     enabled: bool
+
+
+class PincodeTierOut(BaseModel):
+    pincode: str
+    tier: int
+    population: int
+    user_count: int
+    method: str
+    computed_at: datetime | None
+    tier_changed_at: datetime | None
+
+
+class TierBucketOut(BaseModel):
+    tier: int
+    count: int
+
+
+class TierDistributionOut(BaseModel):
+    buckets: list[TierBucketOut]  # always 5 entries, T1..T5
+    by_method: dict[str, int]
+    unclassified: int
+    total: int
+
+
+class TierOverrideIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tier: int = Field(ge=1, le=5)

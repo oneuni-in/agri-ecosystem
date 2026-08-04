@@ -316,12 +316,15 @@ def log_delivery(
     viewer: str,
     now: datetime,
     rand: random.Random,
+    tier: int | None = None,
 ) -> bool:
     """M3.E: append-only, SAMPLED why-served row for advertiser analytics
     (M5) and dispute resolution. Returns True when a row was staged - the
     caller owns the commit. pincode/category are serve context (fine to
     keep); viewer is the daily-rotating hash - never any other user
-    identifier (threat: delivery-log PII)."""
+    identifier (threat: delivery-log PII). tier is the M4 pincode tier
+    resolved by the caller via shared.geo.service.get_tier (None when the
+    request carried no pincode)."""
     rate = get_settings().ads_delivery_log_sample
     if rate <= 0 or rand.random() >= rate:
         return False
@@ -336,6 +339,7 @@ def log_delivery(
             why_served="global" if candidate.rung == "global" else f"local_{candidate.rung}",
             viewer_hash=viewer,
             occurred_at=now,
+            tier=tier,
         )
     )
     return True

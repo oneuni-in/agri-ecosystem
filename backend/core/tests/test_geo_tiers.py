@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.geo.loader import load_pincode_population
 from shared.geo.models import PincodeTier, PincodeTierHistory
+from shared.geo.service import get_tier
 from shared.geo.tiers import TierSanityError, classify_tiers, tier_percentiles
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "geo"
@@ -130,3 +131,15 @@ async def test_real_snapshot_nn1(db_session: AsyncSession) -> None:
     }
     assert tiers["641001"] in (1, 2)
     assert tiers[village] in (4, 5)
+
+
+async def test_get_tier_returns_stored_tier(db_session: AsyncSession) -> None:
+    db_session.add(
+        PincodeTier(pincode="641001", population=150000, population_grade="town", tier=2)
+    )
+    await db_session.flush()
+    assert await get_tier(db_session, "641001") == 2
+
+
+async def test_get_tier_unknown_pincode_defaults_t4(db_session: AsyncSession) -> None:
+    assert await get_tier(db_session, "000000") == 4  # NN2: safe default, no raise

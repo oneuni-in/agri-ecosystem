@@ -5,7 +5,11 @@ from decimal import Decimal
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.geo.models import District, Pincode
+from shared.geo.models import District, Pincode, PincodeTier
+from shared.geo.tiers import DEFAULT_TIER
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 
 async def district_for_pincode(session: AsyncSession, pincode: str) -> District | None:
@@ -15,6 +19,19 @@ async def district_for_pincode(session: AsyncSession, pincode: str) -> District 
         .where(Pincode.pincode == pincode)
     )
     return result.first()
+
+
+async def get_tier(session: AsyncSession, pincode: str) -> int:
+    """M4 accessor - the ONLY way modules read pincode tiers.
+
+    Missing row -> DEFAULT_TIER (4), logged; never raises, so delivery is
+    never blocked by an unclassified pincode (spec M4 DO-NOT).
+    """
+    tier = await session.scalar(select(PincodeTier.tier).where(PincodeTier.pincode == pincode))
+    if tier is None:
+        logger.info("geo.tier_default", extra={"extra_fields": {"pincode": pincode}})
+        return DEFAULT_TIER
+    return int(tier)
 
 
 async def centroid_for_pincode(

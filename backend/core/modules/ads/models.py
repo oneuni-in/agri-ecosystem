@@ -81,6 +81,10 @@ class DeliveryDecision(UUIDv7PKMixin, Base):
     why_served: Mapped[str] = mapped_column(Text)
     viewer_hash: Mapped[str] = mapped_column(Text)
     occurred_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+    # M4: pincode tier at serve time, resolved via shared.geo.service.get_tier
+    # (never a direct geo.pincode_tiers read). NULL when the request carried
+    # no pincode; DEFAULT_TIER (4) when the pincode is unclassified.
+    tier: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
 
 class Impression(_TrackingColumns, Base):

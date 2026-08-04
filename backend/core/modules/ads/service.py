@@ -5,7 +5,7 @@ import random
 import re
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any, NamedTuple, cast
+from typing import Annotated, Any, NamedTuple, cast
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -65,6 +65,9 @@ class GeoTargetIn(BaseModel):
     # serve time by exact string against the M1 schema `category` values, so
     # a new schema category is targetable with zero code changes here.
     categories: list[str] | None = Field(default=None, max_length=20)
+    # M5: tier targeting ("all T3 towns in TN") - a FILTER alongside
+    # `categories`, never a geo rung (geo_match_rung stays untouched).
+    tiers: list[Annotated[int, Field(ge=1, le=5)]] | None = Field(default=None, max_length=5)
 
     @field_validator("pincodes")
     @classmethod
@@ -156,6 +159,17 @@ def category_matches(geo_target: dict[str, Any], category: str | None) -> bool:
     return category is not None and category in wanted
 
 
+def tier_matches(geo_target: dict[str, Any], tier: int | None) -> bool:
+    """M5 tier targeting - a filter like categories, not a geo rung (fail
+    closed): no `tiers` declared = every context; declared = the resolved
+    viewer tier (shared.geo.service.get_tier, None when no pincode) must be
+    one of them."""
+    wanted = geo_target.get("tiers")
+    if not wanted:
+        return True
+    return tier is not None and tier in {int(t) for t in wanted}
+
+
 async def eligible_placements(
     session: AsyncSession,
     *,
@@ -163,13 +177,15 @@ async def eligible_placements(
     pincode: str | None,
     today: date,
     category: str | None = None,
+    tier: int | None = None,
 ) -> list[Candidate]:
     """Active placement + active in-flight in-budget campaign + latest
-    APPROVED creative + geo match + category match (M2). Row volume per slot
-    is tiny in v1 - geo filtering in Python keeps the JSONB semantics in one
-    testable function. pincode=None (M2 global slots before any location is
-    known) skips resolution entirely: only geo-untargeted placements can
-    match."""
+    APPROVED creative + geo match + category match (M2) + tier match (M5).
+    Row volume per slot is tiny in v1 - geo filtering in Python keeps the
+    JSONB semantics in one testable function. pincode=None (M2 global slots
+    before any location is known) skips resolution entirely: only
+    geo-untargeted placements can match; tier is also None then, so a
+    tier-targeted placement never matches either (fail closed)."""
     district_lgd = None
     state_lgd = None
     if pincode is not None:
@@ -222,9 +238,12 @@ async def eligible_placements(
         rung = geo_match_rung(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
         )
-        if rung is not None and category_matches(placement.geo_target, category):
-            seen.add(placement.id)
-            out.append(Candidate(placement, creative, campaign, rung))
+        if rung is None or not category_matches(placement.geo_target, category):
+            continue
+        if not tier_matches(placement.geo_target, tier):
+            continue
+        seen.add(placement.id)
+        out.append(Candidate(placement, creative, campaign, rung))
     return out
 
 

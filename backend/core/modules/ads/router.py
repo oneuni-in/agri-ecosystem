@@ -73,10 +73,12 @@ async def serve(
     now = datetime.now(UTC)
     viewer = _viewer(request, now)
     settings = get_settings()
-    candidates = await service.eligible_placements(
-        session, slot_key=slot, pincode=pincode, category=category, today=now.date()
-    )
+    # M5: resolve the M4 pincode tier once and reuse it for both eligibility
+    # filtering (tier-targeted placements) and the delivery log.
     tier = await get_tier(session, pincode) if pincode is not None else None
+    candidates = await service.eligible_placements(
+        session, slot_key=slot, pincode=pincode, category=category, today=now.date(), tier=tier
+    )
     pool: list[service.Candidate] = []
     for cand in candidates:
         if await service.under_freq_cap(

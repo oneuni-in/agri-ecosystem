@@ -22,7 +22,7 @@ from settings import get_settings
 from shared.cache import reset_redis
 from shared.db import get_session
 from shared.flags import FeatureFlag, reset_flag_cache
-from shared.geo.models import District, Pincode
+from shared.geo.models import District, Pincode, PincodeTier
 
 pytestmark = pytest.mark.asyncio
 
@@ -706,6 +706,51 @@ async def test_delivery_log_sampling_zero_writes_nothing(
     assert r.json()["ad"] is not None
     count = await session.scalar(text("SELECT count(*) FROM ads.delivery_decisions"))
     assert count == 0
+
+
+async def test_delivery_log_records_tier_and_unknown_pincode_defaults(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M4: the delivery decision's tier column comes from
+    shared.geo.service.get_tier - NN2 unknown pincode defaults to T4 and
+    never blocks serving; a classified pincode logs its stored tier."""
+    monkeypatch.setattr(get_settings(), "ads_delivery_log_sample", 1.0)
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={"pincodes": [COIMBATORE_PINCODE]})
+
+    r = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["ad"] is not None
+
+    row = (await session.execute(text("SELECT tier FROM ads.delivery_decisions"))).one()
+    assert row.tier == 4  # no geo.pincode_tiers row -> DEFAULT_TIER, delivery unaffected
+
+    session.add(
+        PincodeTier(pincode=COIMBATORE_PINCODE, population=100000, population_grade="town", tier=2)
+    )
+    await session.flush()
+
+    r2 = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["ad"] is not None
+
+    tiers = [
+        row.tier
+        for row in (
+            await session.execute(
+                text("SELECT tier FROM ads.delivery_decisions ORDER BY occurred_at")
+            )
+        ).all()
+    ]
+    assert tiers == [4, 2]
 
 
 async def test_pending_creative_never_serves_on_milk_slot(

@@ -19,6 +19,7 @@ from settings import get_settings
 from shared.cache import get_redis
 from shared.db import get_session
 from shared.flags import flag_enabled
+from shared.geo.service import get_tier
 from shared.security import SecureRouter
 
 router = SecureRouter(prefix="/ads", tags=["ads"])
@@ -75,6 +76,7 @@ async def serve(
     candidates = await service.eligible_placements(
         session, slot_key=slot, pincode=pincode, category=category, today=now.date()
     )
+    tier = await get_tier(session, pincode) if pincode is not None else None
     pool: list[service.Candidate] = []
     for cand in candidates:
         if await service.under_freq_cap(
@@ -102,6 +104,7 @@ async def serve(
             viewer=viewer,
             now=now,
             rand=_rng,
+            tier=tier,
         ):
             dirty = True
         await service.record_serve(viewer, cand.creative.id, now=now)

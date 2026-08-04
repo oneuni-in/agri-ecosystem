@@ -146,6 +146,26 @@ class Settings(BaseSettings):
     ads_local_boost: float = 2.0  # local-targeted placements x this in rotation (item 8)
     ads_delivery_log_sample: float = 0.1  # why-served log sampling rate (M3.E)
 
+    # --- M4: automatic pincode tiers (geo) -------------------------------
+    # Percentile cut points over the pincode population distribution,
+    # descending: T1 >= p99, T2 >= p90, T3 >= p60, T4 >= p25, T5 below.
+    # Thresholds live in config, not code (spec M4.B).
+    pincode_tier_percentiles: str = "99,90,60,25"
+    # Verified users (phone-verified + active) needed before a pincode's
+    # method flips to population+users. Defends signup farming (threat M4).
+    pincode_tier_user_threshold: int = 100
+    # Tiers a threshold-crossing pincode is promoted by (bounded at T1).
+    pincode_tier_user_promotion_step: int = 1
+    # Hysteresis (threat: tier flapping): never auto-demote in v1, and at
+    # most one automatic tier change per pincode per interval.
+    pincode_tier_promote_only: bool = True
+    pincode_tier_min_change_interval_hours: int = 24
+    # Sanity floor: refuse to classify a distribution smaller than this
+    # (threat: bad/partial source data). Tests lower it via env.
+    pincode_tier_min_rows: int = 100
+    # Kill switch for scripts/geo_tier_nightly.py.
+    geo_tier_job_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -7,12 +7,14 @@ commit, then best-effort publish. An event for a rolled-back decision must
 never exist; a Redis blip must never roll back a decision (D16 contract).
 
 Role gates: moderation = staff|super_admin; flags = super_admin only (a flag
-flip is a business-level act - see Task 11). Never log request bodies."""
+flip is a business-level act - see Task 11); pincode-tier lookup/override =
+staff|super_admin. Never log request bodies."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,12 +27,24 @@ from modules.ops.schemas import (
     ModItemOut,
     ModQueuePageOut,
     ModRejectIn,
+    PincodeTierOut,
+    TierBucketOut,
+    TierDistributionOut,
+    TierOverrideIn,
     item_out,
 )
 from shared.audit import audit
 from shared.db import get_session
 from shared.events import publish
 from shared.flags import FeatureFlag, reset_flag_cache
+from shared.geo.models import PincodeTier
+from shared.geo.tiers import (
+    TierDistribution,
+    UnknownPincodeTierError,
+    get_pincode_tier_row,
+    override_tier,
+    tier_distribution,
+)
 from shared.moderation import (
     DecisionConflictError,
     ItemNotFoundError,
@@ -194,4 +208,73 @@ async def toggle_flag(
     out = _flag_out(flag)
     await session.commit()
     reset_flag_cache()  # this process serves the new state immediately
+    return out
+
+
+def _pincode_tier_out(row: PincodeTier) -> PincodeTierOut:
+    return PincodeTierOut(
+        pincode=row.pincode,
+        tier=row.tier,
+        population=row.population,
+        user_count=row.user_count,
+        method=row.method,
+        computed_at=row.computed_at,
+        tier_changed_at=row.tier_changed_at,
+    )
+
+
+def _distribution_out(dist: TierDistribution) -> TierDistributionOut:
+    return TierDistributionOut(
+        buckets=[TierBucketOut(tier=t, count=dist.buckets[t]) for t in range(1, 6)],
+        by_method=dist.by_method,
+        unclassified=dist.unclassified,
+        total=dist.total,
+    )
+
+
+@admin_router.get("/ops/pincode-tiers/distribution")
+async def pincode_tier_distribution(request: Request, session: SessionDep) -> TierDistributionOut:
+    require_role(request, STAFF, SUPER_ADMIN)
+    dist = await tier_distribution(session)
+    return _distribution_out(dist)
+
+
+@admin_router.get("/ops/pincode-tiers/{pincode}")
+async def get_pincode_tier(
+    request: Request,
+    session: SessionDep,
+    pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
+) -> PincodeTierOut:
+    require_role(request, STAFF, SUPER_ADMIN)
+    row = await get_pincode_tier_row(session, pincode)
+    if row is None:
+        raise HTTPException(status_code=404, detail="unknown pincode")
+    return _pincode_tier_out(row)
+
+
+@admin_router.post("/ops/pincode-tiers/{pincode}")
+async def override_pincode_tier(
+    request: Request,
+    session: SessionDep,
+    pincode: Annotated[str, Path(pattern=r"^\d{6}$")],
+    body: TierOverrideIn,
+) -> PincodeTierOut:
+    """Admin escape hatch (spec: optional). Bypasses promote-only; a
+    demoting override is re-promoted by the next nightly run."""
+    admin_id = require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        row = await override_tier(session, pincode, body.tier, now=datetime.now(UTC))
+    except UnknownPincodeTierError as exc:
+        raise HTTPException(status_code=404, detail="unknown pincode") from exc
+    await audit(
+        session,
+        action="geo.tier_override",
+        actor_user_id=admin_id,
+        target_type="pincode_tier",
+        target_id=pincode,
+        metadata={"pincode": pincode, "tier": body.tier},
+        ip=request.client.host if request.client else None,
+    )
+    out = _pincode_tier_out(row)
+    await session.commit()
     return out

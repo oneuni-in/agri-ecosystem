@@ -1,4 +1,4 @@
-# Manual UI test guide — D01 → M2 (platform + milk.in)
+# Manual UI test guide — D01 → M4 (platform + milk.in)
 
 Owner-facing walkthrough for hand-testing everything shipped in D23–D30 and M1 on a dev box.
 Automated coverage for most of these journeys lives in `e2e/` (see
@@ -287,6 +287,45 @@ and 6, max 2). Seed with `scripts/seed_house_ads.py --with-sponsored-listing`
 6. Geo-context: `/api/ads/serve` ignores a client-forged `pincode` query param —
    the BFF overwrites it from the `agri_loc` cookie (change location via the pill
    → served local inventory follows).
+
+## M4 — Automatic pincode tiers (:8000 + :3004/ops)
+
+Every pincode gets a T1 (metro) .. T5 (extreme rural) tier from a percentile
+classifier over census population, refined by verified-user counts once a
+pincode has enough signups (`method` flips `population` → `population+users`).
+Promote-only: the nightly job never demotes a pincode, only an admin override
+can (and the next nightly run re-promotes it). TN is fully covered; pan-India
+rows load dormant (no serving effect yet — design decision, not a bug).
+
+1. Load + classify (from `backend/core`, venv python):
+   `python -m scripts.load_pincode_tiers` — loads `data/geo/pincode_population.csv`
+   and classifies every row in one idempotent command (NN1). Re-running with no
+   data changes reports `0 changed`. A failed sanity check exits non-zero and
+   commits nothing (bad-source-data threat).
+2. `:3004/ops` (staff login) → "Pincode tiers" card: histogram bars T1..T5,
+   pincode count per tier, and a method breakdown line (`population: N ·
+   population+users: N`). Empty state (`📍 No pincode tiers loaded yet`) before
+   step 1 has run; a non-staff/non-super_admin session sees the `🔒 restricted`
+   card instead of the histogram (`GET /admin/ops/pincode-tiers/distribution`
+   returns 403).
+3. Nightly re-rank: `python -m scripts.geo_tier_nightly` — recounts verified
+   users per pincode and reclassifies (promote-only + `tier_changed_at`
+   hysteresis interval). `GEO_TIER_JOB_ENABLED=false` is the kill switch (no-op
+   run, exit 0).
+4. Admin override: `POST :8000/admin/ops/pincode-tiers/641001` with staff/
+   super_admin auth and body `{"tier": 1}` → 200 with the new tier. Confirm:
+   - `GET :8000/admin/ops/pincode-tiers/641001` now reports `tier: 1`.
+   - `SELECT * FROM geo.pincode_tier_history WHERE pincode = '641001' ORDER BY
+     created_at DESC LIMIT 1;` — one new row, `reason = 'admin_override'`,
+     `old_tier`/`new_tier` populated (append-only history, NN4).
+   - Staff audit log (`shared.audit`) has a fresh `geo.tier_override` entry for
+     the acting admin with `meta = {"pincode": "641001", "tier": 1}`.
+   - The `/ops` histogram (step 2) reflects the new bucket on next reload.
+   - A bad tier (`{"tier": 9}`) → 422; an unmapped pincode → 404.
+5. Delivery accessor sanity: pick a business whose coverage pincode was just
+   overridden and confirm ad delivery keeps serving normally — the tier feeds
+   `delivery_decisions` logging only (M3's `why_served` log), it never blocks
+   or changes who is servable (no-delivery-blocking DO-NOT).
 
 ## Known-open items (do not file as new bugs)
 

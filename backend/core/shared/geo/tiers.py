@@ -74,6 +74,10 @@ async def classify_tiers(
       user_count >= pincode_tier_user_threshold (method flips one-way).
     - hysteresis: promote-only (config) + min interval between automatic
       changes; initial classification bypasses both.
+    - user_counts, when given, is a FULL snapshot: every row's user_count is
+      set to user_counts.get(pincode, 0), so a pincode with no verified users
+      left in the snapshot is reset to 0 (not left stale) - promote-only
+      hysteresis still guards the tier itself against auto-demotion.
     - refuses to write when the distribution cannot discriminate
       (TierSanityError) - threat: bad source data mis-pricing ads.
     """
@@ -96,8 +100,8 @@ async def classify_tiers(
     changed = skipped = 0
     for row in rows:
         initial = row.computed_at is None
-        if user_counts is not None and row.pincode in user_counts:
-            row.user_count = user_counts[row.pincode]
+        if user_counts is not None:
+            row.user_count = user_counts.get(row.pincode, 0)
         boosted = row.user_count >= settings.pincode_tier_user_threshold
         new_method = (
             "population+users" if boosted or row.method == "population+users" else "population"

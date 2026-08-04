@@ -3,7 +3,7 @@ approval is the unified moderation queue's job (Task 7), never this router's."""
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -189,3 +189,17 @@ class StatsOut(BaseModel):
     """Per-placement daily impression/click stats."""
 
     rows: list[StatRowOut]
+
+
+class RateCardIn(BaseModel):
+    """M5 Task 3: Ops-submitted rate card config. Shape is validated by
+    pricing.validate_rate_card, not here - config is an opaque dict at the
+    wire level so pricing.py stays the single source of truth for the shape."""
+
+    config: dict[str, Any]
+
+
+class RateCardOut(BaseModel):
+    version: int
+    config: dict[str, Any]
+    created_at: datetime

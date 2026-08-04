@@ -17,9 +17,11 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign, Creative, Placement
+from modules.ads import pricing
+from modules.ads.models import Campaign, Creative, Placement, RateCardVersion
 from modules.ads.schemas import (
     CampaignIn,
     CampaignOut,
@@ -31,6 +33,8 @@ from modules.ads.schemas import (
     PlacementOut,
     PlacementPageOut,
     PlacementStatusIn,
+    RateCardIn,
+    RateCardOut,
     StatRowOut,
     StatsOut,
     StatusIn,
@@ -309,3 +313,55 @@ async def placement_stats(
             for d, v in sorted(rows.items())
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# rate card (M5 Task 3): Ops-editable versioned pricing config. Append-only -
+# publishing inserts version N+1, never mutates an existing row (D17
+# spec_schemas precedent). The active card is always the newest version
+# (pricing.active_rate_card).
+
+
+@admin_router.get("/rate-card")
+async def get_rate_card(request: Request, session: SessionDep) -> RateCardOut:
+    require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        card = await pricing.active_rate_card(session)
+    except pricing.RateCardError as exc:
+        raise HTTPException(status_code=404, detail=exc.code) from exc
+    return RateCardOut(version=card.version, config=card.config, created_at=card.created_at)
+
+
+@admin_router.post("/rate-card", status_code=201)
+async def publish_rate_card(body: RateCardIn, request: Request, session: SessionDep) -> RateCardOut:
+    admin_id = require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        pricing.validate_rate_card(body.config)
+        current = await pricing.active_rate_card(session)
+        next_version = current.version + 1
+    except pricing.RateCardError as exc:
+        if exc.code != "no_rate_card":
+            raise HTTPException(status_code=422, detail=exc.code) from exc
+        next_version = 1
+    card = RateCardVersion(version=next_version, config=body.config, created_by_user_id=admin_id)
+    session.add(card)
+    try:
+        # Savepoint wraps only the insert so a lost race against the
+        # UNIQUE(version) index rolls back just this insert, not the
+        # caller's transaction (referrals.py / claims.py precedent).
+        async with session.begin_nested():
+            await session.flush()
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="version_conflict") from exc
+    await audit(
+        session,
+        action="ads.rate_card_published",
+        actor_user_id=admin_id,
+        target_type="rate_card",
+        target_id=str(card.version),
+        metadata={"version": card.version},
+        ip=_ip(request),
+    )
+    out = RateCardOut(version=card.version, config=card.config, created_at=card.created_at)
+    await session.commit()
+    return out

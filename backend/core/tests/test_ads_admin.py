@@ -11,10 +11,12 @@ from datetime import UTC, date, datetime, time, timedelta
 import httpx
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.ads.models import Click, Impression
+from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
 from shared.security import register_principal_resolver
@@ -526,3 +528,80 @@ async def test_stats_non_staff_403(api: httpx.AsyncClient) -> None:
         headers=_as(ADMIN, "user"),
     )
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# rate card (M5 Task 3)
+
+
+def _rate_card_config(**overrides: object) -> dict[str, object]:
+    config: dict[str, object] = {
+        "cpm_paise": {"1": 31000, "2": 21000, "3": 13000, "4": 9000, "5": 6000},
+        "flat_weekly_paise": {"1": 155000, "2": 105000, "3": 65000, "4": 45000, "5": 30000},
+        "category_multipliers_bp": {"ghee": 12000, "paneer": 11000},
+        "min_total_paise": 12000,
+    }
+    config.update(overrides)
+    return config
+
+
+async def test_rate_card_get_returns_seeded_v1(api: httpx.AsyncClient) -> None:
+    r = await api.get("/admin/ads/rate-card", headers=_as(ADMIN, "staff"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["version"] == 1
+    assert set(body["config"]) == {
+        "cpm_paise",
+        "flat_weekly_paise",
+        "category_multipliers_bp",
+        "min_total_paise",
+    }
+
+
+async def test_rate_card_post_creates_v2_and_get_returns_it(api: httpx.AsyncClient) -> None:
+    config = _rate_card_config()
+    r = await api.post("/admin/ads/rate-card", json={"config": config}, headers=_as(ADMIN, "staff"))
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["version"] == 2
+    assert body["config"] == config
+
+    r2 = await api.get("/admin/ads/rate-card", headers=_as(ADMIN, "staff"))
+    assert r2.status_code == 200, r2.text
+    body2 = r2.json()
+    assert body2["version"] == 2
+    assert body2["config"] == config
+
+
+async def test_rate_card_post_bad_config_422(api: httpx.AsyncClient) -> None:
+    config = _rate_card_config()
+    del config["min_total_paise"]
+    r = await api.post("/admin/ads/rate-card", json={"config": config}, headers=_as(ADMIN, "staff"))
+    assert r.status_code == 422
+    assert r.json()["detail"] == "missing_key"
+
+
+async def test_rate_card_post_requires_staff_403(api: httpx.AsyncClient) -> None:
+    r = await api.post(
+        "/admin/ads/rate-card",
+        json={"config": _rate_card_config()},
+        headers=_as(ADMIN, "user"),
+    )
+    assert r.status_code == 403
+
+
+async def test_rate_card_post_audited(api: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    r = await api.post(
+        "/admin/ads/rate-card", json={"config": _rate_card_config()}, headers=_as(ADMIN, "staff")
+    )
+    assert r.status_code == 201, r.text
+    version = r.json()["version"]
+
+    entry = await db_session.scalar(
+        select(AuditEntry).where(AuditEntry.action == "ads.rate_card_published")
+    )
+    assert entry is not None
+    assert entry.actor_user_id == ADMIN
+    assert entry.target_type == "rate_card"
+    assert entry.target_id == str(version)
+    assert entry.meta == {"version": version}

@@ -327,6 +327,44 @@ rows load dormant (no serving effect yet — design decision, not a bug).
    `delivery_decisions` logging only (M3's `why_served` log), it never blocks
    or changes who is servable (no-delivery-blocking DO-NOT).
 
+## M3 — Delivery blend + sponsored listings (merged)
+
+1. Blend (NN#1): in `:3004/ads` make TWO campaigns for the advertiser — one with NO
+   pincode targeting (global), one targeted to 641001 (local), same slot. At
+   `/en/coimbatore/641001` both rotate into the slot (local ~2× more often); at a
+   non-targeted pincode only the global one appears.
+2. Sponsored listings: a `milk_sponsored_listing` placement injects the advertiser's
+   card into category/covers/search lists — ONLY at positions 1 and 6, max 2 per
+   page, always ★ Sponsored, and the organic result count/order is unchanged
+   (compare the list with the campaign paused vs active — organic order identical,
+   NN#3).
+3. Per-category independence (NN#2): a campaign targeted to category `ghee` never
+   appears on the paneer page/chips.
+4. "Recommended" is organic-only: the Recommended rail ranks by
+   verified+rating+response-time — a paying advertiser's card in the same list
+   carries ★ Sponsored, never "Recommended" (NN#4 / labeling law).
+5. Delivery log: every serve lands a why-served row —
+   `docker exec agri-dev-postgres-1 psql -U app -d agri -c
+   "SELECT slot_key, pincode, reason FROM ads.delivery_decisions ORDER BY occurred_at DESC LIMIT 5;"`
+   (hashed session only, no user ids).
+
+## M4 — Automatic pincode tiers (IN PROGRESS on feat/m4-pincode-tiers)
+
+Built so far: census population snapshot, `geo.pincode_tiers` (+ append-only history),
+population loader, percentile classifier + `scripts/load_pincode_tiers.py`.
+Still landing: user-count re-rank hook, Ops-console histogram view.
+
+1. Load + classify: from `backend/core`,
+   `.venv/Scripts/python.exe scripts/load_pincode_tiers.py` → then
+   `psql ... -c "SELECT tier, count(*) FROM geo.pincode_tiers GROUP BY tier ORDER BY tier;"`
+   — T1≈top-1% metros … T5 extreme rural; thresholds come from settings, not code.
+2. Idempotent: run the loader twice → same counts, NO new rows in the tier history
+   table (history rows appear only when a tier actually changes).
+3. Spot checks: 641001 (urban Coimbatore) lands T1/T2; a remote village pincode
+   lands T4/T5. TN coverage complete; pan-India rows load but stay dormant.
+4. (After the remaining tasks land) `:3004` ops view shows the tier distribution
+   histogram; user-count promotions never auto-demote.
+
 ## Known-open items (do not file as new bugs)
 
 - ~~Landing perf CI floor temporarily 0.80 (issue #45)~~ — RESOLVED: PR #48 (inline

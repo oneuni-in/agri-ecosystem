@@ -5,9 +5,10 @@ stable across district renames, which the display names are not.
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, Text
+from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, Integer, Numeric, SmallInteger, Text, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,3 +48,45 @@ class Pincode(UUIDv7PKMixin, TimestampMixin, Base):
     )
     centroid_lat: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
     centroid_lon: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
+
+
+class PincodeTier(UUIDv7PKMixin, TimestampMixin, Base):
+    """Automatic T1-T5 classification per pincode (M4).
+
+    No FK to geo.pincodes: pan-India rows exist here while geo.pincodes
+    stays TN-only (Stage-B dormancy). computed_at NULL = loaded from the
+    population snapshot but never classified; tier defaults to 4, the same
+    safe default get_tier() returns for a missing row.
+    """
+
+    __tablename__ = "pincode_tiers"
+    __table_args__ = {"schema": "geo"}
+
+    pincode: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    population: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    population_grade: Mapped[str] = mapped_column(Text, nullable=False)
+    tier: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="4")
+    user_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    computed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    tier_changed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    method: Mapped[str] = mapped_column(Text, nullable=False, server_default="population")
+
+
+class PincodeTierHistory(UUIDv7PKMixin, Base):
+    """Append-only audit of tier changes (M4). created_at only - an
+    updated_at column on an immutable table would be a lie (0013 rule)."""
+
+    __tablename__ = "pincode_tier_history"
+    __table_args__ = {"schema": "geo"}
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.clock_timestamp(), nullable=False
+    )
+    pincode: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    old_tier: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    new_tier: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    old_method: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_method: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)

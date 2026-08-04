@@ -1,13 +1,22 @@
 # SPEC D04 — merge gates. Every job here is a required check on dev/main
-# (docs/runbooks/branch-protection.md). No path filters: a skipped required
-# check blocks the merge, and gates that sometimes don't run stop being gates.
+# (docs/runbooks/branch-protection.md). Runs on pull requests only: the
+# post-merge re-run on dev was dropped to fit the private-repo Actions budget
+# (2000 min/month) — the PR already tested the same tree, and staging image
+# builds moved to manual dispatch (deploy-staging.yml).
+#
+# Docs-only PRs skip the suite via paths-ignore. A skipped required check
+# would block the merge forever, so ci-docs.yml is the mandatory twin: same
+# job names, triggered on the inverse paths filter, passes instantly. If you
+# change the paths list below, change ci-docs.yml to match — the two lists
+# must stay mirror images or docs PRs hang on "expected" checks.
 # Removing or weakening a job is a visible diff in a protected workflow file.
 name: ci
 
 on:
   pull_request:
-  push:
-    branches: [dev, main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
 
 concurrency:
   group: ci-${{ github.ref }}

@@ -1,19 +1,21 @@
 """M5 migration 0033: lifecycle statuses, pricing columns, rate_card_versions."""
 
+from collections.abc import AsyncIterator
+
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import NullPool
 
 
 @pytest.fixture
-async def engine(database_url: str):
+async def engine(database_url: str) -> AsyncIterator[AsyncEngine]:
     eng = create_async_engine(database_url, poolclass=NullPool)
     yield eng
     await eng.dispose()
 
 
-async def test_campaign_lifecycle_statuses_accepted(engine) -> None:
+async def test_campaign_lifecycle_statuses_accepted(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         for status in ("pending_payment", "pending_moderation", "exhausted", "expired"):
             await conn.execute(
@@ -28,7 +30,7 @@ async def test_campaign_lifecycle_statuses_accepted(engine) -> None:
         await conn.execute(text("DELETE FROM ads.campaigns WHERE name = 'm5'"))
 
 
-async def test_campaign_bogus_status_rejected(engine) -> None:
+async def test_campaign_bogus_status_rejected(engine: AsyncEngine) -> None:
     from sqlalchemy.exc import IntegrityError
 
     async with engine.connect() as conn:
@@ -43,7 +45,7 @@ async def test_campaign_bogus_status_rejected(engine) -> None:
             )
 
 
-async def test_pricing_columns_exist_and_price_nonnegative(engine) -> None:
+async def test_pricing_columns_exist_and_price_nonnegative(engine: AsyncEngine) -> None:
     from sqlalchemy.exc import IntegrityError
 
     async with engine.connect() as conn:
@@ -74,7 +76,37 @@ async def test_pricing_columns_exist_and_price_nonnegative(engine) -> None:
             )
 
 
-async def test_rate_card_seeded_and_append_only(engine) -> None:
+async def test_price_subtotal_nonnegative(engine: AsyncEngine) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    async with engine.connect() as conn:
+        with pytest.raises(IntegrityError):
+            await conn.execute(
+                text(
+                    "INSERT INTO ads.campaigns"
+                    " (id, advertiser_business_id, name, status, flight_start, flight_end,"
+                    " price_subtotal_paise) VALUES (gen_random_uuid(), gen_random_uuid(), 'm5',"
+                    " 'draft', current_date, current_date + 7, -1)"
+                )
+            )
+
+
+async def test_price_gst_nonnegative(engine: AsyncEngine) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    async with engine.connect() as conn:
+        with pytest.raises(IntegrityError):
+            await conn.execute(
+                text(
+                    "INSERT INTO ads.campaigns"
+                    " (id, advertiser_business_id, name, status, flight_start, flight_end,"
+                    " price_gst_paise) VALUES (gen_random_uuid(), gen_random_uuid(), 'm5',"
+                    " 'draft', current_date, current_date + 7, -1)"
+                )
+            )
+
+
+async def test_rate_card_seeded_and_append_only(engine: AsyncEngine) -> None:
     from sqlalchemy.exc import ProgrammingError
 
     async with engine.connect() as conn:

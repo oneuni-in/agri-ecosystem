@@ -32,26 +32,22 @@ overrides:
   # sharp <0.35.0 (GHSA-f88m-g3jw-g9cj, inherited libvips CVEs) via next's
   # image optimizer - 0.35 is the patched line, sharp keeps its allowBuilds
   # entry above so the native binary refetches on install.
-  fast-uri: ">=3.1.4 <4"
+  fast-uri: ">=3.1.5 <4"
   sharp: ">=0.35.0 <0.36"
+  # ip-address <=10.3.0 (high, Address4 leading-zero octet confusion) via
+  # pac-resolver/proxy-agent under @lhci/cli - dev tooling only, patch is
+  # within-major.
+  ip-address: ">=10.3.1 <11"
   # replacement ranges stay within-major: an open ">=" floor lets pnpm pick
   # the newest major (minimatch@3 + brace-expansion@4 = "expand is not a
-  # function" at eslint startup)
-  "brace-expansion@1": ">=1.1.16 <2"
-  "brace-expansion@2": ">=2.1.2 <3"
+  # function" at eslint startup). 2026-08 advisory finally shipped per-major
+  # brace-expansion backports (1.1.18 / 2.1.4 / 5.0.9) - floors raised to
+  # them.
+  "brace-expansion@1": ">=1.1.18 <2"
+  "brace-expansion@2": ">=2.1.4 <3"
+  "brace-expansion@5": ">=5.0.9 <6"
   "js-yaml@4": ">=4.3.0 <5"
   # 8.5.18 patches GHSA-r28c-9q8g-f849 (high, sourceMappingURL path traversal).
   postcss: ">=8.5.18 <9"
   body-parser: ">=1.20.6 <2"
 
-# GHSA-mh99-v99m-4gvg (brace-expansion DoS, high) declares every version
-# <=5.0.7 vulnerable with 5.0.8 as the ONLY patched release - no 1.x/2.x
-# backports exist at time of writing. Forcing 5.x into the minimatch chains
-# is exactly the cross-major breakage documented above ("expand is not a
-# function"), so the advisory is ignored instead of floored. The DoS needs
-# attacker-controlled glob patterns; none of our minimatch consumers
-# (eslint/glob/rimraf/lhci) expand untrusted input. Revisit and replace with
-# per-major floors the moment backports land.
-auditConfig:
-  ignoreGhsas:
-    - GHSA-mh99-v99m-4gvg

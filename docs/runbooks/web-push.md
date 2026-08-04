@@ -115,6 +115,38 @@ card un-hides, the SW registers and activates, and the driver switches to
 delivered notification need a REAL browser profile. Do that step by hand once
 per environment.
 
+### Scripted real-browser verification (local dev)
+
+**Verified end to end on 2026-08-04** (subscription row + real
+`lead.responded` → pywebpush → FCM → notification displayed). The whole flow
+is scripted — `e2e/push-verification.spec.ts` (skipped unless opted in, never
+CI):
+
+```bash
+PUSH_VERIFY=1 npx playwright test e2e/push-verification.spec.ts \
+  --config e2e/playwright.config.ts --project=desktop
+```
+
+Hard-won traps, all hit on the first runs:
+
+- **Incognito blocks the Push API.** Every Playwright `browser.newContext()`
+  is incognito, and Chrome deliberately disables push there
+  (crbug.com/41124656) — `subscribe()` aborts with a misleading "permission
+  denied". The spec uses `launchPersistentContext` + `channel: "chrome"`;
+  bundled Chromium lacks push-service credentials entirely.
+- **Stale docker workers eat the send.** `agri-dev-worker-1`/`agri-dev-api-1`
+  consume the same Redis stream as the e2e API's in-process worker. An image
+  built before D28 has no `pywebpush` → the delivery fails
+  `ModuleNotFoundError` while your up-to-date worker never sees the event.
+  Rebuild the dev images (`docker compose -f docker-compose.dev.yml build`)
+  or stop those containers while verifying.
+- Contact-inquiry payloads are `{"message": …}` (`ContactPayloadIn`), and
+  `randomPhone()` is bare-10-digit while `apiAs()` wants E.164.
+
+Still manual per NEW environment (staging/prod): the same two-minute check —
+the spec only proves dev; `NEXT_PUBLIC_VAPID_PUBLIC_KEY` must be present at
+`next build` time in the deploy pipeline.
+
 ## Guard rails already in place
 
 - **SSRF allowlist** (`modules/notify/push_endpoints.py`): subscription

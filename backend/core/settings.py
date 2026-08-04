@@ -136,6 +136,7 @@ class Settings(BaseSettings):
     dunning_retry_hours: str = "24,72,168"
     dunning_grace_days: int = 7
     billing_worker_enabled: bool = True
+    gst_rate_bp: int = 1800  # M5 GST on ad sales, basis points
 
     # D21 ads
     ads_worker_enabled: bool = True

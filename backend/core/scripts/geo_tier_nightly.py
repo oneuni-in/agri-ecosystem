@@ -9,11 +9,14 @@ GEO_TIER_JOB_ENABLED=false. D12 events/cron pattern - no new scheduler.
 import asyncio
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
-from modules.identity.user_counts import verified_user_counts_by_pincode
-from settings import get_settings
-from shared.db import get_sessionmaker
-from shared.geo.tiers import TierSanityError, classify_tiers
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from modules.identity.user_counts import verified_user_counts_by_pincode  # noqa: E402
+from settings import get_settings  # noqa: E402
+from shared.db import get_sessionmaker  # noqa: E402
+from shared.geo.tiers import TierSanityError, classify_tiers  # noqa: E402
 
 
 async def _main() -> int:

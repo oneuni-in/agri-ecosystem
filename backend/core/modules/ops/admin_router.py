@@ -7,7 +7,8 @@ commit, then best-effort publish. An event for a rolled-back decision must
 never exist; a Redis blip must never roll back a decision (D16 contract).
 
 Role gates: moderation = staff|super_admin; flags = super_admin only (a flag
-flip is a business-level act - see Task 11). Never log request bodies."""
+flip is a business-level act - see Task 11); pincode-tier lookup/override =
+staff|super_admin. Never log request bodies."""
 
 import uuid
 from datetime import UTC, datetime
@@ -269,6 +270,8 @@ async def override_pincode_tier(
         session,
         action="geo.tier_override",
         actor_user_id=admin_id,
+        target_type="pincode_tier",
+        target_id=pincode,
         metadata={"pincode": pincode, "tier": body.tier},
         ip=request.client.host if request.client else None,
     )

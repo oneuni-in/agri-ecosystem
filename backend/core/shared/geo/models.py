@@ -76,7 +76,12 @@ class PincodeTier(UUIDv7PKMixin, TimestampMixin, Base):
 
 class PincodeTierHistory(UUIDv7PKMixin, Base):
     """Append-only audit of tier changes (M4). created_at only - an
-    updated_at column on an immutable table would be a lie (0013 rule)."""
+    updated_at column on an immutable table would be a lie (per 0013, which
+    itself uses func.now()). This table's created_at uses clock_timestamp()
+    instead of now(): a single classify_tiers() run inserts many history
+    rows in one transaction, and now() is frozen per-transaction, so every
+    row would get an identical timestamp; clock_timestamp() advances within
+    the transaction, giving each insert a distinct, orderable time."""
 
     __tablename__ = "pincode_tier_history"
     __table_args__ = {"schema": "geo"}

@@ -154,6 +154,8 @@ async def test_override_staff_200_writes_history_and_audit(
     assert len(audit_entries) == 1
     entry = audit_entries[0]
     assert entry.actor_user_id == ADMIN_ID
+    assert entry.target_type == "pincode_tier"
+    assert entry.target_id == "641001"
     assert entry.meta == {"pincode": "641001", "tier": 1}
 
 

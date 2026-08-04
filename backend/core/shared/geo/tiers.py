@@ -205,7 +205,9 @@ async def override_tier(
 ) -> PincodeTier:
     """Admin escape hatch (spec: exists, nothing REQUIRES it). Bypasses
     promote-only; note a demoting override is re-promoted by the next
-    nightly run - durable overrides are a v2 concern."""
+    nightly run - durable overrides are a v2 concern. Overriding to the
+    CURRENT tier is a no-op here (no history row); the caller (admin_router's
+    override route) still writes its audit entry regardless."""
     row = await get_pincode_tier_row(session, pincode)
     if row is None:
         raise UnknownPincodeTierError(pincode)

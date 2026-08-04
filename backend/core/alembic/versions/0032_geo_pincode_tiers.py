@@ -89,7 +89,12 @@ def upgrade() -> None:
     op.create_table(
         "pincode_tier_history",
         pk_column(),
-        # append-only: created_at only (0013 rule)
+        # append-only: created_at only, no updated_at (per 0013, which itself
+        # uses func.now()). clock_timestamp() instead of now() here because a
+        # single classify_tiers() run bulk-inserts many history rows in one
+        # transaction - now() is frozen per-transaction and would stamp them
+        # all identically, while clock_timestamp() advances per-call and
+        # gives each insert a distinct, orderable time.
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

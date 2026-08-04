@@ -1,12 +1,13 @@
-# SPEC D04-D/E: on merge to dev, build+push all images tagged by sha (auto),
-# then deploy to staging ONLY after manual approval (the `staging` GitHub
-# environment requires a reviewer — configured in repo settings, see
-# docs/runbooks/staging-deploy.md). No auto-deploy; prod does not exist yet.
+# SPEC D04-D/E, amended for the Actions-minutes budget: build+push of all
+# images (tagged by sha) now runs ONLY on manual dispatch — the per-merge
+# auto-build burned ~6 image builds per merge while staging deploys are
+# deferred and owner-driven anyway. To deploy: Actions → deploy-staging →
+# "Run workflow" on dev; the deploy job still waits for manual approval
+# (the `staging` GitHub environment requires a reviewer — configured in repo
+# settings, see docs/runbooks/staging-deploy.md). Prod does not exist yet.
 name: deploy-staging
 
 on:
-  push:
-    branches: [dev]
   workflow_dispatch: {}
 
 concurrency:

@@ -15,6 +15,7 @@ import { ApiError, getJson } from "@/lib/api";
 import { ModerationQueue, type ModItem } from "@/components/moderation-queue";
 
 import { FlagsPanel } from "./flags-panel";
+import { PincodeTiersPanel } from "./pincode-tiers-panel";
 
 const TYPES = [
   { key: "claim", label: "Claims" },
@@ -227,6 +228,7 @@ export function OpsManager() {
         onDecided={handleDecided}
       />
       <FlagsPanel />
+      <PincodeTiersPanel />
     </main>
   );
 }

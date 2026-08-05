@@ -18,7 +18,7 @@ const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 // Only these top-level billing paths are user-facing; everything else
 // (webhook/razorpay, admin/*, ...) must never be reachable through the
 // browser-authenticated proxy.
-const ALLOWED_FIRST_SEGMENTS = new Set(["subscription", "subscriptions", "invoices"]);
+const ALLOWED_FIRST_SEGMENTS = new Set(["subscription", "subscriptions", "invoices", "ad-orders"]);
 
 async function forward(
   req: NextRequest,

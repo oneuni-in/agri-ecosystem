@@ -14,7 +14,7 @@ from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
 from modules.ads.selfserve_router import router as ads_selfserve_router
-from modules.ads.service import pause_active_campaigns
+from modules.ads.service import campaign_billing_ref, pause_active_campaigns
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.router import router as billing_router
@@ -55,6 +55,7 @@ from shared.cache import check_cache, close_redis
 from shared.db import check_database
 from shared.lookups import (
     register_business_resolver,
+    register_campaign_billing_resolver,
     register_campaign_pauser,
     register_campaign_payment_hook,
     register_contact_resolver,
@@ -196,6 +197,10 @@ def create_app() -> FastAPI:
     # seam); ads pause an advertiser's campaigns when directory disables it.
     register_servable_resolver(business_is_servable)
     register_campaign_pauser(pause_active_campaigns)
+    # M5 Task 9: billing's checkout route (modules/billing/ad_orders.py)
+    # reads a campaign's price snapshot and ownership through this resolver
+    # - the same dependency-inversion seam as the pauser above.
+    register_campaign_billing_resolver(campaign_billing_ref)
     # M5 Task 7: billing's webhook (Task 10) tells ads about paid/refunded
     # events through this hook - the payment half of the activation gate.
     register_campaign_payment_hook(ads_lifecycle.on_payment_event)

@@ -20,13 +20,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.billing import razorpay_client
-from modules.billing.models import Invoice, PaymentEvent, Subscription
+from modules.billing.ad_orders import create_ad_order
+from modules.billing.models import AdOrder, Invoice, PaymentEvent, Subscription
 from modules.billing.sanitize import scrub_payload
 from modules.billing.schemas import (
+    AdOrderCreateIn,
+    AdOrderOut,
+    AdOrderPage,
     InvoicePage,
     MySubscriptionOut,
     SubscriptionCreateIn,
     SubscriptionCreateOut,
+    ad_order_out,
     invoice_out,
     subscription_out,
     tier_list,
@@ -36,7 +41,7 @@ from modules.billing.tiers import TIERS, plan_id_for
 from settings import get_settings
 from shared.db import get_session
 from shared.flags import flag_enabled
-from shared.lookups import resolve_business, resolve_owned_businesses
+from shared.lookups import resolve_business, resolve_campaign_billing, resolve_owned_businesses
 from shared.metrics import BILLING_WEBHOOK_REJECTED
 from shared.pagination import InvalidCursorError, paginate
 from shared.security import SecureRouter
@@ -221,4 +226,52 @@ async def my_invoices(
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return InvoicePage(
         items=[invoice_out(invoice) for invoice in page.items], next_cursor=page.next_cursor
+    )
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 9: ad-order checkout (advertiser self-serve campaigns)
+
+
+@router.post("/ad-orders", status_code=201)
+async def create_order(body: AdOrderCreateIn, request: Request, session: SessionDep) -> AdOrderOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    order, checkout_url = await create_ad_order(
+        session,
+        user_id=user_id,
+        campaign_id=body.campaign_id,
+        buyer_gstin=body.buyer_gstin,
+        client=razorpay_client.get_client(),
+        settings=get_settings(),
+    )
+    await session.commit()
+    return ad_order_out(order, checkout_url=checkout_url)
+
+
+@router.get("/ad-orders")
+async def list_orders(
+    campaign_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: int = 20,
+) -> AdOrderPage:
+    """Owner-scoped, newest-first - the wizard's post-checkout status poll.
+    Not-yours (or unknown campaign) is 404, never 403 (IDOR: no oracle)."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    ref = await resolve_campaign_billing(session, campaign_id)
+    if ref is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    owner = await resolve_business(session, ref.business_id)
+    if owner is None or owner.owner_user_id != user_id:
+        raise HTTPException(status_code=404, detail="Not Found")
+    query = select(AdOrder).where(AdOrder.campaign_id == campaign_id)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return AdOrderPage(
+        items=[ad_order_out(order) for order in page.items], next_cursor=page.next_cursor
     )

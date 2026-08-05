@@ -1,13 +1,17 @@
-"""Pydantic shapes for the billing routes (D20). Amounts stay integer paise
-end-to-end; the console formats for display."""
+"""Pydantic shapes for the billing routes (D20/M5). Amounts stay integer
+paise end-to-end; the console formats for display."""
 
+import re
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from modules.billing.models import Invoice, Subscription
+from modules.billing.models import AdOrder, Invoice, Subscription
 from modules.billing.tiers import TIERS
+
+_GSTIN_RE = re.compile(r"^[0-9A-Z]{15}$")
 
 
 class SubscriptionCreateIn(BaseModel):
@@ -57,6 +61,43 @@ class InvoiceOut(BaseModel):
 class InvoicePage(BaseModel):
     items: list[InvoiceOut]
     next_cursor: str | None
+
+
+class AdOrderCreateIn(BaseModel):
+    """extra="forbid" is the wire-contract price-tampering guard: a client
+    that sends `total_paise` (or any other amount field) is rejected
+    outright rather than silently ignored - modules/billing/ad_orders.py
+    is the ONLY source of the charged amount."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    campaign_id: uuid.UUID
+    buyer_gstin: Annotated[str, Field(pattern=_GSTIN_RE.pattern)] | None = None
+
+
+class AdOrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    status: str
+    total_paise: int
+    checkout_url: str | None = None
+
+
+class AdOrderPage(BaseModel):
+    items: list[AdOrderOut]
+    next_cursor: str | None
+
+
+def ad_order_out(order: AdOrder, *, checkout_url: str | None = None) -> AdOrderOut:
+    return AdOrderOut(
+        id=order.id,
+        campaign_id=order.campaign_id,
+        status=order.status,
+        total_paise=order.total_paise,
+        checkout_url=checkout_url,
+    )
 
 
 def tier_list() -> list[TierOut]:

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.ads.models import Campaign, Creative, DeliveryDecision, Placement
 from settings import get_settings
 from shared.cache import get_redis
-from shared.lookups import is_servable
+from shared.lookups import CampaignBillingRef, is_servable
 
 SLOT_KEYS: frozenset[str] = frozenset(
     {
@@ -288,6 +288,30 @@ async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) 
         campaign.status = "paused"
     await session.flush()
     return [str(campaign.id) for campaign in campaigns]
+
+
+async def campaign_billing_ref(
+    session: AsyncSession, campaign_id: uuid.UUID
+) -> CampaignBillingRef | None:
+    """The registered CampaignBillingResolver (shared.lookups, Task 5's seam
+    for M5 Task 9): billing's checkout route calls this - never
+    modules.ads.models.Campaign - to price and own-check a checkout. A
+    simple column read/mapping only; billing never re-derives the GST split,
+    it charges exactly what ads already priced and stored."""
+    campaign = await session.get(Campaign, campaign_id)
+    if campaign is None:
+        return None
+    return CampaignBillingRef(
+        id=campaign.id,
+        business_id=campaign.advertiser_business_id,
+        name=campaign.name,
+        status=campaign.status,
+        pricing_model=campaign.pricing_model,
+        price_paise=campaign.price_paise,
+        subtotal_paise=campaign.price_subtotal_paise,
+        gst_paise=campaign.price_gst_paise,
+        paid_at=campaign.paid_at,
+    )
 
 
 def pick_weighted(

@@ -15,7 +15,7 @@ reportable, because this ledger is money already recognized as revenue."""
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.billing.models import AdOrder, BillingLedgerEntry, Invoice, Subscription
@@ -128,7 +128,17 @@ async def reconcile_ad_orders(session: AsyncSession, *, client: Any, since: date
     are still logged/counted under distinct event names so ops can tell a
     real mismatch apart from "we couldn't check".
 
-    Scope: every ad_order with `updated_at >= since` in:
+    Scope: every ad_order with `updated_at >= since` OR a ledger row of its
+    own `created_at >= since` (fast-follow fix - a partial refund appends a
+    ledger row but the applier never mutates the AdOrder row itself: status
+    stays `paid`, nothing is set, so plain SQLAlchemy `onupdate` never fires
+    and `updated_at` never bumps. Without the ledger-side OR, that order
+    would fall out of the reconcile window forever the moment its
+    `updated_at` ages past `--days`, even though fresh ledger activity just
+    landed on it. A full refund doesn't have this hole - the status flip to
+    `refunded` is itself a column write that bumps `updated_at` - but
+    scoping via ledger activity for ALL orders, not just the partial-refund
+    case, is simpler than special-casing which mutations count) - in:
     - status paid|refunded (must have been captured): ledger sum for the
       order must equal `payment.amount - payment.amount_refunded` exactly,
       AND `payment.amount` must equal the order's own `total_paise` (catches
@@ -147,11 +157,18 @@ async def reconcile_ad_orders(session: AsyncSession, *, client: Any, since: date
     attributable to an order."""
     problems = 0
 
+    ledger_touched_since = exists(
+        select(BillingLedgerEntry.id).where(
+            BillingLedgerEntry.order_id == AdOrder.id,
+            BillingLedgerEntry.created_at >= since,
+        )
+    )
+
     live_orders = (
         await session.scalars(
             select(AdOrder).where(
                 AdOrder.status.in_(("paid", "refunded")),
-                AdOrder.updated_at >= since,
+                or_(AdOrder.updated_at >= since, ledger_touched_since),
                 AdOrder.razorpay_payment_id.is_not(None),
             )
         )
@@ -222,7 +239,7 @@ async def reconcile_ad_orders(session: AsyncSession, *, client: Any, since: date
         await session.scalars(
             select(AdOrder).where(
                 AdOrder.status == "failed",
-                AdOrder.updated_at >= since,
+                or_(AdOrder.updated_at >= since, ledger_touched_since),
                 AdOrder.razorpay_payment_id.is_not(None),
             )
         )

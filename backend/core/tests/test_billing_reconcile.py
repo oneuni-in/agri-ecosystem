@@ -451,16 +451,20 @@ async def test_ad_reconcile_flags_orphan_ledger_entry(
 
 
 async def test_ad_reconcile_since_window_filters_old_orders(db_session: AsyncSession) -> None:
+    """An order genuinely predates the window - both its own `updated_at`
+    AND its ledger row's `created_at` are before `since` - so it must stay
+    out of scope. (Merely backdating `updated_at` on a fresh order does NOT
+    exercise this: the ledger row itself still has a fresh `created_at` and
+    the widened `ledger_touched_since` OR re-admits it - that re-entry
+    behavior is the fix under test in
+    test_ad_reconcile_reenters_scope_via_ledger_activity_after_partial_refund.
+    Here the cutoff is placed strictly AFTER the order's real creation
+    instant instead, which is the only way to genuinely exclude it.)"""
     await _enable_billing(db_session)
     business = await _seed_business(db_session)
     campaign = await _seed_campaign(db_session, business.id)
     order = await _seed_ad_order(db_session, campaign, business.id, plink_id="plink_old_1")
     await _pay_order(db_session, order, "pay_old_1", 118_000)
-    await db_session.execute(
-        text("UPDATE billing.ad_orders SET updated_at = :old WHERE id = :id"),
-        {"old": NOW - timedelta(days=30), "id": order.id},
-    )
-    await db_session.flush()
 
     fake = FakeRazorpay()
     # deliberately wrong - if the order were in scope this would be drift
@@ -470,6 +474,61 @@ async def test_ad_reconcile_since_window_filters_old_orders(db_session: AsyncSes
         "amount": 1,
         "amount_refunded": 0,
     }
-    since = NOW - timedelta(days=3)
+    since = datetime.now(UTC) + timedelta(minutes=1)
     assert await reconcile_ad_orders(db_session, client=fake, since=since) == 0
     assert fake.calls == []  # filtered out before any fetch_payment call
+
+
+async def test_ad_reconcile_reenters_scope_via_ledger_activity_after_partial_refund(
+    db_session: AsyncSession,
+) -> None:
+    """Fast-follow (reviewer Critical): apply_refund_processed's partial-
+    refund path appends a ledger row but never mutates the AdOrder row
+    itself (status stays `paid`, no column is written) - so `updated_at`
+    never bumps. An order whose `updated_at` has already aged past the
+    reconcile window, but which THEN receives a partial refund, must still
+    re-enter scope on ledger activity alone - otherwise later drift on that
+    order (e.g. a second, tampered refund) would be permanently unchecked.
+
+    Backdating `updated_at` is a plain UPDATE on `billing.ad_orders` - that
+    column carries no append-only trigger (only `ledger_entries` does) and
+    app_rt already has UPDATE grant on ad_orders (the applier itself flips
+    `order.status` this way) - so this runs on the ordinary `db_session`,
+    not a separate admin connection. A separate connection couldn't see
+    this row anyway: db_session's fixture never commits until the test's
+    outer rollback, so a second connection would find nothing to update."""
+    await _enable_billing(db_session)
+    business = await _seed_business(db_session)
+    campaign = await _seed_campaign(db_session, business.id)
+    order = await _seed_ad_order(db_session, campaign, business.id, plink_id="plink_reentry_1")
+    await _pay_order(db_session, order, "pay_reentry_1", 118_000)
+
+    await db_session.execute(
+        text("UPDATE billing.ad_orders SET updated_at = :old WHERE id = :id"),
+        {"old": NOW - timedelta(days=30), "id": order.id},
+    )
+    await db_session.flush()
+
+    # a partial refund lands AFTER the order aged out - per the bug report,
+    # this does NOT touch the order row itself.
+    await _refund_order(db_session, order, "rfnd_reentry_1", 40_000)
+    await db_session.refresh(order)
+    assert order.status == "paid"  # partial - unchanged
+    assert order.updated_at < NOW - timedelta(days=3)  # still stale: confirms the hole exists
+
+    fake = FakeRazorpay()
+    fake.payments["pay_reentry_1"] = {
+        "id": "pay_reentry_1",
+        "status": "captured",
+        "amount": 118_000,
+        "amount_refunded": 40_000,
+    }
+    since = NOW - timedelta(days=3)
+    assert await reconcile_ad_orders(db_session, client=fake, since=since) == 0
+    assert ("fetch_payment", "pay_reentry_1") in fake.calls  # picked up despite stale updated_at
+
+    # tamper: Razorpay's reported amount_refunded now disagrees with what
+    # was actually refunded - must surface as drift, proving the order stays
+    # reachable for future reconcile runs too, not just this one.
+    fake.payments["pay_reentry_1"]["amount_refunded"] = 1_000
+    assert await reconcile_ad_orders(db_session, client=fake, since=since) == 1

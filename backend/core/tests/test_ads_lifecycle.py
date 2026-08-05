@@ -77,7 +77,10 @@ async def test_request_checkout_non_draft_raises_not_payable(db_session: AsyncSe
     assert exc_info.value.code == "not_payable"
 
 
-async def test_request_checkout_unpriced_raises_no_creatives(db_session: AsyncSession) -> None:
+async def test_request_checkout_unpriced_raises_not_priced(db_session: AsyncSession) -> None:
+    """price_paise IS NULL is a distinct failure from "no creatives" - a
+    house/admin campaign accidentally routed through checkout, say - so it
+    gets its own code rather than the misleading "no_creatives"."""
     campaign = _campaign(price_paise=None, pricing_model=None, rate_card_version=None)
     db_session.add(campaign)
     await db_session.flush()
@@ -85,7 +88,7 @@ async def test_request_checkout_unpriced_raises_no_creatives(db_session: AsyncSe
 
     with pytest.raises(lifecycle.LifecycleError) as exc_info:
         await lifecycle.request_checkout(db_session, campaign)
-    assert exc_info.value.code == "no_creatives"
+    assert exc_info.value.code == "not_priced"
 
 
 async def test_request_checkout_no_creatives_raises_no_creatives(db_session: AsyncSession) -> None:
@@ -189,6 +192,23 @@ async def test_on_payment_event_paid_with_pending_creative_stops_at_pending_mode
     await lifecycle.on_payment_event(db_session, campaign.id, "paid")
     assert campaign.paid_at is not None
     assert campaign.status == "pending_moderation"
+
+
+async def test_on_payment_event_paid_on_paused_campaign_leaves_it_paused(
+    db_session: AsyncSession,
+) -> None:
+    """THREAT: a late/duplicate "paid" webhook must not resurrect an
+    advertiser- or enforcement-paused campaign. maybe_activate's
+    _ACTIVATABLE_FROM includes "paused" for the explicit resume ROUTE only -
+    the payment webhook path must never reach into it."""
+    campaign = _campaign(status="paused", paid_at=None)
+    db_session.add(campaign)
+    await db_session.flush()
+    await _creative(db_session, campaign, "approved")
+
+    await lifecycle.on_payment_event(db_session, campaign.id, "paid")
+    assert campaign.paid_at is not None  # the payment fact is still recorded
+    assert campaign.status == "paused"  # but it does not resurrect the campaign
 
 
 async def test_on_payment_event_unknown_campaign_is_a_silent_noop(
@@ -393,3 +413,27 @@ async def test_sweep_lifecycle_prefers_expired_over_exhausted(db_session: AsyncS
     assert changed == 1
     await db_session.refresh(both)
     assert both.status == "expired"
+
+
+async def test_sweep_lifecycle_recovers_stranded_paid_and_approved_campaign(
+    db_session: AsyncSession,
+) -> None:
+    """Backstop for the maybe_activate race (Task 7 reviewer finding #1):
+    directly simulates a campaign that is fully paid and approved but never
+    got flipped to active (e.g. stranded by the pre-fix race, or a manual DB
+    fixup) - the next worker tick must recover it rather than leaving it
+    unservable forever with no advertiser-visible recovery path."""
+    stranded = _campaign(status="pending_moderation", paid_at=datetime.now(UTC))
+    not_yet_paid = _campaign(status="pending_moderation", paid_at=None)
+    db_session.add_all([stranded, not_yet_paid])
+    await db_session.flush()
+    await _creative(db_session, stranded, "approved")
+    await _creative(db_session, not_yet_paid, "approved")
+
+    changed = await lifecycle.sweep_lifecycle(db_session, today=TODAY)
+    assert changed == 1
+
+    await db_session.refresh(stranded)
+    await db_session.refresh(not_yet_paid)
+    assert stranded.status == "active"
+    assert not_yet_paid.status == "pending_moderation"  # still unpaid: not recovered

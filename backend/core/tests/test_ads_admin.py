@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.ads.models import Campaign, Click, Impression
+from modules.ads.models import Campaign, Click, Creative, Impression
 from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
@@ -169,12 +169,15 @@ async def test_campaign_status_flip(api: httpx.AsyncClient) -> None:
     assert r.json()["status"] == "active"
 
 
-async def test_admin_cannot_activate_unpaid_priced_campaign(
+async def test_admin_cannot_activate_unpaid_or_unapproved_priced_campaign(
     api: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     """M5 Task 7 (decision 14): the payment-AND-moderation activation gate
     applies to staff-driven transitions too, not just self-serve's own
-    routes - a priced campaign that hasn't paid must never be force-activated."""
+    routes - a priced campaign that hasn't paid, or hasn't cleared
+    moderation, must never be force-activated. Payment is checked first
+    (payment_required); once paid, moderation is checked
+    (moderation_required)."""
     campaign_id = await _create_campaign(api)
     db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
     assert db_campaign is not None
@@ -189,7 +192,8 @@ async def test_admin_cannot_activate_unpaid_priced_campaign(
     assert r.status_code == 422
     assert r.json()["detail"] == "payment_required"
 
-    # paying it off clears the gate
+    # paying it off clears the payment half of the gate, but there is still
+    # no approved creative
     db_campaign.paid_at = datetime.now(UTC)
     await db_session.flush()
     r2 = await api.post(
@@ -197,8 +201,28 @@ async def test_admin_cannot_activate_unpaid_priced_campaign(
         json={"status": "active"},
         headers=_as(ADMIN, "staff"),
     )
-    assert r2.status_code == 200, r2.text
-    assert r2.json()["status"] == "active"
+    assert r2.status_code == 422
+    assert r2.json()["detail"] == "moderation_required"
+
+    # approving a creative clears the moderation half too
+    creative = Creative(
+        campaign_id=db_campaign.id,
+        media_keys=[],
+        copy={"en": {"title": "t", "body": "b"}},
+        target_url="https://example.com",
+    )
+    db_session.add(creative)
+    await db_session.flush()
+    creative.moderation_status = "approved"
+    await db_session.flush()
+
+    r3 = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["status"] == "active"
 
 
 async def test_admin_activates_unpriced_house_campaign_freely(

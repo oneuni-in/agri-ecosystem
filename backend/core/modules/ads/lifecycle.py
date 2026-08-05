@@ -42,8 +42,13 @@ class LifecycleError(Exception):
         self.code = code
 
 
-async def _creative_counts(session: AsyncSession, campaign_id: uuid.UUID) -> tuple[int, int]:
-    """(approved_count, pending_count) for a campaign's creatives."""
+async def creative_moderation_counts(
+    session: AsyncSession, campaign_id: uuid.UUID
+) -> tuple[int, int]:
+    """(approved_count, pending_count) for a campaign's creatives. Public -
+    modules/ads/admin_router.py's status guard (decision 14) reuses this to
+    apply the same moderation half of the activation gate to staff-driven
+    transitions, not just maybe_activate's own."""
     rows = (
         await session.execute(
             select(Creative.moderation_status, func.count())
@@ -61,10 +66,12 @@ async def request_checkout(session: AsyncSession, campaign: Campaign) -> None:
     ever talks to Razorpay."""
     if campaign.status not in PAYABLE_FROM:
         raise LifecycleError("not_payable")
+    if campaign.price_paise is None:
+        raise LifecycleError("not_priced")
     creative_count = await session.scalar(
         select(func.count()).select_from(Creative).where(Creative.campaign_id == campaign.id)
     )
-    if campaign.price_paise is None or not creative_count:
+    if not creative_count:
         raise LifecycleError("no_creatives")
     campaign.status = "pending_payment"
     await session.flush()
@@ -74,12 +81,26 @@ async def maybe_activate(session: AsyncSession, campaign: Campaign) -> bool:
     """-> active iff paid_at is set AND >=1 approved creative AND 0 pending
     creatives. Only ever transitions INTO active from pending_moderation
     (payment->moderation path) or paused (advertiser resume path); every
-    other status is left untouched. Returns whether it activated."""
-    if campaign.status not in _ACTIVATABLE_FROM:
+    other status is left untouched. Returns whether it activated.
+
+    THREAT (race): a concurrent webhook-paid + last-creative-approve can
+    each read the other's precondition as unmet and both commit, stranding
+    a paid+fully-approved campaign in pending_moderation forever. Closed by
+    taking a row lock on the campaign here, under BOTH callers (the
+    moderation approve path previously never touched the campaign row at
+    all when the gate failed, so nothing serialized it against a
+    concurrent payment) - the conjunction is now always evaluated against a
+    locked, freshly-read row. sweep_lifecycle's recovery pass is the
+    backstop for any campaign that still ends up stranded (e.g. from code
+    predating this lock)."""
+    locked = await session.scalar(
+        select(Campaign).where(Campaign.id == campaign.id).with_for_update()
+    )
+    if locked is None or locked.status not in _ACTIVATABLE_FROM:
         return False
-    approved, pending = await _creative_counts(session, campaign.id)
-    if campaign.paid_at is not None and approved >= 1 and pending == 0:
-        campaign.status = "active"
+    approved, pending = await creative_moderation_counts(session, locked.id)
+    if locked.paid_at is not None and approved >= 1 and pending == 0:
+        locked.status = "active"
         await session.flush()
         return True
     return False
@@ -102,7 +123,13 @@ async def on_payment_event(session: AsyncSession, campaign_id: uuid.UUID, event:
         if campaign.status == "pending_payment":
             campaign.status = "pending_moderation"
         await session.flush()
-        await maybe_activate(session, campaign)
+        # Only ever try to activate off the payment->moderation path. paused
+        # is in _ACTIVATABLE_FROM for the RESUME route (an explicit advertiser
+        # action), not for a payment webhook - otherwise a late/duplicate
+        # "paid" event could resurrect an advertiser- or enforcement-paused
+        # campaign behind the owner's back.
+        if campaign.status == "pending_moderation":
+            await maybe_activate(session, campaign)
         return
 
     if event == "refunded":
@@ -156,7 +183,14 @@ async def sweep_lifecycle(session: AsyncSession, *, today: date) -> int:
     """Durable UPDATE of the two derived states (worker tick, 6h cadence).
     Order matters: the expiry sweep runs first so a campaign that is BOTH
     past its flight and budget-exhausted lands on "expired" (matching
-    display_status's own precedence), not "exhausted"."""
+    display_status's own precedence), not "exhausted".
+
+    Also runs a recovery pass over any campaign stranded in
+    pending_moderation with paid_at already set - the backstop for
+    maybe_activate's row-locked conjunction check (see its docstring): a
+    campaign that somehow still slipped through - e.g. a bug or a manual
+    DB fixup - gets a chance to activate on the next tick instead of
+    sitting unservable forever with no advertiser-visible recovery path."""
     expired = cast(
         CursorResult[Any],
         await session.execute(
@@ -177,5 +211,14 @@ async def sweep_lifecycle(session: AsyncSession, *, today: date) -> int:
             .values(status="exhausted")
         ),
     )
+    stranded = (
+        await session.scalars(
+            select(Campaign).where(
+                Campaign.status == "pending_moderation",
+                Campaign.paid_at.is_not(None),
+            )
+        )
+    ).all()
+    recovered = sum([await maybe_activate(session, campaign) for campaign in stranded])
     await session.flush()
-    return (expired.rowcount or 0) + (exhausted.rowcount or 0)
+    return (expired.rowcount or 0) + (exhausted.rowcount or 0) + recovered

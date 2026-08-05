@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.ads.models import Campaign, Creative
 from modules.directory import service as directory_service
 from shared.flags import FeatureFlag, reset_flag_cache
+from shared.lookups import register_servable_resolver
 from tests.d26_helpers import _as, api  # noqa: F401 (pytest fixture injection)
 
 pytestmark = pytest.mark.asyncio
@@ -521,6 +522,33 @@ async def test_resume_not_paused_409(
     resp = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
     assert resp.status_code == 409
     assert resp.json()["detail"] == "not_paused"
+
+
+async def test_resume_business_not_servable_409(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """THREAT: an owner must not be able to undo a staff enforcement pause
+    (pause_campaigns_for_business) just by hitting resume - is_servable is
+    the same fail-closed M1.5.E check the serve path uses."""
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]), status="approved")
+
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    db_campaign.status = "paused"
+    db_campaign.paid_at = datetime.now(UTC)
+    await session.flush()
+
+    async def _not_servable(session: AsyncSession, business_id: uuid.UUID) -> bool:
+        return False
+
+    register_servable_resolver(_not_servable)  # after create_app(): D20 pattern
+
+    resp = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "business_not_servable"
 
 
 async def test_lifecycle_routes_404_for_foreign_owner(

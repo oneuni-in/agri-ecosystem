@@ -15,7 +15,7 @@ Sections below, in the order Tasks 7/8/13 slot into:
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request
@@ -38,7 +38,7 @@ from modules.ads.service import SLOT_KEYS, GeoTargetIn
 from settings import get_settings
 from shared.db import get_session
 from shared.flags import flag_enabled
-from shared.lookups import resolve_business, resolve_owned_businesses
+from shared.lookups import is_servable, resolve_business, resolve_owned_businesses
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, Page, paginate
 from shared.security import SecureRouter
 
@@ -138,7 +138,7 @@ def _campaign_out(
         advertiser_business_id=campaign.advertiser_business_id,
         name=campaign.name,
         status=campaign.status,
-        display_status=lifecycle.display_status(campaign, today=date.today()),
+        display_status=lifecycle.display_status(campaign, today=datetime.now(UTC).date()),
         pricing_model=campaign.pricing_model,
         price_paise=campaign.price_paise,
         price_subtotal_paise=campaign.price_subtotal_paise,
@@ -454,14 +454,21 @@ async def resume_campaign(
     """Re-runs the activation gate rather than jumping straight back to
     active: a refunded-then-resumed campaign (paid_at untouched, budget
     zeroed by lifecycle.on_payment_event) or one whose creative was demoted
-    mid-pause both need to land back in pending_moderation, not active."""
+    mid-pause both need to land back in pending_moderation, not active.
+
+    A campaign whose business was paused by staff enforcement
+    (pause_campaigns_for_business) must not be un-paused by its owner just
+    by hitting this route - is_servable is the same fail-closed M1.5.E
+    check the serve path itself uses."""
     await _require_flag(session)
     user_id = _principal_user_id(request)
     campaign = await _owned_campaign(session, user_id, campaign_id)
     if campaign.status != "paused":
         raise HTTPException(status_code=409, detail="not_paused")
-    if campaign.flight_end < date.today():
+    if campaign.flight_end < datetime.now(UTC).date():
         raise HTTPException(status_code=409, detail="flight_over")
+    if not await is_servable(session, campaign.advertiser_business_id):
+        raise HTTPException(status_code=409, detail="business_not_servable")
     if not await lifecycle.maybe_activate(session, campaign):
         campaign.status = "pending_moderation"
         await session.flush()

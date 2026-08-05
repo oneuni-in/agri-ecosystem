@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads import pricing
+from modules.ads.lifecycle import creative_moderation_counts
 from modules.ads.models import Campaign, Creative, Placement, RateCardVersion
 from modules.ads.schemas import (
     CampaignIn,
@@ -118,11 +119,16 @@ async def set_campaign_status(
         raise HTTPException(status_code=404, detail="campaign not found")
     # M5 Task 7 (decision 14): the payment-AND-moderation activation gate
     # applies to admin-driven transitions too - a priced (self-serve)
-    # campaign that hasn't paid must never be force-activated by staff.
-    # Unpriced (house/admin) campaigns have price_paise IS NULL and are
-    # exempt (never billed, so "unpaid" is meaningless for them).
-    if body.status == "active" and campaign.price_paise is not None and campaign.paid_at is None:
-        raise HTTPException(status_code=422, detail="payment_required")
+    # campaign that hasn't paid, or hasn't cleared moderation, must never
+    # be force-activated by staff. Unpriced (house/admin) campaigns have
+    # price_paise IS NULL and are exempt (never billed, so "unpaid"/
+    # "unapproved" are meaningless for them).
+    if body.status == "active" and campaign.price_paise is not None:
+        if campaign.paid_at is None:
+            raise HTTPException(status_code=422, detail="payment_required")
+        approved, pending = await creative_moderation_counts(session, campaign.id)
+        if approved < 1 or pending > 0:
+            raise HTTPException(status_code=422, detail="moderation_required")
     campaign.status = body.status
     await session.flush()
     await audit(

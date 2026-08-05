@@ -116,6 +116,13 @@ async def set_campaign_status(
     campaign = await session.get(Campaign, campaign_id)
     if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
+    # M5 Task 7 (decision 14): the payment-AND-moderation activation gate
+    # applies to admin-driven transitions too - a priced (self-serve)
+    # campaign that hasn't paid must never be force-activated by staff.
+    # Unpriced (house/admin) campaigns have price_paise IS NULL and are
+    # exempt (never billed, so "unpaid" is meaningless for them).
+    if body.status == "active" and campaign.price_paise is not None and campaign.paid_at is None:
+        raise HTTPException(status_code=422, detail="payment_required")
     campaign.status = body.status
     await session.flush()
     await audit(

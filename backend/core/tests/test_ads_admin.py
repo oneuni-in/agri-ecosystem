@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.ads.models import Click, Impression
+from modules.ads.models import Campaign, Click, Impression
 from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
@@ -167,6 +167,72 @@ async def test_campaign_status_flip(api: httpx.AsyncClient) -> None:
     )
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "active"
+
+
+async def test_admin_cannot_activate_unpaid_priced_campaign(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """M5 Task 7 (decision 14): the payment-AND-moderation activation gate
+    applies to staff-driven transitions too, not just self-serve's own
+    routes - a priced campaign that hasn't paid must never be force-activated."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 50_000
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "payment_required"
+
+    # paying it off clears the gate
+    db_campaign.paid_at = datetime.now(UTC)
+    await db_session.flush()
+    r2 = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["status"] == "active"
+
+
+async def test_admin_activates_unpriced_house_campaign_freely(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """price_paise IS NULL (house/admin campaign, never billed) is exempt
+    from the payment gate - "unpaid" is meaningless for it."""
+    campaign_id = await _create_campaign(api)
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "active"
+
+
+async def test_campaign_out_serializes_pending_payment_status(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Reconciliation: CampaignStatus (schemas.py) still lists the 4
+    admin-settable values only, but the DB CHECK now has 8 - CampaignOut.status
+    must serialize any of them (it is a plain str, not the Literal) so the
+    admin listing doesn't choke on a self-serve lifecycle status."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.status = "pending_payment"
+    await db_session.flush()
+
+    r = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert any(item["id"] == campaign_id and item["status"] == "pending_payment" for item in items)
 
 
 async def test_campaign_list_cursor_pagination(api: httpx.AsyncClient) -> None:

@@ -1,14 +1,21 @@
 """Creative approval source for the unified moderation queue (D21).
 Approval is the ONLY path from pending -> servable; even admin-created
-creatives start pending (uniform pipeline, approver need not be uploader)."""
+creatives start pending (uniform pipeline, approver need not be uploader).
+
+M5 Task 7: approval is also the moderation half of the payment-AND-
+moderation activation gate (lifecycle.maybe_activate) - a creative approval
+that clears the LAST pending creative on an already-paid campaign is what
+flips it live."""
 
 import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Creative
+from modules.ads import lifecycle
+from modules.ads.models import Campaign, Creative
 from shared.audit import audit
+from shared.lookups import resolve_business, resolve_contact
 from shared.moderation import (
     DecisionConflictError,
     ItemNotFoundError,
@@ -39,6 +46,25 @@ def _creative_item(creative: Creative) -> ModItem:
             "status": creative.moderation_status,
         },
     )
+
+
+async def _activation_event(session: AsyncSession, campaign: Campaign) -> PendingEvent | None:
+    """Self-contained notify payload (D12/D20 `_pending_notification`
+    pattern, modules/billing/service.py) so the notify consumer (Task 12)
+    can email the advertiser without a cross-module read of its own. None
+    when the business is unowned/unresolvable - nobody to notify."""
+    ref = await resolve_business(session, campaign.advertiser_business_id)
+    if ref is None or ref.owner_user_id is None:
+        return None
+    contact = await resolve_contact(session, ref.owner_user_id)
+    payload: dict[str, object] = {
+        "user_id": str(ref.owner_user_id),
+        "locale": (contact.locale if contact else None) or "en",
+        "email": contact.email if contact else None,
+        "phone": None,
+        "vars": {"campaign_name": campaign.name, "business_name": ref.name},
+    }
+    return PendingEvent(EVENT_STREAM, "campaign.activated", payload)
 
 
 class CreativeSource:
@@ -121,14 +147,25 @@ class CreativeSource:
             ip=ip,
         )
         event_type = "creative.approved" if approve else "creative.rejected"
-        events = (
+        events = [
             PendingEvent(
                 EVENT_STREAM,
                 event_type,
                 {"creative_id": str(creative.id), "campaign_id": str(creative.campaign_id)},
             ),
-        )
-        return ModDecision(item=_creative_item(creative), events=events)
+        ]
+        # M5 Task 7: approval is the moderation half of the activation gate.
+        # Reject makes no campaign status change - the campaign stays
+        # pending_moderation and the advertiser edits + resubmits.
+        if approve:
+            campaign = await session.get(Campaign, creative.campaign_id)
+            if campaign is not None and campaign.status == "pending_moderation":
+                activated = await lifecycle.maybe_activate(session, campaign)
+                if activated:
+                    activation_event = await _activation_event(session, campaign)
+                    if activation_event is not None:
+                        events.append(activation_event)
+        return ModDecision(item=_creative_item(creative), events=tuple(events))
 
 
 def register_ads_moderation_sources() -> None:

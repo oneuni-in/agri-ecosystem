@@ -5,6 +5,7 @@ bespoke ads route."""
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -13,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.ads.models import Creative
+from modules.ads.models import Campaign, Creative
 from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
@@ -190,3 +191,57 @@ async def test_summary_includes_creative(
     assert r.status_code == 200
     counts = r.json()["counts"]
     assert counts["creative"] == 1
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 7: approval is the moderation half of the payment-AND-moderation
+# activation gate (modules/ads/lifecycle.py::maybe_activate).
+
+
+async def test_approve_activates_paid_campaign(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    campaign_id, creative_id = await _seed_campaign_and_creative(client)
+    campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert campaign is not None
+    campaign.status = "pending_moderation"
+    campaign.paid_at = datetime.now(UTC)
+    await session.flush()
+
+    r = await client.post(
+        f"/admin/moderation/creative/{creative_id}/approve",
+        json={"note": "looks good"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+
+    fresh_creative = await session.get(Creative, uuid.UUID(creative_id))
+    assert fresh_creative is not None and fresh_creative.moderation_status == "approved"
+    fresh_campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert fresh_campaign is not None and fresh_campaign.status == "active"
+
+
+async def test_approve_does_not_activate_unpaid_campaign(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """THREAT: activation-before-payment. Moderation approval alone, with no
+    paid_at, must leave the campaign in pending_moderation."""
+    client, session = api
+    campaign_id, creative_id = await _seed_campaign_and_creative(client)
+    campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert campaign is not None
+    campaign.status = "pending_moderation"  # paid_at deliberately left None
+    await session.flush()
+
+    r = await client.post(
+        f"/admin/moderation/creative/{creative_id}/approve",
+        json={"note": "looks good"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+
+    fresh_creative = await session.get(Creative, uuid.UUID(creative_id))
+    assert fresh_creative is not None and fresh_creative.moderation_status == "approved"
+    fresh_campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert fresh_campaign is not None and fresh_campaign.status == "pending_moderation"

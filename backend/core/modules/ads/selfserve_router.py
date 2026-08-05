@@ -15,13 +15,14 @@ Sections below, in the order Tasks 7/8/13 slot into:
 
 import uuid
 from collections.abc import Sequence
+from datetime import date
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads import pricing
+from modules.ads import lifecycle, pricing
 from modules.ads.models import Campaign, Creative, Placement
 from modules.ads.selfserve_schemas import (
     CampaignCreateIn,
@@ -137,7 +138,7 @@ def _campaign_out(
         advertiser_business_id=campaign.advertiser_business_id,
         name=campaign.name,
         status=campaign.status,
-        display_status=campaign.status,  # Task 7 replaces with the real derivation
+        display_status=lifecycle.display_status(campaign, today=date.today()),
         pricing_model=campaign.pricing_model,
         price_paise=campaign.price_paise,
         price_subtotal_paise=campaign.price_subtotal_paise,
@@ -392,6 +393,79 @@ async def patch_campaign(
             placement.geo_target = merged_geo
 
     await session.flush()
+    out = _campaign_out(campaign, placements, creatives)
+    await session.commit()
+    return out
+
+
+# ---------------------------------------------------------------------------
+# POST /campaigns/{id}/checkout-request  (Task 7: draft -> pending_payment)
+
+
+@router.post("/campaigns/{campaign_id}/checkout-request")
+async def request_checkout(
+    campaign_id: uuid.UUID, request: Request, session: SessionDep
+) -> MyCampaignOut:
+    """Task 9's billing checkout route requires the campaign to already be
+    `pending_payment` before it will talk to Razorpay - this is the only way
+    a draft gets there."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    campaign = await _owned_campaign(session, user_id, campaign_id)
+    try:
+        await lifecycle.request_checkout(session, campaign)
+    except lifecycle.LifecycleError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    placements, creatives = await _placements_and_creatives(session, campaign.id)
+    out = _campaign_out(campaign, placements, creatives)
+    await session.commit()
+    return out
+
+
+# ---------------------------------------------------------------------------
+# POST /campaigns/{id}/pause  (Task 7: active -> paused)
+
+
+@router.post("/campaigns/{campaign_id}/pause")
+async def pause_campaign(
+    campaign_id: uuid.UUID, request: Request, session: SessionDep
+) -> MyCampaignOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    campaign = await _owned_campaign(session, user_id, campaign_id)
+    if campaign.status != "active":
+        raise HTTPException(status_code=409, detail="not_active")
+    campaign.status = "paused"
+    await session.flush()
+    placements, creatives = await _placements_and_creatives(session, campaign.id)
+    out = _campaign_out(campaign, placements, creatives)
+    await session.commit()
+    return out
+
+
+# ---------------------------------------------------------------------------
+# POST /campaigns/{id}/resume  (Task 7: paused -> active | pending_moderation)
+
+
+@router.post("/campaigns/{campaign_id}/resume")
+async def resume_campaign(
+    campaign_id: uuid.UUID, request: Request, session: SessionDep
+) -> MyCampaignOut:
+    """Re-runs the activation gate rather than jumping straight back to
+    active: a refunded-then-resumed campaign (paid_at untouched, budget
+    zeroed by lifecycle.on_payment_event) or one whose creative was demoted
+    mid-pause both need to land back in pending_moderation, not active."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    campaign = await _owned_campaign(session, user_id, campaign_id)
+    if campaign.status != "paused":
+        raise HTTPException(status_code=409, detail="not_paused")
+    if campaign.flight_end < date.today():
+        raise HTTPException(status_code=409, detail="flight_over")
+    if not await lifecycle.maybe_activate(session, campaign):
+        campaign.status = "pending_moderation"
+        await session.flush()
+    placements, creatives = await _placements_and_creatives(session, campaign.id)
     out = _campaign_out(campaign, placements, creatives)
     await session.commit()
     return out

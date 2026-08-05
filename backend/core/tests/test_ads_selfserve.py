@@ -3,14 +3,14 @@ file - `_owned_campaign` must 404 (never 403) on every read/write that isn't
 the caller's own business, so ownership can never be used as an oracle."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign
+from modules.ads.models import Campaign, Creative
 from modules.directory import service as directory_service
 from shared.flags import FeatureFlag, reset_flag_cache
 from tests.d26_helpers import _as, api  # noqa: F401 (pytest fixture injection)
@@ -221,6 +221,9 @@ async def test_flag_off_404s_everything(
         ("GET", "/ads/my/campaigns", {}),
         ("GET", f"/ads/my/campaigns/{campaign_id}", {}),
         ("PATCH", f"/ads/my/campaigns/{campaign_id}", {"json": {"name": "y"}}),
+        ("POST", f"/ads/my/campaigns/{campaign_id}/checkout-request", {}),
+        ("POST", f"/ads/my/campaigns/{campaign_id}/pause", {}),
+        ("POST", f"/ads/my/campaigns/{campaign_id}/resume", {}),
     ]
     for method, path, kwargs in cases:
         resp = await client.request(method, path, headers=_as(OWNER), **kwargs)
@@ -367,3 +370,170 @@ async def test_categories_in_geo_target_rejected_422(
     )
     assert patch_resp.status_code == 422
     assert patch_resp.json()["detail"] == "categories_in_geo_target"
+
+
+# ---------------------------------------------------------------------------
+# Task 7: checkout-request / pause / resume
+
+
+async def _add_creative(
+    session: AsyncSession, campaign_id: uuid.UUID, *, status: str = "pending"
+) -> Creative:
+    """Self-serve creative upload is Task 8's job; these tests only need a
+    creative row to exist, so it is seeded directly."""
+    creative = Creative(
+        campaign_id=campaign_id,
+        media_keys=["ads/x.jpg"],
+        copy={"en": {"title": "t", "body": "b"}},
+        target_url="https://example.com",
+    )
+    session.add(creative)
+    await session.flush()
+    creative.moderation_status = status
+    await session.flush()
+    return creative
+
+
+async def test_checkout_request_happy_path_moves_to_pending_payment(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]))
+
+    resp = await client.post(
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request", headers=_as(OWNER)
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "pending_payment"
+    assert body["display_status"] == "pending_payment"
+
+
+async def test_checkout_request_without_creative_409(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+
+    resp = await client.post(
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request", headers=_as(OWNER)
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "no_creatives"
+
+
+async def test_checkout_request_non_draft_409_not_payable(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]))
+
+    first = await client.post(
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request", headers=_as(OWNER)
+    )
+    assert first.status_code == 200, first.text
+
+    second = await client.post(
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request", headers=_as(OWNER)
+    )
+    assert second.status_code == 409
+    assert second.json()["detail"] == "not_payable"
+
+
+async def test_pause_then_resume_paid_and_approved_campaign_reactivates(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]), status="approved")
+
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    db_campaign.status = "active"
+    db_campaign.paid_at = datetime.now(UTC)
+    await session.flush()
+
+    paused = await client.post(f"/ads/my/campaigns/{campaign['id']}/pause", headers=_as(OWNER))
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["status"] == "paused"
+
+    # not-active anymore: a second pause is a 409
+    conflict = await client.post(f"/ads/my/campaigns/{campaign['id']}/pause", headers=_as(OWNER))
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"] == "not_active"
+
+    resumed = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["status"] == "active"
+
+
+async def test_resume_with_pending_creative_falls_back_to_pending_moderation(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]), status="pending")
+
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    db_campaign.status = "paused"
+    db_campaign.paid_at = datetime.now(UTC)
+    await session.flush()
+
+    resumed = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["status"] == "pending_moderation"
+
+
+async def test_resume_past_flight_end_409_flight_over(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    db_campaign.status = "paused"
+    db_campaign.flight_start = date.today() - timedelta(days=10)
+    db_campaign.flight_end = date.today() - timedelta(days=1)
+    await session.flush()
+
+    resp = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "flight_over"
+
+
+async def test_resume_not_paused_409(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)  # status == draft
+
+    resp = await client.post(f"/ads/my/campaigns/{campaign['id']}/resume", headers=_as(OWNER))
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "not_paused"
+
+
+async def test_lifecycle_routes_404_for_foreign_owner(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session, owner=OWNER)
+
+    for path in (
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request",
+        f"/ads/my/campaigns/{campaign['id']}/pause",
+        f"/ads/my/campaigns/{campaign['id']}/resume",
+    ):
+        resp = await client.post(path, headers=_as(STRANGER))
+        assert resp.status_code == 404, (path, resp.text)

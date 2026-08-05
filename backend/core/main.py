@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from modules.ads import lifecycle as ads_lifecycle
 from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
@@ -55,6 +56,7 @@ from shared.db import check_database
 from shared.lookups import (
     register_business_resolver,
     register_campaign_pauser,
+    register_campaign_payment_hook,
     register_contact_resolver,
     register_owned_businesses_resolver,
     register_servable_resolver,
@@ -194,6 +196,9 @@ def create_app() -> FastAPI:
     # seam); ads pause an advertiser's campaigns when directory disables it.
     register_servable_resolver(business_is_servable)
     register_campaign_pauser(pause_active_campaigns)
+    # M5 Task 7: billing's webhook (Task 10) tells ads about paid/refunded
+    # events through this hook - the payment half of the activation gate.
+    register_campaign_payment_hook(ads_lifecycle.on_payment_event)
     # D21: unified moderation queue - owning modules register their sources
     # (same dependency-inversion pattern as the resolvers above).
     register_directory_moderation_sources()

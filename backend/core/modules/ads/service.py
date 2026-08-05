@@ -311,6 +311,7 @@ async def campaign_billing_ref(
         subtotal_paise=campaign.price_subtotal_paise,
         gst_paise=campaign.price_gst_paise,
         paid_at=campaign.paid_at,
+        quote=campaign.quote,
     )
 
 

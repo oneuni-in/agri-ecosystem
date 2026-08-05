@@ -14,7 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -237,16 +237,20 @@ async def my_invoices(
 async def create_order(body: AdOrderCreateIn, request: Request, session: SessionDep) -> AdOrderOut:
     await _require_flag(session)
     user_id = _principal_user_id(request)
-    order, checkout_url = await create_ad_order(
+    order = await create_ad_order(
         session,
         user_id=user_id,
         campaign_id=body.campaign_id,
         buyer_gstin=body.buyer_gstin,
         client=razorpay_client.get_client(),
         settings=get_settings(),
+        now=datetime.now(UTC),
     )
     await session.commit()
-    return ad_order_out(order, checkout_url=checkout_url)
+    return ad_order_out(order)
+
+
+AdOrderLimitQuery = Annotated[int, Query(ge=1, le=100)]
 
 
 @router.get("/ad-orders")
@@ -255,7 +259,7 @@ async def list_orders(
     request: Request,
     session: SessionDep,
     cursor: str | None = None,
-    limit: int = 20,
+    limit: AdOrderLimitQuery = 20,
 ) -> AdOrderPage:
     """Owner-scoped, newest-first - the wizard's post-checkout status poll.
     Not-yours (or unknown campaign) is 404, never 403 (IDOR: no oracle)."""

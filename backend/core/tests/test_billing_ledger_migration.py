@@ -19,28 +19,48 @@ BUSINESS_A = uuid.UUID("018f0000-0000-7000-8000-0000000000b1")
 
 
 async def _insert_order(
-    session: AsyncSession, *, campaign_id: uuid.UUID = CAMPAIGN_A, status: str = "created"
-) -> None:
+    session: AsyncSession,
+    *,
+    campaign_id: uuid.UUID = CAMPAIGN_A,
+    status: str = "created",
+    subtotal: int = 100,
+    gst: int = 18,
+    total: int = 118,
+) -> uuid.UUID:
+    order_id = uuid.uuid4()
     await session.execute(
         text(
             "INSERT INTO billing.ad_orders "
             "(id, campaign_id, business_id, status, subtotal_paise, gst_paise, total_paise, quote) "
-            "VALUES (gen_random_uuid(), :c, :b, :s, 100, 18, 118, '{}'::jsonb)"
+            "VALUES (:id, :c, :b, :s, :sub, :g, :t, '{}'::jsonb)"
         ),
-        {"c": campaign_id, "b": BUSINESS_A, "s": status},
+        {
+            "id": order_id,
+            "c": campaign_id,
+            "b": BUSINESS_A,
+            "s": status,
+            "sub": subtotal,
+            "g": gst,
+            "t": total,
+        },
     )
+    return order_id
 
 
 async def _insert_ledger_entry(
-    session: AsyncSession, *, entry_type: str = "ad_charge", amount: int = 118
+    session: AsyncSession,
+    *,
+    entry_type: str = "ad_charge",
+    amount: int = 118,
+    order_id: uuid.UUID | None = None,
 ) -> None:
     await session.execute(
         text(
             "INSERT INTO billing.ledger_entries "
-            "(id, entry_type, amount_paise, business_id) "
-            "VALUES (gen_random_uuid(), :t, :a, :b)"
+            "(id, entry_type, amount_paise, business_id, order_id) "
+            "VALUES (gen_random_uuid(), :t, :a, :b, :o)"
         ),
-        {"t": entry_type, "a": amount, "b": BUSINESS_A},
+        {"t": entry_type, "a": amount, "b": BUSINESS_A, "o": order_id},
     )
 
 
@@ -85,6 +105,7 @@ async def test_ad_orders_columns_exist(db_session: AsyncSession) -> None:
         "quote",
         "buyer_gstin",
         "razorpay_plink_id",
+        "razorpay_short_url",
         "razorpay_payment_id",
         "created_at",
         "updated_at",
@@ -138,6 +159,12 @@ async def test_ad_orders_failed_order_frees_campaign_for_retry(db_session: Async
     await db_session.flush()
 
 
+async def test_ad_orders_total_must_equal_subtotal_plus_gst(db_session: AsyncSession) -> None:
+    with pytest.raises(IntegrityError, match="ck_billing_ad_orders_total_eq_parts"):
+        await _insert_order(db_session, subtotal=100, gst=18, total=200)  # drifted total
+    await db_session.rollback()
+
+
 async def test_ledger_entry_sign_check_rejects_positive_refund(db_session: AsyncSession) -> None:
     with pytest.raises(IntegrityError, match="ck_billing_ledger_entries_sign"):
         await _insert_ledger_entry(db_session, entry_type="ad_refund", amount=100)
@@ -153,6 +180,29 @@ async def test_ledger_entry_sign_check_rejects_nonpositive_charge(db_session: As
 async def test_ledger_entry_sign_check_accepts_valid_rows(db_session: AsyncSession) -> None:
     await _insert_ledger_entry(db_session, entry_type="ad_charge", amount=118)
     await _insert_ledger_entry(db_session, entry_type="ad_refund", amount=-118)
+    await db_session.flush()
+
+
+async def test_ledger_entries_one_charge_per_order(db_session: AsyncSession) -> None:
+    """DB backstop against a double ad_charge append for the same order
+    (money-path review item 5) - e.g. a retried/duplicated Task 10 webhook
+    applier bug must not double-charge the ledger even if the application
+    code itself has a gap."""
+    order_id = await _insert_order(db_session)
+    await _insert_ledger_entry(db_session, entry_type="ad_charge", amount=118, order_id=order_id)
+    with pytest.raises(IntegrityError, match="uq_billing_ledger_entries_one_charge_per_order"):
+        await _insert_ledger_entry(
+            db_session, entry_type="ad_charge", amount=118, order_id=order_id
+        )
+    await db_session.rollback()
+
+
+async def test_ledger_entries_refund_after_charge_for_same_order_is_fine(
+    db_session: AsyncSession,
+) -> None:
+    order_id = await _insert_order(db_session)
+    await _insert_ledger_entry(db_session, entry_type="ad_charge", amount=118, order_id=order_id)
+    await _insert_ledger_entry(db_session, entry_type="ad_refund", amount=-118, order_id=order_id)
     await db_session.flush()
 
 
@@ -211,6 +261,26 @@ async def test_invoice_number_seq_exists(db_session: AsyncSession) -> None:
     # this only asserts the sequence is usable - not a specific value.
     value = await db_session.scalar(text("SELECT nextval('billing.invoice_number_seq')"))
     assert isinstance(value, int) and value >= 1
+
+
+async def test_invoice_number_is_unique(db_session: AsyncSession) -> None:
+    order_id = await _insert_order(db_session)
+    await db_session.execute(
+        text(
+            "INSERT INTO billing.invoices (id, order_id, amount_paise, invoice_number) "
+            "VALUES (gen_random_uuid(), :o, 118, 'INV-0001')"
+        ),
+        {"o": order_id},
+    )
+    with pytest.raises(IntegrityError, match="invoice_number"):
+        await db_session.execute(
+            text(
+                "INSERT INTO billing.invoices (id, order_id, amount_paise, invoice_number) "
+                "VALUES (gen_random_uuid(), :o, 118, 'INV-0001')"
+            ),
+            {"o": order_id},
+        )
+    await db_session.rollback()
 
 
 async def test_ledger_trigger_fires_for_owner_role(admin_database_url: str) -> None:

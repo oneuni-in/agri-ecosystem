@@ -12,6 +12,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,6 +52,12 @@ class CampaignBillingRef:
     subtotal_paise: int | None  # price decomposition: billing invoices need
     gst_paise: int | None  #   taxable vs GST without re-deriving (Task 9/10)
     paid_at: datetime | None
+    # M5 Task 9 fast-follow: the itemized quote snapshot (line items + rates
+    # + tier + multiplier + gst_rate_bp) ads persisted at quote time -
+    # billing copies this verbatim into AdOrder.quote for invoice provenance
+    # instead of reconstructing a bare 4-number dict. None for campaigns
+    # quoted before this field existed, or house/admin campaigns.
+    quote: dict[str, Any] | None
 
 
 CampaignBillingResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[CampaignBillingRef | None]]

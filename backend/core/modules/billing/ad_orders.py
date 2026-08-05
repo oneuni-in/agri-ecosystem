@@ -18,10 +18,14 @@ race (a concurrent checkout already holds the live order) - leaves an
 orphaned Razorpay Payment Link that nobody will ever pay; that is an
 accepted v1 trade-off (no compensating cancel-payment-link call yet), not
 a correctness bug: the loser's response is a clean 409 and the winner's
-order is the only one anyone is ever shown a checkout_url for.
+order is the only one anyone is ever shown a checkout_url for. The link
+itself also carries a 24h `expire_by` (money-path review fast-follow), so
+even an orphaned/abandoned link eventually reports `payment_link.expired`
+rather than staying live forever.
 """
 
 import uuid
+from datetime import datetime, timedelta
 from typing import Any
 
 import uuid6
@@ -35,6 +39,7 @@ from settings import Settings
 from shared import lookups
 
 MAX_DESCRIPTION_LENGTH = 255
+LINK_EXPIRY = timedelta(hours=24)
 
 
 async def create_ad_order(
@@ -45,16 +50,26 @@ async def create_ad_order(
     buyer_gstin: str | None,
     client: Any,
     settings: Settings,
-) -> tuple[AdOrder, str]:
-    """Checkout. Returns (order, checkout_url). Server-side re-quote is the
-    ONLY price - the client never supplies an amount (the route's
-    AdOrderCreateIn has no such field, extra="forbid")."""
+    now: datetime,
+) -> AdOrder:
+    """Checkout. Returns the persisted order - `order.razorpay_short_url` is
+    the checkout link (also readable later via GET, unlike the old
+    response-only tuple). Server-side re-quote is the ONLY price - the
+    client never supplies an amount (the route's AdOrderCreateIn has no such
+    field, extra="forbid"). `now` is always caller-injected (billing/
+    service.py's clock convention), never read here - it only seeds the
+    Payment Link's `expire_by`."""
     ref = await lookups.resolve_campaign_billing(session, campaign_id)
     if ref is None:
         raise HTTPException(status_code=404, detail="Not Found")
     owner = await lookups.resolve_business(session, ref.business_id)
     if owner is None or owner.owner_user_id != user_id:
         raise HTTPException(status_code=404, detail="Not Found")  # IDOR: not-yours==404
+    if not await lookups.is_servable(session, ref.business_id):
+        # fail-closed (M1.5.E precedent, modules/ads/selfserve_router.py's
+        # resume route): a suspended/disabled advertiser must not be able to
+        # buy a new campaign's way back into inventory just by paying.
+        raise HTTPException(status_code=409, detail="business_not_servable")
     if ref.price_paise is None:
         raise HTTPException(status_code=422, detail="not_billable")
     if ref.subtotal_paise is None or ref.gst_paise is None:
@@ -66,25 +81,40 @@ async def create_ad_order(
         raise HTTPException(status_code=409, detail="not_payable")
 
     # price fields were stored by ads at quote time; billing charges exactly
-    # the stored price snapshot - it never re-derives GST.
+    # the stored price snapshot - it never re-derives GST. Prefer the full
+    # itemized quote ads persisted (Campaign.quote, M5 fast-follow); fall
+    # back to the bare 4-number reconstruction only for campaigns quoted
+    # before that field existed (ref.quote is None).
     order_id = uuid6.uuid7()
-    quote: dict[str, Any] = {
-        "pricing_model": ref.pricing_model,
-        "subtotal_paise": ref.subtotal_paise,
-        "gst_paise": ref.gst_paise,
-        "total_paise": ref.price_paise,
-        "campaign_name": ref.name,
-    }
+    quote: dict[str, Any] = (
+        dict(ref.quote)
+        if ref.quote is not None
+        else {
+            "pricing_model": ref.pricing_model,
+            "subtotal_paise": ref.subtotal_paise,
+            "gst_paise": ref.gst_paise,
+            "total_paise": ref.price_paise,
+        }
+    )
+    quote["campaign_name"] = ref.name
     description = f"Milk.in ads: {ref.name}"[:MAX_DESCRIPTION_LENGTH]
     callback_url = f"{settings.console_base_url}/business/ads?paid={campaign_id}"
+    expire_by = int((now + LINK_EXPIRY).timestamp())
     try:
         remote = await client.create_payment_link(
             amount_paise=ref.price_paise,
             description=description,
             reference_id=str(order_id),
             callback_url=callback_url,
+            expire_by=expire_by,
             notes={"campaign_id": str(campaign_id), "order_id": str(order_id)},
         )
+        plink_id = remote.get("id")
+        short_url = remote.get("short_url")
+        if not plink_id or not short_url:
+            # a 2xx response missing the fields we depend on is as unusable
+            # to us as a transport failure - never a KeyError/500.
+            raise RazorpayError("payment link response missing id/short_url")
     except RazorpayError as exc:
         raise HTTPException(status_code=503, detail="razorpay_unavailable") from exc
 
@@ -97,7 +127,8 @@ async def create_ad_order(
         total_paise=ref.price_paise,
         quote=quote,
         buyer_gstin=buyer_gstin,
-        razorpay_plink_id=str(remote["id"]),
+        razorpay_plink_id=str(plink_id),
+        razorpay_short_url=str(short_url),
     )
     try:
         # Savepoint wraps the ADD too (coins/referrals.py get_or_create_code
@@ -113,4 +144,4 @@ async def create_ad_order(
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="order_exists") from exc
 
-    return order, str(remote["short_url"])
+    return order

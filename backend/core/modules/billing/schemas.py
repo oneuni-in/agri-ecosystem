@@ -90,7 +90,13 @@ class AdOrderPage(BaseModel):
     next_cursor: str | None
 
 
-def ad_order_out(order: AdOrder, *, checkout_url: str | None = None) -> AdOrderOut:
+def ad_order_out(order: AdOrder) -> AdOrderOut:
+    # money-path review fast-follow: the link is persisted on the order now
+    # (razorpay_short_url), not just handed back once on the create response
+    # - a GET refresh (the wizard's status poll) can show it again. Only
+    # while `created` (still awaiting payment): once paid/failed/expired/
+    # refunded there is nothing left to check out.
+    checkout_url = order.razorpay_short_url if order.status == "created" else None
     return AdOrderOut(
         id=order.id,
         campaign_id=order.campaign_id,

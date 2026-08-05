@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads.models import Campaign, Creative
 from modules.directory import service as directory_service
+from settings import get_settings
 from shared.flags import FeatureFlag, reset_flag_cache
 from shared.lookups import register_servable_resolver
 from tests.d26_helpers import _as, api  # noqa: F401 (pytest fixture injection)
@@ -138,6 +139,25 @@ async def test_quote_then_create_draft_happy_path(
     get_resp = await client.get(f"/ads/my/campaigns/{campaign['id']}", headers=_as(OWNER))
     assert get_resp.status_code == 200
     assert get_resp.json() == campaign
+
+    # money-path review 2b: the itemized quote snapshot is persisted on the
+    # campaign row (not exposed on the wire, but billing's checkout route
+    # reads it via shared.lookups.CampaignBillingRef.quote) - line items +
+    # rate, matching the /quote response exactly, not just the 4 scalars.
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    assert db_campaign.quote is not None
+    assert db_campaign.quote["lines"] == [
+        [line["label"], line["amount_paise"]] for line in quote["lines"]
+    ]
+    assert db_campaign.quote["pricing_model"] == quote["pricing_model"]
+    assert db_campaign.quote["tier"] == quote["tier"]
+    assert db_campaign.quote["multiplier_bp"] == quote["multiplier_bp"]
+    assert db_campaign.quote["rate_card_version"] == quote["rate_card_version"]
+    assert db_campaign.quote["subtotal_paise"] == quote["subtotal_paise"]
+    assert db_campaign.quote["gst_paise"] == quote["gst_paise"]
+    assert db_campaign.quote["total_paise"] == quote["total_paise"]
+    assert db_campaign.quote["gst_rate_bp"] == get_settings().gst_rate_bp
 
 
 async def test_create_rejects_unowned_business_404(
@@ -282,6 +302,13 @@ async def test_patch_reprices_on_targeting_change(
     # untouched targeting (tiers) survives the partial update
     assert repriced["placements"][0]["geo_target"]["tiers"] == [3]
     assert repriced["rate_card_version"] == campaign["rate_card_version"]
+
+    # money-path review 2b: PATCH's re-quote path also refreshes the
+    # itemized snapshot, not just the 4 scalar price columns.
+    db_campaign = await session.get(Campaign, uuid.UUID(repriced["id"]))
+    assert db_campaign is not None
+    assert db_campaign.quote is not None
+    assert db_campaign.quote["total_paise"] == repriced["price_paise"]
 
     # budget change: a bigger serves_total must move the price again
     bigger_budget = await client.patch(

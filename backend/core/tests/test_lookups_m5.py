@@ -49,6 +49,7 @@ async def test_registered_billing_resolver_round_trips() -> None:
         subtotal_paise=42373,
         gst_paise=7627,
         paid_at=paid_at,
+        quote={"lines": [["5,000 ad views @ CPM T2", 42373]], "total_paise": 50000},
     )
     calls: list[tuple[AsyncSession, uuid.UUID]] = []
 
@@ -89,6 +90,7 @@ async def test_reset_clears_both_billing_resolver_and_payment_hook() -> None:
             subtotal_paise=None,
             gst_paise=None,
             paid_at=None,
+            quote=None,
         )
 
     hook_calls: list[str] = []

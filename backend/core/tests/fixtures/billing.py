@@ -17,6 +17,10 @@ class FakeRazorpay:
         # instead of returning - tests use this to exercise the "Razorpay
         # down, nothing persisted" 503 path.
         self.fail_create_payment_link = False
+        # money-path review: when set, create_payment_link returns a 2xx
+        # body missing id/short_url - tests use this to exercise the
+        # "malformed response, still 503, never a KeyError" path.
+        self.return_malformed_payment_link = False
 
     async def create_subscription(
         self, *, plan_id: str, total_count: int = 120, notes: dict[str, str] | None = None
@@ -55,6 +59,7 @@ class FakeRazorpay:
         description: str,
         reference_id: str,
         callback_url: str,
+        expire_by: int,
         notes: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         self.calls.append(("create_payment_link", reference_id))
@@ -62,6 +67,8 @@ class FakeRazorpay:
             from modules.billing.razorpay_client import RazorpayError
 
             raise RazorpayError("fake: razorpay unreachable")
+        if self.return_malformed_payment_link:
+            return {"status": "created"}  # missing id/short_url
         plink_id = f"plink_{len(self.payment_links) + 1:06d}"
         record = {
             "id": plink_id,
@@ -71,6 +78,7 @@ class FakeRazorpay:
             "description": description,
             "reference_id": reference_id,
             "callback_url": callback_url,
+            "expire_by": expire_by,
             "notes": notes or {},
         }
         self.payment_links[plink_id] = record

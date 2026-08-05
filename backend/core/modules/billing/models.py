@@ -67,6 +67,9 @@ class AdOrder(UUIDv7PKMixin, TimestampMixin, Base):
         CheckConstraint("subtotal_paise >= 0", name="ck_billing_ad_orders_subtotal_nonneg"),
         CheckConstraint("gst_paise >= 0", name="ck_billing_ad_orders_gst_nonneg"),
         CheckConstraint("total_paise >= 0", name="ck_billing_ad_orders_total_nonneg"),
+        CheckConstraint(
+            "total_paise = subtotal_paise + gst_paise", name="ck_billing_ad_orders_total_eq_parts"
+        ),
         Index(
             "uq_billing_ad_orders_live",
             "campaign_id",
@@ -88,6 +91,10 @@ class AdOrder(UUIDv7PKMixin, TimestampMixin, Base):
     quote: Mapped[dict[str, Any]] = mapped_column(postgresql.JSONB, nullable=False)
     buyer_gstin: Mapped[str | None] = mapped_column(Text, nullable=True)
     razorpay_plink_id: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
+    # the hosted checkout URL (Razorpay's `short_url`), persisted so it
+    # survives past the create response - a poll/refresh must not dead-end
+    # an abandoned checkout (money-path review fast-follow).
+    razorpay_short_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     razorpay_payment_id: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -110,6 +117,14 @@ class BillingLedgerEntry(UUIDv7PKMixin, Base):
         ),
         Index("ix_billing_ledger_entries_campaign_id", "campaign_id"),
         Index("ix_billing_ledger_entries_razorpay_payment_id", "razorpay_payment_id"),
+        # DB backstop against a double ad_charge append for the same order
+        # (money-path review fast-follow) - ad_refund rows are untouched.
+        Index(
+            "uq_billing_ledger_entries_one_charge_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text("entry_type = 'ad_charge'"),
+        ),
         {"schema": "billing"},
     )
 

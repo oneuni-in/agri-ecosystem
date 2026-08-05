@@ -30,6 +30,15 @@ class BillingDisabledError(RuntimeError):
     """A live call was attempted while billing_enabled is off."""
 
 
+def _stub_active() -> bool:
+    """e2e-only escape hatch (D09 otp_test_peek / main.py:229 precedent):
+    a hard AND against app_env != "prod" so a misconfigured prod deploy with
+    RAZORPAY_TEST_STUB left set still makes real Razorpay calls, never
+    canned ones."""
+    settings = get_settings()
+    return settings.razorpay_test_stub and settings.app_env != "prod"
+
+
 class RazorpayClient:
     def __init__(
         self,
@@ -93,7 +102,10 @@ class RazorpayClient:
     # -- M5 Task 9: ad-order checkout via hosted Payment Links -----------
     # razorpay_test_stub short-circuits BEFORE _request's billing_enabled
     # gate (and therefore before any network call) - e2e only, canned
-    # responses, never live credentials. Never flip it on in prod.
+    # responses, never live credentials. Guarded by _stub_active() (below):
+    # a hard AND against app_env != "prod", the same otp_test_peek/
+    # main.py:229 pattern - a misconfigured prod env with the stub flag
+    # somehow set must still make real Razorpay calls, never fake ones.
 
     async def create_payment_link(
         self,
@@ -102,9 +114,10 @@ class RazorpayClient:
         description: str,
         reference_id: str,
         callback_url: str,
+        expire_by: int,
         notes: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        if get_settings().razorpay_test_stub:
+        if _stub_active():
             return {
                 "id": f"plink_test_{reference_id.replace('-', '')[:14]}",
                 "short_url": callback_url,  # e2e: "checkout" bounces straight back
@@ -120,17 +133,18 @@ class RazorpayClient:
                 "reference_id": reference_id,
                 "callback_url": callback_url,
                 "callback_method": "get",
+                "expire_by": expire_by,
                 "notes": notes or {},
             },
         )
 
     async def fetch_payment(self, payment_id: str) -> dict[str, Any]:
-        if get_settings().razorpay_test_stub:
+        if _stub_active():
             return {"id": payment_id, "status": "captured", "amount": 0}
         return await self._request("GET", f"/v1/payments/{payment_id}")
 
     async def fetch_payment_link(self, plink_id: str) -> dict[str, Any]:
-        if get_settings().razorpay_test_stub:
+        if _stub_active():
             return {"id": plink_id, "status": "paid"}
         return await self._request("GET", f"/v1/payment_links/{plink_id}")
 

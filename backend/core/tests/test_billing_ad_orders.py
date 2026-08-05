@@ -11,7 +11,7 @@ price resolution goes through the actual resolver, not a test stub."""
 
 import uuid
 from collections.abc import AsyncIterator
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -27,6 +27,7 @@ from modules.billing.models import AdOrder
 from modules.directory.models import Business
 from shared.db import get_session
 from shared.flags import FeatureFlag, reset_flag_cache
+from shared.lookups import register_servable_resolver
 from shared.security import register_principal_resolver
 from tests.fixtures.billing import FakeRazorpay
 
@@ -169,6 +170,9 @@ async def test_checkout_happy_path_charges_exact_stored_snapshot(
     assert plink["amount"] == 118_000  # exact charge - server snapshot, never client-suppliable
     assert plink["notes"] == {"campaign_id": str(campaign.id), "order_id": body["id"]}
     assert plink["callback_url"] == f"http://localhost:3002/business/ads?paid={campaign.id}"
+    # abandoned-link expiry (money-path review): ~24h out from now, never NULL
+    expected_expire_by = int((datetime.now(UTC) + timedelta(hours=24)).timestamp())
+    assert abs(plink["expire_by"] - expected_expire_by) < 30
     assert [c for c in fake.calls if c[0] == "create_payment_link"]
 
     assert order.subtotal_paise == 100_000
@@ -176,14 +180,55 @@ async def test_checkout_happy_path_charges_exact_stored_snapshot(
     assert order.total_paise == 118_000
     assert order.business_id == business.id
     assert order.razorpay_plink_id == plink["id"]
+    # the link URL is PERSISTED (not just returned once) so a later GET can
+    # still show it (money-path review: dead-end-checkout fix)
+    assert order.razorpay_short_url == plink["short_url"]
     assert order.quote["subtotal_paise"] == 100_000
     assert order.quote["gst_paise"] == 18_000
     assert order.quote["total_paise"] == 118_000
+    assert order.quote["campaign_name"] == "Kharif push"
 
     # campaign lifecycle is untouched by billing on checkout creation - ads
     # already flipped it to pending_payment via its own checkout-request route.
     await session.refresh(campaign)
     assert campaign.status == "pending_payment"
+
+
+async def test_checkout_copies_itemized_quote_verbatim_when_present(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    """Chain-of-custody fix (money-path review 2): when ads persisted the
+    full itemized snapshot on Campaign.quote, billing copies it VERBATIM
+    (never reconstructs a bare 4-number dict) - only campaign_name is added."""
+    client, session, fake = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    itemized = {
+        "lines": [["5,000 ad views @ CPM T2", 100_000]],
+        "pricing_model": "cpm",
+        "tier": 2,
+        "multiplier_bp": 10000,
+        "serves_total": 5000,
+        "weeks": None,
+        "rate_card_version": 1,
+        "gst_rate_bp": 1800,
+        "subtotal_paise": 100_000,
+        "gst_paise": 18_000,
+        "total_paise": 118_000,
+    }
+    campaign = await _seed_campaign(session, business.id, quote=itemized)
+
+    response = await client.post(
+        "/billing/ad-orders", json={"campaign_id": str(campaign.id)}, headers=_as(OWNER)
+    )
+    assert response.status_code == 201
+    order = await session.get(AdOrder, uuid.UUID(response.json()["id"]))
+    assert order is not None
+    assert order.quote["lines"] == [["5,000 ad views @ CPM T2", 100_000]]
+    assert order.quote["tier"] == 2
+    assert order.quote["multiplier_bp"] == 10000
+    assert order.quote["gst_rate_bp"] == 1800
+    assert order.quote["campaign_name"] == "Kharif push"  # always added, even on the copy path
 
 
 async def test_checkout_accepts_valid_gstin(
@@ -347,6 +392,51 @@ async def test_razorpay_failure_is_503_and_persists_nothing(
     assert orders == []
 
 
+async def test_malformed_razorpay_response_is_503_not_500(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    """A 2xx Razorpay response missing id/short_url must not surface as an
+    uncaught KeyError -> 500 (money-path review item 8)."""
+    client, session, fake = api
+    await _enable_billing(session)
+    fake.return_malformed_payment_link = True
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    response = await client.post(
+        "/billing/ad-orders", json={"campaign_id": str(campaign.id)}, headers=_as(OWNER)
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "razorpay_unavailable"
+    orders = (
+        await session.scalars(select(AdOrder).where(AdOrder.campaign_id == campaign.id))
+    ).all()
+    assert orders == []
+
+
+async def test_business_not_servable_is_409(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    """THREAT: a suspended/disabled advertiser must not be able to buy a new
+    campaign's way back into inventory - is_servable is the same fail-closed
+    M1.5.E check the serve path and ads' own resume route use."""
+    client, session, fake = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+
+    async def _not_servable(session: AsyncSession, business_id: uuid.UUID) -> bool:
+        return False
+
+    register_servable_resolver(_not_servable)  # after create_app(): D20 pattern
+
+    response = await client.post(
+        "/billing/ad-orders", json={"campaign_id": str(campaign.id)}, headers=_as(OWNER)
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "business_not_servable"
+    assert fake.calls == []
+
+
 # ---------------------------------------------------------------------------
 # GET /billing/ad-orders?campaign_id=
 
@@ -376,6 +466,30 @@ async def test_list_orders_owner_scoped(
     assert foreign.status_code == 404
 
 
+async def test_list_orders_checkout_url_hidden_once_not_created(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    """checkout_url is only meaningful while status=='created' (still
+    awaiting payment) - once paid/failed/expired/refunded there is nothing
+    left to check out (money-path review)."""
+    client, session, fake = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    created = await client.post(
+        "/billing/ad-orders", json={"campaign_id": str(campaign.id)}, headers=_as(OWNER)
+    )
+    assert created.status_code == 201
+    order = await session.get(AdOrder, uuid.UUID(created.json()["id"]))
+    assert order is not None
+    order.status = "paid"
+    await session.flush()
+
+    mine = await client.get(f"/billing/ad-orders?campaign_id={campaign.id}", headers=_as(OWNER))
+    assert mine.status_code == 200
+    assert mine.json()["items"][0]["checkout_url"] is None
+
+
 async def test_list_orders_unknown_campaign_404(
     api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
 ) -> None:
@@ -394,3 +508,20 @@ async def test_list_orders_requires_campaign_id(
     await _enable_billing(session)
     response = await client.get("/billing/ad-orders", headers=_as(OWNER))
     assert response.status_code == 422  # missing required query param
+
+
+async def test_list_orders_limit_out_of_bounds_422(
+    api: tuple[httpx.AsyncClient, AsyncSession, FakeRazorpay],
+) -> None:
+    client, session, fake = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    too_small = await client.get(
+        f"/billing/ad-orders?campaign_id={campaign.id}&limit=0", headers=_as(OWNER)
+    )
+    assert too_small.status_code == 422
+    too_big = await client.get(
+        f"/billing/ad-orders?campaign_id={campaign.id}&limit=101", headers=_as(OWNER)
+    )
+    assert too_big.status_code == 422

@@ -20,7 +20,7 @@ import json
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import uuid6
 from fastapi import Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -140,6 +140,28 @@ def _quote_out(quote: pricing.Quote) -> QuoteOut:
         total_paise=quote.total_paise,
         rate_card_version=quote.rate_card_version,
     )
+
+
+def _quote_snapshot(quote: pricing.Quote) -> dict[str, Any]:
+    """The itemized quote persisted onto `Campaign.quote` at create/patch
+    re-quote time (money-path review 2b) - line items + rates, not just the
+    4-number decomposition already on the scalar columns. Handed to billing
+    verbatim via shared.lookups.CampaignBillingRef.quote for invoice
+    provenance; JSONB-ready (lines as 2-element [label, amount_paise] lists,
+    not the QuoteLine dataclass)."""
+    return {
+        "lines": [[line.label, line.amount_paise] for line in quote.lines],
+        "pricing_model": quote.pricing_model,
+        "tier": quote.tier,
+        "multiplier_bp": quote.multiplier_bp,
+        "serves_total": quote.serves_total,
+        "weeks": quote.weeks,
+        "rate_card_version": quote.rate_card_version,
+        "gst_rate_bp": get_settings().gst_rate_bp,
+        "subtotal_paise": quote.subtotal_paise,
+        "gst_paise": quote.gst_paise,
+        "total_paise": quote.total_paise,
+    }
 
 
 def _creative_snapshot(creative: Creative, media_base: str) -> CreativeSnapshotOut:
@@ -330,6 +352,7 @@ async def create_campaign(
         daily_serve_cap=body.daily_serve_cap,
         flight_start=body.flight_start,
         flight_end=body.flight_end,
+        quote=_quote_snapshot(quote),
     )
     session.add(campaign)
     await session.flush()
@@ -473,6 +496,7 @@ async def patch_campaign(
         campaign.budget_serves_total = quote.serves_total
         campaign.flight_start = new_flight_start
         campaign.flight_end = new_flight_end
+        campaign.quote = _quote_snapshot(quote)
 
         merged_geo = _merge_geo_target(new_geo_target, new_categories)
         for placement in placements:

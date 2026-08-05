@@ -38,6 +38,12 @@ class Campaign(UUIDv7PKMixin, TimestampMixin, Base):
     rate_card_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     daily_serve_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # M5 Task 9 fast-follow: the itemized quote snapshot (line items + rates
+    # + tier + multiplier), persisted alongside the price_*/rate_card_version
+    # scalars at create/patch re-quote time (modules/ads/selfserve_router.py).
+    # Handed to billing verbatim via shared.lookups.CampaignBillingRef.quote
+    # - billing never re-derives it. NULL for pre-existing/house campaigns.
+    quote: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
 class Creative(UUIDv7PKMixin, UGCMixin, TimestampMixin, Base):

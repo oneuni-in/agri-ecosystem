@@ -11,6 +11,7 @@ tables. Fail closed: unregistered resolvers answer None/empty, never raise.
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,11 +39,33 @@ ServableResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[bool]]
 # caller's transaction; returns the paused campaign ids for the audit row.
 CampaignPauser = Callable[[AsyncSession, uuid.UUID], Awaitable[list[str]]]
 
+
+@dataclass(frozen=True, slots=True)
+class CampaignBillingRef:
+    id: uuid.UUID
+    business_id: uuid.UUID
+    name: str
+    status: str
+    pricing_model: str | None
+    price_paise: int | None  # None = unpriced (house/admin) - NOT billable
+    subtotal_paise: int | None  # price decomposition: billing invoices need
+    gst_paise: int | None  #   taxable vs GST without re-deriving (Task 9/10)
+    paid_at: datetime | None
+
+
+CampaignBillingResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[CampaignBillingRef | None]]
+# M5: billing tells ads about a payment event so ads can flip the campaign's
+# status; events are "paid" | "refunded". checkout's draft->pending_payment
+# flip happens inside ads' own checkout-request path, not via this hook.
+CampaignPaymentHook = Callable[[AsyncSession, uuid.UUID, str], Awaitable[None]]
+
 _business_resolver: BusinessResolver | None = None
 _owned_businesses_resolver: OwnedBusinessesResolver | None = None
 _contact_resolver: ContactResolver | None = None
 _servable_resolver: ServableResolver | None = None
 _campaign_pauser: CampaignPauser | None = None
+_campaign_billing_resolver: CampaignBillingResolver | None = None
+_campaign_payment_hook: CampaignPaymentHook | None = None
 
 
 def register_business_resolver(resolver: BusinessResolver) -> None:
@@ -70,14 +93,27 @@ def register_campaign_pauser(pauser: CampaignPauser) -> None:
     _campaign_pauser = pauser
 
 
+def register_campaign_billing_resolver(resolver: CampaignBillingResolver) -> None:
+    global _campaign_billing_resolver
+    _campaign_billing_resolver = resolver
+
+
+def register_campaign_payment_hook(hook: CampaignPaymentHook) -> None:
+    global _campaign_payment_hook
+    _campaign_payment_hook = hook
+
+
 def reset_lookup_resolvers() -> None:
     global _business_resolver, _owned_businesses_resolver, _contact_resolver
     global _servable_resolver, _campaign_pauser
+    global _campaign_billing_resolver, _campaign_payment_hook
     _business_resolver = None
     _owned_businesses_resolver = None
     _contact_resolver = None
     _servable_resolver = None
     _campaign_pauser = None
+    _campaign_billing_resolver = None
+    _campaign_payment_hook = None
 
 
 async def resolve_business(session: AsyncSession, business_id: uuid.UUID) -> BusinessRef | None:
@@ -113,3 +149,23 @@ async def pause_campaigns_for_business(session: AsyncSession, business_id: uuid.
     if _campaign_pauser is None:
         return []
     return await _campaign_pauser(session, business_id)
+
+
+async def resolve_campaign_billing(
+    session: AsyncSession, campaign_id: uuid.UUID
+) -> CampaignBillingRef | None:
+    if _campaign_billing_resolver is None:
+        return None
+    return await _campaign_billing_resolver(session, campaign_id)
+
+
+async def notify_campaign_payment(
+    session: AsyncSession, campaign_id: uuid.UUID, event: str
+) -> None:
+    """M5 checkout/webhook -> ads hook. FAIL CLOSED: no resolver means the
+    payment is silently dropped from ads' view - money is still recorded on
+    the billing side, the campaign just stays pending, and reconcile surfaces
+    the gap rather than either side raising mid-webhook."""
+    if _campaign_payment_hook is None:
+        return
+    await _campaign_payment_hook(session, campaign_id, event)

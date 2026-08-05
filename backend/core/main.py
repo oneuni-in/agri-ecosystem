@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
+from modules.ads.selfserve_router import router as ads_selfserve_router
 from modules.ads.service import pause_active_campaigns
 from modules.ai.router import router as ai_router
 from modules.billing.admin_router import admin_router as billing_admin_router
@@ -71,6 +72,7 @@ logger = get_logger(__name__)
 MODULE_ROUTERS = [
     ads_admin_router,
     ads_router,
+    ads_selfserve_router,
     ai_router,
     billing_router,
     billing_admin_router,

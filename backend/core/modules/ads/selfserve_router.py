@@ -33,7 +33,7 @@ from modules.ads.selfserve_schemas import (
     QuoteLineOut,
     QuoteOut,
 )
-from modules.ads.service import GeoTargetIn
+from modules.ads.service import SLOT_KEYS, GeoTargetIn
 from settings import get_settings
 from shared.db import get_session
 from shared.flags import flag_enabled
@@ -71,6 +71,23 @@ async def _owned_campaign(
         if ref is not None and ref.owner_user_id == user_id:
             return campaign
     raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _check_slot_keys(slot_keys: list[str]) -> None:
+    """Wire contract must match the sibling admin route exactly (modules/ads/
+    admin_router.create_placement, pinned by tests/test_ads_admin.py): an
+    unknown slot key is 422 `detail == "unknown_slot_key"`, a plain string -
+    not pydantic's structured error list."""
+    if any(slot_key not in SLOT_KEYS for slot_key in slot_keys):
+        raise HTTPException(status_code=422, detail="unknown_slot_key")
+
+
+def _check_geo_target_categories(geo_target: GeoTargetIn) -> None:
+    """`categories` is a top-level wizard field (see _merge_geo_target); a
+    client-supplied `geo_target.categories` would be silently clobbered by
+    it, which is an ambiguous wire contract - reject it outright instead."""
+    if geo_target.categories:
+        raise HTTPException(status_code=422, detail="categories_in_geo_target")
 
 
 def _merge_geo_target(geo_target: GeoTargetIn, categories: list[str] | None) -> dict[str, object]:
@@ -165,6 +182,8 @@ async def _placements_and_creatives(
 @router.post("/quote")
 async def quote_campaign(body: QuoteIn, session: SessionDep) -> QuoteOut:
     await _require_flag(session)
+    _check_slot_keys(body.slot_keys)
+    _check_geo_target_categories(body.geo_target)
     try:
         quote = await pricing.quote_campaign(
             session,
@@ -189,6 +208,8 @@ async def create_campaign(
     body: CampaignCreateIn, request: Request, session: SessionDep
 ) -> MyCampaignOut:
     await _require_flag(session)
+    _check_slot_keys(body.slot_keys)
+    _check_geo_target_categories(body.geo_target)
     user_id = _principal_user_id(request)
     ref = await resolve_business(session, body.business_id)
     if ref is None or ref.owner_user_id != user_id:
@@ -304,6 +325,8 @@ async def patch_campaign(
     campaign_id: uuid.UUID, body: CampaignPatchIn, request: Request, session: SessionDep
 ) -> MyCampaignOut:
     await _require_flag(session)
+    if body.geo_target is not None:
+        _check_geo_target_categories(body.geo_target)
     user_id = _principal_user_id(request)
     campaign = await _owned_campaign(session, user_id, campaign_id)
     if campaign.status != "draft":

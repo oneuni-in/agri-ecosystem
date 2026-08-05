@@ -14,7 +14,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from modules.ads.service import SLOT_KEYS, GeoTargetIn
+from modules.ads.service import GeoTargetIn
 
 MAX_CATEGORIES = 20
 _CATEGORY_RE = re.compile(r"^[a-z0-9-]{1,40}$")
@@ -34,20 +34,17 @@ class _QuoteFieldsBase(BaseModel):
     own step) even though it lands INSIDE Placement.geo_target on create -
     see selfserve_router._merge_geo_target."""
 
+    # Membership in service.SLOT_KEYS is NOT checked here - the router
+    # validates it explicitly (HTTPException(422, "unknown_slot_key")) so the
+    # wire contract matches the sibling admin route (modules/ads/admin_router
+    # .create_placement) exactly: a plain string in `detail`, not a pydantic
+    # structured error list.
     slot_keys: Annotated[list[str], Field(min_length=1, max_length=3)]
     geo_target: GeoTargetIn
     categories: Annotated[list[str], Field(max_length=MAX_CATEGORIES)] = Field(default_factory=list)
     flight_start: date
     flight_end: date
     serves_total: Annotated[int, Field(ge=0)] | None = None
-
-    @field_validator("slot_keys")
-    @classmethod
-    def _slot_keys_known(cls, value: list[str]) -> list[str]:
-        bad = [s for s in value if s not in SLOT_KEYS]
-        if bad:
-            raise ValueError(f"unknown_slot_key: {bad!r}")
-        return value
 
     @field_validator("categories")
     @classmethod

@@ -309,3 +309,61 @@ async def test_client_cannot_set_price(
     }
     resp = await client.post("/ads/my/campaigns", json=body, headers=_as(OWNER))
     assert resp.status_code == 422
+
+
+async def test_unknown_slot_key_422_matches_admin_wire_contract(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The self-serve surface must speak the same error contract as the
+    sibling admin route (modules/ads/admin_router.create_placement, pinned by
+    tests/test_ads_admin.py): `detail == "unknown_slot_key"`, an exact
+    string - not a pydantic structured error list."""
+    client, session = api
+    await _enable_ads(session)
+    business_id = await _business(session)
+    bad_slot_body = _quote_body(slot_keys=["not_a_real_slot"])
+
+    quote_resp = await client.post("/ads/my/quote", json=bad_slot_body, headers=_as(OWNER))
+    assert quote_resp.status_code == 422
+    assert quote_resp.json()["detail"] == "unknown_slot_key"
+
+    create_body = {**bad_slot_body, "business_id": str(business_id), "name": "Bad slot"}
+    create_resp = await client.post("/ads/my/campaigns", json=create_body, headers=_as(OWNER))
+    assert create_resp.status_code == 422
+    assert create_resp.json()["detail"] == "unknown_slot_key"
+
+
+async def test_categories_in_geo_target_rejected_422(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """`categories` is a top-level wizard field that lands inside
+    Placement.geo_target on create (selfserve_router._merge_geo_target); a
+    client also populating geo_target.categories directly is an ambiguous
+    wire contract (it would be silently clobbered) and must be rejected."""
+    client, session = api
+    await _enable_ads(session)
+    business_id = await _business(session)
+    dual_categories_body = _quote_body(geo_target={"categories": ["paneer"]}, categories=["ghee"])
+
+    quote_resp = await client.post("/ads/my/quote", json=dual_categories_body, headers=_as(OWNER))
+    assert quote_resp.status_code == 422
+    assert quote_resp.json()["detail"] == "categories_in_geo_target"
+
+    create_body = {
+        **dual_categories_body,
+        "business_id": str(business_id),
+        "name": "Dual categories",
+    }
+    create_resp = await client.post("/ads/my/campaigns", json=create_body, headers=_as(OWNER))
+    assert create_resp.status_code == 422
+    assert create_resp.json()["detail"] == "categories_in_geo_target"
+
+    # same ambiguity on PATCH
+    campaign = await _create_draft(client, session)
+    patch_resp = await client.patch(
+        f"/ads/my/campaigns/{campaign['id']}",
+        json={"geo_target": {"categories": ["paneer"]}},
+        headers=_as(OWNER),
+    )
+    assert patch_resp.status_code == 422
+    assert patch_resp.json()["detail"] == "categories_in_geo_target"

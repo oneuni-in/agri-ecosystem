@@ -7,6 +7,7 @@ event bodies and assertions are new."""
 import hashlib
 import hmac
 import json
+import re
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
@@ -245,7 +246,12 @@ async def test_paid_webhook_end_to_end(api: tuple[httpx.AsyncClient, AsyncSessio
     assert invoice.amount_paise == 118_000
     assert invoice.taxable_paise == 100_000
     assert invoice.gst_paise == 18_000
-    assert invoice.invoice_number == "MILK-26-27-000001"
+    # padding/format already pinned by test_invoice_number_pads_seq; this
+    # only needs to be SOME sequence number in the right financial year -
+    # asserting the literal here would couple to nextval() call order
+    # across the whole file.
+    assert invoice.invoice_number is not None
+    assert re.fullmatch(r"MILK-26-27-\d{6}", invoice.invoice_number)
 
     await session.refresh(campaign)
     assert campaign.status == "active"  # payment + pre-approved creative both cleared
@@ -344,7 +350,9 @@ async def test_amount_mismatch_no_ledger_no_activation(
 
     await session.refresh(order)
     assert order.status == "failed"
-    assert order.razorpay_payment_id is None
+    # forensics + later refund matching (money-path review item 4): the
+    # payment id is recorded even on a failed/mismatched order.
+    assert order.razorpay_payment_id == "pay_mismatch_1"
     assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 0
     assert await session.scalar(select(func.count(Invoice.id))) == 0
 
@@ -358,6 +366,108 @@ async def test_amount_mismatch_no_ledger_no_activation(
         )
     )
     assert event is not None and event.outcome == "amount_mismatch"
+
+
+# ---------------------------------------------------------------------------
+# payment_link.paid on a terminal order (Important review item 1): a
+# signature-verified paid event means money WAS captured - never silently
+# swallowed, even when our local order is already expired/failed/refunded
+# or collides with a re-checkout's live order.
+
+
+async def test_paid_after_expired_succeeds(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    """Razorpay's own expiry webhook raced a genuine payment - the order was
+    marked `expired` first, but the LATER `paid` delivery must still land:
+    ledger + invoice + the campaign activation hook all fire."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    await _approved_creative(session, campaign)
+    order = await _seed_order(
+        session, campaign, business.id, plink_id="plink_late_paid_1", status="expired"
+    )
+
+    raw, headers = _signed(_paid_body("plink_late_paid_1", "pay_late_paid_1", 118_000))
+    response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 200 and response.json()["status"] == "ok"
+
+    await session.refresh(order)
+    assert order.status == "paid"
+    assert order.razorpay_payment_id == "pay_late_paid_1"
+    assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 1
+    assert await session.scalar(select(func.count(Invoice.id))) == 1
+
+    await session.refresh(campaign)
+    assert campaign.status == "active"
+
+    event = await session.scalar(
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw).hexdigest()
+        )
+    )
+    assert event is not None and event.outcome == "ok"
+
+
+async def test_paid_after_expired_collides_with_second_order_is_ignored_terminal(
+    api: tuple[httpx.AsyncClient, AsyncSession], caplog: pytest.LogCaptureFixture
+) -> None:
+    """The FIRST order expired, the advertiser re-checked out (a second live
+    `created` order for the same campaign now exists), and only THEN does
+    Razorpay's late `paid` webhook for the FIRST (expired) order arrive.
+    Flipping it back to `paid` would collide with the partial-unique index
+    (`created`|`paid` live per campaign) - caught as an IntegrityError inside
+    the applier's own savepoint, never a 500, never a silently dropped
+    payment: `ignored_terminal` + a loud warning for ops/reconcile."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    expired_order = await _seed_order(
+        session, campaign, business.id, plink_id="plink_collide_1", status="expired"
+    )
+    # the re-checkout: a second LIVE order for the same campaign
+    await _seed_order(session, campaign, business.id, plink_id="plink_collide_2", status="created")
+
+    raw, headers = _signed(_paid_body("plink_collide_1", "pay_collide_1", 118_000))
+    with caplog.at_level("WARNING"):
+        response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 200 and response.json()["status"] == "ok"
+    assert "billing.ad_paid_on_terminal_order" in caplog.text
+
+    await session.refresh(expired_order)
+    assert expired_order.status == "expired"  # the flip rolled back, never landed
+    assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 0
+    assert await session.scalar(select(func.count(Invoice.id))) == 0
+
+    event = await session.scalar(
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw).hexdigest()
+        )
+    )
+    assert event is not None and event.outcome == "ignored_terminal"
+
+
+async def test_paid_on_failed_order_is_ignored_terminal(
+    api: tuple[httpx.AsyncClient, AsyncSession], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    order = await _seed_order(
+        session, campaign, business.id, plink_id="plink_dead_1", status="failed"
+    )
+
+    raw, headers = _signed(_paid_body("plink_dead_1", "pay_dead_1", 118_000))
+    with caplog.at_level("WARNING"):
+        response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 200
+    assert "billing.ad_paid_on_terminal_order" in caplog.text
+
+    await session.refresh(order)
+    assert order.status == "failed"
+    assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -460,6 +570,156 @@ async def test_refund_on_unpaid_order_is_ignored(
     await session.refresh(order)
     assert order.status == "created"  # untouched: no order matches that payment id
     assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 0
+
+
+async def test_partial_refund_leaves_order_paid_campaign_untouched(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Important review item 2: balance-based refund accounting. A single
+    goodwill part-refund must not kill a still-serving campaign - order
+    stays `paid`, no pause hook fires."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(
+        session, business.id, status="active", paid_at=datetime.now(UTC)
+    )
+    order = await _seed_order(
+        session,
+        campaign,
+        business.id,
+        plink_id="plink_partial_1",
+        status="paid",
+        razorpay_payment_id="pay_partial_1",
+    )
+
+    raw, headers = _signed(_refund_body("pay_partial_1", "rfnd_partial_1", 50_000))
+    response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 200
+
+    ledger_rows = (
+        await session.scalars(
+            select(BillingLedgerEntry).where(BillingLedgerEntry.order_id == order.id)
+        )
+    ).all()
+    assert len(ledger_rows) == 1
+    assert ledger_rows[0].amount_paise == -50_000
+
+    await session.refresh(order)
+    assert order.status == "paid"  # NOT refunded - headroom remains
+
+    await session.refresh(campaign)
+    assert campaign.status == "active"  # untouched: partial refund never fires the hook
+
+
+async def test_two_partial_refunds_summing_to_total_flips_refunded(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Two split refunds that together exhaust the order total: two ledger
+    rows, and only the SECOND one crosses the threshold that flips the
+    order `refunded` and pauses the campaign."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(
+        session,
+        business.id,
+        status="active",
+        paid_at=datetime.now(UTC),
+        budget_serves_total=5000,
+        budget_serves_used=800,
+    )
+    order = await _seed_order(
+        session,
+        campaign,
+        business.id,
+        plink_id="plink_split_1",
+        status="paid",
+        razorpay_payment_id="pay_split_1",
+    )
+
+    raw1, headers1 = _signed(
+        _refund_body("pay_split_1", "rfnd_split_1", 60_000, event_id="evt_split_1")
+    )
+    first = await client.post("/billing/webhook/razorpay", content=raw1, headers=headers1)
+    assert first.status_code == 200
+
+    await session.refresh(order)
+    assert order.status == "paid"  # first partial: headroom remains
+    await session.refresh(campaign)
+    assert campaign.status == "active"
+
+    raw2, headers2 = _signed(
+        _refund_body("pay_split_1", "rfnd_split_2", 58_000, event_id="evt_split_2")
+    )
+    second = await client.post("/billing/webhook/razorpay", content=raw2, headers=headers2)
+    assert second.status_code == 200
+
+    ledger_rows = (
+        await session.scalars(
+            select(BillingLedgerEntry)
+            .where(BillingLedgerEntry.order_id == order.id)
+            .order_by(BillingLedgerEntry.created_at)
+        )
+    ).all()
+    assert len(ledger_rows) == 2
+    assert [row.amount_paise for row in ledger_rows] == [-60_000, -58_000]
+    assert sum(row.amount_paise for row in ledger_rows) == -118_000
+
+    await session.refresh(order)
+    assert order.status == "refunded"  # second refund crossed the total
+
+    await session.refresh(campaign)
+    assert campaign.status == "paused"
+    assert campaign.budget_serves_total == campaign.budget_serves_used == 800
+
+
+async def test_refund_after_full_is_ignored_no_row(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A THIRD refund delivery after the order is already fully refunded
+    (e.g. a retried delivery of the completing refund) has no headroom
+    left - ignored, no ledger row appended."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(
+        session, business.id, status="active", paid_at=datetime.now(UTC)
+    )
+    order = await _seed_order(
+        session,
+        campaign,
+        business.id,
+        plink_id="plink_full_then_extra_1",
+        status="refunded",
+        razorpay_payment_id="pay_full_then_extra_1",
+    )
+    # the ledger row(s) that already sum to the full order total
+    session.add(
+        BillingLedgerEntry(
+            entry_type="ad_refund",
+            amount_paise=-118_000,
+            order_id=order.id,
+            campaign_id=campaign.id,
+            business_id=business.id,
+            razorpay_payment_id="pay_full_then_extra_1",
+        )
+    )
+    await session.flush()
+
+    raw, headers = _signed(
+        _refund_body("pay_full_then_extra_1", "rfnd_extra_1", 118_000, event_id="evt_extra_1")
+    )
+    response = await client.post("/billing/webhook/razorpay", content=raw, headers=headers)
+    assert response.status_code == 200
+
+    assert await session.scalar(select(func.count(BillingLedgerEntry.id))) == 1  # unchanged
+    event = await session.scalar(
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw).hexdigest()
+        )
+    )
+    assert event is not None and event.outcome == "ignored"
 
 
 # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ from typing import Any
 
 import uuid6
 from fastapi import HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +38,9 @@ from modules.billing.models import AdOrder, BillingLedgerEntry, Invoice
 from modules.billing.razorpay_client import RazorpayError
 from settings import Settings
 from shared import lookups
-from shared.lookups import resolve_business, resolve_contact
+from shared.telemetry import get_logger
+
+logger = get_logger(__name__)
 
 MAX_DESCRIPTION_LENGTH = 255
 LINK_EXPIRY = timedelta(hours=24)
@@ -166,7 +168,8 @@ async def create_ad_order(
 # body/event-id - a "rewrapped retry" - which passes the body-hash dedupe as
 # a brand-new event) and the price-tamper defense on the amount actually
 # paid. Every applier reads defensively (missing/malformed payload -> never
-# a KeyError) and locks the AdOrder row FOR UPDATE before deciding.
+# a KeyError/AttributeError) and locks the AdOrder row FOR UPDATE before
+# deciding.
 
 
 def invoice_number_for(seq: int, on: date) -> str:
@@ -179,26 +182,43 @@ def invoice_number_for(seq: int, on: date) -> str:
     return f"MILK-{fy_start:02d}-{fy_end:02d}-{seq:06d}"
 
 
-async def _pending_ad_notification(
-    session: AsyncSession, business_id: uuid.UUID, event_type: str, vars_: dict[str, Any]
-) -> PendingEvent | None:
-    """Same self-contained-payload shape as billing.service's
-    `_pending_notification` (D12 contract): destination/locale resolved
-    here, consumed once by the notify consumer. Not imported from
-    service.py - that direction would be the import cycle this module must
-    avoid (service.py imports ad_orders, not the reverse)."""
-    ref = await resolve_business(session, business_id)
-    if ref is None or ref.owner_user_id is None:
-        return None  # unowned/claimable business - nobody to notify
-    contact = await resolve_contact(session, ref.owner_user_id)
-    payload: dict[str, Any] = {
-        "user_id": str(ref.owner_user_id),
-        "locale": (contact.locale if contact else None) or "en",
-        "email": contact.email if contact else None,
-        "phone": None,
-        "vars": {**vars_, "business_name": ref.name},
-    }
-    return (event_type, payload)
+def _nested_entity(container: Any, *keys: str) -> dict[str, Any]:
+    """Defensive nested-dict descent for Razorpay webhook payloads: any
+    level that isn't a dict (missing key, `None`, a list, a bare string -
+    Razorpay's own retries have been known to reshape malformed bodies)
+    resolves to `{}` instead of raising `AttributeError`/`TypeError`.
+    Callers then just see missing fields and answer `("unmatched", [])`,
+    same as a plain missing key."""
+    current: Any = container
+    for key in keys:
+        if not isinstance(current, dict):
+            return {}
+        current = current.get(key)
+    return current if isinstance(current, dict) else {}
+
+
+def _terminal_paid_warning(plink_id: str, order_id: str, status: str) -> None:
+    """A signature-verified `payment_link.paid` event means Razorpay
+    genuinely captured money - it must never be silently swallowed just
+    because our local order row is in a dead-end state (failed/refunded, or
+    a partial-unique collision on an expired->paid flip). Ops/reconcile has
+    to chase the real disposition by hand; this is the loud paper trail.
+
+    Takes `order_id` as a plain str, not the ORM object: after a savepoint
+    rollback (the IntegrityError-collision caller below) the object's
+    attributes are expired, and AsyncSession has no implicit lazy-load - a
+    bare `order.id` access there raises `MissingGreenlet`, not a fresh
+    SELECT. Callers capture the id BEFORE attempting the mutation."""
+    logger.warning(
+        "billing.ad_paid_on_terminal_order",
+        extra={
+            "extra_fields": {
+                "plink_id": plink_id,
+                "order_id": order_id,
+                "order_status": status,
+            }
+        },
+    )
 
 
 async def apply_payment_link_paid(
@@ -208,14 +228,23 @@ async def apply_payment_link_paid(
     route's body-hash dedupe: Razorpay's own retries resend the identical
     signed body (caught upstream), but a distinct delivery attempt (new
     `_event_id`/body wrapper for the same plink) is a brand-new event to the
-    dedupe layer - so an already-`paid` (or otherwise non-`created`) order
-    must be a no-op here, not a second ledger append. THREAT (price
-    tamper/partial pay): `payment.amount` is checked against the order's own
-    stored `total_paise` - never trusted, never re-derived - and a mismatch
-    fails the order closed (no ledger, no activation)."""
-    entity = payload.get("payload") or {}
-    plink_entity = (entity.get("payment_link") or {}).get("entity") or {}
-    payment_entity = (entity.get("payment") or {}).get("entity") or {}
+    dedupe layer - so an already-`paid` order must be a no-op here, not a
+    second ledger append.
+
+    `expired` orders ALSO proceed (not just `created`): Razorpay's own
+    expiry webhook can race a genuine payment, and a signature-verified paid
+    event must never be dropped just because we already gave up on the
+    link. The partial-unique index (`created`|`paid` live per campaign) is
+    the collision backstop for the case where a re-checkout already created
+    a second live order for the same campaign while this one sat expired -
+    caught as an `IntegrityError` from the flush inside a savepoint, never
+    left half-applied.
+
+    THREAT (price tamper/partial pay): `payment.amount` is checked against
+    the order's own stored `total_paise` - never trusted, never re-derived -
+    and a mismatch fails the order closed (no ledger, no activation)."""
+    plink_entity = _nested_entity(payload, "payload", "payment_link", "entity")
+    payment_entity = _nested_entity(payload, "payload", "payment", "entity")
     plink_id = plink_entity.get("id")
     payment_id = payment_entity.get("id")
     amount = payment_entity.get("amount")
@@ -231,74 +260,92 @@ async def apply_payment_link_paid(
     )
     if order is None:
         return ("unmatched", [])
-    if order.status != "created":
-        # status == "paid": order-level idempotency (rewrapped retry/replay
-        # of a delivery that already landed). status in ("expired", "failed",
-        # "refunded"): a terminal order is never resurrected by a late/racy
-        # "paid" webhook - only a live "created" order may be paid. Either
-        # way: mark nothing, no ledger, no hook.
+    order_id_str = str(order.id)  # captured now - see _terminal_paid_warning's docstring
+    if order.status == "paid":
+        # rewrapped retry/replay of a delivery that already landed - order-
+        # level idempotency, not an anomaly worth a warning.
         return ("ignored", [])
+    if order.status not in ("created", "expired"):
+        # failed/refunded: see _terminal_paid_warning - money was captured
+        # for a dead-end order; log loudly rather than dropping it.
+        _terminal_paid_warning(str(plink_id), order_id_str, order.status)
+        return ("ignored_terminal", [])
 
     if amount_paise != order.total_paise:
+        # THREAT (price tamper/partial pay). NOTE: this strict `!=` depends
+        # on the Payment Link's `accept_partial` defaulting False
+        # (create_ad_order never sets it) - never enable partial payments
+        # on payment links without revisiting this check.
         order.status = "failed"
+        order.razorpay_payment_id = str(payment_id)  # forensics + refund matching later
         await session.flush()
         return ("amount_mismatch", [])
 
-    order.status = "paid"
-    order.razorpay_payment_id = str(payment_id)
-    session.add(
-        BillingLedgerEntry(
-            entry_type="ad_charge",
-            amount_paise=order.total_paise,
-            order_id=order.id,
-            campaign_id=order.campaign_id,
-            business_id=order.business_id,
-            razorpay_payment_id=str(payment_id),
-            meta={"plink_id": str(plink_id)},
-        )
-    )
-    seq = await session.scalar(text("SELECT nextval('billing.invoice_number_seq')"))
-    session.add(
-        Invoice(
-            order_id=order.id,
-            subscription_id=None,
-            amount_paise=order.total_paise,
-            taxable_paise=order.subtotal_paise,
-            gst_paise=order.gst_paise,
-            status="paid",
-            invoice_number=invoice_number_for(int(seq), now.date()),
-            period_start=None,
-            period_end=None,
-        )
-    )
-    await session.flush()
-    await lookups.notify_campaign_payment(session, order.campaign_id, "paid")
+    try:
+        async with session.begin_nested():
+            order.status = "paid"
+            order.razorpay_payment_id = str(payment_id)
+            session.add(
+                BillingLedgerEntry(
+                    entry_type="ad_charge",
+                    amount_paise=order.total_paise,
+                    order_id=order.id,
+                    campaign_id=order.campaign_id,
+                    business_id=order.business_id,
+                    razorpay_payment_id=str(payment_id),
+                    meta={"plink_id": str(plink_id)},
+                )
+            )
+            seq = await session.scalar(text("SELECT nextval('billing.invoice_number_seq')"))
+            session.add(
+                Invoice(
+                    order_id=order.id,
+                    subscription_id=None,
+                    amount_paise=order.total_paise,
+                    taxable_paise=order.subtotal_paise,
+                    gst_paise=order.gst_paise,
+                    status="paid",
+                    invoice_number=invoice_number_for(int(seq), now.date()),
+                    period_start=None,
+                    period_end=None,
+                )
+            )
+            await session.flush()
+    except IntegrityError:
+        # expired->paid collided with the partial-unique index: a
+        # re-checkout already made a second live (created/paid) order for
+        # this campaign while this one sat expired. The savepoint rolled
+        # back cleanly - the outer webhook transaction is still healthy.
+        # `order`'s attributes are now expired (post-rollback) - use the
+        # id captured before the savepoint, never `order.id` here.
+        _terminal_paid_warning(str(plink_id), order_id_str, "expired")
+        return ("ignored_terminal", [])
 
-    quote = order.quote or {}
-    pending = await _pending_ad_notification(
-        session,
-        order.business_id,
-        "billing.ad_payment_received",
-        {"campaign_name": quote.get("campaign_name"), "total_paise": order.total_paise},
-    )
-    return ("ok", [pending] if pending else [])
+    await lookups.notify_campaign_payment(session, order.campaign_id, "paid")
+    # Task 12 sends the invoice email as the payment confirmation; no
+    # in-app/email notify event is emitted from here (ruled: an unrouted
+    # event is dead weight until that wiring lands).
+    return ("ok", [])
 
 
 async def apply_refund_processed(
     session: AsyncSession, *, payload: dict[str, Any], now: datetime
 ) -> tuple[str, list[PendingEvent]]:
     """`refund.processed`. Locates the order by the ORIGINAL payment id (a
-    refund never carries a plink id); a refund on anything but a `paid`
-    order is ignored (already refunded, or never actually paid on our side -
-    order-level idempotency, same shape as the paid applier). The ledger
-    amount is capped at the order total (a partial/split refund cannot drive
-    the append-only ledger negative past what was ever charged) and floored
-    at a strictly-negative append - `amount_paise=0` would trip the ledger's
-    own sign CHECK constraint, so a zero/negative refund amount is treated
-    as unmatched rather than crashing the webhook transaction."""
-    entity = payload.get("payload") or {}
-    refund_entity = (entity.get("refund") or {}).get("entity") or {}
+    refund never carries a plink id). Balance-based accounting - Razorpay
+    supports split/partial refunds, so a single order can receive several
+    `refund.processed` events: `already_refunded` is read back from the
+    ledger itself (sum of prior `ad_refund` rows for this order, which are
+    stored negative), and this delivery is capped at whatever headroom
+    remains (`total_paise - already_refunded`). A delivery that has no
+    headroom left (a duplicate/retried delivery of a refund already fully
+    applied) computes a non-positive amount and is ignored - no row, no
+    double-count. The campaign is only paused/budget-zeroed once the
+    running total reaches the order's `total_paise` - a partial goodwill
+    refund must not kill a still-serving campaign."""
+    refund_entity = _nested_entity(payload, "payload", "refund", "entity")
     payment_id = refund_entity.get("payment_id")
+    refund_id = refund_entity.get("id")
     amount = refund_entity.get("amount")
     if not payment_id or amount is None:
         return ("unmatched", [])
@@ -312,31 +359,46 @@ async def apply_refund_processed(
     )
     if order is None:
         return ("unmatched", [])
-    if order.status != "paid":
+    if order.status not in ("paid", "refunded"):
         return ("ignored", [])
 
-    capped = min(amount_paise, order.total_paise)
-    if capped <= 0:
-        return ("unmatched", [])
+    already_refunded_raw = await session.scalar(
+        select(func.coalesce(func.sum(BillingLedgerEntry.amount_paise), 0)).where(
+            BillingLedgerEntry.order_id == order.id,
+            BillingLedgerEntry.entry_type == "ad_refund",
+        )
+    )
+    already_refunded = -int(already_refunded_raw or 0)  # ledger rows are stored negative
+    headroom = order.total_paise - already_refunded
+    refund_amount = min(amount_paise, headroom)
+    if refund_amount <= 0:
+        # nothing left to refund - a retried/duplicate delivery of an
+        # already-fully-applied refund, or a malformed non-positive amount.
+        return ("ignored", [])
 
     session.add(
         BillingLedgerEntry(
             entry_type="ad_refund",
-            amount_paise=-capped,
+            amount_paise=-refund_amount,
             order_id=order.id,
             campaign_id=order.campaign_id,
             business_id=order.business_id,
             razorpay_payment_id=str(payment_id),
-            meta={"refund_id": str(refund_entity.get("id") or "")},
+            meta={"refund_id": str(refund_id or "")},
         )
     )
-    order.status = "refunded"
+    fully_refunded = already_refunded + refund_amount >= order.total_paise
+    if fully_refunded:
+        order.status = "refunded"
     await session.flush()
-    # CARRY-FORWARD (Task 7 ledger contract): the hook zero-outs
-    # budget_serves_total and pauses the campaign. No re-pay path from
-    # paused/refunded is built here - that is a fresh checkout on a fresh
-    # order (the partial-unique index on ad_orders excludes 'refunded').
-    await lookups.notify_campaign_payment(session, order.campaign_id, "refunded")
+    if fully_refunded:
+        # CARRY-FORWARD (Task 7 ledger contract): the hook zero-outs
+        # budget_serves_total and pauses the campaign. No re-pay path from
+        # paused/refunded is built here - that is a fresh checkout on a
+        # fresh order (the partial-unique index on ad_orders excludes
+        # 'refunded'). A PARTIAL refund deliberately does NOT fire this
+        # hook - a goodwill part-refund must not pause a live campaign.
+        await lookups.notify_campaign_payment(session, order.campaign_id, "refunded")
     return ("ok", [])
 
 
@@ -349,8 +411,7 @@ async def apply_payment_link_expired(
     No campaign hook - the campaign stays `pending_payment`, and the
     partial-unique index on `ad_orders` (live = created|paid) excludes
     `expired`, so the advertiser can start a fresh checkout immediately."""
-    entity = payload.get("payload") or {}
-    plink_entity = (entity.get("payment_link") or {}).get("entity") or {}
+    plink_entity = _nested_entity(payload, "payload", "payment_link", "entity")
     plink_id = plink_entity.get("id")
     if not plink_id:
         return ("unmatched", [])

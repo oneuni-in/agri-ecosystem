@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads import lifecycle
@@ -162,6 +163,42 @@ async def test_maybe_activate_no_creatives_never_activates(db_session: AsyncSess
 
     assert await lifecycle.maybe_activate(db_session, campaign) is False
     assert campaign.status == "pending_moderation"
+
+
+async def test_maybe_activate_refreshes_a_stale_identity_mapped_campaign(
+    db_session: AsyncSession,
+) -> None:
+    """Regression (Task 7 review round 2): SQLAlchemy's identity map does
+    NOT repopulate an already-loaded object's attributes from a later
+    SELECT - not even a locked one - unless the read explicitly refreshes
+    it. This simulates, in one session, exactly what a concurrent
+    transaction's committed write would look like from the other side of
+    maybe_activate's row lock: the in-memory `campaign` object is left
+    deliberately stale (paid_at=None) while a raw Core UPDATE sets paid_at
+    on the underlying row directly, WITH `synchronize_session=False` so
+    SQLAlchemy's default ORM-evaluate auto-sync (which would otherwise
+    quietly patch `campaign.paid_at` itself and defeat the point of this
+    test) is turned off - genuinely mimicking a write from a separate
+    session/connection that this session doesn't know about. Without
+    `session.refresh(campaign, with_for_update=True)` inside
+    maybe_activate, this would evaluate the conjunction against the stale
+    `None` and fail to activate even though the row is, in truth, paid."""
+    campaign = _campaign(status="pending_moderation", paid_at=None)
+    db_session.add(campaign)
+    await db_session.flush()
+    await _creative(db_session, campaign, "approved")
+
+    await db_session.execute(
+        update(Campaign)
+        .where(Campaign.id == campaign.id)
+        .values(paid_at=datetime.now(UTC))
+        .execution_options(synchronize_session=False)
+    )
+    assert campaign.paid_at is None  # confirms the in-memory object is genuinely stale
+
+    assert await lifecycle.maybe_activate(db_session, campaign) is True
+    assert campaign.status == "active"
+    assert campaign.paid_at is not None  # refresh picked up the Core UPDATE's value
 
 
 # ---------------------------------------------------------------------------

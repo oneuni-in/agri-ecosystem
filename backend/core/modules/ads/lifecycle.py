@@ -86,21 +86,26 @@ async def maybe_activate(session: AsyncSession, campaign: Campaign) -> bool:
     THREAT (race): a concurrent webhook-paid + last-creative-approve can
     each read the other's precondition as unmet and both commit, stranding
     a paid+fully-approved campaign in pending_moderation forever. Closed by
-    taking a row lock on the campaign here, under BOTH callers (the
-    moderation approve path previously never touched the campaign row at
-    all when the gate failed, so nothing serialized it against a
-    concurrent payment) - the conjunction is now always evaluated against a
-    locked, freshly-read row. sweep_lifecycle's recovery pass is the
-    backstop for any campaign that still ends up stranded (e.g. from code
-    predating this lock)."""
-    locked = await session.scalar(
-        select(Campaign).where(Campaign.id == campaign.id).with_for_update()
-    )
-    if locked is None or locked.status not in _ACTIVATABLE_FROM:
+    `session.refresh(campaign, with_for_update=True)`: it takes the row
+    lock AND repopulates `campaign`'s attributes from the locked row -
+    which a locking SELECT by itself does NOT do, since `campaign` is
+    already in this session's identity map. (An earlier version of this
+    fix used a fresh `select(...).with_for_update()` instead; that took the
+    lock correctly but SQLAlchemy returned the SAME already-attached,
+    un-refreshed Python object rather than repopulating it, so the
+    conjunction still silently evaluated stale pre-lock attributes - the
+    race was still open. `session.refresh` is the ops-module precedent for
+    exactly this, modules/ops/admin_router.py's `toggle_flag`.) Whichever
+    transaction's lock is granted second now genuinely reads the first
+    one's committed state before deciding. sweep_lifecycle's recovery pass
+    is the backstop for any campaign that still ends up stranded (e.g. from
+    code predating this fix)."""
+    await session.refresh(campaign, with_for_update=True)
+    if campaign.status not in _ACTIVATABLE_FROM:
         return False
-    approved, pending = await creative_moderation_counts(session, locked.id)
-    if locked.paid_at is not None and approved >= 1 and pending == 0:
-        locked.status = "active"
+    approved, pending = await creative_moderation_counts(session, campaign.id)
+    if campaign.paid_at is not None and approved >= 1 and pending == 0:
+        campaign.status = "active"
         await session.flush()
         return True
     return False

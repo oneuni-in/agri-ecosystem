@@ -1,6 +1,7 @@
 """D12 engine: preference routing, rate cap, retry w/ backoff, dead-letter."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,7 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.notify.drivers import MockEmailDriver, MockNotifySmsDriver
+from modules.notify.drivers import EmailAttachment, MockEmailDriver, MockNotifySmsDriver
 from modules.notify.models import Delivery, Notification, Preference
 from modules.notify.service import (
     MAX_DELIVERY_ATTEMPTS,
@@ -97,7 +98,13 @@ async def test_failed_send_schedules_backoff_then_dead_letters(
 ) -> None:
     await _enable_email_flag(db_session)
 
-    async def boom(self: object, to: str, subject: str, body: str) -> str | None:
+    async def boom(
+        self: object,
+        to: str,
+        subject: str,
+        body: str,
+        attachments: Sequence[EmailAttachment] = (),
+    ) -> str | None:
         raise RuntimeError("provider down")
 
     monkeypatch.setattr(MockEmailDriver, "send", boom)
@@ -125,11 +132,17 @@ async def test_retry_succeeds_and_marks_sent(
     calls = {"n": 0}
     real_send = MockEmailDriver.send
 
-    async def flaky(self: MockEmailDriver, to: str, subject: str, body: str) -> str | None:
+    async def flaky(
+        self: MockEmailDriver,
+        to: str,
+        subject: str,
+        body: str,
+        attachments: Sequence[EmailAttachment] = (),
+    ) -> str | None:
         calls["n"] += 1
         if calls["n"] == 1:
             raise RuntimeError("blip")
-        return await real_send(self, to, subject, body)
+        return await real_send(self, to, subject, body, attachments=attachments)
 
     monkeypatch.setattr(MockEmailDriver, "send", flaky)
     await dispatch(db_session, _request(channels=frozenset({"email"})), now=NOW)
@@ -139,3 +152,50 @@ async def test_retry_succeeds_and_marks_sent(
     await db_session.refresh(delivery)
     assert delivery.status == "sent"
     assert len(MockEmailDriver.outbox) == 1
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 12: an "attachment_key" riding in NotifyRequest.payload (not
+# "vars" - modules/notify/consumers.py lifts it out of the event payload
+# separately) makes dispatch fetch the object and hand it to the driver.
+
+
+async def test_email_attachment_rides_along_when_present(
+    db_session: AsyncSession, otp_redis: Redis, object_store: dict[str, bytes]
+) -> None:
+    await _enable_email_flag(db_session)
+    object_store["invoices/test.pdf"] = b"%PDF-1.3 fake invoice"
+    request = _request(
+        channels=frozenset({"email"}),
+        payload={
+            "device": "Chrome on Android",
+            "attachment_key": "invoices/test.pdf",
+            "attachment_filename": "MILK-26-27-000001.pdf",
+        },
+    )
+    await dispatch(db_session, request, now=NOW)
+    assert len(MockEmailDriver.outbox) == 1
+    _to, _subject, _body, names = MockEmailDriver.outbox[0]
+    assert names == ("MILK-26-27-000001.pdf",)
+
+
+async def test_email_attachment_storage_error_marks_delivery_failed(
+    db_session: AsyncSession, otp_redis: Redis, object_store: dict[str, bytes]
+) -> None:
+    """The object was never stored (or a StorageError'd write) - the
+    delivery must fail through the existing retry machinery, never send an
+    attachment-less mail as a silent fallback."""
+    await _enable_email_flag(db_session)
+    request = _request(
+        channels=frozenset({"email"}),
+        payload={
+            "device": "Chrome on Android",
+            "attachment_key": "invoices/missing.pdf",
+            "attachment_filename": "MILK-26-27-000002.pdf",
+        },
+    )
+    await dispatch(db_session, request, now=NOW)
+    delivery = (await db_session.scalars(select(Delivery))).one()
+    assert delivery.status == "failed"
+    assert delivery.last_error == "StorageError"
+    assert MockEmailDriver.outbox == []

@@ -146,6 +146,12 @@ class Settings(BaseSettings):
     # M5 Task 9: the advertiser console origin the Payment Link's
     # callback_url bounces back to after hosted checkout.
     console_base_url: str = "http://localhost:3002"
+    # M5 Task 12: seller particulars shown on ad-order GST invoice PDFs.
+    # Empty in dev is fine (invoice_pdf.py renders "-" for a blank GSTIN);
+    # ops fills these in before the first real advertiser is invoiced.
+    gst_seller_gstin: str = ""
+    gst_seller_name: str = "Oneuni Technologies"
+    gst_seller_address: str = ""
 
     # D21 ads
     ads_worker_enabled: bool = True

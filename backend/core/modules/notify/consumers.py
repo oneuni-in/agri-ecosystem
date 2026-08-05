@@ -13,7 +13,7 @@ from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
-STREAMS = ("identity", "notify", "directory", "billing")
+STREAMS = ("identity", "notify", "directory", "billing", "ads")
 CONSUMER_GROUP = "notify"
 
 EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
@@ -42,6 +42,13 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     "billing.dunning_reminder": ("dunning_reminder", frozenset({"email"})),
     "billing.subscription_canceled": ("subscription_canceled", frozenset({"email"})),
     "billing.subscription_activated": ("subscription_activated", frozenset({"email"})),
+    # M5 Task 12: ad-order GST invoices (billing) + campaign moderation
+    # outcomes (ads, first consumer of that stream) - both already resolve
+    # a destination/locale at emit time, same D20 pattern as the billing
+    # routes above.
+    "billing.ad_invoice": ("ad_invoice", frozenset({"email"})),
+    "campaign.activated": ("campaign_activated", frozenset({"email"})),
+    "creative.rejected": ("creative_rejected", frozenset()),
 }
 
 
@@ -54,10 +61,20 @@ async def handle_event(session: AsyncSession, event: Event) -> None:
     locale = payload.get("locale") or "en"
     if locale not in SUPPORTED_LOCALES:
         locale = "en"
+    request_payload = dict(payload.get("vars") or {})
+    # M5 Task 12: an email attachment (currently only billing.ad_invoice)
+    # rides in the event payload itself, not under "vars" - it is not a
+    # template variable, it's read by modules/notify/service.py's dispatch
+    # to fetch the file. Lifted in here rather than at the producer so any
+    # future event carrying an attachment_key gets the same behaviour free.
+    attachment_key = payload.get("attachment_key")
+    if attachment_key:
+        request_payload["attachment_key"] = attachment_key
+        request_payload["attachment_filename"] = payload.get("attachment_filename")
     request = NotifyRequest(
         user_id=uuid.UUID(str(payload["user_id"])),
         template_key=template_key,
-        payload=dict(payload.get("vars") or {}),
+        payload=request_payload,
         locale=locale,
         email=payload.get("email"),
         phone=payload.get("phone"),

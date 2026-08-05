@@ -34,16 +34,21 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.billing.invoice_pdf import render_invoice_pdf
 from modules.billing.models import AdOrder, BillingLedgerEntry, Invoice
 from modules.billing.razorpay_client import RazorpayError
-from settings import Settings
-from shared import lookups
+from settings import Settings, get_settings
+from shared import lookups, storage
 from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
 MAX_DESCRIPTION_LENGTH = 255
 LINK_EXPIRY = timedelta(hours=24)
+# M5 Task 12: bounded work queue per worker tick, same shape as every other
+# sweep in this codebase (dunning/lifecycle precedent) - a backlog drains
+# over several ticks rather than one tick doing unbounded work.
+INVOICE_PDF_SWEEP_LIMIT = 20
 
 # M5 Task 10: billing's own PendingEvent alias. Defined here (not imported
 # from modules.billing.service) because service.py imports THIS module's
@@ -466,3 +471,115 @@ async def apply_payment_link_expired(
     order.status = "expired"
     await session.flush()
     return ("ok", [])
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 12: GST invoice PDF sweep - runs after dunning in worker.py's tick.
+
+
+def invoice_lines_from_order(order: AdOrder, invoice: Invoice) -> list[tuple[str, int]]:
+    """Order.quote carries the itemized [label, amount_paise] pairs ads
+    handed billing at checkout (modules/ads/pricing.py's `_quote_snapshot`);
+    a campaign quoted before that field existed (or the bare 4-number
+    reconstruction fallback in create_ad_order) has no `lines` key, so we
+    fall back to one line for the whole taxable amount - never a KeyError,
+    never a blank invoice body. Public (not `_`-prefixed): router.py's
+    on-the-fly download-route render reuses this verbatim so the two
+    renderers (sweep vs. GET) never drift on how lines are derived."""
+    raw_lines = (order.quote or {}).get("lines")
+    if raw_lines:
+        return [(str(label), int(amount)) for label, amount in raw_lines]
+    return [("Advertising services", invoice.taxable_paise or 0)]
+
+
+async def run_invoice_pdf_sweep(
+    session: AsyncSession, *, now: datetime
+) -> tuple[int, list[PendingEvent]]:
+    """Render + store the GST invoice PDF for every paid ad order whose
+    invoice doesn't have one yet (`pdf_key IS NULL` is the work queue - this
+    is the ONLY writer of `pdf_key`; the advertiser download route in
+    router.py regenerates on the fly for a GET but never persists it).
+    StorageError leaves the row untouched for a retry next tick. An
+    unresolvable business owner or contact still gets its PDF stored (the
+    download route needs `pdf_key` regardless of who can currently claim
+    it) but no notify event - logged, not retried forever, since neither
+    condition self-heals on its own."""
+    rows = (
+        await session.execute(
+            select(Invoice, AdOrder)
+            .join(AdOrder, Invoice.order_id == AdOrder.id)
+            .where(
+                Invoice.order_id.is_not(None),
+                Invoice.status == "paid",
+                Invoice.pdf_key.is_(None),
+            )
+            .order_by(Invoice.id)
+            .limit(INVOICE_PDF_SWEEP_LIMIT)
+        )
+    ).all()
+    if not rows:
+        return (0, [])
+
+    settings = get_settings()
+    seller = (settings.gst_seller_name, settings.gst_seller_gstin, settings.gst_seller_address)
+    processed = 0
+    pending: list[PendingEvent] = []
+    for invoice, order in rows:
+        ref = await lookups.resolve_business(session, order.business_id)
+        buyer_name = ref.name if ref is not None else ((order.quote or {}).get("campaign_name"))
+        pdf_bytes = render_invoice_pdf(
+            invoice_number=invoice.invoice_number or "",
+            issued_on=(invoice.created_at or now).date(),
+            seller=seller,
+            buyer_name=str(buyer_name or "Advertiser"),
+            buyer_gstin=order.buyer_gstin,
+            lines=invoice_lines_from_order(order, invoice),
+            taxable_paise=invoice.taxable_paise or 0,
+            gst_paise=invoice.gst_paise or 0,
+            total_paise=invoice.amount_paise,
+        )
+        key = f"invoices/{invoice.id.hex}.pdf"
+        try:
+            await storage.put_object(key, pdf_bytes, "application/pdf")
+        except storage.StorageError as exc:
+            logger.warning(
+                "billing.invoice_pdf_store_failed",
+                extra={
+                    "extra_fields": {"invoice_id": str(invoice.id), "exc_type": type(exc).__name__}
+                },
+            )
+            continue  # retry next tick - pdf_key stays NULL
+
+        invoice.pdf_key = key
+        processed += 1
+
+        if ref is None or ref.owner_user_id is None:
+            logger.warning(
+                "billing.invoice_pdf_no_owner",
+                extra={"extra_fields": {"invoice_id": str(invoice.id)}},
+            )
+            continue
+        contact = await lookups.resolve_contact(session, ref.owner_user_id)
+        if contact is None:
+            logger.warning(
+                "billing.invoice_pdf_no_contact",
+                extra={"extra_fields": {"invoice_id": str(invoice.id)}},
+            )
+            continue
+        payload: dict[str, Any] = {
+            "user_id": str(ref.owner_user_id),
+            "locale": contact.locale or "en",
+            "email": contact.email,
+            "phone": None,
+            "vars": {
+                "invoice_number": invoice.invoice_number or "",
+                "total": f"{invoice.amount_paise / 100:,.2f}",
+                "business_name": ref.name,
+            },
+            "attachment_key": key,
+            "attachment_filename": f"{invoice.invoice_number}.pdf",
+        }
+        pending.append(("billing.ad_invoice", payload))
+
+    await session.flush()
+    return (processed, pending)

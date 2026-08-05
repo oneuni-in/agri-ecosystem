@@ -67,6 +67,27 @@ async def _activation_event(session: AsyncSession, campaign: Campaign) -> Pendin
     return PendingEvent(EVENT_STREAM, "campaign.activated", payload)
 
 
+async def _rejection_event(session: AsyncSession, campaign: Campaign) -> PendingEvent | None:
+    """Task 12 fix: `creative.rejected` used to carry only
+    {creative_id, campaign_id} - fine while nothing consumed the `ads`
+    stream, but notify's consumer (Task 12) needs a resolvable
+    user_id/locale/destination like every other routed event (same
+    `_activation_event` shape above). None when the business is
+    unowned/unresolvable - nobody to notify, same as activation."""
+    ref = await resolve_business(session, campaign.advertiser_business_id)
+    if ref is None or ref.owner_user_id is None:
+        return None
+    contact = await resolve_contact(session, ref.owner_user_id)
+    payload: dict[str, object] = {
+        "user_id": str(ref.owner_user_id),
+        "locale": (contact.locale if contact else None) or "en",
+        "email": contact.email if contact else None,
+        "phone": None,
+        "vars": {"campaign_name": campaign.name},
+    }
+    return PendingEvent(EVENT_STREAM, "creative.rejected", payload)
+
+
 class CreativeSource:
     type_key = "creative"
 
@@ -146,25 +167,33 @@ class CreativeSource:
             metadata={"campaign_id": str(creative.campaign_id), "note": note},
             ip=ip,
         )
-        event_type = "creative.approved" if approve else "creative.rejected"
-        events = [
-            PendingEvent(
-                EVENT_STREAM,
-                event_type,
-                {"creative_id": str(creative.id), "campaign_id": str(creative.campaign_id)},
-            ),
-        ]
+        campaign = await session.get(Campaign, creative.campaign_id)
+        events: list[PendingEvent] = []
         # M5 Task 7: approval is the moderation half of the activation gate.
         # Reject makes no campaign status change - the campaign stays
         # pending_moderation and the advertiser edits + resubmits.
         if approve:
-            campaign = await session.get(Campaign, creative.campaign_id)
+            events.append(
+                PendingEvent(
+                    EVENT_STREAM,
+                    "creative.approved",
+                    {"creative_id": str(creative.id), "campaign_id": str(creative.campaign_id)},
+                )
+            )
             if campaign is not None and campaign.status == "pending_moderation":
                 activated = await lifecycle.maybe_activate(session, campaign)
                 if activated:
                     activation_event = await _activation_event(session, campaign)
                     if activation_event is not None:
                         events.append(activation_event)
+        else:
+            # Task 12: the notify-routed shape replaces the old bare
+            # {creative_id, campaign_id} payload entirely - see
+            # _rejection_event's docstring.
+            if campaign is not None:
+                rejection_event = await _rejection_event(session, campaign)
+                if rejection_event is not None:
+                    events.append(rejection_event)
         return ModDecision(item=_creative_item(creative), events=tuple(events))
 
 

@@ -28,6 +28,10 @@ EXPECTED_CHANNELS = {
     "dunning_reminder": {"in_app", "email"},
     "subscription_canceled": {"in_app", "email"},
     "subscription_activated": {"in_app", "email"},
+    # M5 Task 12: ad-order GST invoices + campaign moderation outcomes
+    "ad_invoice": {"in_app", "email"},
+    "campaign_activated": {"in_app", "email"},
+    "creative_rejected": {"in_app"},
 }
 
 

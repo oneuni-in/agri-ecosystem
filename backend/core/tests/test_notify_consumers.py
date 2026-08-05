@@ -69,6 +69,10 @@ def test_route_table_matches_seeded_templates() -> None:
         "billing.dunning_reminder": ("dunning_reminder", frozenset({"email"})),
         "billing.subscription_canceled": ("subscription_canceled", frozenset({"email"})),
         "billing.subscription_activated": ("subscription_activated", frozenset({"email"})),
+        # M5 Task 12 (backend/core/modules/notify/consumers.py)
+        "billing.ad_invoice": ("ad_invoice", frozenset({"email"})),
+        "campaign.activated": ("campaign_activated", frozenset({"email"})),
+        "creative.rejected": ("creative_rejected", frozenset()),
     } == EVENT_ROUTES
 
 

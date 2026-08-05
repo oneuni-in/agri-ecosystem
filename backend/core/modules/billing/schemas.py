@@ -83,6 +83,15 @@ class AdOrderOut(BaseModel):
     status: str
     total_paise: int
     checkout_url: str | None = None
+    # Task 12 review carry-forward: a paid order's invoice was otherwise
+    # invisible to the advertiser (GET /billing/invoices only inner-joins
+    # Subscription). invoice_id is what the console needs to build the
+    # /billing/ad-invoices/{id}/pdf download link; has_pdf is a cheap
+    # "is it ready yet" hint (the download route regenerates on the fly
+    # regardless, so this is UI sugar, not a correctness gate).
+    invoice_id: uuid.UUID | None = None
+    invoice_number: str | None = None
+    has_pdf: bool = False
 
 
 class AdOrderPage(BaseModel):
@@ -90,7 +99,7 @@ class AdOrderPage(BaseModel):
     next_cursor: str | None
 
 
-def ad_order_out(order: AdOrder) -> AdOrderOut:
+def ad_order_out(order: AdOrder, invoice: Invoice | None = None) -> AdOrderOut:
     # money-path review fast-follow: the link is persisted on the order now
     # (razorpay_short_url), not just handed back once on the create response
     # - a GET refresh (the wizard's status poll) can show it again. Only
@@ -103,6 +112,9 @@ def ad_order_out(order: AdOrder) -> AdOrderOut:
         status=order.status,
         total_paise=order.total_paise,
         checkout_url=checkout_url,
+        invoice_id=invoice.id if invoice is not None else None,
+        invoice_number=invoice.invoice_number if invoice is not None else None,
+        has_pdf=bool(invoice is not None and invoice.pdf_key),
     )
 
 

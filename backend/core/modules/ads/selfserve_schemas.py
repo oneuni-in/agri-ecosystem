@@ -12,9 +12,10 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
 
-from modules.ads.service import GeoTargetIn
+from modules.ads.schemas import CopyBlock
+from modules.ads.service import LOCALES, GeoTargetIn
 
 MAX_CATEGORIES = 20
 _CATEGORY_RE = re.compile(r"^[a-z0-9-]{1,40}$")
@@ -123,6 +124,25 @@ class PlacementSnapshotOut(BaseModel):
     slot_key: str
     geo_target: dict[str, Any]
     status: str
+
+
+class CreativeCopyIn(RootModel[dict[str, CopyBlock]]):
+    """Task 8: the multipart `copy_json` form field on the creative
+    upload/edit routes, parsed with `json.loads` then validated here through
+    the SAME locale rules as admin's `CreativeIn._copy_locales`
+    (modules/ads/schemas.py) - en required, keys restricted to LOCALES.
+    Reused (via CopyBlock) rather than duplicated; only the locale-set
+    check itself needs re-stating because a RootModel has no natural home
+    for a field_validator on its own root."""
+
+    @model_validator(mode="after")
+    def _copy_locales(self) -> "CreativeCopyIn":
+        unknown = set(self.root) - set(LOCALES)
+        if unknown:
+            raise ValueError(f"unsupported locale keys: {sorted(unknown)}")
+        if "en" not in self.root:
+            raise ValueError("copy must include en")
+        return self
 
 
 class CreativeSnapshotOut(BaseModel):

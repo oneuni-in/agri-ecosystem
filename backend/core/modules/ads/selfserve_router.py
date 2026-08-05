@@ -9,24 +9,32 @@ Sections below, in the order Tasks 7/8/13 slot into:
   - POST /quote            (price a not-yet-created campaign)
   - POST /campaigns        (create a draft)
   - GET  /campaigns        (list owned)
-  - GET  /campaigns/{id}   (read one owned)      <- Task 8 adds creative reads here
-  - PATCH /campaigns/{id}  (draft-only, re-quotes) <- Task 7 adds pause/resume/submit
+  - GET  /campaigns/{id}   (read one owned)
+  - PATCH /campaigns/{id}  (draft-only, re-quotes)
+  - POST /campaigns/{id}/checkout-request | pause | resume  (Task 7)
+  - POST /campaigns/{id}/creatives  (Task 8: upload)
+  - PATCH /creatives/{id}           (Task 8: edit -> re-moderation)
 """
 
+import json
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request
-from sqlalchemy import select
+import uuid6
+from fastapi import Depends, File, Form, HTTPException, Query, Request, UploadFile
+from pydantic import ValidationError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads import lifecycle, pricing
 from modules.ads.models import Campaign, Creative, Placement
+from modules.ads.schemas import copy_to_json
 from modules.ads.selfserve_schemas import (
     CampaignCreateIn,
     CampaignPatchIn,
+    CreativeCopyIn,
     CreativeSnapshotOut,
     MyCampaignOut,
     PlacementSnapshotOut,
@@ -34,8 +42,9 @@ from modules.ads.selfserve_schemas import (
     QuoteLineOut,
     QuoteOut,
 )
-from modules.ads.service import SLOT_KEYS, GeoTargetIn
+from modules.ads.service import SLOT_KEYS, GeoTargetIn, validate_target_url
 from settings import get_settings
+from shared import media, storage
 from shared.db import get_session
 from shared.flags import flag_enabled
 from shared.lookups import is_servable, resolve_business, resolve_owned_businesses
@@ -45,6 +54,20 @@ from shared.security import SecureRouter
 router = SecureRouter(prefix="/ads/my", tags=["ads-selfserve"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+# Task 8: a creative may be uploaded/edited while the campaign is in any of
+# these states - the same set request_checkout/pause/resume already move a
+# campaign through, minus the terminal ones (archived/expired/exhausted).
+CREATIVE_EDITABLE_STATUSES = frozenset(
+    {"draft", "pending_payment", "pending_moderation", "active", "paused"}
+)
+MAX_CREATIVES_PER_CAMPAIGN = 5
+CREATIVE_MEDIA_PREFIX = "ads/"
+
+# Best-effort, once-per-process (catalog_router.py precedent): set on the
+# first upload attempt regardless of whether ensure_prefix_public_read
+# actually succeeded - that call is itself best-effort.
+_media_prefix_ready = False
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -174,6 +197,69 @@ async def _placements_and_creatives(
         )
     ).all()
     return placements, creatives
+
+
+async def _ensure_public_media() -> None:
+    global _media_prefix_ready
+    if _media_prefix_ready:
+        return
+    await storage.ensure_prefix_public_read(CREATIVE_MEDIA_PREFIX)
+    _media_prefix_ready = True
+
+
+def _parse_copy_json(copy_json: str) -> dict[str, dict[str, str]]:
+    """Multipart `copy_json` -> validated `{locale: {title, body}}`, JSONB-
+    ready (CreativeCopyIn reuses CreativeIn's exact locale rules - see
+    modules/ads/selfserve_schemas.py). Any failure - bad JSON, an unknown
+    locale key, a missing `en` block, an over-length title/body - collapses
+    to the SAME wire error, `invalid_copy_json`: the client only needs to
+    know "fix your copy payload", not which specific rule tripped."""
+    try:
+        raw = json.loads(copy_json)
+        parsed = CreativeCopyIn.model_validate(raw)
+    except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail="invalid_copy_json") from exc
+    return copy_to_json(parsed.root)
+
+
+def _validated_target_url(target_url: str) -> str:
+    try:
+        validate_target_url(target_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid_target_url") from exc
+    return target_url
+
+
+async def _upload_creative_image(file: UploadFile) -> str:
+    """Catalog upload pattern verbatim (modules/directory/catalog_router.py
+    ::upload_product_image) - never fork the media helper (check_media_fork
+    lint gate)."""
+    data = await file.read(media.MAX_IMAGE_BYTES + 1)
+    try:
+        jpeg, _ = media.reencode_image(data)
+    except media.MediaError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
+    key = f"{CREATIVE_MEDIA_PREFIX}{uuid6.uuid7().hex}.jpg"
+    await _ensure_public_media()  # once-per-process, best-effort
+    try:
+        await storage.put_object(key, jpeg, "image/jpeg")  # storage before DB (avatar precedent)
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage unavailable") from exc
+    return key
+
+
+async def _owned_creative(
+    session: AsyncSession, user_id: uuid.UUID, creative_id: uuid.UUID
+) -> tuple[Creative, Campaign]:
+    """IDOR guard (NN4 twin): a creative that doesn't exist and a creative
+    that exists but belongs to someone else's campaign must be
+    indistinguishable - both 404, never 403 (`_owned_campaign` itself
+    enforces the ownership half once the creative's campaign is known)."""
+    creative = await session.get(Creative, creative_id)
+    if creative is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    campaign = await _owned_campaign(session, user_id, creative.campaign_id)
+    return creative, campaign
 
 
 # ---------------------------------------------------------------------------
@@ -474,5 +560,97 @@ async def resume_campaign(
         await session.flush()
     placements, creatives = await _placements_and_creatives(session, campaign.id)
     out = _campaign_out(campaign, placements, creatives)
+    await session.commit()
+    return out
+
+
+# ---------------------------------------------------------------------------
+# POST /campaigns/{id}/creatives  (Task 8: self-serve creative upload)
+
+
+@router.post("/campaigns/{campaign_id}/creatives", status_code=201)
+async def create_creative(
+    campaign_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
+    copy_json: Annotated[str, Form()],
+    target_url: Annotated[str, Form()],
+    file: Annotated[UploadFile | None, File(description="creative image (jpeg/png/webp)")] = None,
+) -> CreativeSnapshotOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    campaign = await _owned_campaign(session, user_id, campaign_id)
+    if campaign.status not in CREATIVE_EDITABLE_STATUSES:
+        raise HTTPException(status_code=409, detail="not_editable")
+
+    existing_count = await session.scalar(
+        select(func.count()).select_from(Creative).where(Creative.campaign_id == campaign.id)
+    )
+    if (existing_count or 0) >= MAX_CREATIVES_PER_CAMPAIGN:
+        raise HTTPException(status_code=409, detail="creative_limit")
+
+    ad_copy = _parse_copy_json(copy_json)
+    url = _validated_target_url(target_url)
+    media_keys = [await _upload_creative_image(file)] if file is not None else []
+
+    creative = Creative(
+        campaign_id=campaign.id,
+        media_keys=media_keys,
+        copy=ad_copy,
+        target_url=url,
+    )
+    session.add(creative)  # moderation_status defaults to 'pending' (UGCMixin)
+    await session.flush()
+    out = _creative_snapshot(creative, get_settings().media_public_base_url)
+    await session.commit()
+    return out
+
+
+# ---------------------------------------------------------------------------
+# PATCH /creatives/{id}  (Task 8: edit -> re-moderation, edit-after-approve
+# bypass threat)
+
+
+@router.patch("/creatives/{creative_id}")
+async def patch_creative(
+    creative_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
+    copy_json: Annotated[str | None, Form()] = None,
+    target_url: Annotated[str | None, Form()] = None,
+    file: Annotated[UploadFile | None, File(description="creative image (jpeg/png/webp)")] = None,
+) -> CreativeSnapshotOut:
+    """ANY content change (copy, link, or a replacement image) re-pends the
+    creative and, when the campaign is currently `active`, demotes it back
+    to `pending_moderation` in the SAME transaction
+    (lifecycle.demote_to_moderation is a documented no-op off `active`, so
+    calling it unconditionally on a real change is safe and simpler than
+    branching on campaign.status here) - closing the edit-after-approve
+    bypass: an advertiser must never be able to swap in unapproved content
+    behind the moderation queue's back while the old, approved content keeps
+    serving."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    creative, campaign = await _owned_creative(session, user_id, creative_id)
+    if campaign.status not in CREATIVE_EDITABLE_STATUSES:
+        raise HTTPException(status_code=409, detail="not_editable")
+
+    changed = False
+    if copy_json is not None:
+        creative.copy = _parse_copy_json(copy_json)
+        changed = True
+    if target_url is not None:
+        creative.target_url = _validated_target_url(target_url)
+        changed = True
+    if file is not None:
+        creative.media_keys = [await _upload_creative_image(file)]  # JSONB: reassign, never mutate
+        changed = True
+
+    if changed:
+        creative.moderation_status = "pending"
+        await lifecycle.demote_to_moderation(session, campaign)
+
+    await session.flush()
+    out = _creative_snapshot(creative, get_settings().media_public_base_url)
     await session.commit()
     return out

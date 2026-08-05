@@ -342,24 +342,52 @@ async def apply_refund_processed(
     applied) computes a non-positive amount and is ignored - no row, no
     double-count. The campaign is only paused/budget-zeroed once the
     running total reaches the order's `total_paise` - a partial goodwill
-    refund must not kill a still-serving campaign."""
+    refund must not kill a still-serving campaign.
+
+    REFUND-LEVEL IDEMPOTENCY (on top of the balance cap above): a rewrapped
+    retry of the SAME real-world refund (fresh Razorpay event id, a
+    differently-serialized body) passes the webhook route's body-hash
+    dedupe as a brand-new event, same as the paid-webhook rewrap case - and
+    the balance computation alone does NOT catch it, because two identical
+    partial-refund deliveries each look like legitimate remaining headroom
+    from the ledger's point of view. `refund_id` (Razorpay's own refund
+    entity id) is therefore mandatory - a missing/malformed one is
+    `("unmatched", [])`, since idempotency depends on it - and checked
+    against the ledger (`meta->>'refund_id'`) INSIDE the order's `FOR
+    UPDATE` window before the balance is even computed. The ledger append
+    itself runs inside a savepoint so the DB-level backstop
+    (`uq_billing_ledger_entries_refund_once`) can never surface as an
+    unhandled 500 if two deliveries for the same refund id race past the
+    app-level check."""
     refund_entity = _nested_entity(payload, "payload", "refund", "entity")
     payment_id = refund_entity.get("payment_id")
     refund_id = refund_entity.get("id")
     amount = refund_entity.get("amount")
-    if not payment_id or amount is None:
+    if not payment_id or not refund_id or amount is None:
         return ("unmatched", [])
     try:
         amount_paise = int(amount)
     except (TypeError, ValueError):
         return ("unmatched", [])
+    refund_id_str = str(refund_id)
 
     order = await session.scalar(
         select(AdOrder).where(AdOrder.razorpay_payment_id == str(payment_id)).with_for_update()
     )
     if order is None:
         return ("unmatched", [])
+    order_id_str = str(order.id)  # captured now - see apply_payment_link_paid's precedent
     if order.status not in ("paid", "refunded"):
+        return ("ignored", [])
+
+    duplicate = await session.scalar(
+        select(BillingLedgerEntry.id).where(
+            BillingLedgerEntry.order_id == order.id,
+            BillingLedgerEntry.entry_type == "ad_refund",
+            BillingLedgerEntry.meta["refund_id"].astext == refund_id_str,
+        )
+    )
+    if duplicate is not None:
         return ("ignored", [])
 
     already_refunded_raw = await session.scalar(
@@ -376,21 +404,34 @@ async def apply_refund_processed(
         # already-fully-applied refund, or a malformed non-positive amount.
         return ("ignored", [])
 
-    session.add(
-        BillingLedgerEntry(
-            entry_type="ad_refund",
-            amount_paise=-refund_amount,
-            order_id=order.id,
-            campaign_id=order.campaign_id,
-            business_id=order.business_id,
-            razorpay_payment_id=str(payment_id),
-            meta={"refund_id": str(refund_id or "")},
-        )
-    )
     fully_refunded = already_refunded + refund_amount >= order.total_paise
-    if fully_refunded:
-        order.status = "refunded"
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(
+                BillingLedgerEntry(
+                    entry_type="ad_refund",
+                    amount_paise=-refund_amount,
+                    order_id=order.id,
+                    campaign_id=order.campaign_id,
+                    business_id=order.business_id,
+                    razorpay_payment_id=str(payment_id),
+                    meta={"refund_id": refund_id_str},
+                )
+            )
+            if fully_refunded:
+                order.status = "refunded"
+            await session.flush()
+    except IntegrityError:
+        # DB backstop (uq_billing_ledger_entries_refund_once): a concurrent
+        # delivery for the SAME refund id won the race between the
+        # app-level duplicate check above and this flush. The savepoint
+        # rolled back cleanly - never a 500, never a double-counted refund.
+        logger.warning(
+            "billing.ad_refund_duplicate_id",
+            extra={"extra_fields": {"order_id": order_id_str, "refund_id": refund_id_str}},
+        )
+        return ("ignored", [])
+
     if fully_refunded:
         # CARRY-FORWARD (Task 7 ledger contract): the hook zero-outs
         # budget_serves_total and pauses the campaign. No re-pay path from

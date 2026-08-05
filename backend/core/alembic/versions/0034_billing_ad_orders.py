@@ -7,8 +7,12 @@ still unmerged at review time): ad_orders.razorpay_short_url (persist the
 hosted checkout link so it survives past the create response), ads.
 campaigns.quote (the itemized quote snapshot ads hands billing - see
 shared.lookups.CampaignBillingRef.quote), a total=subtotal+gst CHECK on
-ad_orders, and a partial-unique backstop on ledger_entries against a
-double ad_charge append for one order.
+ad_orders, a partial-unique backstop on ledger_entries against a double
+ad_charge append for one order, and (Task 10 review round 3, same revision -
+still unmerged) a second partial-unique expression index on ledger_entries
+against a double ad_refund append for the SAME Razorpay refund id (the
+DB-level backstop for modules/billing/ad_orders.py's apply_refund_processed
+app-level idempotency check).
 
 Revision ID: 0034
 Revises: 0033
@@ -195,6 +199,24 @@ def upgrade() -> None:
         unique=True,
         schema="billing",
         postgresql_where=sa.text("entry_type = 'ad_charge'"),
+    )
+    # Task 10 review round 3: refund-level idempotency DB backstop. The
+    # app-level guard in apply_refund_processed (SELECT ... WHERE meta->>
+    # 'refund_id' = :rfnd, inside the order's FOR UPDATE window) closes the
+    # gap for the ordinary case; this expression index is the race backstop
+    # for two concurrent deliveries of the SAME Razorpay refund id (a
+    # rewrapped retry - fresh event id, different signed body, passes the
+    # webhook route's body-hash dedupe) landing inside the same FOR UPDATE
+    # window on different connections. entry_type scoping mirrors the
+    # ad_charge index above; a NULL meta->>'refund_id' would never collide
+    # with itself under Postgres unique-index NULL semantics, but refund_id
+    # is mandatory at the application layer (apply_refund_processed answers
+    # "unmatched" for a missing one), so this index never actually sees a
+    # NULL in practice.
+    op.execute(
+        "CREATE UNIQUE INDEX uq_billing_ledger_entries_refund_once "
+        "ON billing.ledger_entries (order_id, (meta->>'refund_id')) "
+        "WHERE entry_type = 'ad_refund'"
     )
     # append-only BY GRANT + trigger (0032 idiom: geo.forbid_tier_history_
     # mutation) - a BEFORE trigger fires for every role including the table

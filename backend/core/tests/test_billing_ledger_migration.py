@@ -53,14 +53,15 @@ async def _insert_ledger_entry(
     entry_type: str = "ad_charge",
     amount: int = 118,
     order_id: uuid.UUID | None = None,
+    meta: str = "{}",
 ) -> None:
     await session.execute(
         text(
             "INSERT INTO billing.ledger_entries "
-            "(id, entry_type, amount_paise, business_id, order_id) "
-            "VALUES (gen_random_uuid(), :t, :a, :b, :o)"
+            "(id, entry_type, amount_paise, business_id, order_id, meta) "
+            "VALUES (gen_random_uuid(), :t, :a, :b, :o, CAST(:m AS jsonb))"
         ),
-        {"t": entry_type, "a": amount, "b": BUSINESS_A, "o": order_id},
+        {"t": entry_type, "a": amount, "b": BUSINESS_A, "o": order_id, "m": meta},
     )
 
 
@@ -203,6 +204,52 @@ async def test_ledger_entries_refund_after_charge_for_same_order_is_fine(
     order_id = await _insert_order(db_session)
     await _insert_ledger_entry(db_session, entry_type="ad_charge", amount=118, order_id=order_id)
     await _insert_ledger_entry(db_session, entry_type="ad_refund", amount=-118, order_id=order_id)
+    await db_session.flush()
+
+
+async def test_ledger_entries_refund_once_per_refund_id(db_session: AsyncSession) -> None:
+    """DB backstop (Task 10 review round 3) against a double ad_refund
+    append for the SAME Razorpay refund id - the race backstop behind
+    apply_refund_processed's app-level `meta->>'refund_id'` duplicate
+    check, for two concurrent deliveries of one rewrapped-retry refund."""
+    order_id = await _insert_order(db_session)
+    await _insert_ledger_entry(
+        db_session,
+        entry_type="ad_refund",
+        amount=-60,
+        order_id=order_id,
+        meta='{"refund_id": "rfnd_dup_1"}',
+    )
+    with pytest.raises(IntegrityError, match="uq_billing_ledger_entries_refund_once"):
+        await _insert_ledger_entry(
+            db_session,
+            entry_type="ad_refund",
+            amount=-60,
+            order_id=order_id,
+            meta='{"refund_id": "rfnd_dup_1"}',
+        )
+    await db_session.rollback()
+
+
+async def test_ledger_entries_distinct_refund_ids_both_allowed(db_session: AsyncSession) -> None:
+    """The index is scoped on (order_id, refund_id) together - two DISTINCT
+    refund ids for the same order (the legitimate split-refund case) must
+    both be insertable."""
+    order_id = await _insert_order(db_session)
+    await _insert_ledger_entry(
+        db_session,
+        entry_type="ad_refund",
+        amount=-60,
+        order_id=order_id,
+        meta='{"refund_id": "rfnd_split_a"}',
+    )
+    await _insert_ledger_entry(
+        db_session,
+        entry_type="ad_refund",
+        amount=-58,
+        order_id=order_id,
+        meta='{"refund_id": "rfnd_split_b"}',
+    )
     await db_session.flush()
 
 

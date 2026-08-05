@@ -612,6 +612,69 @@ async def test_partial_refund_leaves_order_paid_campaign_untouched(
     assert campaign.status == "active"  # untouched: partial refund never fires the hook
 
 
+async def test_rewrapped_retry_of_same_refund_is_ignored(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """NEW Important (Task 10 review round 3): the balance-cap fix in item 2
+    accidentally removed the accidental rewrapped-retry protection the old
+    single-shot status-flip gate provided. A rewrapped redelivery of the
+    SAME real-world partial refund (same Razorpay refund id, a fresh
+    `_event_id`/differently-serialized body) passes the webhook route's
+    body-hash dedupe as a brand-new event - refund-level idempotency
+    (keyed on `refund_id`, not just the balance) must still stop it from
+    appending a second ledger row / phantom-double-counting toward the
+    refunded threshold."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(
+        session, business.id, status="active", paid_at=datetime.now(UTC)
+    )
+    order = await _seed_order(
+        session,
+        campaign,
+        business.id,
+        plink_id="plink_rewrap_refund_1",
+        status="paid",
+        razorpay_payment_id="pay_rewrap_refund_1",
+    )
+
+    raw1, headers1 = _signed(
+        _refund_body("pay_rewrap_refund_1", "rfnd_rewrap_1", 50_000, event_id="evt_refund_rewrap_1")
+    )
+    first = await client.post("/billing/webhook/razorpay", content=raw1, headers=headers1)
+    assert first.status_code == 200
+
+    # SAME refund id ("rfnd_rewrap_1"), but a differently-wrapped signed body
+    raw2, headers2 = _signed(
+        _refund_body("pay_rewrap_refund_1", "rfnd_rewrap_1", 50_000, event_id="evt_refund_rewrap_2")
+    )
+    assert raw1 != raw2  # different body -> different dedupe hash, not caught by body-hash dedupe
+    second = await client.post("/billing/webhook/razorpay", content=raw2, headers=headers2)
+    assert second.status_code == 200
+
+    second_event = await session.scalar(
+        select(PaymentEvent).where(
+            PaymentEvent.provider_event_id == hashlib.sha256(raw2).hexdigest()
+        )
+    )
+    assert second_event is not None and second_event.outcome == "ignored"
+
+    ledger_rows = (
+        await session.scalars(
+            select(BillingLedgerEntry).where(BillingLedgerEntry.order_id == order.id)
+        )
+    ).all()
+    assert len(ledger_rows) == 1
+    assert ledger_rows[0].amount_paise == -50_000
+
+    await session.refresh(order)
+    assert order.status == "paid"  # not wrongly flipped to refunded
+
+    await session.refresh(campaign)
+    assert campaign.status == "active"  # not wrongly paused
+
+
 async def test_two_partial_refunds_summing_to_total_flips_refunded(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:

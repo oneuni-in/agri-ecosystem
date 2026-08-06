@@ -24,6 +24,7 @@ from modules.ads import pricing
 from modules.ads.lifecycle import creative_moderation_counts
 from modules.ads.models import Campaign, Creative, Placement, RateCardVersion
 from modules.ads.schemas import (
+    PAID_CAMPAIGN_STATUSES,
     CampaignIn,
     CampaignOut,
     CampaignPageOut,
@@ -123,12 +124,22 @@ async def set_campaign_status(
     # be force-activated by staff. Unpriced (house/admin) campaigns have
     # price_paise IS NULL and are exempt (never billed, so "unpaid"/
     # "unapproved" are meaningless for them).
-    if body.status == "active" and campaign.price_paise is not None:
-        if campaign.paid_at is None:
-            raise HTTPException(status_code=422, detail="payment_required")
-        approved, pending = await creative_moderation_counts(session, campaign.id)
-        if approved < 1 or pending > 0:
-            raise HTTPException(status_code=422, detail="moderation_required")
+    if campaign.price_paise is not None:
+        # M5 review: a PRICED campaign carries an AdOrder, a ledger row and an
+        # emailed GST invoice. Pushing it back to `draft` would hand it to the
+        # advertiser's draft-only PATCH, which re-quotes at today's rate card
+        # and rewrites price/budget - money on record vs. money on the
+        # campaign silently diverge (the partial-unique index blocks a second
+        # charge, so this desyncs rather than double-bills). Only
+        # PAID_CAMPAIGN_STATUSES (schemas.py) are admissible for it.
+        if body.status not in PAID_CAMPAIGN_STATUSES:
+            raise HTTPException(status_code=422, detail="not_allowed_for_paid_campaign")
+        if body.status == "active":
+            if campaign.paid_at is None:
+                raise HTTPException(status_code=422, detail="payment_required")
+            approved, pending = await creative_moderation_counts(session, campaign.id)
+            if approved < 1 or pending > 0:
+                raise HTTPException(status_code=422, detail="moderation_required")
     campaign.status = body.status
     await session.flush()
     await audit(

@@ -399,7 +399,8 @@ checklist). Flip both `ads_enabled` and `billing_enabled` on via
    from the console, or `psql` `billing.ad_orders`/`billing.ledger_entries`
    (one `ad_charge` row, amount matches the quote exactly). Campaign stays
    `pending_moderation` at this point if the creative isn't approved yet.
-4. Ops approve the creative: `:3004/ops` (or `:3004/ads`) → moderation
+4. Ops approve the creative: `:3004/ops` (the approve action lives there
+   only, not in `:3004/ads`) → moderation
    queue (`GET /admin/moderation/queue?type=creative`) → approve
    (`POST /admin/moderation/creative/{id}/approve`). With payment already
    captured, approval flips the campaign to `active`

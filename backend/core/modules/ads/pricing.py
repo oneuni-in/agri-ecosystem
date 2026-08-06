@@ -22,6 +22,13 @@ TIER_KEYS = ("1", "2", "3", "4", "5")
 BP_ONE = 10000
 MIN_CPM_SERVES = 1000
 FLAT_SUFFIX = "_sponsored_listing"
+# Every money column on ads.campaigns / billing.ad_orders / billing.invoices is
+# INT4 (max 2,147,483,647 paise). An unbounded serve count or a decades-long
+# flat flight would otherwise quote a number Postgres cannot store, surfacing
+# as an asyncpg NumericValueOutOfRange 500 at create time (and a bogus,
+# uncheckoutable number from /quote). Ceiling is on the GST-INCLUSIVE total,
+# with headroom under INT4 - a validation error (422), never a 500.
+MAX_TOTAL_PAISE = 2_000_000_000
 
 # A valid config literal, used by tests and as documentation of the shape.
 DEFAULT_CONFIG_KEYS_EXAMPLE: dict[str, Any] = {
@@ -93,6 +100,15 @@ async def tier_for_targeting(session: AsyncSession, geo_target: dict[str, Any]) 
 
 @dataclass(frozen=True, slots=True)
 class QuoteLine:
+    """One printable invoice line. INVARIANT (money-path review): the lines of
+    a Quote sum to EXACTLY its `subtotal_paise` - they flow verbatim through
+    Campaign.quote -> AdOrder.quote -> invoice_pdf.render_invoice_pdf, so a
+    line that doesn't foot to the invoice's own taxable value is a defective
+    tax invoice. Anything that is not itself an amount (the category
+    multiplier) belongs in a label, never in a zero-amount row; anything that
+    tops the subtotal up (the minimum-order floor) is emitted as the DELTA,
+    never as the full floor."""
+
     label: str
     amount_paise: int
 
@@ -126,7 +142,18 @@ async def quote_campaign(
     model = pricing_model_for_slots(slot_keys)
     tier = await tier_for_targeting(session, geo_target)
     mults = config["category_multipliers_bp"]
-    multiplier_bp = max((int(mults.get(c, BP_ONE)) for c in categories), default=BP_ONE)
+    # Priciest declared category wins (a category absent from the card prices
+    # at 1x). Its name is carried alongside so the multiplier can be stated
+    # INSIDE the base line's label instead of as a zero-amount line of its own.
+    multiplier_bp = BP_ONE
+    multiplier_category: str | None = None
+    for category in categories:
+        category_bp = int(mults.get(category, BP_ONE))
+        if multiplier_category is None or category_bp > multiplier_bp:
+            multiplier_bp, multiplier_category = category_bp, category
+    suffix = (
+        f" (x{multiplier_bp / BP_ONE:g} {multiplier_category})" if multiplier_bp != BP_ONE else ""
+    )
 
     lines: list[QuoteLine] = []
     weeks: int | None = None
@@ -137,20 +164,23 @@ async def quote_campaign(
             raise RateCardError("serves_too_small")
         rate = int(config["cpm_paise"][str(tier)])
         subtotal = _ceil_div(serves_total * rate * multiplier_bp, 1000 * BP_ONE)
-        lines.append(QuoteLine(f"{serves_total:,} ad views @ CPM T{tier}", subtotal))
+        lines.append(QuoteLine(f"{serves_total:,} ad views @ CPM T{tier}{suffix}", subtotal))
     else:
         serves_total = None
         days = (flight_end - flight_start).days
         weeks = max(1, _ceil_div(days, 7))
         rate = int(config["flat_weekly_paise"][str(tier)])
         subtotal = _ceil_div(weeks * rate * multiplier_bp, BP_ONE)
-        lines.append(QuoteLine(f"Sponsored listing x {weeks} wk @ T{tier}", subtotal))
-    if multiplier_bp != BP_ONE:
-        lines.append(QuoteLine(f"Category multiplier x{multiplier_bp / BP_ONE:g}", 0))
-    if subtotal < int(config["min_total_paise"]):
-        subtotal = int(config["min_total_paise"])
-        lines.append(QuoteLine("Minimum order", subtotal))
+        lines.append(QuoteLine(f"Sponsored listing x {weeks} wk @ T{tier}{suffix}", subtotal))
+    min_total = int(config["min_total_paise"])
+    if subtotal < min_total:
+        # the DELTA, not the floor itself - the lines must still foot to the
+        # (now floored) subtotal.
+        lines.append(QuoteLine("Minimum order top-up", min_total - subtotal))
+        subtotal = min_total
     gst = _ceil_div(subtotal * get_settings().gst_rate_bp, BP_ONE)
+    if subtotal + gst > MAX_TOTAL_PAISE:
+        raise RateCardError("total_too_large")
     return Quote(
         pricing_model=model,
         tier=tier,

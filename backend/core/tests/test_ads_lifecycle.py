@@ -63,7 +63,43 @@ async def test_request_checkout_draft_with_creative_moves_to_pending_payment(
     await db_session.flush()
     await _creative(db_session, campaign, "pending")
 
-    await lifecycle.request_checkout(db_session, campaign)
+    # `today` is injected (this module's clock is the frozen TODAY constant)
+    # so the new flight_over guard is evaluated against the same fixed clock
+    # the FLIGHT_START/FLIGHT_END constants were built around.
+    await lifecycle.request_checkout(db_session, campaign, today=TODAY)
+    assert campaign.status == "pending_payment"
+
+
+async def test_request_checkout_elapsed_flight_raises_flight_over(
+    db_session: AsyncSession,
+) -> None:
+    """MONEY: nothing on the checkout path checked the flight window, so a
+    campaign whose flight has entirely passed could be paid for in full while
+    `eligible_placements` (which requires flight_end >= today) would never
+    serve it once - money captured, zero delivery, no auto-refund. The resume
+    route already carried this exact guard; checkout now does too."""
+    campaign = _campaign(flight_start=TODAY - timedelta(days=40), flight_end=TODAY - timedelta(1))
+    db_session.add(campaign)
+    await db_session.flush()
+    await _creative(db_session, campaign, "pending")
+
+    with pytest.raises(lifecycle.LifecycleError) as exc_info:
+        await lifecycle.request_checkout(db_session, campaign, today=TODAY)
+    assert exc_info.value.code == "flight_over"
+    assert campaign.status == "draft"
+
+
+async def test_request_checkout_flight_ending_today_still_payable(
+    db_session: AsyncSession,
+) -> None:
+    """`flight_end == today` is the last servable day, not an elapsed
+    flight - the guard is `<`, matching eligible_placements' `>= today`."""
+    campaign = _campaign(flight_start=TODAY - timedelta(days=5), flight_end=TODAY)
+    db_session.add(campaign)
+    await db_session.flush()
+    await _creative(db_session, campaign, "pending")
+
+    await lifecycle.request_checkout(db_session, campaign, today=TODAY)
     assert campaign.status == "pending_payment"
 
 

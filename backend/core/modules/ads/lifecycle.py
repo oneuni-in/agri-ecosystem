@@ -60,14 +60,26 @@ async def creative_moderation_counts(
     return int(counts.get("approved", 0)), int(counts.get("pending", 0))
 
 
-async def request_checkout(session: AsyncSession, campaign: Campaign) -> None:
+async def request_checkout(
+    session: AsyncSession, campaign: Campaign, *, today: date | None = None
+) -> None:
     """draft -> pending_payment. Requires a priced campaign with at least one
     creative uploaded - Task 9's billing checkout route calls this before it
-    ever talks to Razorpay."""
+    ever talks to Razorpay.
+
+    An ELAPSED flight is refused here too (`flight_over`, the same guard the
+    resume route already carries): `eligible_placements` requires
+    flight_end >= today, so a campaign whose window has passed would capture
+    the full price and deliver exactly nothing, with no auto-refund path. The
+    self-serve router rejects a past flight_start at quote/create/patch time,
+    but a draft priced days ago can sit until its window elapses - this is the
+    checkout-side backstop for exactly that draft."""
     if campaign.status not in PAYABLE_FROM:
         raise LifecycleError("not_payable")
     if campaign.price_paise is None:
         raise LifecycleError("not_priced")
+    if campaign.flight_end < (today or datetime.now(UTC).date()):
+        raise LifecycleError("flight_over")
     creative_count = await session.scalar(
         select(func.count()).select_from(Creative).where(Creative.campaign_id == campaign.id)
     )

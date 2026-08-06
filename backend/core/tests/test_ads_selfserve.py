@@ -392,6 +392,145 @@ async def test_unknown_slot_key_422_matches_admin_wire_contract(
     assert create_resp.json()["detail"] == "unknown_slot_key"
 
 
+async def test_duplicate_slot_keys_rejected_422(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """MONEY: `slot_keys` is min 1 / max 3 but was not de-duped, while
+    create_campaign makes one Placement per entry and pricing never scales
+    with slot count - so `["milk_sponsored_listing"] * 3` bought three
+    placements for one week's flat price, and three placements of one
+    campaign each take their own share of a count>1 carousel (the serve loop
+    de-dupes by placement.id, not campaign.id). The wizard blocks this
+    client-side; the API is the contract."""
+    client, session = api
+    await _enable_ads(session)
+    business_id = await _business(session)
+    dup_body = _quote_body(slot_keys=["milk_home_hero", "milk_home_hero"])
+
+    quote_resp = await client.post("/ads/my/quote", json=dup_body, headers=_as(OWNER))
+    assert quote_resp.status_code == 422
+    assert quote_resp.json()["detail"] == "duplicate_slot_key"
+
+    create_body = {**dup_body, "business_id": str(business_id), "name": "Triple dip"}
+    create_resp = await client.post("/ads/my/campaigns", json=create_body, headers=_as(OWNER))
+    assert create_resp.status_code == 422
+    assert create_resp.json()["detail"] == "duplicate_slot_key"
+
+    # the same slot ONCE is of course still fine
+    ok_body = {
+        **_quote_body(slot_keys=["milk_home_hero"]),
+        "business_id": str(business_id),
+        "name": "Single",
+    }
+    ok_resp = await client.post("/ads/my/campaigns", json=ok_body, headers=_as(OWNER))
+    assert ok_resp.status_code == 201, ok_resp.text
+    assert len(ok_resp.json()["placements"]) == 1
+
+
+async def test_past_flight_start_rejected_422(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """MONEY: nothing on the checkout path checked that the flight window
+    hadn't already passed (`_flight_order` only enforces start < end, and both
+    may be in the past), so an advertiser could pay in full for a campaign
+    `eligible_placements` will never serve - money captured, zero delivery, no
+    auto-refund."""
+    client, session = api
+    await _enable_ads(session)
+    business_id = await _business(session)
+    today = date.today()
+    past_body = _quote_body(
+        flight_start=(today - timedelta(days=3)).isoformat(),
+        flight_end=(today + timedelta(days=10)).isoformat(),
+    )
+
+    quote_resp = await client.post("/ads/my/quote", json=past_body, headers=_as(OWNER))
+    assert quote_resp.status_code == 422
+    assert quote_resp.json()["detail"] == "flight_in_past"
+
+    create_body = {**past_body, "business_id": str(business_id), "name": "Backdated"}
+    create_resp = await client.post("/ads/my/campaigns", json=create_body, headers=_as(OWNER))
+    assert create_resp.status_code == 422
+    assert create_resp.json()["detail"] == "flight_in_past"
+
+    # a re-quoting PATCH is the same boundary
+    campaign = await _create_draft(client, session)
+    patch_resp = await client.patch(
+        f"/ads/my/campaigns/{campaign['id']}",
+        json={"flight_start": (today - timedelta(days=3)).isoformat()},
+        headers=_as(OWNER),
+    )
+    assert patch_resp.status_code == 422
+    assert patch_resp.json()["detail"] == "flight_in_past"
+
+    # starting TODAY is legal - the serve path requires flight_start <= today
+    today_body = {
+        **_quote_body(
+            flight_start=today.isoformat(), flight_end=(today + timedelta(days=10)).isoformat()
+        ),
+        "business_id": str(business_id),
+        "name": "Starts today",
+    }
+    today_resp = await client.post("/ads/my/campaigns", json=today_body, headers=_as(OWNER))
+    assert today_resp.status_code == 201, today_resp.text
+
+
+async def test_checkout_request_on_elapsed_flight_409_flight_over(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The checkout-side backstop for a draft priced BEFORE its window
+    elapsed: `_check_flight_start` can't help there, but paying for a flight
+    that is entirely in the past must still be impossible."""
+    client, session = api
+    await _enable_ads(session)
+    campaign = await _create_draft(client, session)
+    await _add_creative(session, uuid.UUID(campaign["id"]))
+
+    db_campaign = await session.get(Campaign, uuid.UUID(campaign["id"]))
+    assert db_campaign is not None
+    db_campaign.flight_start = date.today() - timedelta(days=30)
+    db_campaign.flight_end = date.today() - timedelta(days=1)
+    await session.flush()
+
+    resp = await client.post(
+        f"/ads/my/campaigns/{campaign['id']}/checkout-request", headers=_as(OWNER)
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "flight_over"
+    await session.refresh(db_campaign)
+    assert db_campaign.status == "draft"  # never reached pending_payment
+
+
+async def test_oversized_serves_total_422_never_500(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Every money column is INT4 (max 2,147,483,647 paise). 100M serves
+    priced 3,000,000,000 paise, which reached asyncpg as a
+    NumericValueOutOfRange -> an unhandled 500 on create (and /quote happily
+    returned the unstorable number). Both ends are validation errors now:
+    the shape ceiling (pydantic `le`) and the value ceiling
+    (pricing.MAX_TOTAL_PAISE)."""
+    client, session = api
+    await _enable_ads(session)
+    business_id = await _business(session)
+
+    # above the shape ceiling -> pydantic 422
+    over_shape = _quote_body(serves_total=100_000_001)
+    resp = await client.post("/ads/my/quote", json=over_shape, headers=_as(OWNER))
+    assert resp.status_code == 422
+
+    # at the shape ceiling but out of INT4 range once priced -> 422, not 500
+    over_value = _quote_body(serves_total=100_000_000)
+    quote_resp = await client.post("/ads/my/quote", json=over_value, headers=_as(OWNER))
+    assert quote_resp.status_code == 422
+    assert quote_resp.json()["detail"] == "total_too_large"
+
+    create_body = {**over_value, "business_id": str(business_id), "name": "Whale"}
+    create_resp = await client.post("/ads/my/campaigns", json=create_body, headers=_as(OWNER))
+    assert create_resp.status_code == 422
+    assert create_resp.json()["detail"] == "total_too_large"
+
+
 async def test_categories_in_geo_target_rejected_422(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:
@@ -899,10 +1038,6 @@ async def test_edit_approved_creative_on_active_campaign_repends_and_demotes(
         session,
         geo_target={},
         categories=[],
-        # _quote_body's default flight_start is TOMORROW (draft-creation
-        # premise) - the serve path requires flight_start <= today, so this
-        # test (which needs the campaign live-and-serving) backdates it.
-        flight_start=(today - timedelta(days=1)).isoformat(),
         flight_end=(today + timedelta(days=30)).isoformat(),
     )
     creative = await _upload_creative(client, campaign["id"])
@@ -920,6 +1055,11 @@ async def test_edit_approved_creative_on_active_campaign_repends_and_demotes(
     assert db_campaign is not None
     db_campaign.status = "active"
     db_campaign.paid_at = datetime.now(UTC)
+    # _quote_body's default flight_start is TOMORROW (the create route rejects
+    # a past one - `flight_in_past`), but the serve path requires
+    # flight_start <= today, so this test (which needs the campaign
+    # live-and-serving) backdates the stored row directly.
+    db_campaign.flight_start = today - timedelta(days=1)
     await session.flush()
 
     before = await client.get("/ads/serve", params={"slot": "milk_home_hero"})

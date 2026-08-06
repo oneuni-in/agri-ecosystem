@@ -6,6 +6,7 @@ lookups stubs (test_ads_moderation_source.py precedent) so business/contact
 resolution is deterministic regardless of what earlier test modules left
 registered on shared.lookups's process-global resolvers."""
 
+import re
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
@@ -18,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.ads.models import Campaign
-from modules.billing.ad_orders import run_invoice_pdf_sweep
+from modules.ads.pricing import quote_campaign
+from modules.billing.ad_orders import invoice_lines_from_order, run_invoice_pdf_sweep
 from modules.billing.invoice_pdf import render_invoice_pdf
 from modules.billing.models import AdOrder, Invoice
 from settings import get_settings
@@ -111,6 +113,82 @@ def test_missing_buyer_gstin_defaults_to_cgst_sgst_split() -> None:
     assert b"CGST" in pdf_bytes
     assert b"SGST" in pdf_bytes
     assert b"IGST" not in pdf_bytes
+
+
+def _rendered_amounts_paise(pdf_bytes: bytes) -> list[int]:
+    """Every "Rs. N.NN" the renderer emitted, in document order: one per line
+    item, then the taxable value, then CGST+SGST (or IGST), then the total.
+    `pdf.compress = False` keeps the content stream plain text (see
+    invoice_pdf.py's module docstring), so no PDF-parsing dependency is
+    needed for this."""
+    found = re.findall(rb"\(Rs\. ([0-9,]+)\.([0-9]{2})\)", pdf_bytes)
+    return [int(rupees.replace(b",", b"")) * 100 + int(paise) for rupees, paise in found]
+
+
+def test_rendered_line_items_sum_to_taxable_value() -> None:
+    """MONEY-PATH INVARIANT (M5 review): the printed line items must foot to
+    the invoice's own taxable value. The pre-fix quote emitted a ZERO-amount
+    "Category multiplier x1.2" row plus a "Minimum order" row carrying the
+    FULL floor on top of the base line, so a real tax invoice printed
+    5000 + 10000 above "Taxable value Rs. 100.00". modules/ads/pricing.py now
+    guarantees the sum at the quote end (test_ads_pricing.py); this pins it at
+    the render end, where the customer actually sees it."""
+    lines = [("1,000 ad views @ CPM T5 (x1.2 ghee)", 6_000), ("Minimum order top-up", 4_000)]
+    pdf_bytes = render_invoice_pdf(
+        **_kwargs(lines=lines, taxable_paise=10_000, gst_paise=1_800, total_paise=11_800)
+    )
+    amounts = _rendered_amounts_paise(pdf_bytes)
+    # line items, then taxable value, then CGST, SGST, then total
+    assert len(amounts) == len(lines) + 4
+    assert sum(amounts[: len(lines)]) == 10_000
+    assert amounts[len(lines)] == 10_000  # the "Taxable value" row itself
+
+
+async def test_quoted_lines_reach_the_invoice_footing_to_taxable(db_session: AsyncSession) -> None:
+    """The whole chain, on the shape that used to break: a floor-triggered
+    ads quote -> Campaign/AdOrder.quote snapshot -> invoice_lines_from_order
+    -> render. Guards against the two ends drifting apart again."""
+    quote = await quote_campaign(
+        db_session,
+        slot_keys=["milk_home_hero"],
+        geo_target={"tiers": [5]},
+        categories=["ghee"],
+        flight_start=date(2026, 8, 10),
+        flight_end=date(2026, 8, 24),
+        serves_total=1000,
+    )
+    order = AdOrder(
+        campaign_id=uuid.uuid4(),
+        business_id=BUSINESS_ID,
+        status="paid",
+        subtotal_paise=quote.subtotal_paise,
+        gst_paise=quote.gst_paise,
+        total_paise=quote.total_paise,
+        quote={"lines": [[line.label, line.amount_paise] for line in quote.lines]},
+        razorpay_plink_id=f"plink_{uuid.uuid4().hex[:8]}",
+    )
+    invoice = Invoice(
+        order_id=order.id,
+        subscription_id=None,
+        amount_paise=quote.total_paise,
+        taxable_paise=quote.subtotal_paise,
+        gst_paise=quote.gst_paise,
+        status="paid",
+        invoice_number="MILK-26-27-000123",
+    )
+    lines = invoice_lines_from_order(order, invoice)
+    assert sum(amount for _, amount in lines) == invoice.taxable_paise
+
+    pdf_bytes = render_invoice_pdf(
+        **_kwargs(
+            lines=lines,
+            taxable_paise=quote.subtotal_paise,
+            gst_paise=quote.gst_paise,
+            total_paise=quote.total_paise,
+        )
+    )
+    amounts = _rendered_amounts_paise(pdf_bytes)
+    assert sum(amounts[: len(lines)]) == quote.subtotal_paise == amounts[len(lines)]
 
 
 def test_cgst_sgst_split_sums_to_gst_total_even_when_odd() -> None:

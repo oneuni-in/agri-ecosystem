@@ -38,12 +38,39 @@ async def test_tick_noop_when_worker_disabled(monkeypatch: pytest.MonkeyPatch) -
 
 
 async def test_tick_noop_when_flag_off(
-    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    db_session: AsyncSession, database_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """D20 defense in depth: while `billing_enabled` is off the tick does
+    NOTHING - no dunning transitions, no M5 invoice-PDF sweep, no Razorpay
+    call, zero reads past the flag check.
+
+    DATABASE_URL is repointed at the migrated TEST database (the same pattern
+    test_tick_advances_due_dunning uses - see its docstring) because
+    worker_tick opens its OWN session via get_sessionmaker(), which otherwise
+    resolves to whatever DATABASE_URL the developer's environment carries:
+    their real dev database. Without this, the assertion measures dev-DB
+    contents rather than the flag-off contract - on a machine where dev
+    `billing_enabled` is flipped on for manual QA the tick genuinely runs, the
+    PDF sweep genuinely WRITES to that dev DB, and the return is the number of
+    unswept paid invoices sitting there (the observed `assert 5 == 0`). The
+    flag is also asserted/forced off explicitly here: this test's premise must
+    be established, never inherited from ambient state."""
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    reset_engine()
+    maker = get_sessionmaker()
+    async with maker() as setup:
+        flag = await setup.get(FeatureFlag, "billing_enabled")
+        assert flag is not None
+        flag.enabled = False
+        await setup.commit()
+    reset_flag_cache()
+
     fake = FakeRazorpay()
     monkeypatch.setattr(razorpay_client, "get_client", lambda: fake)
     assert await worker.worker_tick(now=T0) == 0
     assert fake.calls == []
+    reset_flag_cache()
 
 
 async def test_tick_advances_due_dunning(

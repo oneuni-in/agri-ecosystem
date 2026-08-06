@@ -18,6 +18,12 @@ from modules.ads.schemas import CopyBlock
 from modules.ads.service import LOCALES, GeoTargetIn
 
 MAX_CATEGORIES = 20
+# Money columns are INT4 everywhere (see pricing.MAX_TOTAL_PAISE): an
+# unbounded serve count would quote a number Postgres cannot store. This is
+# the first of the two guards - the shape-level ceiling; pricing.py's
+# MAX_TOTAL_PAISE is the value-level one (a big-but-legal serve count on an
+# expensive tier can still price out of range).
+MAX_SERVES_TOTAL = 100_000_000
 _CATEGORY_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 
 
@@ -45,7 +51,7 @@ class _QuoteFieldsBase(BaseModel):
     categories: Annotated[list[str], Field(max_length=MAX_CATEGORIES)] = Field(default_factory=list)
     flight_start: date
     flight_end: date
-    serves_total: Annotated[int, Field(ge=0)] | None = None
+    serves_total: Annotated[int, Field(ge=0, le=MAX_SERVES_TOTAL)] | None = None
 
     @field_validator("categories")
     @classmethod
@@ -108,7 +114,7 @@ class CampaignPatchIn(BaseModel):
     categories: Annotated[list[str], Field(max_length=MAX_CATEGORIES)] | None = None
     flight_start: date | None = None
     flight_end: date | None = None
-    serves_total: Annotated[int, Field(ge=0)] | None = None
+    serves_total: Annotated[int, Field(ge=0, le=MAX_SERVES_TOTAL)] | None = None
     daily_serve_cap: Annotated[int, Field(ge=100)] | None = None
 
     @field_validator("categories")
@@ -225,8 +231,10 @@ class MyCampaignOut(BaseModel):
     advertiser_business_id: uuid.UUID
     name: str
     status: str
-    # Task 7 owns the real derivation (payment/moderation/budget/flight
-    # aware); until then this is a passthrough of the raw status.
+    # The raw `status` column plus the two states that are only ever derived
+    # read-side until the next worker sweep durably flips them: `expired`
+    # (past flight_end) and `exhausted` (serve credits used up). Derived by
+    # lifecycle.display_status - never a passthrough of the raw status.
     display_status: str
     pricing_model: str | None
     price_paise: int | None

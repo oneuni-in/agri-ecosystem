@@ -81,6 +81,18 @@ async def serve(
     )
     pool: list[service.Candidate] = []
     for cand in candidates:
+        # M5: per-campaign daily pacing cap (Campaign.daily_serve_cap), then
+        # the per-viewer/per-creative frequency cap. Both are read ONCE, here,
+        # to build the pool - exactly like the freq cap has always worked. A
+        # `count`>1 carousel can therefore still take two placements of the
+        # same capped campaign in a single request (the loop de-dupes by
+        # placement.id); that overshoot is bounded by MAX_SERVE_COUNT and is
+        # the same shape the freq cap already accepts. `consume_budget` stays
+        # the only hard, race-free ceiling on spend.
+        if not await service.under_daily_cap(
+            cand.campaign.id, cap=cand.campaign.daily_serve_cap, now=now
+        ):
+            continue
         if await service.under_freq_cap(
             viewer, cand.creative.id, cap=settings.ads_freq_cap_per_day, now=now
         ):
@@ -113,6 +125,9 @@ async def serve(
         ):
             dirty = True
         await service.record_serve(viewer, cand.creative.id, now=now)
+        await service.record_campaign_serve(
+            cand.campaign.id, cap=cand.campaign.daily_serve_cap, now=now
+        )
         served.append(
             _to_served(
                 cand.placement, cand.creative, locale=locale, base=settings.media_public_base_url

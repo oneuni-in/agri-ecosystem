@@ -498,7 +498,10 @@ async def apply_payment_link_expired(
 
 def invoice_lines_from_order(order: AdOrder, invoice: Invoice) -> list[tuple[str, int]]:
     """Order.quote carries the itemized [label, amount_paise] pairs ads
-    handed billing at checkout (modules/ads/pricing.py's `_quote_snapshot`);
+    handed billing at checkout (`_quote_snapshot` in modules/ads/
+    selfserve_router.py, built from modules/ads/pricing.py's Quote.lines -
+    which sum to the quote's own subtotal by construction, so these lines
+    foot to the invoice's taxable value);
     a campaign quoted before that field existed (or the bare 4-number
     reconstruction fallback in create_ad_order) has no `lines` key, so we
     fall back to one line for the whole taxable amount - never a KeyError,

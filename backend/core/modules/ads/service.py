@@ -350,6 +350,39 @@ async def record_serve(viewer: str, creative_id: uuid.UUID, *, now: datetime) ->
     await redis.expire(key, _seconds_to_utc_midnight(now))
 
 
+def _daily_key(campaign_id: uuid.UUID, now: datetime) -> str:
+    # M5: pacing. Per CAMPAIGN (not per creative, not per viewer) - the
+    # advertiser bought "at most N serves a day", so every creative and every
+    # placement of the campaign shares one counter. Same UTC-day rollover and
+    # same midnight expiry as the freq-cap keys above.
+    return f"ads:daily:{campaign_id}:{now:%Y%m%d}"
+
+
+async def under_daily_cap(campaign_id: uuid.UUID, *, cap: int | None, now: datetime) -> bool:
+    """M5 `Campaign.daily_serve_cap` enforcement - without it a "500/day"
+    campaign burns its whole budget on day one. cap=None (the default, and
+    every house/admin campaign) is uncapped and never touches redis."""
+    if cap is None:
+        return True
+    count = await get_redis().get(_daily_key(campaign_id, now))
+    return int(count or 0) < cap
+
+
+async def record_campaign_serve(campaign_id: uuid.UUID, *, cap: int | None, now: datetime) -> None:
+    """Increment the per-campaign daily counter. Called at serve alongside
+    record_serve and consume_budget - same failure semantics as the freq-cap
+    twin (a redis outage propagates; it is never silently ignored). An
+    uncapped campaign writes nothing at all, mirroring consume_budget's
+    "unlimited never touches the row" rule: house ads are the hot path and
+    must not pay for a counter nobody reads."""
+    if cap is None:
+        return
+    key = _daily_key(campaign_id, now)
+    redis = get_redis()
+    await redis.incr(key)
+    await redis.expire(key, _seconds_to_utc_midnight(now))
+
+
 def log_delivery(
     session: AsyncSession,
     *,

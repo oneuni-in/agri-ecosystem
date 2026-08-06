@@ -5,7 +5,7 @@ Also: flag-off 404, freq cap, weighted rotation, locale fallback."""
 import random
 import uuid
 from collections.abc import AsyncIterator
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -111,12 +111,14 @@ async def _seed_ad(
     moderation_status: str = "approved",
     campaign_status: str = "active",
     target_url: str = "https://kovaimills.example.com/offers",
+    daily_serve_cap: int | None = None,
 ) -> Placement:
     today = date.today()
     campaign = Campaign(
         advertiser_business_id=await _advertiser(session),
         name="Kovai Mills - kharif push",
         status=campaign_status,
+        daily_serve_cap=daily_serve_cap,
         flight_start=today - timedelta(days=1),
         flight_end=today + timedelta(days=30),
     )
@@ -334,6 +336,103 @@ async def test_freq_cap_skips_exhausted_placement(
     )
     assert exhausted.status_code == 200
     assert exhausted.json() == {"ad": None, "ads": []}
+
+
+async def test_daily_serve_cap_stops_one_campaign_not_the_others(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """M5 pacing: `Campaign.daily_serve_cap` was collected by the wizard,
+    validated by the API, stored, and returned by the DTO - and enforced
+    NOWHERE, so a "500/day" campaign burned its whole budget on day one. The
+    cap folds only the CAPPED campaign out of the pool; an uncapped one on
+    another slot keeps serving in the same UTC day."""
+    client, session = api
+    await _enable_ads(session)
+    await _seed_ad(session, geo_target={}, slot_key="directory_browse", daily_serve_cap=1)
+    await _seed_ad(session, geo_target={}, slot_key="milk_home_hero")  # uncapped
+
+    first = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert first.json()["ad"] is not None
+
+    capped = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert capped.status_code == 200
+    assert capped.json() == {"ad": None, "ads": []}
+
+    # the uncapped campaign is untouched (twice, staying under the 3/day
+    # per-creative frequency cap this same viewer is subject to)
+    for _ in range(2):
+        other = await client.get(
+            "/ads/serve", params={"slot": "milk_home_hero", "pincode": COIMBATORE_PINCODE}
+        )
+        assert other.json()["ad"] is not None
+
+
+async def test_daily_serve_cap_counter_is_per_campaign_not_per_creative(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """One counter per CAMPAIGN: the advertiser bought "at most N serves a
+    day" across everything they run, so a second placement of the SAME
+    campaign on a different slot draws from the same allowance - and the
+    redis key is keyed by campaign id, with a midnight TTL like its freq-cap
+    twin."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(
+        session, geo_target={}, slot_key="directory_browse", daily_serve_cap=1
+    )
+    session.add(
+        Placement(
+            campaign_id=placement.campaign_id,
+            slot_key="milk_home_hero",
+            geo_target={},
+            weight=1,
+        )
+    )
+    await session.flush()
+
+    first = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert first.json()["ad"] is not None
+
+    key = f"ads:daily:{placement.campaign_id}:{datetime.now(UTC):%Y%m%d}"
+    assert await ads_redis.get(key) == "1"
+    assert await ads_redis.ttl(key) > 0
+
+    # the campaign's OTHER placement is capped out too - the counter is not
+    # per-placement and not per-creative
+    sibling = await client.get(
+        "/ads/serve", params={"slot": "milk_home_hero", "pincode": COIMBATORE_PINCODE}
+    )
+    assert sibling.status_code == 200
+    assert sibling.json() == {"ad": None, "ads": []}
+
+
+async def test_uncapped_campaign_writes_no_daily_counter(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    tn_geo_sample: None,
+    ads_redis: Redis,
+) -> None:
+    """daily_serve_cap IS NULL (every house/admin campaign) never touches
+    redis at all - consume_budget's "unlimited never touches the row" rule."""
+    client, session = api
+    await _enable_ads(session)
+    placement = await _seed_ad(session, geo_target={}, slot_key="directory_browse")
+
+    served = await client.get(
+        "/ads/serve", params={"slot": "directory_browse", "pincode": COIMBATORE_PINCODE}
+    )
+    assert served.json()["ad"] is not None
+    key = f"ads:daily:{placement.campaign_id}:{datetime.now(UTC):%Y%m%d}"
+    assert await ads_redis.get(key) is None
 
 
 async def test_share_of_voice_weighted_rotation(

@@ -225,6 +225,89 @@ async def test_admin_cannot_activate_unpaid_or_unapproved_priced_campaign(
     assert r3.json()["status"] == "active"
 
 
+async def test_admin_cannot_push_paid_campaign_back_to_draft(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """MONEY (M5 review): `draft` is still in the admin-settable
+    CampaignStatus literal, which predates the 8-state self-serve lifecycle.
+    Sending a PAID campaign back to draft hands it to the advertiser's
+    draft-only PATCH, which re-quotes at today's rate card and rewrites
+    price/budget - while an AdOrder, a ledger row and an already-emailed GST
+    invoice all still say the old number. (No double charge - the partial
+    unique index blocks that - but the campaign and the money on record
+    silently diverge.)"""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 118_000
+    db_campaign.paid_at = datetime.now(UTC)
+    db_campaign.status = "active"
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "draft"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "not_allowed_for_paid_campaign"
+    await db_session.refresh(db_campaign)
+    assert db_campaign.status == "active"  # untouched
+
+    # pausing/archiving a paid campaign stays available to staff
+    paused = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "paused"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["status"] == "paused"
+
+
+async def test_admin_can_still_draft_an_unpriced_house_campaign(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """price_paise IS NULL (house/admin campaign, never billed, no order and
+    no invoice to desync from) keeps today's unrestricted behaviour."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.status = "active"
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "draft"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "draft"
+
+
+async def test_campaign_out_exposes_price_and_paid_at(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Staff had no way to tell a paid self-serve campaign from a house one
+    in the admin listing - which is exactly the distinction the paid-campaign
+    status guard turns on."""
+    campaign_id = await _create_campaign(api)
+    house = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    assert house.status_code == 200
+    row = next(c for c in house.json()["items"] if c["id"] == campaign_id)
+    assert row["price_paise"] is None and row["paid_at"] is None
+
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 118_000
+    db_campaign.paid_at = datetime.now(UTC)
+    await db_session.flush()
+
+    paid = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    paid_row = next(c for c in paid.json()["items"] if c["id"] == campaign_id)
+    assert paid_row["price_paise"] == 118_000
+    assert paid_row["paid_at"] is not None
+
+
 async def test_admin_activates_unpriced_house_campaign_freely(
     api: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:

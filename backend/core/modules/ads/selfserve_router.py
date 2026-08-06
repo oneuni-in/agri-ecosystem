@@ -116,9 +116,30 @@ def _check_slot_keys(slot_keys: list[str]) -> None:
     """Wire contract must match the sibling admin route exactly (modules/ads/
     admin_router.create_placement, pinned by tests/test_ads_admin.py): an
     unknown slot key is 422 `detail == "unknown_slot_key"`, a plain string -
-    not pydantic's structured error list."""
+    not pydantic's structured error list.
+
+    Duplicates are rejected too (money-path review): create_campaign makes one
+    Placement per entry while pricing never scales with slot count, so
+    `["milk_sponsored_listing"] * 3` would buy three placements for one week's
+    flat price - and three placements of the same campaign each take their own
+    share of a `count>1` carousel, since the serve loop de-dupes by
+    placement.id, not campaign.id. The wizard already blocks duplicates
+    client-side; the API is the contract."""
     if any(slot_key not in SLOT_KEYS for slot_key in slot_keys):
         raise HTTPException(status_code=422, detail="unknown_slot_key")
+    if len(set(slot_keys)) != len(slot_keys):
+        raise HTTPException(status_code=422, detail="duplicate_slot_key")
+
+
+def _check_flight_start(flight_start: date) -> None:
+    """A flight that already began can never be delivered in full, and one
+    that has entirely passed can never be delivered at all (eligible_placements
+    requires flight_start <= today <= flight_end) - yet checkout would happily
+    charge the full price for it. Reject at the pricing boundary (quote/create/
+    patch); lifecycle.request_checkout carries the matching `flight_over` guard
+    for drafts that were already priced before their window elapsed."""
+    if flight_start < datetime.now(UTC).date():
+        raise HTTPException(status_code=422, detail="flight_in_past")
 
 
 def _check_geo_target_categories(geo_target: GeoTargetIn) -> None:
@@ -308,6 +329,7 @@ async def quote_campaign(body: QuoteIn, session: SessionDep) -> QuoteOut:
     await _require_flag(session)
     _check_slot_keys(body.slot_keys)
     _check_geo_target_categories(body.geo_target)
+    _check_flight_start(body.flight_start)
     try:
         quote = await pricing.quote_campaign(
             session,
@@ -334,6 +356,7 @@ async def create_campaign(
     await _require_flag(session)
     _check_slot_keys(body.slot_keys)
     _check_geo_target_categories(body.geo_target)
+    _check_flight_start(body.flight_start)
     user_id = _principal_user_id(request)
     ref = await resolve_business(session, body.business_id)
     if ref is None or ref.owner_user_id != user_id:
@@ -489,6 +512,10 @@ async def patch_campaign(
         )
         if new_flight_start >= new_flight_end:
             raise HTTPException(status_code=422, detail="invalid_flight_range")
+        # the EFFECTIVE start, not just a sent one: re-quoting a draft whose
+        # window has already begun must not re-price a flight nobody can
+        # deliver in full.
+        _check_flight_start(new_flight_start)
 
         try:
             quote = await pricing.quote_campaign(

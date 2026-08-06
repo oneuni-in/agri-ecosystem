@@ -361,17 +361,25 @@ def log_delivery(
     now: datetime,
     rand: random.Random,
     tier: int | None = None,
+    always: bool = False,
 ) -> bool:
-    """M3.E: append-only, SAMPLED why-served row for advertiser analytics
-    (M5) and dispute resolution. Returns True when a row was staged - the
-    caller owns the commit. pincode/category are serve context (fine to
-    keep); viewer is the daily-rotating hash - never any other user
-    identifier (threat: delivery-log PII). tier is the M4 pincode tier
-    resolved by the caller via shared.geo.service.get_tier (None when the
-    request carried no pincode)."""
-    rate = get_settings().ads_delivery_log_sample
-    if rate <= 0 or rand.random() >= rate:
-        return False
+    """M3.E: append-only why-served row for advertiser analytics (M5) and
+    dispute resolution. Returns True when a row was staged - the caller
+    owns the commit. pincode/category are serve context (fine to keep);
+    viewer is the daily-rotating hash - never any other user identifier
+    (threat: delivery-log PII). tier is the M4 pincode tier resolved by the
+    caller via shared.geo.service.get_tier (None when the request carried
+    no pincode).
+
+    M5 Task 13: `always=True` (paid campaigns, set by the caller) bypasses
+    the sampling gate entirely - an advertiser paying for a campaign gets
+    exact analytics, never a sampled estimate. House/admin campaigns keep
+    the SAMPLED behaviour (settings.ads_delivery_log_sample) since nobody's
+    billed for their precision."""
+    if not always:
+        rate = get_settings().ads_delivery_log_sample
+        if rate <= 0 or rand.random() >= rate:
+            return False
     session.add(
         DeliveryDecision(
             campaign_id=candidate.campaign.id,

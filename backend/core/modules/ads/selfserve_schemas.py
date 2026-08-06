@@ -158,6 +158,52 @@ class CreativeSnapshotOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class StatsDayRow(BaseModel):
+    day: date
+    impressions: int
+    clicks: int
+
+
+class StatsKeyCount(BaseModel):
+    """One bucket of `ads.delivery_decisions` GROUP BY key. `key` is the raw
+    pincode/category/tier value, string-coerced; `"unknown"` stands in for a
+    NULL (no pincode/category context, or no resolvable tier)."""
+
+    key: str
+    serves: int
+
+
+class CampaignStatsOut(BaseModel):
+    """Advertiser campaign analytics (M5 Task 13). `impressions`/`clicks`/
+    `ctr_bp`/`by_day` are exact (drawn from ads.impressions/ads.clicks, keyed
+    by placement_id - never sampled). `by_pincode`/`by_category`/`by_tier`
+    come from ads.delivery_decisions, each capped at the top 20 rows by
+    serve count (bounded payload, not a full breakdown) - see `sampled`.
+    `spend_paise` is DERIVED read-side from the campaign's pricing snapshot
+    and current budget counters; there is no mutable balance column."""
+
+    days: int
+    serves_used: int
+    serves_total: int | None
+    spend_paise: int
+    impressions: int
+    clicks: int
+    ctr_bp: int
+    by_day: list[StatsDayRow]
+    by_pincode: list[StatsKeyCount]
+    by_category: list[StatsKeyCount]
+    by_tier: list[StatsKeyCount]
+    # False for priced campaigns: M5 Task 13 makes `log_delivery(always=True)`
+    # bypass sampling for every campaign with price_paise set, so
+    # by_pincode/by_category/by_tier are a complete count of delivery
+    # decisions going forward. True for house/admin campaigns (price_paise is
+    # NULL - still sampled at settings.ads_delivery_log_sample). NOTE: rows
+    # logged for a priced campaign BEFORE this change shipped may still be
+    # sampled - `sampled` reflects the current logging policy, not a
+    # per-row guarantee for historical data.
+    sampled: bool
+
+
 class MyCampaignOut(BaseModel):
     id: uuid.UUID
     advertiser_business_id: uuid.UUID

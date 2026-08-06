@@ -107,6 +107,9 @@ async def serve(
             now=now,
             rand=_rng,
             tier=tier,
+            # M5 Task 13: paid campaigns are never sampled - advertisers get
+            # exact delivery analytics; house/admin campaigns keep sampling.
+            always=cand.campaign.price_paise is not None,
         ):
             dirty = True
         await service.record_serve(viewer, cand.creative.id, now=now)

@@ -14,18 +14,19 @@ Sections below, in the order Tasks 7/8/13 slot into:
   - POST /campaigns/{id}/checkout-request | pause | resume  (Task 7)
   - POST /campaigns/{id}/creatives  (Task 8: upload)
   - PATCH /creatives/{id}           (Task 8: edit -> re-moderation)
+  - GET  /campaigns/{id}/stats      (Task 13: analytics from tracking + delivery log)
 """
 
 import json
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime
-from typing import Annotated, Any
+from datetime import UTC, date, datetime, timedelta
+from typing import Annotated, Any, Literal
 
 import uuid6
 from fastapi import Depends, File, Form, HTTPException, Query, Request, UploadFile
-from pydantic import ValidationError
-from sqlalchemy import func, select
+from pydantic import BeforeValidator, ValidationError
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ads import lifecycle, pricing
@@ -34,6 +35,7 @@ from modules.ads.schemas import copy_to_json
 from modules.ads.selfserve_schemas import (
     CampaignCreateIn,
     CampaignPatchIn,
+    CampaignStatsOut,
     CreativeCopyIn,
     CreativeSnapshotOut,
     MyCampaignOut,
@@ -41,6 +43,8 @@ from modules.ads.selfserve_schemas import (
     QuoteIn,
     QuoteLineOut,
     QuoteOut,
+    StatsDayRow,
+    StatsKeyCount,
 )
 from modules.ads.service import SLOT_KEYS, GeoTargetIn, validate_target_url
 from settings import get_settings
@@ -54,6 +58,12 @@ from shared.security import SecureRouter
 router = SecureRouter(prefix="/ads/my", tags=["ads-selfserve"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 LimitQuery = Annotated[int, Query(ge=1, le=100)]
+# D26 Pydantic trap (modules/directory/router.py precedent): Literal[int, ...]
+# alone rejects a string query value outright (pydantic validates Literal by
+# identity, no int coercion) - BeforeValidator(int) coerces "30" -> 30 before
+# the Literal membership check runs, so days=5 still 422s but 7/30/90 do not.
+DaysQuery = Annotated[Literal[7, 30, 90], BeforeValidator(int)]
+STATS_KEY_LIMIT = 20  # bounded payload per by_pincode/by_category/by_tier bucket
 
 # Task 8: a creative may be uploaded/edited while the campaign is in any of
 # these states - the same set request_checkout/pause/resume already move a
@@ -678,3 +688,100 @@ async def patch_creative(
     out = _creative_snapshot(creative, get_settings().media_public_base_url)
     await session.commit()
     return out
+
+
+# ---------------------------------------------------------------------------
+# GET /campaigns/{id}/stats  (Task 13: advertiser campaign analytics)
+
+
+def _spend_paise(campaign: Campaign) -> int:
+    """Derived read-side from the campaign's pricing snapshot + current
+    budget counters - there is no mutable balance column (integer math
+    only, no floats near money). `cpm` campaigns spend proportionally to
+    serve-credits consumed; `flat_weekly` campaigns spend the full price
+    once payment has cleared (paid_at set), 0 before that. House/admin
+    campaigns (price_paise NULL) never spend anything billable."""
+    if campaign.price_paise is None:
+        return 0
+    if campaign.pricing_model == "cpm":
+        total = campaign.budget_serves_total
+        if not total:  # None or 0 - never divide by zero/unlimited
+            return 0
+        return campaign.price_paise * campaign.budget_serves_used // total
+    if campaign.pricing_model == "flat_weekly":
+        return campaign.price_paise if campaign.paid_at is not None else 0
+    return 0
+
+
+async def _key_counts(
+    session: AsyncSession, campaign_id: uuid.UUID, column: str, lo: datetime
+) -> list[StatsKeyCount]:
+    """GROUP BY over ads.delivery_decisions for one dimension (pincode,
+    category, or tier - always one of these three hardcoded literals, never
+    caller-supplied, so the f-string column name is safe). NULL -> "unknown";
+    top STATS_KEY_LIMIT rows by serve count (bounded payload, not a full
+    breakdown - see CampaignStatsOut's docstring)."""
+    result = await session.execute(
+        text(
+            f"SELECT COALESCE({column}::text, 'unknown') AS key, count(*) AS n "
+            "FROM ads.delivery_decisions WHERE campaign_id = :cid AND occurred_at >= :lo "
+            f"GROUP BY key ORDER BY n DESC LIMIT {STATS_KEY_LIMIT}"
+        ),
+        {"cid": campaign_id, "lo": lo},
+    )
+    return [StatsKeyCount(key=key, serves=n) for key, n in result]
+
+
+@router.get("/campaigns/{campaign_id}/stats")
+async def campaign_stats(
+    campaign_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
+    days: DaysQuery = 30,
+) -> CampaignStatsOut:
+    """impressions/clicks/by_day are exact (ads.impressions/ads.clicks, keyed
+    by placement_id - never sampled). by_pincode/by_category/by_tier come
+    from ads.delivery_decisions, which paid campaigns now log unsampled
+    (Task 13's `log_delivery(always=...)`) but house campaigns still sample
+    - see `sampled` on the response. `days` bounds the window to <=90 days
+    so partition pruning on the day-partitioned tracking tables still holds."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    campaign = await _owned_campaign(session, user_id, campaign_id)
+    lo = datetime.now(UTC) - timedelta(days=days)
+
+    by_day: dict[date, dict[str, int]] = {}
+    for name, table in (("impressions", "ads.impressions"), ("clicks", "ads.clicks")):
+        result = await session.execute(
+            text(
+                f"SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day, count(*) AS n "
+                f"FROM {table} WHERE placement_id IN "
+                "(SELECT id FROM ads.placements WHERE campaign_id = :cid) "
+                "AND occurred_at >= :lo GROUP BY day"
+            ),
+            {"cid": campaign.id, "lo": lo},
+        )
+        for day, n in result:
+            by_day.setdefault(day, {"impressions": 0, "clicks": 0})[name] = n
+
+    total_impressions = sum(v.get("impressions", 0) for v in by_day.values())
+    total_clicks = sum(v.get("clicks", 0) for v in by_day.values())
+    ctr_bp = (total_clicks * 10000 // total_impressions) if total_impressions else 0
+
+    return CampaignStatsOut(
+        days=days,
+        serves_used=campaign.budget_serves_used,
+        serves_total=campaign.budget_serves_total,
+        spend_paise=_spend_paise(campaign),
+        impressions=total_impressions,
+        clicks=total_clicks,
+        ctr_bp=ctr_bp,
+        by_day=[
+            StatsDayRow(day=d, impressions=v.get("impressions", 0), clicks=v.get("clicks", 0))
+            for d, v in sorted(by_day.items())
+        ],
+        by_pincode=await _key_counts(session, campaign.id, "pincode", lo),
+        by_category=await _key_counts(session, campaign.id, "category", lo),
+        by_tier=await _key_counts(session, campaign.id, "tier", lo),
+        sampled=campaign.price_paise is None,
+    )

@@ -57,17 +57,29 @@ export default async function BusinessConsoleLayout({
     return true;
   });
   return (
-    <div className="mx-auto flex w-full max-w-5xl gap-6 px-4 py-6">
-      <nav aria-label="Business console" className="w-48 shrink-0">
-        <p className="mb-3 font-display text-[13px] font-extrabold uppercase tracking-wide text-sub">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:gap-6">
+      {/*
+       * M5 Task 16 responsive fix: below `sm:` the fixed `w-48` sidebar left
+       * ~127px of content at 375px (fails the mobile-usable DoD). Per the
+       * design system's UX law #2 (nothing hidden behind a hamburger), the
+       * SAME module list becomes a horizontally scrollable pill row above
+       * the content instead - one <nav>, responsive classes only, no
+       * separate mobile/desktop components. `sm:` and up reproduces the
+       * original sidebar classes exactly (w-48 shrink-0 column list).
+       */}
+      <nav
+        aria-label="Business console"
+        className="flex gap-2 overflow-x-auto pb-1 sm:block sm:w-48 sm:shrink-0 sm:overflow-visible sm:pb-0"
+      >
+        <p className="hidden font-display text-[13px] font-extrabold uppercase tracking-wide text-sub sm:mb-3 sm:block">
           Business console
         </p>
-        <ul className="space-y-1">
+        <ul className="flex gap-2 sm:block sm:space-y-1">
           {modules.map((entry) => (
-            <li key={entry.id}>
+            <li key={entry.id} className="flex-none">
               <Link
                 href={entry.href}
-                className="block rounded-card px-3 py-2 text-[14px] text-ink hover:bg-line"
+                className="flex min-h-[44px] items-center whitespace-nowrap rounded-pill bg-line px-4 text-[13px] font-semibold text-ink sm:block sm:min-h-0 sm:whitespace-normal sm:rounded-card sm:bg-transparent sm:px-3 sm:py-2 sm:text-[14px] sm:font-normal sm:hover:bg-line"
               >
                 {entry.title}
               </Link>

@@ -4,12 +4,18 @@
  * M5 Task 15: the four wizard step components (Goal / Categories / Areas /
  * Schedule & budget) plus the shared draft shape + targeting constants they
  * all read and write. campaign-wizard.tsx owns step state/nav and imports
- * from here — Task 16 adds Creatives/Review & pay alongside these, so the
- * shared types stay here rather than duplicated.
+ * from here.
+ *
+ * M5 Task 16 adds CreativesStep (multipart upload/edit against
+ * backend/core/modules/ads/selfserve_router.py's creatives routes) and
+ * ReviewPayStep (server-truth quote GET + checkout-request -> ad-orders ->
+ * Razorpay redirect) alongside the four above.
  */
 
-import { Button, Skeleton, cn } from "@agri/ui";
-import { useState, type ReactNode } from "react";
+import { AdImage, Button, Card, Skeleton, cn } from "@agri/ui";
+import { useEffect, useState, type ReactNode } from "react";
+
+import { ApiError, getJson, postJson } from "@/lib/api";
 
 // Mirrors modules/ads/service.py SLOT_KEYS (M2 milk banner surfaces).
 export const BANNER_SLOTS = [
@@ -28,7 +34,7 @@ export const SERVES_PRESETS = [10000, 25000, 50000, 100000] as const;
 // Mirrors modules/ads/pricing.py MIN_CPM_SERVES.
 export const MIN_CPM_SERVES = 1000;
 
-const TIER_LABELS: Record<number, string> = {
+export const TIER_LABELS: Record<number, string> = {
   1: "Big cities (T1)",
   2: "Large towns (T2)",
   3: "Towns (T3)",
@@ -72,6 +78,10 @@ const FIELD =
   "mt-1 block min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-[13px] text-ink";
 const LABEL = "block text-[13px] font-semibold text-ink";
 
+function rupees(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
 function AlertNotice({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-card border border-alert-line bg-alert-bg p-3 text-[13px] font-semibold text-ink">
@@ -106,7 +116,7 @@ function RadioCard({
         }
       }}
       className={cn(
-        "cursor-pointer rounded-card border-2 p-3",
+        "min-h-[44px] cursor-pointer rounded-card border-2 p-3",
         selected ? "border-brand bg-brand-soft" : "border-line bg-card",
       )}
     >
@@ -447,6 +457,541 @@ export function ScheduleStep({ draft, onChange }: StepProps) {
           {weeks === 1 ? "" : "s"}, priced weekly.
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// M5 Task 16: Creatives step
+//
+// Uploads/edits go straight to the /api/ads/my proxy as raw multipart
+// fetches (claim-form.tsx pattern: FormData + fetch, content-type left
+// unset so the browser sets the multipart boundary) - postJson/patchJson
+// (lib/api.ts) only ever send JSON, so they can't be reused here.
+
+export const MAX_CREATIVES = 5;
+const CREATIVE_ACCEPT = "image/jpeg,image/png,image/webp";
+const HTTPS_RE = /^https:\/\//;
+
+interface CreativeCopyBlock {
+  title: string;
+  body: string;
+}
+
+export interface CreativeOut {
+  id: string;
+  copy: Record<string, CreativeCopyBlock>;
+  media_urls: string[];
+  target_url: string;
+  moderation_status: string;
+}
+
+// selfserve_router.py's creative routes collapse every validation failure to
+// one of these plain-string 422/409 codes (see _parse_copy_json/
+// _validated_target_url/_upload_creative_image's MediaError passthrough).
+const CREATIVE_ERROR_COPY: Record<string, string> = {
+  invalid_copy_json:
+    "Check your ad text — English needs a title and body; Tamil/Hindi need both or neither.",
+  invalid_target_url: "Enter a valid https:// link.",
+  too_large: "That image is too large (max 5MB).",
+  unsupported_type: "Use a JPEG, PNG, or WEBP image.",
+  empty_file: "That file looks empty — choose another image.",
+  creative_limit: `You've reached the limit of ${MAX_CREATIVES} creatives for this campaign.`,
+  not_editable: "This campaign can no longer be edited here.",
+};
+
+function friendlyCreativeError(detail: string | undefined): string {
+  return (detail && CREATIVE_ERROR_COPY[detail]) || "Could not save this creative — please try again.";
+}
+
+function ModerationChip({ status }: { status: string }) {
+  const classes =
+    status === "approved"
+      ? "bg-verified-bg text-verified-fg"
+      : status === "rejected"
+        ? "bg-alert-bg text-ink"
+        : "bg-sponsored-bg text-sponsored-fg";
+  return (
+    <span
+      className={cn(
+        "inline-flex flex-none items-center rounded-pill px-[9px] py-[3px] text-[11px] font-extrabold",
+        classes,
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function CreativeForm({
+  campaignId,
+  creative,
+  onSaved,
+  onCancel,
+}: {
+  campaignId: string;
+  creative?: CreativeOut;
+  onSaved: (creative: CreativeOut) => void;
+  onCancel: () => void;
+}) {
+  const isEdit = Boolean(creative);
+  const [enTitle, setEnTitle] = useState(creative?.copy.en?.title ?? "");
+  const [enBody, setEnBody] = useState(creative?.copy.en?.body ?? "");
+  const [taTitle, setTaTitle] = useState(creative?.copy.ta?.title ?? "");
+  const [taBody, setTaBody] = useState(creative?.copy.ta?.body ?? "");
+  const [hiTitle, setHiTitle] = useState(creative?.copy.hi?.title ?? "");
+  const [hiBody, setHiBody] = useState(creative?.copy.hi?.body ?? "");
+  const [targetUrl, setTargetUrl] = useState(creative?.target_url ?? "");
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Object URLs are only ever revoked on unmount/replace here — never kept
+  // beyond the form's lifetime.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handleFile = (picked: File | null) => {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return picked ? URL.createObjectURL(picked) : null;
+    });
+    setFile(picked);
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!enTitle.trim() || !enBody.trim()) {
+      setFormError("English title and body are required.");
+      return;
+    }
+    if ((taTitle.trim() || taBody.trim()) && !(taTitle.trim() && taBody.trim())) {
+      setFormError("Tamil needs both a title and a body, or leave both blank.");
+      return;
+    }
+    if ((hiTitle.trim() || hiBody.trim()) && !(hiTitle.trim() && hiBody.trim())) {
+      setFormError("Hindi needs both a title and a body, or leave both blank.");
+      return;
+    }
+    if (!HTTPS_RE.test(targetUrl.trim())) {
+      setFormError("Enter a valid https:// link.");
+      return;
+    }
+
+    const copy: Record<string, CreativeCopyBlock> = {
+      en: { title: enTitle.trim(), body: enBody.trim() },
+    };
+    if (taTitle.trim()) copy.ta = { title: taTitle.trim(), body: taBody.trim() };
+    if (hiTitle.trim()) copy.hi = { title: hiTitle.trim(), body: hiBody.trim() };
+
+    const form = new FormData();
+    form.append("copy_json", JSON.stringify(copy));
+    form.append("target_url", targetUrl.trim());
+    if (file) form.append("file", file);
+
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await fetch(
+        isEdit
+          ? `/api/ads/my/creatives/${creative!.id}`
+          : `/api/ads/my/campaigns/${campaignId}/creatives`,
+        { method: isEdit ? "PATCH" : "POST", body: form },
+      );
+      const body = (await res.json().catch(() => null)) as (CreativeOut & { detail?: string }) | null;
+      if (!res.ok) {
+        setFormError(friendlyCreativeError(body?.detail));
+        setSubmitting(false);
+        return;
+      }
+      onSaved(body as CreativeOut);
+    } catch {
+      setFormError("Could not save this creative — please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="space-y-3 rounded-card border border-line bg-ghost p-3" onSubmit={(e) => void submit(e)}>
+      {isEdit ? <AlertNotice>Editing sends this ad for review again.</AlertNotice> : null}
+      <label className={LABEL}>
+        Image (optional)
+        <input
+          type="file"
+          accept={CREATIVE_ACCEPT}
+          className={FIELD}
+          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+        />
+      </label>
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- local blob: preview, never a remote/optimizable URL
+        <img src={previewUrl} alt="" className="h-24 w-full rounded-btn object-cover" />
+      ) : isEdit && creative!.media_urls[0] ? (
+        <AdImage src={creative!.media_urls[0]} alt="" className="h-24 w-full rounded-btn" />
+      ) : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className={LABEL}>
+          Title (English)
+          <input className={FIELD} value={enTitle} onChange={(e) => setEnTitle(e.target.value)} />
+        </label>
+        <label className={LABEL}>
+          Body (English)
+          <input className={FIELD} value={enBody} onChange={(e) => setEnBody(e.target.value)} />
+        </label>
+        <label className={LABEL}>
+          Title (Tamil, optional)
+          <input className={FIELD} value={taTitle} onChange={(e) => setTaTitle(e.target.value)} />
+        </label>
+        <label className={LABEL}>
+          Body (Tamil, optional)
+          <input className={FIELD} value={taBody} onChange={(e) => setTaBody(e.target.value)} />
+        </label>
+        <label className={LABEL}>
+          Title (Hindi, optional)
+          <input className={FIELD} value={hiTitle} onChange={(e) => setHiTitle(e.target.value)} />
+        </label>
+        <label className={LABEL}>
+          Body (Hindi, optional)
+          <input className={FIELD} value={hiBody} onChange={(e) => setHiBody(e.target.value)} />
+        </label>
+      </div>
+      <label className={LABEL}>
+        Target URL
+        <input
+          type="url"
+          className={FIELD}
+          value={targetUrl}
+          onChange={(e) => setTargetUrl(e.target.value)}
+          placeholder="https://example.com/offer"
+        />
+      </label>
+      {formError ? <AlertNotice>{formError}</AlertNotice> : null}
+      <div className="flex gap-2">
+        <Button type="submit" variant="brand" disabled={submitting} className="min-h-[44px] min-w-0 max-w-[200px] break-words">
+          {submitting ? "Saving..." : isEdit ? "Save changes" : "Add creative"}
+        </Button>
+        <Button type="button" variant="ghost" disabled={submitting} className="min-h-[44px] min-w-0 max-w-[160px] break-words" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function CreativesStep({ campaignId }: { campaignId: string }) {
+  const [creatives, setCreatives] = useState<CreativeOut[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const body = await getJson(`/api/ads/my/campaigns/${campaignId}`);
+        if (cancelled) return;
+        setCreatives((body.creatives as CreativeOut[] | undefined) ?? []);
+        setLoadError(false);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId]);
+
+  const atLimit = (creatives?.length ?? 0) >= MAX_CREATIVES;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[13px] text-sub">
+        Add up to {MAX_CREATIVES} creatives — the image, headline, and body text shown in your ad.
+        English text is required; Tamil and Hindi are optional. New creatives start pending review.
+      </p>
+
+      {loadError ? <AlertNotice>Could not load your creatives — please try again.</AlertNotice> : null}
+      {creatives === null && !loadError ? <Skeleton width="100%" height="120px" /> : null}
+
+      {creatives && creatives.length > 0 ? (
+        <ul className="space-y-2">
+          {creatives.map((c) => (
+            <li key={c.id}>
+              <Card className="space-y-2 break-words p-3">
+                {editingId === c.id ? (
+                  <CreativeForm
+                    campaignId={campaignId}
+                    creative={c}
+                    onSaved={(updated) => {
+                      setCreatives((prev) => prev?.map((x) => (x.id === updated.id ? updated : x)) ?? null);
+                      setEditingId(null);
+                    }}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 break-words text-[13px] font-extrabold text-ink">
+                        {c.copy.en?.title ?? "(untitled)"}
+                      </span>
+                      <ModerationChip status={c.moderation_status} />
+                    </div>
+                    {c.media_urls[0] ? (
+                      <AdImage src={c.media_urls[0]} alt="" className="h-24 w-full rounded-btn" />
+                    ) : null}
+                    <p className="text-[13px] text-ink">{c.copy.en?.body ?? "—"}</p>
+                    <p className="break-all text-[12px] text-sub">Links to {c.target_url}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-[44px] min-w-0 max-w-[160px] break-words"
+                      onClick={() => setEditingId(c.id)}
+                    >
+                      Edit
+                    </Button>
+                  </>
+                )}
+              </Card>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {creatives && !atLimit && !addingNew ? (
+        <Button
+          type="button"
+          variant="brand"
+          className="min-h-[44px] min-w-0 max-w-[240px] break-words"
+          onClick={() => setAddingNew(true)}
+        >
+          Add a creative
+        </Button>
+      ) : null}
+      {creatives && addingNew ? (
+        <CreativeForm
+          campaignId={campaignId}
+          onSaved={(created) => {
+            setCreatives((prev) => [...(prev ?? []), created]);
+            setAddingNew(false);
+          }}
+          onCancel={() => setAddingNew(false)}
+        />
+      ) : null}
+      {creatives && atLimit && !addingNew ? (
+        <p className="text-[12px] text-sub">
+          You&apos;ve reached the {MAX_CREATIVES}-creative limit for this campaign.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// M5 Task 16: Review & pay step
+//
+// The choice summary reads client state (`draft`) — it mirrors exactly what
+// persistDraft() already saved server-side. The price is re-fetched from
+// GET /campaigns/{id} instead (server truth: the client never re-derives
+// money), same rule campaign-wizard.tsx's QuoteRail already follows.
+
+const GSTIN_RE = /^[0-9A-Z]{15}$/;
+
+interface ReviewCampaign {
+  status: string;
+  price_paise: number | null;
+  price_subtotal_paise: number | null;
+  price_gst_paise: number | null;
+  creatives: CreativeOut[];
+}
+
+const PAY_ERROR_COPY: Record<string, string> = {
+  not_payable: "This campaign can't be paid for right now.",
+  not_priced: "This campaign hasn't been priced yet — go back and finish the schedule step.",
+  no_creatives: "Add at least one creative before you can pay.",
+  business_not_servable: "Your business account isn't eligible to advertise right now.",
+  order_exists: "A payment is already in progress for this campaign.",
+  razorpay_unavailable: "The payment provider is unavailable right now — please try again shortly.",
+};
+
+function friendlyPayError(err: unknown): string {
+  if (err instanceof ApiError) {
+    return PAY_ERROR_COPY[err.detail] ?? "Could not start checkout — please try again.";
+  }
+  return "Could not start checkout — please try again.";
+}
+
+export function ReviewPayStep({ campaignId, draft }: { campaignId: string; draft: WizardDraft }) {
+  const [campaign, setCampaign] = useState<ReviewCampaign | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [gstin, setGstin] = useState("");
+  const [gstinError, setGstinError] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const body = await getJson(`/api/ads/my/campaigns/${campaignId}`);
+        if (cancelled) return;
+        setCampaign(body as unknown as ReviewCampaign);
+        setLoadError(false);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId]);
+
+  const goalSummary =
+    draft.goalMode === "sponsored"
+      ? "Sponsored listing"
+      : `Banner ads — ${draft.slotKeys
+          .map((key) => BANNER_SLOTS.find((s) => s.key === key)?.label ?? key)
+          .join(", ")}`;
+
+  const areaSummary =
+    draft.areaMode === "all"
+      ? "All of India"
+      : draft.areaMode === "pincodes"
+        ? `${draft.pincodes.length} pincode${draft.pincodes.length === 1 ? "" : "s"}: ${draft.pincodes.join(", ")}`
+        : `Tamil Nadu towns — ${draft.tiers.map((t) => TIER_LABELS[t]).join(", ")}`;
+
+  const categorySummary = draft.allCategories ? "All categories" : draft.categories.join(", ") || "—";
+
+  const handleGstinChange = (value: string) => {
+    setGstin(value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 15));
+    setGstinError(null);
+  };
+
+  const creativeCount = campaign?.creatives.length ?? 0;
+
+  const handlePay = async () => {
+    if (gstin && !GSTIN_RE.test(gstin)) {
+      setGstinError("GSTIN must be exactly 15 characters (digits and uppercase letters).");
+      return;
+    }
+    setPaying(true);
+    setPayError(null);
+    try {
+      await postJson(`/api/ads/my/campaigns/${campaignId}/checkout-request`);
+      const order = await postJson("/api/billing/ad-orders", {
+        campaign_id: campaignId,
+        ...(gstin ? { buyer_gstin: gstin } : {}),
+      });
+      const checkoutUrl = order.checkout_url as string | null | undefined;
+      if (!checkoutUrl) {
+        setPayError("Could not start checkout — please try again.");
+        setPaying(false);
+        return;
+      }
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      setPayError(friendlyPayError(err));
+      setPaying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-2 p-4">
+        <p className="text-[13px] font-extrabold text-ink">{draft.name}</p>
+        <dl className="space-y-1 text-[13px] text-ink">
+          <div className="flex gap-2">
+            <dt className="min-w-0 flex-1 break-words text-sub">Goal</dt>
+            <dd className="min-w-0 flex-1 break-words text-right">{goalSummary}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="min-w-0 flex-1 break-words text-sub">Categories</dt>
+            <dd className="min-w-0 flex-1 break-words text-right">{categorySummary}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="min-w-0 flex-1 break-words text-sub">Areas</dt>
+            <dd className="min-w-0 flex-1 break-words text-right">{areaSummary}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="min-w-0 flex-1 break-words text-sub">Schedule</dt>
+            <dd className="min-w-0 flex-1 break-words text-right">
+              {draft.flightStart} → {draft.flightEnd}
+            </dd>
+          </div>
+          {draft.servesTotal !== null ? (
+            <div className="flex gap-2">
+              <dt className="min-w-0 flex-1 break-words text-sub">Ad views</dt>
+              <dd className="min-w-0 flex-1 break-words text-right">
+                {draft.servesTotal.toLocaleString("en-IN")}
+                {draft.dailyServeCap ? ` (max ${draft.dailyServeCap.toLocaleString("en-IN")}/day)` : ""}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </Card>
+
+      {loadError ? <AlertNotice>Could not load the final price — please try again.</AlertNotice> : null}
+      {campaign === null && !loadError ? <Skeleton width="100%" height="96px" /> : null}
+      {campaign ? (
+        <Card className="space-y-2 p-4">
+          <p className="text-[13px] font-extrabold text-ink">Final price</p>
+          <div className="space-y-0.5 text-[13px] text-ink">
+            <div className="flex gap-2">
+              <span className="min-w-0 flex-1 break-words text-sub">Subtotal</span>
+              <span className="flex-none">
+                {campaign.price_subtotal_paise != null ? rupees(campaign.price_subtotal_paise) : "—"}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <span className="min-w-0 flex-1 break-words text-sub">GST</span>
+              <span className="flex-none">
+                {campaign.price_gst_paise != null ? rupees(campaign.price_gst_paise) : "—"}
+              </span>
+            </div>
+            <div className="flex gap-2 border-t border-line pt-1 text-[14px] font-extrabold">
+              <span className="min-w-0 flex-1 break-words">Total</span>
+              <span className="flex-none">
+                {campaign.price_paise != null ? rupees(campaign.price_paise) : "—"}
+              </span>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      <label className={LABEL}>
+        GSTIN (optional, for the tax invoice)
+        <input
+          className={FIELD}
+          value={gstin}
+          maxLength={15}
+          onChange={(e) => handleGstinChange(e.target.value)}
+          placeholder="22AAAAA0000A1Z5"
+        />
+      </label>
+      {gstinError ? <AlertNotice>{gstinError}</AlertNotice> : null}
+
+      {campaign && creativeCount === 0 ? (
+        <AlertNotice>Add at least one creative in the previous step before you can pay.</AlertNotice>
+      ) : null}
+      {payError ? <AlertNotice>{payError}</AlertNotice> : null}
+
+      <Button
+        type="button"
+        variant="brand"
+        className="min-h-[44px] w-full max-w-[320px] break-words"
+        disabled={paying || !campaign || campaign.price_paise == null || creativeCount === 0}
+        onClick={() => void handlePay()}
+      >
+        {paying
+          ? "Starting checkout..."
+          : `Pay ${campaign?.price_paise != null ? rupees(campaign.price_paise) : "₹—"} securely with Razorpay`}
+      </Button>
+      <p className="text-[12px] text-sub">
+        You&apos;ll be redirected to Razorpay. Your ads go live after payment and a quick review.
+      </p>
     </div>
   );
 }

@@ -1,18 +1,20 @@
 "use client";
 
 /**
- * M5 Task 15: campaign wizard shell — step state/nav + the live
- * server-priced quote rail. Steps 1-4 (Goal/Categories/Areas/Schedule &
- * budget, in wizard-steps.tsx) are built here; steps 5-6 (Creatives, Review
- * & pay) are Task 16's job and render a placeholder for now so the
- * stepper/nav contract is already final.
+ * M5 Task 15/16: campaign wizard shell — step state/nav + the live
+ * server-priced quote rail (steps 1-4, Goal/Categories/Areas/Schedule &
+ * budget) plus Creatives and Review & pay (steps 5-6, Task 16 — both
+ * components live in wizard-steps.tsx).
  *
  * "Next" from step 4 persists the draft server-side — POST the first time,
- * PATCH afterwards — so Task 16's creative upload has a campaign id to
+ * PATCH afterwards — so step 5's creative upload has a campaign id to
  * attach to (backend/core/modules/ads/selfserve_router.py create_campaign /
  * patch_campaign). Quote failures are surfaced inline but never block
  * navigation before Review & pay; only the wizard's OWN client-side
- * validation (dates, required choices) blocks "Next".
+ * validation (dates, required choices) blocks "Next". Steps 5-6 need no
+ * further client-side persistence of their own: creatives save themselves
+ * one at a time against their own routes, and Review & pay re-fetches the
+ * campaign (server truth) rather than trusting `draft` for money.
  */
 
 import { Button, Card, Skeleton, cn } from "@agri/ui";
@@ -23,8 +25,10 @@ import { ApiError, getJson, patchJson, postJson } from "@/lib/api";
 import {
   AreasStep,
   CategoriesStep,
+  CreativesStep,
   GoalStep,
   MIN_CPM_SERVES,
+  ReviewPayStep,
   ScheduleStep,
   STATE_TN_LGD,
   pricingModelFor,
@@ -383,17 +387,22 @@ export function CampaignWizard({ businessId, onDone }: CampaignWizardProps) {
       ) : null}
       {stepIndex === 2 ? <AreasStep draft={draft} onChange={updateDraft} /> : null}
       {stepIndex === 3 ? <ScheduleStep draft={draft} onChange={updateDraft} /> : null}
-      {stepIndex >= 4 ? (
-        <div className="space-y-2 rounded-card border border-line bg-ghost p-4 text-[13px] text-sub">
-          <p className="font-semibold text-ink">{STEPS[stepIndex]}</p>
-          <p>Coming in the next step of this build.</p>
-          {campaignId ? (
-            <p>Your draft campaign has been saved — come back to finish adding creatives and pay.</p>
-          ) : null}
-        </div>
+      {stepIndex === 4 ? (
+        campaignId ? (
+          <CreativesStep campaignId={campaignId} />
+        ) : (
+          <AlertNotice>Something went wrong saving this campaign — please restart it.</AlertNotice>
+        )
+      ) : null}
+      {stepIndex === 5 ? (
+        campaignId ? (
+          <ReviewPayStep campaignId={campaignId} draft={draft} />
+        ) : (
+          <AlertNotice>Something went wrong saving this campaign — please restart it.</AlertNotice>
+        )
       ) : null}
 
-      {stepIndex >= 1 ? <QuoteRail draft={draft} /> : null}
+      {stepIndex >= 1 && stepIndex <= 3 ? <QuoteRail draft={draft} /> : null}
 
       {stepError ? <AlertNotice>{stepError}</AlertNotice> : null}
 
@@ -407,7 +416,7 @@ export function CampaignWizard({ businessId, onDone }: CampaignWizardProps) {
         >
           Back
         </Button>
-        {stepIndex < 4 ? (
+        {stepIndex < STEPS.length - 1 ? (
           <Button
             type="button"
             variant="brand"

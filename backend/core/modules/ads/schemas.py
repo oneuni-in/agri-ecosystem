@@ -3,7 +3,7 @@ approval is the unified moderation queue's job (Task 7), never this router's."""
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -11,6 +11,14 @@ from modules.ads.service import LOCALES, GeoTargetIn, validate_target_url
 
 CampaignStatus = Literal["draft", "active", "paused", "archived"]
 PlacementStatus = Literal["active", "paused"]
+# M5 reconciliation: CampaignStatus above is the ADMIN-settable set, which
+# still predates the 8-state self-serve lifecycle. For a PRICED campaign only
+# these three are admissible - notably NOT `draft`, which would let staff push
+# a paid, live campaign back into the editable state the advertiser can
+# re-quote from, desyncing price/budget from an AdOrder + ledger row + an
+# already-emailed invoice. `active` stays in the set but keeps its own
+# payment-AND-moderation gate (decision 14) in admin_router.
+PAID_CAMPAIGN_STATUSES = frozenset({"active", "paused", "archived"})
 
 MAX_CREATIVE_MEDIA = 5
 MAX_COPY_TITLE = 120
@@ -54,6 +62,12 @@ class CampaignOut(BaseModel):
     budget_serves_used: int
     flight_start: date
     flight_end: date
+    # M5: a self-serve campaign is priced and paid for. Staff need to see BOTH
+    # here or the admin listing gives no hint that a campaign carries real
+    # money (and that admin_router's paid-campaign status guard applies to
+    # it). NULL price_paise == house/admin campaign, never billed.
+    price_paise: int | None
+    paid_at: datetime | None
     created_at: datetime
 
 
@@ -189,3 +203,17 @@ class StatsOut(BaseModel):
     """Per-placement daily impression/click stats."""
 
     rows: list[StatRowOut]
+
+
+class RateCardIn(BaseModel):
+    """M5 Task 3: Ops-submitted rate card config. Shape is validated by
+    pricing.validate_rate_card, not here - config is an opaque dict at the
+    wire level so pricing.py stays the single source of truth for the shape."""
+
+    config: dict[str, Any]
+
+
+class RateCardOut(BaseModel):
+    version: int
+    config: dict[str, Any]
+    created_at: datetime

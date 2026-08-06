@@ -19,6 +19,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.billing.ad_orders import (
+    PendingEvent,
+    apply_payment_link_expired,
+    apply_payment_link_paid,
+    apply_refund_processed,
+)
 from modules.billing.models import Invoice, Subscription
 from modules.billing.razorpay_client import RazorpayError
 from settings import Settings
@@ -30,7 +36,6 @@ from shared.telemetry import get_logger
 logger = get_logger(__name__)
 
 EVENT_STREAM = "billing"
-PendingEvent = tuple[str, dict[str, Any]]
 
 # Statuses Razorpay reports that mean "the money keeps flowing" for a local
 # `active` row; used by the dunning-tick recovery sync and reconciliation.
@@ -173,6 +178,10 @@ HANDLED_EVENTS = frozenset(
         "subscription.completed",
         "invoice.paid",
         "invoice.expired",
+        # M5 Task 10: ad-order checkout events (advertiser self-serve).
+        "payment_link.paid",
+        "payment_link.expired",
+        "refund.processed",
     }
 )
 
@@ -190,6 +199,18 @@ async def process_webhook_event(
     caller with the outcome returned here."""
     if event_type not in HANDLED_EVENTS:
         return ("ignored", [])
+
+    # M5 Task 10: ad-order events key off razorpay_plink_id/
+    # razorpay_payment_id (AdOrder), never a razorpay_sub_id - route them to
+    # their own appliers BEFORE the subscription-event resolution below,
+    # which they do not share.
+    if event_type == "payment_link.paid":
+        return await apply_payment_link_paid(session, payload=payload, now=now, settings=settings)
+    if event_type == "payment_link.expired":
+        return await apply_payment_link_expired(session, payload=payload, now=now)
+    if event_type == "refund.processed":
+        return await apply_refund_processed(session, payload=payload, now=now)
+
     entity = payload.get("payload") or {}
 
     if event_type.startswith("invoice."):

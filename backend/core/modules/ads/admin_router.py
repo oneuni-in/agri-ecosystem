@@ -17,10 +17,14 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign, Creative, Placement
+from modules.ads import pricing
+from modules.ads.lifecycle import creative_moderation_counts
+from modules.ads.models import Campaign, Creative, Placement, RateCardVersion
 from modules.ads.schemas import (
+    PAID_CAMPAIGN_STATUSES,
     CampaignIn,
     CampaignOut,
     CampaignPageOut,
@@ -31,6 +35,8 @@ from modules.ads.schemas import (
     PlacementOut,
     PlacementPageOut,
     PlacementStatusIn,
+    RateCardIn,
+    RateCardOut,
     StatRowOut,
     StatsOut,
     StatusIn,
@@ -112,6 +118,28 @@ async def set_campaign_status(
     campaign = await session.get(Campaign, campaign_id)
     if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
+    # M5 Task 7 (decision 14): the payment-AND-moderation activation gate
+    # applies to admin-driven transitions too - a priced (self-serve)
+    # campaign that hasn't paid, or hasn't cleared moderation, must never
+    # be force-activated by staff. Unpriced (house/admin) campaigns have
+    # price_paise IS NULL and are exempt (never billed, so "unpaid"/
+    # "unapproved" are meaningless for them).
+    if campaign.price_paise is not None:
+        # M5 review: a PRICED campaign carries an AdOrder, a ledger row and an
+        # emailed GST invoice. Pushing it back to `draft` would hand it to the
+        # advertiser's draft-only PATCH, which re-quotes at today's rate card
+        # and rewrites price/budget - money on record vs. money on the
+        # campaign silently diverge (the partial-unique index blocks a second
+        # charge, so this desyncs rather than double-bills). Only
+        # PAID_CAMPAIGN_STATUSES (schemas.py) are admissible for it.
+        if body.status not in PAID_CAMPAIGN_STATUSES:
+            raise HTTPException(status_code=422, detail="not_allowed_for_paid_campaign")
+        if body.status == "active":
+            if campaign.paid_at is None:
+                raise HTTPException(status_code=422, detail="payment_required")
+            approved, pending = await creative_moderation_counts(session, campaign.id)
+            if approved < 1 or pending > 0:
+                raise HTTPException(status_code=422, detail="moderation_required")
     campaign.status = body.status
     await session.flush()
     await audit(
@@ -309,3 +337,55 @@ async def placement_stats(
             for d, v in sorted(rows.items())
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# rate card (M5 Task 3): Ops-editable versioned pricing config. Append-only -
+# publishing inserts version N+1, never mutates an existing row (D17
+# spec_schemas precedent). The active card is always the newest version
+# (pricing.active_rate_card).
+
+
+@admin_router.get("/rate-card")
+async def get_rate_card(request: Request, session: SessionDep) -> RateCardOut:
+    require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        card = await pricing.active_rate_card(session)
+    except pricing.RateCardError as exc:
+        raise HTTPException(status_code=404, detail=exc.code) from exc
+    return RateCardOut(version=card.version, config=card.config, created_at=card.created_at)
+
+
+@admin_router.post("/rate-card", status_code=201)
+async def publish_rate_card(body: RateCardIn, request: Request, session: SessionDep) -> RateCardOut:
+    admin_id = require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        pricing.validate_rate_card(body.config)
+        current = await pricing.active_rate_card(session)
+        next_version = current.version + 1
+    except pricing.RateCardError as exc:
+        if exc.code != "no_rate_card":
+            raise HTTPException(status_code=422, detail=exc.code) from exc
+        next_version = 1
+    card = RateCardVersion(version=next_version, config=body.config, created_by_user_id=admin_id)
+    session.add(card)
+    try:
+        # Savepoint wraps only the insert so a lost race against the
+        # UNIQUE(version) index rolls back just this insert, not the
+        # caller's transaction (referrals.py / claims.py precedent).
+        async with session.begin_nested():
+            await session.flush()
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="version_conflict") from exc
+    await audit(
+        session,
+        action="ads.rate_card_published",
+        actor_user_id=admin_id,
+        target_type="rate_card",
+        target_id=str(card.version),
+        metadata={"version": card.version},
+        ip=_ip(request),
+    )
+    out = RateCardOut(version=card.version, config=card.config, created_at=card.created_at)
+    await session.commit()
+    return out

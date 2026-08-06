@@ -28,6 +28,7 @@ from modules.notify.models import Delivery, Notification, Preference, PushSubscr
 from modules.notify.push_endpoints import is_allowed_push_endpoint
 from modules.notify.rendering import load_template, render_template
 from settings import get_settings
+from shared import storage
 from shared.cache import get_redis
 from shared.flags import flag_enabled
 from shared.metrics import NOTIFY_DROPPED, NOTIFY_SENT
@@ -202,8 +203,19 @@ async def _attempt(
             body = render_template(template.body, notification.payload, escape_html=True)
             subject = render_template(template.subject or "", notification.payload)
             assert delivery.destination is not None
+            attachments: list[tuple[str, bytes, str]] = []
+            attachment_key = notification.payload.get("attachment_key")
+            if attachment_key:
+                # M5 Task 12: a StorageError here is meant to propagate to
+                # the except block below - a missing/unreachable PDF marks
+                # THIS delivery failed (existing backoff/dead-letter
+                # machinery), it must never silently send an emailless
+                # "invoice ready" mail instead.
+                data = await storage.get_object(str(attachment_key))
+                filename = str(notification.payload.get("attachment_filename") or "attachment.pdf")
+                attachments.append((filename, data, "application/pdf"))
             delivery.provider_ref = await get_email_driver().send(
-                delivery.destination, subject, body
+                delivery.destination, subject, body, attachments=attachments
             )
         else:
             body = render_template(template.body, notification.payload)

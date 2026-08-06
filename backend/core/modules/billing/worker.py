@@ -10,6 +10,7 @@ import contextlib
 from datetime import UTC, datetime
 
 from modules.billing import razorpay_client
+from modules.billing.ad_orders import run_invoice_pdf_sweep
 from modules.billing.service import publish_pending, run_due_dunning
 from settings import get_settings
 from shared.db import get_sessionmaker
@@ -25,18 +26,23 @@ async def worker_tick(*, now: datetime | None = None) -> int:
     settings = get_settings()
     if not settings.billing_worker_enabled:
         return 0
+    tick_now = now or datetime.now(UTC)
     async with get_sessionmaker()() as session:
         if not await flag_enabled("billing_enabled", session=session):
             return 0
-        processed, pending = await run_due_dunning(
+        processed, dunning_pending = await run_due_dunning(
             session,
-            now=now or datetime.now(UTC),
+            now=tick_now,
             client=razorpay_client.get_client(),
             settings=settings,
         )
+        # M5 Task 12: GST invoice PDFs, same tick, same commit+publish
+        # choreography - a StorageError inside the sweep just skips its row
+        # (never rolls back the dunning transitions above it).
+        pdf_processed, pdf_pending = await run_invoice_pdf_sweep(session, now=tick_now)
         await session.commit()
-    await publish_pending(pending)
-    return processed
+    await publish_pending([*dunning_pending, *pdf_pending])
+    return processed + pdf_processed
 
 
 async def run_worker(stop: asyncio.Event, *, poll_interval: float = POLL_INTERVAL_SECONDS) -> None:

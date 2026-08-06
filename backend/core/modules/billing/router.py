@@ -14,19 +14,25 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.billing import razorpay_client
-from modules.billing.models import Invoice, PaymentEvent, Subscription
+from modules.billing.ad_orders import create_ad_order, invoice_lines_from_order
+from modules.billing.invoice_pdf import render_invoice_pdf
+from modules.billing.models import AdOrder, Invoice, PaymentEvent, Subscription
 from modules.billing.sanitize import scrub_payload
 from modules.billing.schemas import (
+    AdOrderCreateIn,
+    AdOrderOut,
+    AdOrderPage,
     InvoicePage,
     MySubscriptionOut,
     SubscriptionCreateIn,
     SubscriptionCreateOut,
+    ad_order_out,
     invoice_out,
     subscription_out,
     tier_list,
@@ -34,9 +40,10 @@ from modules.billing.schemas import (
 from modules.billing.service import process_webhook_event, publish_pending
 from modules.billing.tiers import TIERS, plan_id_for
 from settings import get_settings
+from shared import storage
 from shared.db import get_session
 from shared.flags import flag_enabled
-from shared.lookups import resolve_business, resolve_owned_businesses
+from shared.lookups import resolve_business, resolve_campaign_billing, resolve_owned_businesses
 from shared.metrics import BILLING_WEBHOOK_REJECTED
 from shared.pagination import InvalidCursorError, paginate
 from shared.security import SecureRouter
@@ -221,4 +228,120 @@ async def my_invoices(
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
     return InvoicePage(
         items=[invoice_out(invoice) for invoice in page.items], next_cursor=page.next_cursor
+    )
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 9: ad-order checkout (advertiser self-serve campaigns)
+
+
+@router.post("/ad-orders", status_code=201)
+async def create_order(body: AdOrderCreateIn, request: Request, session: SessionDep) -> AdOrderOut:
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    order = await create_ad_order(
+        session,
+        user_id=user_id,
+        campaign_id=body.campaign_id,
+        buyer_gstin=body.buyer_gstin,
+        client=razorpay_client.get_client(),
+        settings=get_settings(),
+        now=datetime.now(UTC),
+    )
+    await session.commit()
+    return ad_order_out(order)
+
+
+AdOrderLimitQuery = Annotated[int, Query(ge=1, le=100)]
+
+
+@router.get("/ad-orders")
+async def list_orders(
+    campaign_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: AdOrderLimitQuery = 20,
+) -> AdOrderPage:
+    """Owner-scoped, newest-first - the wizard's post-checkout status poll.
+    Not-yours (or unknown campaign) is 404, never 403 (IDOR: no oracle)."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    ref = await resolve_campaign_billing(session, campaign_id)
+    if ref is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    owner = await resolve_business(session, ref.business_id)
+    if owner is None or owner.owner_user_id != user_id:
+        raise HTTPException(status_code=404, detail="Not Found")
+    query = select(AdOrder).where(AdOrder.campaign_id == campaign_id)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    # Task 12 review carry-forward: one bulk lookup for every order's
+    # invoice (at most `limit` paid orders per page) rather than N+1 -
+    # most orders on a page have no invoice at all (only 'paid' does).
+    order_ids = [order.id for order in page.items]
+    invoices_by_order: dict[uuid.UUID, Invoice] = {}
+    if order_ids:
+        invoice_rows = (
+            await session.scalars(select(Invoice).where(Invoice.order_id.in_(order_ids)))
+        ).all()
+        invoices_by_order = {inv.order_id: inv for inv in invoice_rows if inv.order_id is not None}
+    return AdOrderPage(
+        items=[ad_order_out(order, invoices_by_order.get(order.id)) for order in page.items],
+        next_cursor=page.next_cursor,
+    )
+
+
+@router.get("/ad-invoices/{invoice_id}/pdf")
+async def download_ad_invoice_pdf(
+    invoice_id: uuid.UUID, request: Request, session: SessionDep
+) -> Response:
+    """Task 12 review carry-forward: the advertiser's own copy of their GST
+    invoice PDF. Private (billing_enabled-gated, owner-checked) - never the
+    same as the public-read product-media prefix. Read-only: a missing
+    `pdf_key` (the worker sweep hasn't reached this invoice yet) renders on
+    the fly here but deliberately does NOT persist it - only
+    ad_orders.run_invoice_pdf_sweep ever writes `pdf_key`, so a GET can
+    never race the sweep's own storage write."""
+    await _require_flag(session)
+    user_id = _principal_user_id(request)
+    invoice = await session.get(Invoice, invoice_id)
+    if invoice is None or invoice.order_id is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    order = await session.get(AdOrder, invoice.order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    owner = await resolve_business(session, order.business_id)
+    if owner is None or owner.owner_user_id != user_id:
+        raise HTTPException(status_code=404, detail="Not Found")  # IDOR: not-yours==404
+
+    if invoice.pdf_key:
+        try:
+            pdf_bytes = await storage.get_object(invoice.pdf_key)
+        except storage.StorageError as exc:
+            raise HTTPException(status_code=404, detail="Not Found") from exc
+    else:
+        settings = get_settings()
+        pdf_bytes = render_invoice_pdf(
+            invoice_number=invoice.invoice_number or "",
+            issued_on=(invoice.created_at or datetime.now(UTC)).date(),
+            seller=(
+                settings.gst_seller_name,
+                settings.gst_seller_gstin,
+                settings.gst_seller_address,
+            ),
+            buyer_name=owner.name,
+            buyer_gstin=order.buyer_gstin,
+            lines=invoice_lines_from_order(order, invoice),
+            taxable_paise=invoice.taxable_paise or 0,
+            gst_paise=invoice.gst_paise or 0,
+            total_paise=invoice.amount_paise,
+        )
+    filename = f"{invoice.invoice_number or invoice.id.hex}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"content-disposition": f'attachment; filename="{filename}"'},
     )

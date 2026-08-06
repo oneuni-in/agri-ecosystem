@@ -136,6 +136,22 @@ class Settings(BaseSettings):
     dunning_retry_hours: str = "24,72,168"
     dunning_grace_days: int = 7
     billing_worker_enabled: bool = True
+    gst_rate_bp: int = 1800  # M5 GST on ad sales, basis points
+    # M5 Task 9: canned Razorpay responses for create_payment_link/
+    # fetch_payment/fetch_payment_link, short-circuiting before any network
+    # call. e2e-only escape hatch (D09 otp_test_peek precedent) - NEVER set
+    # this in prod; it exists so E2E can exercise checkout without real
+    # Razorpay credentials.
+    razorpay_test_stub: bool = False
+    # M5 Task 9: the advertiser console origin the Payment Link's
+    # callback_url bounces back to after hosted checkout.
+    console_base_url: str = "http://localhost:3002"
+    # M5 Task 12: seller particulars shown on ad-order GST invoice PDFs.
+    # Empty in dev is fine (invoice_pdf.py renders "-" for a blank GSTIN);
+    # ops fills these in before the first real advertiser is invoiced.
+    gst_seller_gstin: str = ""
+    gst_seller_name: str = "Oneuni Technologies"
+    gst_seller_address: str = ""
 
     # D21 ads
     ads_worker_enabled: bool = True

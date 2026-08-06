@@ -92,6 +92,12 @@ interface StatRow {
   clicks: number;
 }
 
+interface RateCard {
+  version: number;
+  config: Record<string, unknown>;
+  created_at: string;
+}
+
 /** Badge's variant union is fixed marketing semantics (sponsored/verified/
  * cert) - it doesn't model open-ended status strings, so status renders as
  * a plain token-styled pill, same idiom as ops-manager.tsx's Chip. */
@@ -939,6 +945,100 @@ function PlacementsSection({ campaignId }: { campaignId: string }) {
   );
 }
 
+function RateCardPanel() {
+  const { toast } = useToast();
+  const [card, setCard] = useState<RateCard | null>(null);
+  const [configText, setConfigText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const body = await getJson("/ads/rate-card");
+      const loaded = body as unknown as RateCard;
+      setCard(loaded);
+      setConfigText(JSON.stringify(loaded.config, null, 2));
+    } catch (error) {
+      toast({ title: error instanceof ApiError ? error.detail : "Could not load the rate card" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const publish = async () => {
+    let config: unknown;
+    try {
+      config = JSON.parse(configText);
+    } catch {
+      toast({ title: "Config is not valid JSON" });
+      return;
+    }
+    setPublishing(true);
+    try {
+      const body = await postJson("/ads/rate-card", { config });
+      const published = body as unknown as RateCard;
+      setCard(published);
+      setConfigText(JSON.stringify(published.config, null, 2));
+      toast({ title: `Published rate card v${published.version}` });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        toast({ title: "Someone else published first — reload" });
+      } else {
+        toast({
+          title: error instanceof ApiError ? error.detail : "Could not publish the rate card",
+        });
+      }
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  return (
+    <Card className="space-y-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-lg font-extrabold text-ink">Rate card</h2>
+        {card ? <StatusPill label={`v${card.version}`} /> : null}
+      </div>
+      <p className="text-xs text-sub">
+        Server-side pricing config (cpm/flat rates by tier, category multipliers, minimum
+        order). Publishing is append-only - it never edits the current version, it adds the
+        next one.
+      </p>
+      {loading ? <Skeleton width="100%" height="240px" /> : null}
+      {!loading ? (
+        <div className="space-y-2">
+          <div className="overflow-x-auto">
+            <textarea
+              className="min-h-[240px] w-full min-w-[320px] rounded-btn border border-line bg-card p-2 font-mono text-xs text-ink"
+              value={configText}
+              onChange={(event) => setConfigText(event.target.value)}
+              spellCheck={false}
+              aria-label="Rate card config JSON"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="brand"
+              disabled={publishing || card === null}
+              onClick={() => void publish()}
+            >
+              {publishing ? "Publishing…" : `Publish as v${(card?.version ?? 0) + 1}`}
+            </Button>
+            <Button disabled={loading} onClick={() => void load()}>
+              Reload
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 function CampaignDetail({ campaign }: { campaign: Campaign }) {
   return (
     <div className="ml-2 space-y-4 border-l-2 border-line pl-4">
@@ -1032,6 +1132,7 @@ export function AdsManager() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4">
       <h1 className="text-xl font-bold text-ink">Ads</h1>
+      <RateCardPanel />
       <CampaignsSection />
     </main>
   );

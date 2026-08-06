@@ -11,10 +11,12 @@ from datetime import UTC, date, datetime, time, timedelta
 import httpx
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.ads.models import Click, Impression
+from modules.ads.models import Campaign, Click, Creative, Impression
+from shared.audit import AuditEntry
 from shared.db import get_session
 from shared.lookups import BusinessRef, register_business_resolver
 from shared.security import register_principal_resolver
@@ -165,6 +167,179 @@ async def test_campaign_status_flip(api: httpx.AsyncClient) -> None:
     )
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "active"
+
+
+async def test_admin_cannot_activate_unpaid_or_unapproved_priced_campaign(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """M5 Task 7 (decision 14): the payment-AND-moderation activation gate
+    applies to staff-driven transitions too, not just self-serve's own
+    routes - a priced campaign that hasn't paid, or hasn't cleared
+    moderation, must never be force-activated. Payment is checked first
+    (payment_required); once paid, moderation is checked
+    (moderation_required)."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 50_000
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "payment_required"
+
+    # paying it off clears the payment half of the gate, but there is still
+    # no approved creative
+    db_campaign.paid_at = datetime.now(UTC)
+    await db_session.flush()
+    r2 = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r2.status_code == 422
+    assert r2.json()["detail"] == "moderation_required"
+
+    # approving a creative clears the moderation half too
+    creative = Creative(
+        campaign_id=db_campaign.id,
+        media_keys=[],
+        copy={"en": {"title": "t", "body": "b"}},
+        target_url="https://example.com",
+    )
+    db_session.add(creative)
+    await db_session.flush()
+    creative.moderation_status = "approved"
+    await db_session.flush()
+
+    r3 = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["status"] == "active"
+
+
+async def test_admin_cannot_push_paid_campaign_back_to_draft(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """MONEY (M5 review): `draft` is still in the admin-settable
+    CampaignStatus literal, which predates the 8-state self-serve lifecycle.
+    Sending a PAID campaign back to draft hands it to the advertiser's
+    draft-only PATCH, which re-quotes at today's rate card and rewrites
+    price/budget - while an AdOrder, a ledger row and an already-emailed GST
+    invoice all still say the old number. (No double charge - the partial
+    unique index blocks that - but the campaign and the money on record
+    silently diverge.)"""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 118_000
+    db_campaign.paid_at = datetime.now(UTC)
+    db_campaign.status = "active"
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "draft"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "not_allowed_for_paid_campaign"
+    await db_session.refresh(db_campaign)
+    assert db_campaign.status == "active"  # untouched
+
+    # pausing/archiving a paid campaign stays available to staff
+    paused = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "paused"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["status"] == "paused"
+
+
+async def test_admin_can_still_draft_an_unpriced_house_campaign(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """price_paise IS NULL (house/admin campaign, never billed, no order and
+    no invoice to desync from) keeps today's unrestricted behaviour."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.status = "active"
+    await db_session.flush()
+
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "draft"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "draft"
+
+
+async def test_campaign_out_exposes_price_and_paid_at(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Staff had no way to tell a paid self-serve campaign from a house one
+    in the admin listing - which is exactly the distinction the paid-campaign
+    status guard turns on."""
+    campaign_id = await _create_campaign(api)
+    house = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    assert house.status_code == 200
+    row = next(c for c in house.json()["items"] if c["id"] == campaign_id)
+    assert row["price_paise"] is None and row["paid_at"] is None
+
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.price_paise = 118_000
+    db_campaign.paid_at = datetime.now(UTC)
+    await db_session.flush()
+
+    paid = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    paid_row = next(c for c in paid.json()["items"] if c["id"] == campaign_id)
+    assert paid_row["price_paise"] == 118_000
+    assert paid_row["paid_at"] is not None
+
+
+async def test_admin_activates_unpriced_house_campaign_freely(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """price_paise IS NULL (house/admin campaign, never billed) is exempt
+    from the payment gate - "unpaid" is meaningless for it."""
+    campaign_id = await _create_campaign(api)
+    r = await api.post(
+        f"/admin/ads/campaigns/{campaign_id}/status",
+        json={"status": "active"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "active"
+
+
+async def test_campaign_out_serializes_pending_payment_status(
+    api: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Reconciliation: CampaignStatus (schemas.py) still lists the 4
+    admin-settable values only, but the DB CHECK now has 8 - CampaignOut.status
+    must serialize any of them (it is a plain str, not the Literal) so the
+    admin listing doesn't choke on a self-serve lifecycle status."""
+    campaign_id = await _create_campaign(api)
+    db_campaign = await db_session.get(Campaign, uuid.UUID(campaign_id))
+    assert db_campaign is not None
+    db_campaign.status = "pending_payment"
+    await db_session.flush()
+
+    r = await api.get("/admin/ads/campaigns", headers=_as(ADMIN, "staff"))
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert any(item["id"] == campaign_id and item["status"] == "pending_payment" for item in items)
 
 
 async def test_campaign_list_cursor_pagination(api: httpx.AsyncClient) -> None:
@@ -526,3 +701,80 @@ async def test_stats_non_staff_403(api: httpx.AsyncClient) -> None:
         headers=_as(ADMIN, "user"),
     )
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# rate card (M5 Task 3)
+
+
+def _rate_card_config(**overrides: object) -> dict[str, object]:
+    config: dict[str, object] = {
+        "cpm_paise": {"1": 31000, "2": 21000, "3": 13000, "4": 9000, "5": 6000},
+        "flat_weekly_paise": {"1": 155000, "2": 105000, "3": 65000, "4": 45000, "5": 30000},
+        "category_multipliers_bp": {"ghee": 12000, "paneer": 11000},
+        "min_total_paise": 12000,
+    }
+    config.update(overrides)
+    return config
+
+
+async def test_rate_card_get_returns_seeded_v1(api: httpx.AsyncClient) -> None:
+    r = await api.get("/admin/ads/rate-card", headers=_as(ADMIN, "staff"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["version"] == 1
+    assert set(body["config"]) == {
+        "cpm_paise",
+        "flat_weekly_paise",
+        "category_multipliers_bp",
+        "min_total_paise",
+    }
+
+
+async def test_rate_card_post_creates_v2_and_get_returns_it(api: httpx.AsyncClient) -> None:
+    config = _rate_card_config()
+    r = await api.post("/admin/ads/rate-card", json={"config": config}, headers=_as(ADMIN, "staff"))
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["version"] == 2
+    assert body["config"] == config
+
+    r2 = await api.get("/admin/ads/rate-card", headers=_as(ADMIN, "staff"))
+    assert r2.status_code == 200, r2.text
+    body2 = r2.json()
+    assert body2["version"] == 2
+    assert body2["config"] == config
+
+
+async def test_rate_card_post_bad_config_422(api: httpx.AsyncClient) -> None:
+    config = _rate_card_config()
+    del config["min_total_paise"]
+    r = await api.post("/admin/ads/rate-card", json={"config": config}, headers=_as(ADMIN, "staff"))
+    assert r.status_code == 422
+    assert r.json()["detail"] == "missing_key"
+
+
+async def test_rate_card_post_requires_staff_403(api: httpx.AsyncClient) -> None:
+    r = await api.post(
+        "/admin/ads/rate-card",
+        json={"config": _rate_card_config()},
+        headers=_as(ADMIN, "user"),
+    )
+    assert r.status_code == 403
+
+
+async def test_rate_card_post_audited(api: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    r = await api.post(
+        "/admin/ads/rate-card", json={"config": _rate_card_config()}, headers=_as(ADMIN, "staff")
+    )
+    assert r.status_code == 201, r.text
+    version = r.json()["version"]
+
+    entry = await db_session.scalar(
+        select(AuditEntry).where(AuditEntry.action == "ads.rate_card_published")
+    )
+    assert entry is not None
+    assert entry.actor_user_id == ADMIN
+    assert entry.target_type == "rate_card"
+    assert entry.target_id == str(version)
+    assert entry.meta == {"version": version}

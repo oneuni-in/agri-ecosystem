@@ -23,7 +23,9 @@ async def test_billing_tables_exist(db_session: AsyncSession) -> None:
         .scalars()
         .all()
     )
-    assert rows == ["invoices", "payment_events", "subscriptions"]
+    # M5 (0034) added ad_orders + ledger_entries alongside D20's originals;
+    # see test_billing_ledger_migration.py for their own coverage.
+    assert rows == ["ad_orders", "invoices", "ledger_entries", "payment_events", "subscriptions"]
 
 
 async def test_one_live_subscription_per_business(db_session: AsyncSession) -> None:

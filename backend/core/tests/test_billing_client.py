@@ -3,12 +3,14 @@
 webhook log)."""
 
 import time
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 
 from modules.billing.razorpay_client import BillingDisabledError, RazorpayClient, RazorpayError
 from modules.billing.sanitize import scrub_payload
+from settings import get_settings
 from shared import flags
 
 pytestmark = pytest.mark.asyncio
@@ -68,6 +70,59 @@ async def test_non_json_2xx_raises_razorpay_error(monkeypatch: pytest.MonkeyPatc
     _enable_billing(monkeypatch)
     with pytest.raises(RazorpayError, match="invalid json"):
         await client.fetch_subscription("sub_1")
+
+
+async def test_stub_is_inert_when_app_env_is_prod(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """money-path review item 3: razorpay_test_stub is a hard AND against
+    app_env != "prod" (D09 otp_test_peek / main.py:229 precedent) - a
+    misconfigured prod deploy with the stub flag left on must still attempt
+    a REAL Razorpay call, never return canned data. No credentials are
+    configured here, so the real path fails with "not configured" rather
+    than returning the stub's canned response - that failure IS the proof
+    the stub was not used."""
+    monkeypatch.setenv("RAZORPAY_TEST_STUB", "true")
+    monkeypatch.setenv("APP_ENV", "prod")
+    get_settings.cache_clear()
+    _enable_billing(monkeypatch)
+    client = RazorpayClient("", "")
+    now = datetime.now(UTC)
+    expire_by = int((now + timedelta(hours=24)).timestamp())
+    with pytest.raises(RazorpayError, match="not configured"):
+        await client.create_payment_link(
+            amount_paise=100,
+            description="test",
+            reference_id="order-1",
+            callback_url="https://example.com/callback",
+            expire_by=expire_by,
+        )
+    with pytest.raises(RazorpayError, match="not configured"):
+        await client.fetch_payment("pay_1")
+    with pytest.raises(RazorpayError, match="not configured"):
+        await client.fetch_payment_link("plink_1")
+
+
+async def test_stub_is_active_outside_prod(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The flip side of the guard above: with the SAME stub flag and no
+    credentials, a non-prod app_env DOES get the canned response - proving
+    the guard is app_env-specific, not a blanket "stub never works"."""
+    monkeypatch.setenv("RAZORPAY_TEST_STUB", "true")
+    monkeypatch.setenv("APP_ENV", "dev")
+    get_settings.cache_clear()
+    _enable_billing(monkeypatch)
+    client = RazorpayClient("", "")
+    now = datetime.now(UTC)
+    expire_by = int((now + timedelta(hours=24)).timestamp())
+    result = await client.create_payment_link(
+        amount_paise=100,
+        description="test",
+        reference_id="order-1",
+        callback_url="https://example.com/callback",
+        expire_by=expire_by,
+    )
+    assert result["id"] == "plink_test_order1"
+    assert result["short_url"] == "https://example.com/callback"
 
 
 def test_scrub_payload_strips_instrument_and_contact_fields() -> None:

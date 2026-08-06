@@ -8,7 +8,9 @@ rate cap, flag) or not at all. Destinations, endpoints and bodies are never
 logged."""
 
 import asyncio
+import base64
 import json
+from collections.abc import Sequence
 from typing import Any, ClassVar, Protocol
 
 import httpx
@@ -20,9 +22,16 @@ logger = get_logger(__name__)
 
 ZEPTOMAIL_SEND_URL = "https://api.zeptomail.in/v1.1/email"
 
+# (filename, bytes, mime type) - M5 Task 12's invoice-PDF-attachment shape.
+# Every EmailDriver implementation accepts it; only ZeptoMailDriver actually
+# transmits it (MockEmailDriver just records the filenames for assertions).
+EmailAttachment = tuple[str, bytes, str]
+
 
 class EmailDriver(Protocol):
-    async def send(self, to: str, subject: str, body: str) -> str | None: ...
+    async def send(
+        self, to: str, subject: str, body: str, attachments: Sequence[EmailAttachment] = ()
+    ) -> str | None: ...
 
 
 class NotifySmsDriver(Protocol):
@@ -30,13 +39,21 @@ class NotifySmsDriver(Protocol):
 
 
 class MockEmailDriver:
-    """Dev/test: mails land in an inspectable in-memory outbox."""
+    """Dev/test: mails land in an inspectable in-memory outbox. Each entry's
+    4th element is the attachment filenames only (never the bytes/mime) -
+    that is all tests need to assert an attachment rode along."""
 
-    outbox: ClassVar[list[tuple[str, str, str]]] = []
+    outbox: ClassVar[list[tuple[str, str, str, tuple[str, ...]]]] = []
 
-    async def send(self, to: str, subject: str, body: str) -> str | None:
-        MockEmailDriver.outbox.append((to, subject, body))
-        logger.info("mock email queued", extra={"extra_fields": {"subject_len": len(subject)}})
+    async def send(
+        self, to: str, subject: str, body: str, attachments: Sequence[EmailAttachment] = ()
+    ) -> str | None:
+        names = tuple(name for name, _data, _mime in attachments)
+        MockEmailDriver.outbox.append((to, subject, body, names))
+        logger.info(
+            "mock email queued",
+            extra={"extra_fields": {"subject_len": len(subject), "attachments": len(names)}},
+        )
         return None
 
     @classmethod
@@ -67,14 +84,21 @@ class ZeptoMailDriver:
     def __init__(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._transport = transport
 
-    async def send(self, to: str, subject: str, body: str) -> str | None:
+    async def send(
+        self, to: str, subject: str, body: str, attachments: Sequence[EmailAttachment] = ()
+    ) -> str | None:
         settings = get_settings()
-        payload = {
+        payload: dict[str, Any] = {
             "from": {"address": settings.zeptomail_from},
             "to": [{"email_address": {"address": to}}],
             "subject": subject,
             "htmlbody": body,
         }
+        if attachments:
+            payload["attachments"] = [
+                {"name": name, "content": base64.b64encode(data).decode("ascii"), "mime_type": mime}
+                for name, data, mime in attachments
+            ]
         async with httpx.AsyncClient(transport=self._transport, timeout=10.0) as client:
             response = await client.post(
                 ZEPTOMAIL_SEND_URL,

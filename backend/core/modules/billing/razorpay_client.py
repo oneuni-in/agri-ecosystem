@@ -1,10 +1,15 @@
-"""Minimal async Razorpay REST client (D20). Deliberately NOT the official
-SDK: it is sync-only, adds a dependency, and the money path must stay small
-enough for line-by-line human review. Basic auth (key_id:key_secret); only
-the four calls this module needs. Every method re-checks billing_enabled -
-defense in depth beneath the route/worker gates - so a code path that
-somehow reaches here while dark still cannot touch Razorpay. Never logs
-request or response bodies."""
+"""Minimal async Razorpay REST client (D20/M5). Deliberately NOT the
+official SDK: it is sync-only, adds a dependency, and the money path must
+stay small enough for line-by-line human review. Basic auth
+(key_id:key_secret); only the calls this module needs. Every LIVE call
+re-checks billing_enabled inside `_request` - defense in depth beneath the
+route/worker gates - so a code path that somehow reaches here while dark
+still cannot touch Razorpay. The three M5 checkout/reconcile methods
+short-circuit to a canned response when `razorpay_test_stub` is set
+(e2e-only, never in prod) BEFORE that gate, matching the brief's spec
+verbatim - the stub exists precisely so e2e can run with billing_enabled
+on but zero real Razorpay credentials. Never logs request or response
+bodies."""
 
 from typing import Any, cast
 
@@ -23,6 +28,15 @@ class RazorpayError(RuntimeError):
 
 class BillingDisabledError(RuntimeError):
     """A live call was attempted while billing_enabled is off."""
+
+
+def _stub_active() -> bool:
+    """e2e-only escape hatch (D09 otp_test_peek / main.py:229 precedent):
+    a hard AND against app_env != "prod" so a misconfigured prod deploy with
+    RAZORPAY_TEST_STUB left set still makes real Razorpay calls, never
+    canned ones."""
+    settings = get_settings()
+    return settings.razorpay_test_stub and settings.app_env != "prod"
 
 
 class RazorpayClient:
@@ -84,6 +98,55 @@ class RazorpayClient:
 
     async def fetch_invoice(self, invoice_id: str) -> dict[str, Any]:
         return await self._request("GET", f"/v1/invoices/{invoice_id}")
+
+    # -- M5 Task 9: ad-order checkout via hosted Payment Links -----------
+    # razorpay_test_stub short-circuits BEFORE _request's billing_enabled
+    # gate (and therefore before any network call) - e2e only, canned
+    # responses, never live credentials. Guarded by _stub_active() (below):
+    # a hard AND against app_env != "prod", the same otp_test_peek/
+    # main.py:229 pattern - a misconfigured prod env with the stub flag
+    # somehow set must still make real Razorpay calls, never fake ones.
+
+    async def create_payment_link(
+        self,
+        *,
+        amount_paise: int,
+        description: str,
+        reference_id: str,
+        callback_url: str,
+        expire_by: int,
+        notes: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        if _stub_active():
+            return {
+                "id": f"plink_test_{reference_id.replace('-', '')[:14]}",
+                "short_url": callback_url,  # e2e: "checkout" bounces straight back
+                "status": "created",
+            }
+        return await self._request(
+            "POST",
+            "/v1/payment_links",
+            json_body={
+                "amount": amount_paise,
+                "currency": "INR",
+                "description": description,
+                "reference_id": reference_id,
+                "callback_url": callback_url,
+                "callback_method": "get",
+                "expire_by": expire_by,
+                "notes": notes or {},
+            },
+        )
+
+    async def fetch_payment(self, payment_id: str) -> dict[str, Any]:
+        if _stub_active():
+            return {"id": payment_id, "status": "captured", "amount": 0}
+        return await self._request("GET", f"/v1/payments/{payment_id}")
+
+    async def fetch_payment_link(self, plink_id: str) -> dict[str, Any]:
+        if _stub_active():
+            return {"id": plink_id, "status": "paid"}
+        return await self._request("GET", f"/v1/payment_links/{plink_id}")
 
 
 def get_client() -> RazorpayClient:

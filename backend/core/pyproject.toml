@@ -27,6 +27,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "minio>=7.2",
     "maxminddb>=2.6",
+    "fpdf2>=2.8",
 ]
 
 [project.optional-dependencies]
@@ -68,6 +69,9 @@ known-first-party = ["modules", "shared", "settings", "main"]
 "tests/test_business_analytics.py" = ["F811"]
 "tests/test_delivery_windows.py" = ["F811"]
 "tests/test_directory_admin_tier.py" = ["F811"]
+"tests/test_ads_selfserve.py" = ["F811"]
+"tests/test_ads_selfserve_stats.py" = ["F811"]
+"tests/test_ads_tier_targeting.py" = ["F811"]
 "tests/test_inbox_type_filter.py" = ["F811"]
 "tests/test_profile_views.py" = ["F811"]
 "tests/test_tier_selection.py" = ["F811"]

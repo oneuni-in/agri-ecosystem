@@ -5,6 +5,7 @@ bespoke ads route."""
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, date, datetime
 
 import httpx
 import pytest
@@ -13,10 +14,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.ads.models import Creative
+from modules.ads.models import Campaign, Creative
+from modules.ads.moderation_sources import CreativeSource
 from shared.audit import AuditEntry
 from shared.db import get_session
-from shared.lookups import BusinessRef, register_business_resolver
+from shared.lookups import (
+    BusinessRef,
+    NotifyContact,
+    register_business_resolver,
+    register_contact_resolver,
+)
 from shared.security import register_principal_resolver
 
 pytestmark = pytest.mark.asyncio
@@ -190,3 +197,149 @@ async def test_summary_includes_creative(
     assert r.status_code == 200
     counts = r.json()["counts"]
     assert counts["creative"] == 1
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 7: approval is the moderation half of the payment-AND-moderation
+# activation gate (modules/ads/lifecycle.py::maybe_activate).
+
+
+async def test_approve_activates_paid_campaign(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    client, session = api
+    campaign_id, creative_id = await _seed_campaign_and_creative(client)
+    campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert campaign is not None
+    campaign.status = "pending_moderation"
+    campaign.paid_at = datetime.now(UTC)
+    await session.flush()
+
+    r = await client.post(
+        f"/admin/moderation/creative/{creative_id}/approve",
+        json={"note": "looks good"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+
+    fresh_creative = await session.get(Creative, uuid.UUID(creative_id))
+    assert fresh_creative is not None and fresh_creative.moderation_status == "approved"
+    fresh_campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert fresh_campaign is not None and fresh_campaign.status == "active"
+
+
+async def test_approve_does_not_activate_unpaid_campaign(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """THREAT: activation-before-payment. Moderation approval alone, with no
+    paid_at, must leave the campaign in pending_moderation."""
+    client, session = api
+    campaign_id, creative_id = await _seed_campaign_and_creative(client)
+    campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert campaign is not None
+    campaign.status = "pending_moderation"  # paid_at deliberately left None
+    await session.flush()
+
+    r = await client.post(
+        f"/admin/moderation/creative/{creative_id}/approve",
+        json={"note": "looks good"},
+        headers=_as(ADMIN, "staff"),
+    )
+    assert r.status_code == 200, r.text
+
+    fresh_creative = await session.get(Creative, uuid.UUID(creative_id))
+    assert fresh_creative is not None and fresh_creative.moderation_status == "approved"
+    fresh_campaign = await session.get(Campaign, uuid.UUID(campaign_id))
+    assert fresh_campaign is not None and fresh_campaign.status == "pending_moderation"
+
+
+# ---------------------------------------------------------------------------
+# M5 Task 12: creative.rejected must carry a full notify-routable payload
+# (not the old bare {creative_id, campaign_id} shape) now that notify's
+# EVENT_ROUTES/STREAMS actually consume the "ads" stream. Exercised at the
+# CreativeSource level directly (not through the HTTP api fixture) since
+# that is the only way to inspect ModDecision.events before ops publishes
+# them onto the bus.
+
+
+async def test_reject_emits_notify_routed_payload(db_session: AsyncSession) -> None:
+    owner_id = uuid.uuid4()
+    business_id = uuid.uuid4()
+
+    async def _biz(session: AsyncSession, biz_id: uuid.UUID) -> BusinessRef | None:
+        if biz_id == business_id:
+            return BusinessRef(id=biz_id, owner_user_id=owner_id, name="Kovai Mills")
+        return None
+
+    async def _contact(session: AsyncSession, user_id: uuid.UUID) -> NotifyContact | None:
+        return NotifyContact(email="owner@example.com", locale="hi")
+
+    register_business_resolver(_biz)
+    register_contact_resolver(_contact)
+
+    campaign = Campaign(
+        advertiser_business_id=business_id,
+        name="Kharif push",
+        status="pending_moderation",
+        flight_start=date(2026, 8, 1),
+        flight_end=date(2026, 9, 1),
+    )
+    db_session.add(campaign)
+    await db_session.flush()
+    creative = Creative(
+        campaign_id=campaign.id,
+        media_keys=["ads/x.jpg"],
+        copy={"en": {"title": "t", "body": "b"}},
+        target_url="https://example.com",
+    )
+    db_session.add(creative)
+    await db_session.flush()
+
+    decision = await CreativeSource().reject(
+        db_session, item_id=creative.id, actor_user_id=ADMIN, note="bad copy", ip=None
+    )
+
+    assert len(decision.events) == 1
+    event = decision.events[0]
+    assert event.stream == "ads"
+    assert event.event_type == "creative.rejected"
+    assert event.payload["user_id"] == str(owner_id)
+    assert event.payload["locale"] == "hi"
+    assert event.payload["email"] == "owner@example.com"
+    assert event.payload["vars"] == {"campaign_name": "Kharif push"}
+
+
+async def test_reject_emits_no_event_when_business_unresolvable(
+    db_session: AsyncSession,
+) -> None:
+    """Same "nobody to notify" rule as _activation_event - an unowned/
+    unresolvable business means no event, not a crash."""
+
+    async def _biz_none(session: AsyncSession, biz_id: uuid.UUID) -> BusinessRef | None:
+        return None
+
+    register_business_resolver(_biz_none)
+
+    campaign = Campaign(
+        advertiser_business_id=uuid.uuid4(),
+        name="Kharif push",
+        status="pending_moderation",
+        flight_start=date(2026, 8, 1),
+        flight_end=date(2026, 9, 1),
+    )
+    db_session.add(campaign)
+    await db_session.flush()
+    creative = Creative(
+        campaign_id=campaign.id,
+        media_keys=["ads/x.jpg"],
+        copy={"en": {"title": "t", "body": "b"}},
+        target_url="https://example.com",
+    )
+    db_session.add(creative)
+    await db_session.flush()
+
+    decision = await CreativeSource().reject(
+        db_session, item_id=creative.id, actor_user_id=ADMIN, note="bad copy", ip=None
+    )
+
+    assert decision.events == ()

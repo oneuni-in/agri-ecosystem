@@ -5,7 +5,7 @@ import random
 import re
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Any, NamedTuple, cast
+from typing import Annotated, Any, NamedTuple, cast
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.ads.models import Campaign, Creative, DeliveryDecision, Placement
 from settings import get_settings
 from shared.cache import get_redis
-from shared.lookups import is_servable
+from shared.lookups import CampaignBillingRef, is_servable
 
 SLOT_KEYS: frozenset[str] = frozenset(
     {
@@ -65,6 +65,9 @@ class GeoTargetIn(BaseModel):
     # serve time by exact string against the M1 schema `category` values, so
     # a new schema category is targetable with zero code changes here.
     categories: list[str] | None = Field(default=None, max_length=20)
+    # M5: tier targeting ("all T3 towns in TN") - a FILTER alongside
+    # `categories`, never a geo rung (geo_match_rung stays untouched).
+    tiers: list[Annotated[int, Field(ge=1, le=5)]] | None = Field(default=None, max_length=5)
 
     @field_validator("pincodes")
     @classmethod
@@ -156,6 +159,17 @@ def category_matches(geo_target: dict[str, Any], category: str | None) -> bool:
     return category is not None and category in wanted
 
 
+def tier_matches(geo_target: dict[str, Any], tier: int | None) -> bool:
+    """M5 tier targeting - a filter like categories, not a geo rung (fail
+    closed): no `tiers` declared = every context; declared = the resolved
+    viewer tier (shared.geo.service.get_tier, None when no pincode) must be
+    one of them."""
+    wanted = geo_target.get("tiers")
+    if not wanted:
+        return True
+    return tier is not None and tier in {int(t) for t in wanted}
+
+
 async def eligible_placements(
     session: AsyncSession,
     *,
@@ -163,13 +177,15 @@ async def eligible_placements(
     pincode: str | None,
     today: date,
     category: str | None = None,
+    tier: int | None = None,
 ) -> list[Candidate]:
     """Active placement + active in-flight in-budget campaign + latest
-    APPROVED creative + geo match + category match (M2). Row volume per slot
-    is tiny in v1 - geo filtering in Python keeps the JSONB semantics in one
-    testable function. pincode=None (M2 global slots before any location is
-    known) skips resolution entirely: only geo-untargeted placements can
-    match."""
+    APPROVED creative + geo match + category match (M2) + tier match (M5).
+    Row volume per slot is tiny in v1 - geo filtering in Python keeps the
+    JSONB semantics in one testable function. pincode=None (M2 global slots
+    before any location is known) skips resolution entirely: only
+    geo-untargeted placements can match; tier is also None then, so a
+    tier-targeted placement never matches either (fail closed)."""
     district_lgd = None
     state_lgd = None
     if pincode is not None:
@@ -222,9 +238,12 @@ async def eligible_placements(
         rung = geo_match_rung(
             placement.geo_target, pincode=pincode, district_lgd=district_lgd, state_lgd=state_lgd
         )
-        if rung is not None and category_matches(placement.geo_target, category):
-            seen.add(placement.id)
-            out.append(Candidate(placement, creative, campaign, rung))
+        if rung is None or not category_matches(placement.geo_target, category):
+            continue
+        if not tier_matches(placement.geo_target, tier):
+            continue
+        seen.add(placement.id)
+        out.append(Candidate(placement, creative, campaign, rung))
     return out
 
 
@@ -271,6 +290,31 @@ async def pause_active_campaigns(session: AsyncSession, business_id: uuid.UUID) 
     return [str(campaign.id) for campaign in campaigns]
 
 
+async def campaign_billing_ref(
+    session: AsyncSession, campaign_id: uuid.UUID
+) -> CampaignBillingRef | None:
+    """The registered CampaignBillingResolver (shared.lookups, Task 5's seam
+    for M5 Task 9): billing's checkout route calls this - never
+    modules.ads.models.Campaign - to price and own-check a checkout. A
+    simple column read/mapping only; billing never re-derives the GST split,
+    it charges exactly what ads already priced and stored."""
+    campaign = await session.get(Campaign, campaign_id)
+    if campaign is None:
+        return None
+    return CampaignBillingRef(
+        id=campaign.id,
+        business_id=campaign.advertiser_business_id,
+        name=campaign.name,
+        status=campaign.status,
+        pricing_model=campaign.pricing_model,
+        price_paise=campaign.price_paise,
+        subtotal_paise=campaign.price_subtotal_paise,
+        gst_paise=campaign.price_gst_paise,
+        paid_at=campaign.paid_at,
+        quote=campaign.quote,
+    )
+
+
 def pick_weighted(
     candidates: list[Candidate], rand: random.Random, *, local_boost: float = 1.0
 ) -> Candidate:
@@ -306,6 +350,39 @@ async def record_serve(viewer: str, creative_id: uuid.UUID, *, now: datetime) ->
     await redis.expire(key, _seconds_to_utc_midnight(now))
 
 
+def _daily_key(campaign_id: uuid.UUID, now: datetime) -> str:
+    # M5: pacing. Per CAMPAIGN (not per creative, not per viewer) - the
+    # advertiser bought "at most N serves a day", so every creative and every
+    # placement of the campaign shares one counter. Same UTC-day rollover and
+    # same midnight expiry as the freq-cap keys above.
+    return f"ads:daily:{campaign_id}:{now:%Y%m%d}"
+
+
+async def under_daily_cap(campaign_id: uuid.UUID, *, cap: int | None, now: datetime) -> bool:
+    """M5 `Campaign.daily_serve_cap` enforcement - without it a "500/day"
+    campaign burns its whole budget on day one. cap=None (the default, and
+    every house/admin campaign) is uncapped and never touches redis."""
+    if cap is None:
+        return True
+    count = await get_redis().get(_daily_key(campaign_id, now))
+    return int(count or 0) < cap
+
+
+async def record_campaign_serve(campaign_id: uuid.UUID, *, cap: int | None, now: datetime) -> None:
+    """Increment the per-campaign daily counter. Called at serve alongside
+    record_serve and consume_budget - same failure semantics as the freq-cap
+    twin (a redis outage propagates; it is never silently ignored). An
+    uncapped campaign writes nothing at all, mirroring consume_budget's
+    "unlimited never touches the row" rule: house ads are the hot path and
+    must not pay for a counter nobody reads."""
+    if cap is None:
+        return
+    key = _daily_key(campaign_id, now)
+    redis = get_redis()
+    await redis.incr(key)
+    await redis.expire(key, _seconds_to_utc_midnight(now))
+
+
 def log_delivery(
     session: AsyncSession,
     *,
@@ -317,17 +394,25 @@ def log_delivery(
     now: datetime,
     rand: random.Random,
     tier: int | None = None,
+    always: bool = False,
 ) -> bool:
-    """M3.E: append-only, SAMPLED why-served row for advertiser analytics
-    (M5) and dispute resolution. Returns True when a row was staged - the
-    caller owns the commit. pincode/category are serve context (fine to
-    keep); viewer is the daily-rotating hash - never any other user
-    identifier (threat: delivery-log PII). tier is the M4 pincode tier
-    resolved by the caller via shared.geo.service.get_tier (None when the
-    request carried no pincode)."""
-    rate = get_settings().ads_delivery_log_sample
-    if rate <= 0 or rand.random() >= rate:
-        return False
+    """M3.E: append-only why-served row for advertiser analytics (M5) and
+    dispute resolution. Returns True when a row was staged - the caller
+    owns the commit. pincode/category are serve context (fine to keep);
+    viewer is the daily-rotating hash - never any other user identifier
+    (threat: delivery-log PII). tier is the M4 pincode tier resolved by the
+    caller via shared.geo.service.get_tier (None when the request carried
+    no pincode).
+
+    M5 Task 13: `always=True` (paid campaigns, set by the caller) bypasses
+    the sampling gate entirely - an advertiser paying for a campaign gets
+    exact analytics, never a sampled estimate. House/admin campaigns keep
+    the SAMPLED behaviour (settings.ads_delivery_log_sample) since nobody's
+    billed for their precision."""
+    if not always:
+        rate = get_settings().ads_delivery_log_sample
+        if rate <= 0 or rand.random() >= rate:
+            return False
     session.add(
         DeliveryDecision(
             campaign_id=candidate.campaign.id,

@@ -74,14 +74,17 @@ test.describe("vendor dashboard (D26)", () => {
       timeout: 15_000,
     });
 
-    // Premium: choose intent, survives reload (billing_enabled is off by
-    // default pre-launch - D20 - so "Choose premium" is the live branch, not
-    // "Manage subscription").
+    // Premium: billing_enabled is ON globally for this whole e2e run (M5
+    // Task 17's scripts/e2e-api.mjs flips it so advertiser-selfserve.spec.ts
+    // can drive a real Razorpay-test-stub checkout) - so premium-client.tsx's
+    // `billingLive` branch is always the live one here, not the pre-launch
+    // "Choose premium" intent button (D20 dark-launch UI, now dead for this
+    // suite). Assert the live branch instead: a fresh business with no
+    // subscription shows "Manage subscription", which leads to the billing
+    // page's "Free plan" state.
     await page.goto(`${AGRI}/business/premium`);
-    await page.getByRole("button", { name: "Choose premium" }).click();
-    await expect(page.getByText("Activates at launch")).toBeVisible({ timeout: 15_000 });
-    await page.reload();
-    await expect(page.getByText("Activates at launch")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("link", { name: "Manage subscription" }).click();
+    await expect(page.getByText("Free plan")).toBeVisible({ timeout: 15_000 });
 
     // Analytics: zero-state renders (no views/reveals/leads yet for this
     // brand-new business, but the stat tiles always render).
@@ -118,24 +121,34 @@ test.describe("vendor dashboard (D26)", () => {
     }
   });
 
-  test("subscribe-tier stays dark: the billing surface does not exist while the flag is off", async () => {
-    // The console's premium page shows the intent branch above because
-    // billing_enabled is off (D20 dark launch) - but the UI choosing a branch
-    // proves nothing about the server. This asserts the gate itself.
-    //
-    // 404, not 403, and exactly so: modules/billing/router.py's _require_flag
-    // documents "flag off -> this surface does not exist (404, never 403)",
-    // which keeps an unlaunched product invisible rather than merely refused.
-    // A flag-ON e2e branch is deliberately absent: there is no flag-set
-    // endpoint, so it would mean a DB write plus defeating the flag cache, and
-    // D20's own tests already cover the enabled path at the API level.
-    // Asserted on the GETs, not POST /billing/subscriptions: FastAPI validates
-    // a request body BEFORE the route body runs, so an empty POST returns 422
-    // without ever reaching _require_flag - which would prove nothing about
-    // the gate. These carry no body and hit it directly.
+  test("billing surface is live: M5 Task 17 flips billing_enabled globally for the e2e run", async () => {
+    // ORIGINALLY this test proved the D20 dark-launch gate: billing_enabled
+    // off -> 404, not 403 (modules/billing/router.py's _require_flag
+    // documents "flag off -> this surface does not exist"), so an unlaunched
+    // product stays invisible rather than merely refused. That flag-off
+    // window no longer exists anywhere in this suite: M5 Task 17's
+    // scripts/e2e-api.mjs now flips billing_enabled globally (via
+    // seed_house_ads.py --enable-billing-flag) so
+    // e2e/advertiser-selfserve.spec.ts can drive a real Razorpay-test-stub
+    // ad-order checkout. The flag-OFF 404 behaviour itself is still covered
+    // at the API level by modules/billing/router.py's own pytest suite
+    // (test_billing_webhook.py et al., which enable/disable the flag
+    // per-test) - this e2e test now asserts the flag-ON shape instead: the
+    // routes exist, return 200, and a business with no subscription reads
+    // back `subscription: null` plus the tier catalog, never a raw 404.
+    // Asserted on the GETs, not POST /billing/subscriptions: FastAPI
+    // validates a request body BEFORE the route body runs, so an empty POST
+    // returns 422 without ever reaching _require_flag - which would prove
+    // nothing about the gate. These carry no body and hit it directly.
     const vendor = await apiAs(VENDOR_PHONE);
-    expect((await vendor.get("/billing/subscription")).status()).toBe(404);
-    expect((await vendor.get("/billing/invoices")).status()).toBe(404);
+    const subscription = await vendor.get("/billing/subscription");
+    expect(subscription.status()).toBe(200);
+    const subscriptionBody = await subscription.json();
+    expect(subscriptionBody.subscription).toBeNull();
+    expect(Array.isArray(subscriptionBody.tiers)).toBe(true);
+    const invoices = await vendor.get("/billing/invoices");
+    expect(invoices.status()).toBe(200);
+    expect((await invoices.json()).items).toEqual([]);
     await vendor.dispose();
   });
 });

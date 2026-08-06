@@ -9,11 +9,14 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from modules.ads import lifecycle as ads_lifecycle
 from modules.ads.admin_router import admin_router as ads_admin_router
 from modules.ads.moderation_sources import register_ads_moderation_sources
 from modules.ads.router import router as ads_router
-from modules.ads.service import pause_active_campaigns
+from modules.ads.selfserve_router import router as ads_selfserve_router
+from modules.ads.service import campaign_billing_ref, pause_active_campaigns
 from modules.ai.router import router as ai_router
+from modules.billing.ad_orders import campaign_charged_paise
 from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.router import router as billing_router
 from modules.coins.admin_router import admin_router as coins_admin_router
@@ -53,7 +56,10 @@ from shared.cache import check_cache, close_redis
 from shared.db import check_database
 from shared.lookups import (
     register_business_resolver,
+    register_campaign_billing_resolver,
+    register_campaign_charged_resolver,
     register_campaign_pauser,
+    register_campaign_payment_hook,
     register_contact_resolver,
     register_owned_businesses_resolver,
     register_servable_resolver,
@@ -71,6 +77,7 @@ logger = get_logger(__name__)
 MODULE_ROUTERS = [
     ads_admin_router,
     ads_router,
+    ads_selfserve_router,
     ai_router,
     billing_router,
     billing_admin_router,
@@ -192,6 +199,18 @@ def create_app() -> FastAPI:
     # seam); ads pause an advertiser's campaigns when directory disables it.
     register_servable_resolver(business_is_servable)
     register_campaign_pauser(pause_active_campaigns)
+    # M5 Task 9: billing's checkout route (modules/billing/ad_orders.py)
+    # reads a campaign's price snapshot and ownership through this resolver
+    # - the same dependency-inversion seam as the pauser above.
+    register_campaign_billing_resolver(campaign_billing_ref)
+    # M5 Task 7: billing's webhook (Task 10) tells ads about paid/refunded
+    # events through this hook - the payment half of the activation gate.
+    register_campaign_payment_hook(ads_lifecycle.on_payment_event)
+    # M5 Task 13 fast-follow: ads' campaign stats route reads net retained
+    # ledger money through this seam instead of the mutable
+    # budget_serves_total/used columns (which a refund overwrites as a
+    # serve-exhaustion trick, not a real budget).
+    register_campaign_charged_resolver(campaign_charged_paise)
     # D21: unified moderation queue - owning modules register their sources
     # (same dependency-inversion pattern as the resolvers above).
     register_directory_moderation_sources()

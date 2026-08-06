@@ -365,6 +365,82 @@ Still landing: user-count re-rank hook, Ops-console histogram view.
 4. (After the remaining tasks land) `:3004` ops view shows the tier distribution
    histogram; user-count promotions never auto-demote.
 
+## M5 — Advertiser self-serve ads + billing (:3002/business/ads + :3004/ops, this branch)
+
+Advertisers build and pay for their own campaigns (banner CPM or
+`*_sponsored_listing` flat-weekly) instead of Ops creating them by hand. A
+campaign only reaches `active` once BOTH payment (ad-order paid) AND
+creative moderation (approved) have landed (`modules/ads/lifecycle.py`) —
+either alone leaves it stuck in `pending_payment`/`pending_moderation`.
+
+This walk uses **real Razorpay TEST mode**, not the e2e stub: set
+`RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/`RAZORPAY_WEBHOOK_SECRET` to TEST
+credentials, leave `RAZORPAY_TEST_STUB=false`, and point a TEST-mode
+webhook at your reachable dev/staging origin (`ngrok`/similar) subscribed to
+`payment_link.paid`, `payment_link.expired`, `refund.processed` (see
+`docs/runbooks/billing-flag-flip.md`'s M5 section for the full dashboard
+checklist). Flip both `ads_enabled` and `billing_enabled` on via
+`:3004/ops` → Flags (or `/admin/ops/flags`).
+
+1. Wizard, phone-sized viewport (DevTools device toolbar, ~375px wide):
+   `:3002/business/ads` as a vendor owner → "New campaign". Walk all six
+   steps (Goal → Categories → Areas → Schedule & budget → Creatives →
+   Review & pay) — the quote rail re-prices live as you change categories/
+   areas/serves, every control stays reachable/44px+ at phone width, no
+   horizontal scroll.
+2. Pay: "Review & pay" hands off to a Razorpay-hosted Payment Link
+   (`checkout_url`/`razorpay_short_url` from `POST /billing/ad-orders`).
+   Use a [Razorpay TEST card](https://razorpay.com/docs/payments/payments/test-card-upi-details/)
+   to complete checkout. You land back on `/business/ads?paid={campaign_id}`
+   (the Payment Link's `callback_url`).
+3. Webhook activation: confirm the `payment_link.paid` webhook actually
+   fired (Razorpay dashboard → webhook logs, 200 response) and the order
+   flipped `created` → `paid` — `GET /billing/ad-orders?campaign_id=...`
+   from the console, or `psql` `billing.ad_orders`/`billing.ledger_entries`
+   (one `ad_charge` row, amount matches the quote exactly). Campaign stays
+   `pending_moderation` at this point if the creative isn't approved yet.
+4. Ops approve the creative: `:3004/ops` (the approve action lives there
+   only, not in `:3004/ads`) → moderation
+   queue (`GET /admin/moderation/queue?type=creative`) → approve
+   (`POST /admin/moderation/creative/{id}/approve`). With payment already
+   captured, approval flips the campaign to `active`
+   (`campaign.activated` notify event).
+5. Targeted serve: confirm the ad serves at the campaign's targeted
+   pincode × category (and NOT at an untargeted pincode or a different
+   category) — same check as the M3 walk above (`ads.delivery_decisions`
+   log), just via a self-serve campaign instead of an Ops-created one.
+6. Invoice: confirm the advertiser's account/inbox got the invoice email
+   with the GST invoice PDF attached (`billing.ad_invoice` notify event,
+   sent from the billing worker's invoice-PDF sweep — the worker must be
+   running for this step to fire; see the runbook). Cross-check
+   `GET /billing/ad-invoices/{invoice_id}/pdf` downloads the same PDF.
+7. Refund → pause: from the Razorpay TEST dashboard, issue a full refund
+   against the captured payment. Confirm `refund.processed` lands
+   (webhook logs), the ledger gets a matching `ad_refund` entry
+   (`billing.ledger_entries`), the order flips to `refunded`, and the
+   campaign pauses (budget zeroed, drops out of delivery) — a **partial**
+   refund must NOT pause a still-serving campaign, so if you test that case
+   separately confirm the campaign keeps serving.
+8. Rate card v2: `:3004/ads` → rate-card panel (`RateCardPanel`, or
+   `POST /admin/ads/rate-card` directly, staff/super_admin) → publish a new
+   config
+   (bump a `cpm_paise`/`flat_weekly_paise`/`category_multipliers_bp`
+   value). Confirm `GET /admin/ads/rate-card` now reports the new version,
+   and a fresh wizard quote (`POST /ads/my/quote`) on step 1-4 reflects the
+   new numbers — an already-priced draft campaign keeps its OLD snapshot
+   until re-quoted (pricing is snapshotted at quote time, never re-derived
+   at checkout).
+
+Known caveat to confirm during this QA pass, not assumed: the Payment
+Link's expiry (`LINK_EXPIRY` in `modules/billing/ad_orders.py`) is a
+hardcoded 24h. We currently assume an unexpired-but-since-paid link still
+emits `payment_link.paid` (not `payment_link.expired`) — worth confirming
+against Razorpay's own docs/behavior during this walk rather than taking it
+on faith, since `apply_payment_link_paid` does tolerate a late paid event on
+an `expired` local order (races on Razorpay's side), but the reverse
+(`payment_link.expired` arriving after a real payment already landed) is
+not something we've observed directly against a live TEST account.
+
 ## Known-open items (do not file as new bugs)
 
 - ~~Landing perf CI floor temporarily 0.80 (issue #45)~~ — RESOLVED: PR #48 (inline

@@ -73,12 +73,26 @@ async def serve(
     now = datetime.now(UTC)
     viewer = _viewer(request, now)
     settings = get_settings()
-    candidates = await service.eligible_placements(
-        session, slot_key=slot, pincode=pincode, category=category, today=now.date()
-    )
+    # M5: resolve the M4 pincode tier once and reuse it for both eligibility
+    # filtering (tier-targeted placements) and the delivery log.
     tier = await get_tier(session, pincode) if pincode is not None else None
+    candidates = await service.eligible_placements(
+        session, slot_key=slot, pincode=pincode, category=category, today=now.date(), tier=tier
+    )
     pool: list[service.Candidate] = []
     for cand in candidates:
+        # M5: per-campaign daily pacing cap (Campaign.daily_serve_cap), then
+        # the per-viewer/per-creative frequency cap. Both are read ONCE, here,
+        # to build the pool - exactly like the freq cap has always worked. A
+        # `count`>1 carousel can therefore still take two placements of the
+        # same capped campaign in a single request (the loop de-dupes by
+        # placement.id); that overshoot is bounded by MAX_SERVE_COUNT and is
+        # the same shape the freq cap already accepts. `consume_budget` stays
+        # the only hard, race-free ceiling on spend.
+        if not await service.under_daily_cap(
+            cand.campaign.id, cap=cand.campaign.daily_serve_cap, now=now
+        ):
+            continue
         if await service.under_freq_cap(
             viewer, cand.creative.id, cap=settings.ads_freq_cap_per_day, now=now
         ):
@@ -105,9 +119,15 @@ async def serve(
             now=now,
             rand=_rng,
             tier=tier,
+            # M5 Task 13: paid campaigns are never sampled - advertisers get
+            # exact delivery analytics; house/admin campaigns keep sampling.
+            always=cand.campaign.price_paise is not None,
         ):
             dirty = True
         await service.record_serve(viewer, cand.creative.id, now=now)
+        await service.record_campaign_serve(
+            cand.campaign.id, cap=cand.campaign.daily_serve_cap, now=now
+        )
         served.append(
             _to_served(
                 cand.placement, cand.creative, locale=locale, base=settings.media_public_base_url

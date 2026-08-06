@@ -8,8 +8,10 @@
  *
  * `gate: "billing"` hides the entry while the billing_enabled backend flag
  * is off (the layout probes GET /billing/subscription; 404 = dark).
+ * `gate: "ads"` hides the entry while the ads_enabled backend flag is off
+ * (the layout probes GET /ads/my/campaigns?limit=1; 404 = dark).
  */
-export type ConsoleGate = "billing";
+export type ConsoleGate = "billing" | "ads";
 
 export interface ConsoleModule {
   id: string;
@@ -25,4 +27,5 @@ export const CONSOLE_MODULES: ConsoleModule[] = [
   { id: "analytics", title: "Analytics", href: "/business/analytics" },
   { id: "premium", title: "Premium", href: "/business/premium" },
   { id: "billing", title: "Subscription & invoices", href: "/business/billing", gate: "billing" },
+  { id: "ads", title: "Advertise", href: "/business/ads", gate: "ads" },
 ];

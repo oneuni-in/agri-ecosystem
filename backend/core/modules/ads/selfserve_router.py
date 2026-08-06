@@ -51,7 +51,12 @@ from settings import get_settings
 from shared import media, storage
 from shared.db import get_session
 from shared.flags import flag_enabled
-from shared.lookups import is_servable, resolve_business, resolve_owned_businesses
+from shared.lookups import (
+    is_servable,
+    resolve_business,
+    resolve_campaign_charged,
+    resolve_owned_businesses,
+)
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, Page, paginate
 from shared.security import SecureRouter
 
@@ -768,11 +773,25 @@ async def campaign_stats(
     total_clicks = sum(v.get("clicks", 0) for v in by_day.values())
     ctr_bp = (total_clicks * 10000 // total_impressions) if total_impressions else 0
 
+    # Ledger-capped spend (Task 13 fast-follow): the derived cpm/flat_weekly
+    # estimate is only ever a pre-refund estimate - a refund overwrites
+    # budget_serves_total := budget_serves_used (Task 7/10's serve-
+    # exhaustion trick, not a real budget), so deriving spend from that
+    # column alone would report 100% of price spent forever on a refunded
+    # campaign. shared.lookups.resolve_campaign_charged is billing's own
+    # append-only ledger (SUM of charges/refunds = net retained money);
+    # None means "no ledger rows / resolver unregistered" (fail-closed) -
+    # keep the derived estimate as-is in that case.
+    derived_spend = _spend_paise(campaign)
+    charged_net = await resolve_campaign_charged(session, campaign.id)
+    spend = min(derived_spend, charged_net) if charged_net is not None else derived_spend
+
     return CampaignStatsOut(
         days=days,
         serves_used=campaign.budget_serves_used,
         serves_total=campaign.budget_serves_total,
-        spend_paise=_spend_paise(campaign),
+        spend_paise=spend,
+        charged_net_paise=charged_net,
         impressions=total_impressions,
         clicks=total_clicks,
         ctr_bp=ctr_bp,

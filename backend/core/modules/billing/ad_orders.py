@@ -57,6 +57,25 @@ INVOICE_PDF_SWEEP_LIMIT = 20
 PendingEvent = tuple[str, dict[str, Any]]
 
 
+async def campaign_charged_paise(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+    """M5 Task 13 fast-follow: the registered CampaignChargedResolver
+    (shared/lookups.py) - ads' campaign stats route reads net retained
+    money through this, never `ads.campaigns` columns. `ledger_entries.
+    amount_paise` is signed by construction (ck_billing_ledger_entries_sign:
+    ad_charge > 0, ad_refund < 0), so a plain SUM across every row for the
+    campaign already IS the net - no separate charge/refund bookkeeping
+    needed. None when the campaign has no ledger rows at all (never
+    charged - house/unpaid campaign), which Postgres' SUM over zero rows
+    already returns as NULL; that is distinct from a real net of exactly 0
+    (charged, then fully refunded) - callers must not collapse the two."""
+    total = await session.scalar(
+        select(func.sum(BillingLedgerEntry.amount_paise)).where(
+            BillingLedgerEntry.campaign_id == campaign_id
+        )
+    )
+    return int(total) if total is not None else None
+
+
 async def create_ad_order(
     session: AsyncSession,
     *,

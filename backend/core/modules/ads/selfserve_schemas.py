@@ -179,13 +179,29 @@ class CampaignStatsOut(BaseModel):
     by placement_id - never sampled). `by_pincode`/`by_category`/`by_tier`
     come from ads.delivery_decisions, each capped at the top 20 rows by
     serve count (bounded payload, not a full breakdown) - see `sampled`.
-    `spend_paise` is DERIVED read-side from the campaign's pricing snapshot
-    and current budget counters; there is no mutable balance column."""
+
+    `spend_paise` is LEDGER-CAPPED (Task 13 fast-follow, closing a reported
+    correctness bug): it starts from a DERIVED estimate off the campaign's
+    pricing snapshot and current budget counters (cpm: proportional to
+    serve-credits consumed; flat_weekly: full price once paid), then is
+    capped at `charged_net_paise` (shared.lookups.resolve_campaign_charged -
+    billing's own append-only ledger, charges positive/refunds negative)
+    whenever that resolver answers a number. This matters because a refund
+    overwrites `budget_serves_total := budget_serves_used` as a
+    serve-exhaustion trick (Task 7/10), not a real budget - deriving spend
+    from that column alone would report 100% of price spent FOREVER on a
+    refunded campaign. `charged_net_paise` is `None` when billing has no
+    ledger rows at all for this campaign (house/unpaid - the derived
+    estimate is used as-is) or when the resolver isn't registered
+    (fail-closed the same way); it is exactly 0 after a full refund, which
+    is what pins `spend_paise` to 0 too. A refunded campaign's `spend_paise`
+    therefore reports the RETAINED amount, not the original price."""
 
     days: int
     serves_used: int
     serves_total: int | None
     spend_paise: int
+    charged_net_paise: int | None
     impressions: int
     clicks: int
     ctr_bp: int

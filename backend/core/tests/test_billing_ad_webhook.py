@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.ads.models import Campaign, Creative
-from modules.billing.ad_orders import create_ad_order, invoice_number_for
+from modules.billing.ad_orders import campaign_charged_paise, create_ad_order, invoice_number_for
 from modules.billing.models import AdOrder, BillingLedgerEntry, Invoice, PaymentEvent
 from modules.directory.models import Business
 from settings import get_settings
@@ -860,3 +860,75 @@ async def test_unmatched_plink_id_records_unmatched_200(
         )
     )
     assert event is not None and event.outcome == "unmatched"
+
+
+# ---------------------------------------------------------------------------
+# campaign_charged_paise (M5 Task 13 fast-follow): the registered
+# CampaignChargedResolver ads' campaign stats route reconciles spend
+# against, instead of the mutable budget_serves_total/used columns a
+# refund overwrites as a serve-exhaustion trick.
+
+
+async def test_campaign_charged_paise_no_ledger_rows_is_none(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Never charged (house/unpaid campaign) - None, not 0, so callers can
+    tell "never billed" apart from "billed and fully refunded"."""
+    _client, session = api
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    assert await campaign_charged_paise(session, campaign.id) is None
+
+
+async def test_campaign_charged_paise_sums_charge_and_partial_refund_net(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Drives the real webhook path (paid, then a partial refund) so the
+    ledger rows are exactly what production writes - the net must be
+    charge + refund (refund stored negative), not either alone."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    await _seed_order(session, campaign, business.id, plink_id="plink_net_1")
+
+    paid_raw, paid_headers = _signed(_paid_body("plink_net_1", "pay_net_1", 118_000))
+    paid_resp = await client.post(
+        "/billing/webhook/razorpay", content=paid_raw, headers=paid_headers
+    )
+    assert paid_resp.status_code == 200
+    assert await campaign_charged_paise(session, campaign.id) == 118_000
+
+    refund_raw, refund_headers = _signed(_refund_body("pay_net_1", "rfnd_net_1", 40_000))
+    refund_resp = await client.post(
+        "/billing/webhook/razorpay", content=refund_raw, headers=refund_headers
+    )
+    assert refund_resp.status_code == 200
+    assert await campaign_charged_paise(session, campaign.id) == 78_000  # 118000 - 40000
+
+
+async def test_campaign_charged_paise_full_refund_nets_to_zero(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The regression scenario reviewers flagged: a fully-refunded campaign
+    must report a net of exactly 0, never the original charge - this is
+    what pins the ads stats route's spend_paise to 0 despite
+    budget_serves_total having been set equal to budget_serves_used."""
+    client, session = api
+    await _enable_billing(session)
+    business = await _seed_business(session)
+    campaign = await _seed_campaign(session, business.id)
+    order = await _seed_order(session, campaign, business.id, plink_id="plink_net_full_1")
+
+    paid_raw, paid_headers = _signed(_paid_body("plink_net_full_1", "pay_net_full_1", 118_000))
+    await client.post("/billing/webhook/razorpay", content=paid_raw, headers=paid_headers)
+
+    refund_raw, refund_headers = _signed(_refund_body("pay_net_full_1", "rfnd_net_full_1", 118_000))
+    resp = await client.post(
+        "/billing/webhook/razorpay", content=refund_raw, headers=refund_headers
+    )
+    assert resp.status_code == 200
+
+    await session.refresh(order)
+    assert order.status == "refunded"
+    assert await campaign_charged_paise(session, campaign.id) == 0

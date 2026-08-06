@@ -14,9 +14,11 @@ from shared.lookups import (
     CampaignBillingRef,
     notify_campaign_payment,
     register_campaign_billing_resolver,
+    register_campaign_charged_resolver,
     register_campaign_payment_hook,
     reset_lookup_resolvers,
     resolve_campaign_billing,
+    resolve_campaign_charged,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -78,7 +80,41 @@ async def test_registered_payment_hook_round_trips() -> None:
     assert calls == [(_NO_SESSION, campaign_id, "paid")]
 
 
-async def test_reset_clears_both_billing_resolver_and_payment_hook() -> None:
+async def test_unregistered_charged_resolver_returns_none() -> None:
+    """Fail-closed: no resolver registered must be indistinguishable, from
+    the caller's side, from "no ledger rows found" - both answer None so
+    the stats route falls back to its own derived spend estimate."""
+    reset_lookup_resolvers()
+    assert await resolve_campaign_charged(_NO_SESSION, uuid.uuid4()) is None
+
+
+async def test_registered_charged_resolver_round_trips() -> None:
+    campaign_id = uuid.uuid4()
+    calls: list[tuple[AsyncSession, uuid.UUID]] = []
+
+    async def resolver(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+        calls.append((session, campaign_id))
+        return 25000
+
+    register_campaign_charged_resolver(resolver)
+
+    result = await resolve_campaign_charged(_NO_SESSION, campaign_id)
+    assert result == 25000
+    assert calls == [(_NO_SESSION, campaign_id)]
+
+
+async def test_registered_charged_resolver_can_answer_zero() -> None:
+    """A real net of 0 (charged, then fully refunded) must pass through as
+    0, not be coerced into the "unregistered/no rows" None sentinel."""
+
+    async def resolver(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+        return 0
+
+    register_campaign_charged_resolver(resolver)
+    assert await resolve_campaign_charged(_NO_SESSION, uuid.uuid4()) == 0
+
+
+async def test_reset_clears_billing_resolver_payment_hook_and_charged_resolver() -> None:
     async def resolver(session: AsyncSession, campaign_id: uuid.UUID) -> CampaignBillingRef | None:
         return CampaignBillingRef(
             id=campaign_id,
@@ -98,11 +134,16 @@ async def test_reset_clears_both_billing_resolver_and_payment_hook() -> None:
     async def hook(session: AsyncSession, campaign_id: uuid.UUID, event: str) -> None:
         hook_calls.append(event)
 
+    async def charged_resolver(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+        return 12345
+
     register_campaign_billing_resolver(resolver)
     register_campaign_payment_hook(hook)
+    register_campaign_charged_resolver(charged_resolver)
 
     reset_lookup_resolvers()
 
     assert await resolve_campaign_billing(_NO_SESSION, uuid.uuid4()) is None
     await notify_campaign_payment(_NO_SESSION, uuid.uuid4(), "refunded")
     assert hook_calls == []
+    assert await resolve_campaign_charged(_NO_SESSION, uuid.uuid4()) is None

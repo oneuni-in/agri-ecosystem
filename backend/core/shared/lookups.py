@@ -65,6 +65,17 @@ CampaignBillingResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[Campaign
 # status; events are "paid" | "refunded". checkout's draft->pending_payment
 # flip happens inside ads' own checkout-request path, not via this hook.
 CampaignPaymentHook = Callable[[AsyncSession, uuid.UUID, str], Awaitable[None]]
+# M5 Task 13 fast-follow: ads' campaign stats route reads the ledger's net
+# retained money through this seam (never a mutable balance column) - the
+# spec's own integration rule is "campaign spend reconciles against ledger,
+# never against mutable state" (budget_serves_total gets overwritten to
+# budget_serves_used as a serve-exhaustion trick on refund; deriving spend
+# from that column alone silently reports 100% spend on a refunded
+# campaign). None = the campaign has no ledger rows at all (never
+# charged - house/unpaid), distinct from a real net of 0 (charged then
+# fully refunded). Unregistered/fail-closed -> None, same as every other
+# resolver here - the caller falls back to its own derived estimate.
+CampaignChargedResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[int | None]]
 
 _business_resolver: BusinessResolver | None = None
 _owned_businesses_resolver: OwnedBusinessesResolver | None = None
@@ -73,6 +84,7 @@ _servable_resolver: ServableResolver | None = None
 _campaign_pauser: CampaignPauser | None = None
 _campaign_billing_resolver: CampaignBillingResolver | None = None
 _campaign_payment_hook: CampaignPaymentHook | None = None
+_campaign_charged_resolver: CampaignChargedResolver | None = None
 
 
 def register_business_resolver(resolver: BusinessResolver) -> None:
@@ -110,10 +122,15 @@ def register_campaign_payment_hook(hook: CampaignPaymentHook) -> None:
     _campaign_payment_hook = hook
 
 
+def register_campaign_charged_resolver(resolver: CampaignChargedResolver) -> None:
+    global _campaign_charged_resolver
+    _campaign_charged_resolver = resolver
+
+
 def reset_lookup_resolvers() -> None:
     global _business_resolver, _owned_businesses_resolver, _contact_resolver
     global _servable_resolver, _campaign_pauser
-    global _campaign_billing_resolver, _campaign_payment_hook
+    global _campaign_billing_resolver, _campaign_payment_hook, _campaign_charged_resolver
     _business_resolver = None
     _owned_businesses_resolver = None
     _contact_resolver = None
@@ -121,6 +138,7 @@ def reset_lookup_resolvers() -> None:
     _campaign_pauser = None
     _campaign_billing_resolver = None
     _campaign_payment_hook = None
+    _campaign_charged_resolver = None
 
 
 async def resolve_business(session: AsyncSession, business_id: uuid.UUID) -> BusinessRef | None:
@@ -176,3 +194,14 @@ async def notify_campaign_payment(
     if _campaign_payment_hook is None:
         return
     await _campaign_payment_hook(session, campaign_id, event)
+
+
+async def resolve_campaign_charged(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+    """Net retained money for a campaign (SUM of billing's append-only
+    ledger, charges positive/refunds negative). FAIL CLOSED: no resolver
+    registered means None - the caller must treat that exactly like "no
+    ledger rows found", i.e. fall back to its own derived estimate rather
+    than trusting a possibly-unwired zero."""
+    if _campaign_charged_resolver is None:
+        return None
+    return await _campaign_charged_resolver(session, campaign_id)

@@ -13,8 +13,22 @@ stats). Two data sources feed this route:
     forced to 0.
 
 spend_paise is DERIVED read-side (no mutable balance column) - see
-selfserve_router._spend_paise. NN4 (IDOR: not-yours == not-found) applies
-here exactly like every other route in this router."""
+selfserve_router._spend_paise - then LEDGER-CAPPED: reviewer-flagged
+correctness bug fast-follow. A refund overwrites `budget_serves_total :=
+budget_serves_used` (Task 7/10's serve-exhaustion trick, not a real
+budget), which made the derived cpm estimate collapse to 100% of price
+forever on a refunded campaign. `shared.lookups.resolve_campaign_charged`
+(billing's append-only ledger, wired for real by `main.create_app` - the
+`api` fixture below uses the real app, so these tests exercise the actual
+production resolver, not a stub) is now the ceiling: `spend_paise =
+min(derived, charged_net_paise)` whenever the resolver answers a number.
+See `test_stats_full_refund_caps_spend_at_zero_despite_budget_bug` for the
+literal regression case reviewers reported, and
+`test_stats_unregistered_charged_resolver_falls_back_to_derived` for the
+fail-closed side.
+
+NN4 (IDOR: not-yours == not-found) applies here exactly like every other
+route in this router."""
 
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -25,7 +39,9 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import modules.ads.selfserve_router as selfserve_router_module
 from modules.ads.models import Campaign, Click, Creative, DeliveryDecision, Impression, Placement
+from modules.billing.models import BillingLedgerEntry
 from modules.directory import service as directory_service
 from settings import get_settings
 from shared.flags import FeatureFlag, reset_flag_cache
@@ -102,6 +118,23 @@ async def _seed_campaign(
     session.add(placement)
     await session.flush()
     return campaign, placement, creative
+
+
+def _ledger_entry(campaign: Campaign, *, entry_type: str, amount_paise: int) -> BillingLedgerEntry:
+    """order_id=None deliberately: it's nullable (billing.ledger_entries.
+    order_id FK) and the partial-unique "one charge per order" index only
+    fires on a non-NULL order_id, so this skips seeding a real AdOrder row
+    entirely - the cheapest way to get a real ledger row for
+    campaign_charged_paise's SUM to read."""
+    return BillingLedgerEntry(
+        entry_type=entry_type,
+        amount_paise=amount_paise,
+        order_id=None,
+        campaign_id=campaign.id,
+        business_id=campaign.advertiser_business_id,
+        razorpay_payment_id=f"pay_{campaign.id.hex[:8]}",
+        meta={},
+    )
 
 
 async def test_priced_campaign_serve_always_bypasses_sampling(
@@ -223,6 +256,7 @@ async def test_stats_happy_path_counts_ctr_spend_and_breakdowns(
     assert body["clicks"] == 5
     assert body["ctr_bp"] == 1250  # 5 * 10000 // 40
     assert body["sampled"] is False
+    assert body["charged_net_paise"] is None  # no billing ledger rows seeded in this test
 
     assert len(body["by_day"]) == 1
     assert body["by_day"][0]["day"] == date.today().isoformat()
@@ -264,6 +298,7 @@ async def test_stats_ctr_and_spend_zero_when_no_activity(
     assert body["clicks"] == 0
     assert body["ctr_bp"] == 0
     assert body["spend_paise"] == 0  # unlimited (budget_serves_total None) cpm campaign
+    assert body["charged_net_paise"] is None
     assert body["by_day"] == []
     assert body["by_pincode"] == []
 
@@ -306,6 +341,122 @@ async def test_stats_house_campaign_sampled_true_and_zero_spend(
     body = resp.json()
     assert body["sampled"] is True
     assert body["spend_paise"] == 0
+    assert body["charged_net_paise"] is None  # never charged - house campaign
+
+
+async def test_stats_full_refund_caps_spend_at_zero_despite_budget_bug(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The reported regression: after a refund's serve-exhaustion trick sets
+    budget_serves_total := budget_serves_used, the OLD derived-only
+    `price * used // total` collapses to 100% of price - price_paise itself
+    - forever. The ledger (charge + full offsetting refund, net 0) must cap
+    spend_paise at 0 instead. Uses the REAL registered resolver
+    (`api`'s app is `main.create_app()`), not a stub."""
+    client, session = api
+    await _enable_ads(session)
+    campaign, _placement, _creative = await _seed_campaign(
+        session,
+        price_paise=118000,
+        pricing_model="cpm",
+        budget_serves_total=5000,
+        budget_serves_used=5000,  # refund's exhaustion trick: total pinned to used
+    )
+    session.add(_ledger_entry(campaign, entry_type="ad_charge", amount_paise=118000))
+    session.add(_ledger_entry(campaign, entry_type="ad_refund", amount_paise=-118000))
+    await session.flush()
+
+    resp = await client.get(f"/ads/my/campaigns/{campaign.id}/stats", headers=_as(OWNER))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["serves_used"] == body["serves_total"] == 5000  # the bug's precondition
+    assert body["charged_net_paise"] == 0
+    assert body["spend_paise"] == 0  # NOT 118000 (the derived-only bug)
+
+
+async def test_stats_partial_refund_caps_spend_at_ledger_net(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A goodwill partial refund doesn't touch budget_serves_total (Task
+    10's `apply_refund_processed` only fires the pause/exhaust hook on a
+    FULL refund) - so the derived estimate alone would still overstate
+    spend. The ledger net must cap it."""
+    client, session = api
+    await _enable_ads(session)
+    campaign, _placement, _creative = await _seed_campaign(
+        session,
+        price_paise=118000,
+        pricing_model="cpm",
+        budget_serves_total=5000,
+        budget_serves_used=5000,  # fully consumed -> derived spend == price_paise
+    )
+    session.add(_ledger_entry(campaign, entry_type="ad_charge", amount_paise=118000))
+    session.add(_ledger_entry(campaign, entry_type="ad_refund", amount_paise=-40000))
+    await session.flush()
+
+    resp = await client.get(f"/ads/my/campaigns/{campaign.id}/stats", headers=_as(OWNER))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["charged_net_paise"] == 78000  # 118000 - 40000
+    assert body["spend_paise"] == 78000  # derived (118000) capped down to net
+
+
+async def test_stats_no_ledger_rows_derived_spend_unchanged(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A priced campaign that's been charged nothing YET (or a house
+    campaign the real resolver can't find rows for) must fall back to the
+    derived estimate untouched - `charged_net_paise` is None, never 0, so
+    the route doesn't mistake "no data" for "fully refunded"."""
+    client, session = api
+    await _enable_ads(session)
+    campaign, _placement, _creative = await _seed_campaign(
+        session,
+        price_paise=118000,
+        pricing_model="cpm",
+        budget_serves_total=5000,
+        budget_serves_used=2500,
+    )
+    await session.flush()
+
+    resp = await client.get(f"/ads/my/campaigns/{campaign.id}/stats", headers=_as(OWNER))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["charged_net_paise"] is None
+    assert body["spend_paise"] == 59000  # 118000 * 2500 // 5000, untouched by any cap
+
+
+async def test_stats_unregistered_charged_resolver_falls_back_to_derived(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail-closed at the route level too: even with real ledger rows that
+    WOULD cap spend, an unregistered/failing resolver must not block the
+    route or zero out spend - it falls back to the derived estimate, same
+    as shared.lookups.resolve_campaign_charged's own None contract."""
+    client, session = api
+    await _enable_ads(session)
+    campaign, _placement, _creative = await _seed_campaign(
+        session,
+        price_paise=118000,
+        pricing_model="cpm",
+        budget_serves_total=5000,
+        budget_serves_used=5000,
+    )
+    session.add(_ledger_entry(campaign, entry_type="ad_charge", amount_paise=118000))
+    session.add(_ledger_entry(campaign, entry_type="ad_refund", amount_paise=-118000))
+    await session.flush()
+
+    async def _always_none(session: AsyncSession, campaign_id: uuid.UUID) -> int | None:
+        return None
+
+    monkeypatch.setattr(selfserve_router_module, "resolve_campaign_charged", _always_none)
+
+    resp = await client.get(f"/ads/my/campaigns/{campaign.id}/stats", headers=_as(OWNER))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["charged_net_paise"] is None
+    assert body["spend_paise"] == 118000  # derived, unconstrained by the (unreachable) ledger
 
 
 async def test_stats_foreign_campaign_404(

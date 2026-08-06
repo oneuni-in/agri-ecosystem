@@ -20,7 +20,34 @@ const python = process.env.CI ? "python" : existsSync(venvPython) ? venvPython :
 // the house placements after ~3 page loads of ANY earlier spec (a11y runs
 // before ads-surfaces alphabetically) and every later ad assertion sees the
 // fallback. The cap is a fraud control for paid ads; e2e neutralises it.
-const env = { ...process.env, OTP_TEST_PEEK: "true", ADS_FREQ_CAP_PER_DAY: "100000" };
+//
+// M5 Task 17 (NN1 e2e - e2e/advertiser-selfserve.spec.ts): the Razorpay test
+// stub (modules/billing/razorpay_client.py) short-circuits create_payment_link/
+// fetch_payment/fetch_payment_link to canned responses BEFORE any network
+// call, so the full create -> pay(test) -> approve -> serve walk runs with
+// zero real Razorpay credentials. APP_ENV is pinned to "dev" explicitly
+// (never inherited from a stray shell env) because the stub is a hard AND
+// against app_env != "prod" by design - a misconfigured prod deploy with
+// RAZORPAY_TEST_STUB left set must still make real Razorpay calls, never
+// canned ones. CONSOLE_BASE_URL matches the Settings default already (web-agri's
+// :3002, D01-A) but is set explicitly so the Payment Link callback_url
+// (`{console_base_url}/business/ads?paid=...`) never silently drifts from
+// where web-agri actually listens. ADS_DELIVERY_LOG_SAMPLE=1.0 makes the
+// spec's why-served delivery-log assertions deterministic instead of racing
+// the default 10% sample (paid campaigns log unsampled regardless per M5
+// Task 13, but house-ad rows other specs rely on stay sampled at the default
+// unless overridden - 1.0 here is safe since e2e never asserts a NEGATIVE
+// on delivery-log volume).
+const env = {
+  ...process.env,
+  OTP_TEST_PEEK: "true",
+  ADS_FREQ_CAP_PER_DAY: "100000",
+  APP_ENV: "dev",
+  RAZORPAY_TEST_STUB: "true",
+  RAZORPAY_WEBHOOK_SECRET: "whsec_e2e",
+  CONSOLE_BASE_URL: "http://localhost:3002",
+  ADS_DELIVERY_LOG_SAMPLE: "1.0",
+};
 
 const migrate = spawnSync(python, ["-m", "alembic", "upgrade", "head"], {
   cwd: core,
@@ -62,9 +89,21 @@ if (seed.status !== 0) process.exit(seed.status ?? 1);
 // dev/test-only (refused in prod inside the script).
 // --reset-caps: one machine = one viewer hash, so the 3/day serve cap
 // exhausts the house placements after a few page loads across specs/runs.
+// --enable-billing-flag (M5 Task 17): flips billing_enabled globally for
+// this e2e run the same dev/test-only, refused-in-prod way, so
+// advertiser-selfserve.spec.ts can drive real ad-order checkout. This is a
+// whole-suite side effect - it is what forced e2e/vendor-dashboard.spec.ts's
+// former "billing stays dark (404)" assertions to become "billing is live
+// (200)" ones; see that spec for the updated assertions.
 const houseAds = spawnSync(
   python,
-  ["scripts/seed_house_ads.py", "--enable-flag", "--reset-caps", "--with-sponsored-listing"],
+  [
+    "scripts/seed_house_ads.py",
+    "--enable-flag",
+    "--enable-billing-flag",
+    "--reset-caps",
+    "--with-sponsored-listing",
+  ],
   { cwd: core, env, stdio: "inherit" },
 );
 if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);

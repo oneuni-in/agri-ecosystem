@@ -12,7 +12,8 @@ Run:
     .venv/Scripts/python.exe scripts/seed_house_ads.py \
         [--base-url http://localhost:3000] \
         [--console-url http://localhost:3002/business/listings] \
-        [--enable-flag]
+        [--enable-flag] [--enable-billing-flag] [--reset-caps] \
+        [--with-sponsored-listing]
 """
 
 import argparse
@@ -158,6 +159,29 @@ async def _enable_flag(session: AsyncSession) -> None:
         print("seed_house_ads: ads_enabled -> true")  # noqa: T201
 
 
+async def _enable_billing_flag(session: AsyncSession) -> None:
+    """M5 Task 17 (e2e NN1): flips `billing_enabled` the same way
+    `--enable-flag` flips `ads_enabled` above - identical refuse-in-prod
+    guard, identical idempotent no-op-if-already-on shape. Lets
+    e2e/advertiser-selfserve.spec.ts drive a real create -> pay(test) ->
+    approve -> targeted-serve walk against the Razorpay test stub with zero
+    real Razorpay credentials. Deliberately a SEPARATE flag from
+    `--enable-flag` (ads_enabled): a caller that only wants house-ad fill
+    must not accidentally light up the money path too."""
+    if get_settings().app_env == "prod":
+        raise SystemExit(
+            "--enable-billing-flag refused in prod: flip billing_enabled via /admin/ops/flags"
+        )
+    flag = await session.get(FeatureFlag, "billing_enabled")
+    if flag is None:
+        raise RuntimeError("billing_enabled flag missing - run `alembic upgrade head`")
+    if not flag.enabled:
+        flag.enabled = True
+        await session.commit()
+        reset_flag_cache()
+        print("seed_house_ads: billing_enabled -> true")  # noqa: T201
+
+
 async def _reset_caps() -> None:
     """e2e/dev determinism: every request from one machine shares a viewer
     hash (same IP+UA, daily window), so the 3/day serve cap exhausts the
@@ -180,6 +204,7 @@ async def run(
     enable_flag: bool,
     reset_caps: bool,
     with_sponsored_listing: bool = False,
+    enable_billing_flag: bool = False,
 ) -> None:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
@@ -211,6 +236,8 @@ async def run(
             )
         if enable_flag:
             await _enable_flag(session)
+        if enable_billing_flag:
+            await _enable_billing_flag(session)
     if reset_caps:
         await _reset_caps()
 
@@ -222,6 +249,7 @@ if __name__ == "__main__":
     parser.add_argument("--enable-flag", action="store_true")
     parser.add_argument("--reset-caps", action="store_true")
     parser.add_argument("--with-sponsored-listing", action="store_true")
+    parser.add_argument("--enable-billing-flag", action="store_true")
     args = parser.parse_args()
     asyncio.run(
         run(
@@ -230,5 +258,6 @@ if __name__ == "__main__":
             args.enable_flag,
             args.reset_caps,
             args.with_sponsored_listing,
+            args.enable_billing_flag,
         )
     )

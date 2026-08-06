@@ -880,11 +880,50 @@ export function ReviewPayStep({ campaignId, draft }: { campaignId: string; draft
     setPaying(true);
     setPayError(null);
     try {
-      await postJson(`/api/ads/my/campaigns/${campaignId}/checkout-request`);
-      const order = await postJson("/api/billing/ad-orders", {
-        campaign_id: campaignId,
-        ...(gstin ? { buyer_gstin: gstin } : {}),
-      });
+      try {
+        await postJson(`/api/ads/my/campaigns/${campaignId}/checkout-request`);
+      } catch (err) {
+        // Retry-safety (stranded-payment fix): request_checkout only accepts
+        // a `draft` campaign (PAYABLE_FROM, lifecycle.py) - it 409s
+        // not_payable on every retry once the FIRST attempt already flipped
+        // the campaign to pending_payment, even when that first attempt's
+        // real failure was downstream (ad-orders 503/409 below). Without
+        // this, an advertiser whose first payment attempt failed after this
+        // call could never pay again. Swallowing not_payable here and
+        // falling through to ad-orders is safe: create_ad_order's OWN
+        // not_payable check (status != pending_payment) still fires - and is
+        // NOT swallowed - for every other bad state (paused, archived, ...),
+        // so the genuine "can't pay this campaign" case still surfaces.
+        if (!(err instanceof ApiError && err.status === 409 && err.detail === "not_payable")) {
+          throw err;
+        }
+      }
+
+      let order;
+      try {
+        order = await postJson("/api/billing/ad-orders", {
+          campaign_id: campaignId,
+          ...(gstin ? { buyer_gstin: gstin } : {}),
+        });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409 && err.detail === "order_exists") {
+          // The partial-unique index in ad_orders.py already has a live
+          // order for this campaign (a previous attempt got this far but
+          // never redirected - e.g. the tab closed between order creation
+          // and window.location.assign). Recover its persisted checkout_url
+          // (razorpay_short_url, Task 9) instead of dead-ending here.
+          const page = await getJson(`/api/billing/ad-orders?campaign_id=${campaignId}&limit=5`);
+          const items =
+            (page.items as { status: string; checkout_url: string | null }[] | undefined) ?? [];
+          const resumable = items.find((o) => o.status === "created" && o.checkout_url);
+          if (resumable?.checkout_url) {
+            window.location.assign(resumable.checkout_url);
+            return;
+          }
+        }
+        throw err;
+      }
+
       const checkoutUrl = order.checkout_url as string | null | undefined;
       if (!checkoutUrl) {
         setPayError("Could not start checkout — please try again.");

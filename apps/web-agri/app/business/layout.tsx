@@ -1,7 +1,7 @@
-import Link from "next/link";
-
 import { auth } from "@/lib/auth";
 import { CONSOLE_MODULES } from "@/lib/console-modules";
+
+import { ConsoleNavLinks } from "./console-nav-links";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -74,18 +74,7 @@ export default async function BusinessConsoleLayout({
         <p className="hidden font-display text-[13px] font-extrabold uppercase tracking-wide text-sub sm:mb-3 sm:block">
           Business console
         </p>
-        <ul className="flex gap-2 sm:block sm:space-y-1">
-          {modules.map((entry) => (
-            <li key={entry.id} className="flex-none">
-              <Link
-                href={entry.href}
-                className="flex min-h-[44px] items-center whitespace-nowrap rounded-pill bg-line px-4 text-[13px] font-semibold text-ink sm:block sm:min-h-0 sm:whitespace-normal sm:rounded-card sm:bg-transparent sm:px-3 sm:py-2 sm:text-[14px] sm:font-normal sm:hover:bg-line"
-              >
-                {entry.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <ConsoleNavLinks modules={modules} />
       </nav>
       <div className="min-w-0 flex-1">{children}</div>
     </div>

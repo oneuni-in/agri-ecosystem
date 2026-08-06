@@ -209,8 +209,12 @@ test.describe("M5 advertiser self-serve (Task 17, NN1/NN2)", () => {
     // then Pay bounces (via the test stub) back to /business/ads?paid=...
     const payButton = page.getByRole("button", { name: /securely with razorpay/i });
     await expect(payButton).toBeEnabled({ timeout: 15_000 });
+    // The total carries paise whenever GST lands on a fractional rupee, and the
+    // tier behind the price differs between a tier-loaded dev DB and CI's
+    // (geo-only) e2e seed - so accept an optional decimal part.
     const payButtonText = (await payButton.textContent()) ?? "";
-    expect(payButtonText).toMatch(/Pay ₹[\d,]+ securely with Razorpay/);
+    expect(payButtonText).toMatch(/Pay ₹[\d,]+(\.\d{1,2})? securely with Razorpay/);
+    expect(payButtonText).not.toMatch(/Pay ₹0(\.0+)? securely/);
 
     await Promise.all([
       page.waitForURL(new RegExp(`^${AGRI}/business/ads\\?paid=`), { timeout: 45_000 }),

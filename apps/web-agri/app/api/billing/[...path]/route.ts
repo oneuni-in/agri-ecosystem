@@ -18,7 +18,13 @@ const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 // Only these top-level billing paths are user-facing; everything else
 // (webhook/razorpay, admin/*, ...) must never be reachable through the
 // browser-authenticated proxy.
-const ALLOWED_FIRST_SEGMENTS = new Set(["subscription", "subscriptions", "invoices", "ad-orders"]);
+const ALLOWED_FIRST_SEGMENTS = new Set([
+  "subscription",
+  "subscriptions",
+  "invoices",
+  "ad-orders",
+  "ad-invoices",
+]);
 
 async function forward(
   req: NextRequest,
@@ -52,6 +58,21 @@ async function forward(
   });
   if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
     return new NextResponse(null, { status: upstream.status });
+  }
+  // ad-invoices/{id}/pdf returns application/pdf bytes, not JSON - pass
+  // non-JSON bodies through unchanged along with their content-type/
+  // content-disposition headers instead of forcing a JSON parse.
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const responseHeaders: Record<string, string> = {
+      "content-type": contentType || "application/octet-stream",
+    };
+    const contentDisposition = upstream.headers.get("content-disposition");
+    if (contentDisposition) responseHeaders["content-disposition"] = contentDisposition;
+    return new NextResponse(Buffer.from(await upstream.arrayBuffer()), {
+      status: upstream.status,
+      headers: responseHeaders,
+    });
   }
   const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
   return NextResponse.json(body, { status: upstream.status });

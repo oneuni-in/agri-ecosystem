@@ -21,6 +21,22 @@ async function billingVisible(): Promise<boolean> {
   }
 }
 
+/** ads_enabled probe: the backend 404s the whole /ads/my surface while
+ * dark, so one status check lights (or hides) the ads module. */
+async function adsVisible(): Promise<boolean> {
+  const token = await auth.getAccessToken();
+  if (!token) return false;
+  try {
+    const response = await fetch(`${API}/ads/my/campaigns?limit=1`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    return response.status !== 404;
+  } catch {
+    return false;
+  }
+}
+
 export default async function BusinessConsoleLayout({
   children,
 }: {
@@ -34,10 +50,12 @@ export default async function BusinessConsoleLayout({
   // page directly (bookmark, shared link, or Task 17's e2e login) landed on
   // a 404 after signing in. Removing the redundant, wrong-next gate here
   // lets the page-level redirect (the one with the real destination) win.
-  const showBilling = await billingVisible();
-  const modules = CONSOLE_MODULES.filter((entry) =>
-    entry.gate === "billing" ? showBilling : true,
-  );
+  const [showBilling, showAds] = await Promise.all([billingVisible(), adsVisible()]);
+  const modules = CONSOLE_MODULES.filter((entry) => {
+    if (entry.gate === "billing") return showBilling;
+    if (entry.gate === "ads") return showAds;
+    return true;
+  });
   return (
     <div className="mx-auto flex w-full max-w-5xl gap-6 px-4 py-6">
       <nav aria-label="Business console" className="w-48 shrink-0">

@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.ads.models import Campaign, Creative
+from modules.ads.models import Campaign, Creative, Placement
 from modules.directory.catalog_models import Product
 from modules.directory.models import Business
 from shared import media, storage
@@ -34,6 +34,8 @@ _AD_PREFIX = "products/sample-ads/"
 _LEGACY_AD_PREFIX = "ads/sample/"  # first seed run used this; migrated below
 _PRODUCT_PREFIX = "products/sample/"
 _MAX_PRODUCTS = 80
+_DEFAULT_AD_SIZE = (1200, 628)
+_SLOT_SIZES = {"milk_home_hero_xl": (1600, 420)}
 
 # Milk-ish palette for generated cards (content, not UI - token rule doesn't apply)
 _PALETTE = [
@@ -78,13 +80,14 @@ async def _seed_creative_media(session: AsyncSession) -> int:
         return 0
     rows = (
         await session.execute(
-            select(Creative, Campaign.name)
+            select(Creative, Campaign.name, Placement.slot_key)
             .join(Campaign, Campaign.id == Creative.campaign_id)
+            .join(Placement, Placement.campaign_id == Campaign.id)
             .where(Campaign.advertiser_business_id == house.id)
         )
     ).all()
     done = 0
-    for index, (creative, campaign_name) in enumerate(rows):
+    for index, (creative, campaign_name, slot_key) in enumerate(rows):
         if creative.media_keys and not creative.media_keys[0].startswith(_LEGACY_AD_PREFIX):
             continue  # already has media under the public prefix - idempotent skip
         copy_en = (creative.copy or {}).get("en", {})
@@ -92,7 +95,11 @@ async def _seed_creative_media(session: AsyncSession) -> int:
         body = copy_en.get("body", "")
         jpeg = _make_card(
             [title, body, "milk.in"],
-            size=(1200, 628),
+            # U1 §3: the full-bleed home hero is a different shape from every
+            # other slot - 1600x420 desktop. The page reserves 750/360 below
+            # 768px and AdImage is object-cover, so one wide master crops
+            # correctly on phones instead of letterboxing.
+            size=_SLOT_SIZES.get(slot_key, _DEFAULT_AD_SIZE),
             colors=_PALETTE[index % len(_PALETTE)],
         )
         key = f"{_AD_PREFIX}{creative.id.hex}.jpg"

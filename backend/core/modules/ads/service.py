@@ -24,6 +24,12 @@ SLOT_KEYS: frozenset[str] = frozenset(
         # theorganic_global_header is one more line here, pure config.
         "milk_global_header",
         "milk_home_hero",
+        # U1 §3: the full-bleed home hero carousel (1600x420 desktop /
+        # 750x360 mobile). A separate key from milk_home_hero, which is the
+        # narrow 84px strip the old home rendered - distinct inventory, so
+        # distinct pricing and distinct creative sizes. Pure config: the
+        # serving engine is untouched.
+        "milk_home_hero_xl",
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",

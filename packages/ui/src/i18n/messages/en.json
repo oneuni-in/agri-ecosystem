@@ -334,6 +334,21 @@
       "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
       "error": "Could not submit — please try again.",
       "loginCta": "Login to report this listing"
+    },
+    "utility": {
+      "advertise": "Advertise",
+      "hotline": "Post need on WhatsApp: {number}",
+      "listBusiness": "List your business"
+    },
+    "categoryBar": {
+      "label": "Dairy categories",
+      "all": "All milk",
+      "homeDelivery": "🚚 Home delivery",
+      "organic": "🌿 Organic"
+    },
+    "heroAd": {
+      "prev": "Previous ad",
+      "next": "Next ad"
     }
   },
   "coins": {

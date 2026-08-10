@@ -23,6 +23,12 @@ export function HeaderLocation() {
   const t = useTranslations("ui.location");
   return (
     <LiveLocationPill
+      // U1 §2: on milk.in's flat header the location control is plain text
+      // (`.loc{color:var(--mk-soft)}`), not a glass pill. That is also what
+      // fixes its contrast: white on the glass overlay measures 4.34:1 over
+      // the flat --brand fill (axe `color-contrast`, under the 4.5:1 floor),
+      // while --brand-soft directly on --brand is 7.4:1.
+      className="border-transparent bg-transparent text-brand-soft"
       isAuthed={status === "authenticated"}
       strings={{
         set: t("set"),

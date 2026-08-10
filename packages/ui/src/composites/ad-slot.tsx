@@ -90,10 +90,15 @@ export function AdUnit({
   ad,
   endpoint,
   eager = false,
+  badgeClassName = "left-2 top-2",
 }: {
   ad: ServedAd;
   endpoint: string;
   eager?: boolean;
+  /** Where the always-on "★ Sponsored" label sits. Placement only — the label
+   * itself is never optional (module rule: never serve an unlabeled ad).
+   * U1 §3 puts the hero's corner tag top-RIGHT. */
+  badgeClassName?: string;
 }) {
   const ref = useImpression(ad, endpoint);
   const external = typeof window !== "undefined" && !sameOrigin(ad.target_url);
@@ -118,7 +123,7 @@ export function AdUnit({
           ) : null}
         </span>
       )}
-      <SponsoredBadge className="absolute left-2 top-2" />
+      <SponsoredBadge className={cn("absolute", badgeClassName)} />
     </a>
   );
 }

@@ -21,7 +21,18 @@ const themes = {
     "--brand": "#2563A8",
     "--brand-deep": "#174A85",
     "--brand-soft": "#E9F1FA",
+    // U1 §13: the mid-tone between --brand-soft and --brand. Exact value from
+    // the approved reference (`docs/design-reference/desktop v3.html`, --mk-soft-2).
+    // It carries every de-emphasised line on a brand surface: the utility
+    // strip, the header tagline, hero body copy, footer body. Only milk has a
+    // designed value today; agri/organic fall back to --brand-soft (see
+    // `shared`) until their own surfaces are specced.
+    "--brand-soft-2": "#B9D2EE",
     "--accent": "#E9A61C",
+    // U1 §13 "cream page bg, then consume": milk.in's page surface is cream,
+    // not the shared grey-green. Scoped to this theme so agri.in and
+    // organicstore.in are untouched; one line to revert.
+    "--page-bg": "var(--cream)",
   },
   "theme-organic": {
     "--brand": "#4A6B2A",
@@ -35,6 +46,9 @@ const themes = {
 const shared = {
   "--ink": "#1D2A20",
   "--sub": "#5A6A5D",
+  // Fallback for themes with no designed mid-tone yet (see theme-milk).
+  // Declared here so `text-brand-soft-2` can never resolve to nothing.
+  "--brand-soft-2": "var(--brand-soft)",
   "--paper": "#F7F8F3",
   "--page-bg": "#E9EBE2",
   "--card": "#FFFFFF",
@@ -58,6 +72,27 @@ const shared = {
   "--rating": "#C77700",
   "--ghost": "#F2F4EC",
   "--glass": "rgba(255,255,255,.16)",
+
+  /* ── U1 §13 — the cream/trust/sponsored layer.
+     Values are exact from the approved reference
+     (`docs/design-reference/desktop v3.html` :root). Deliberately NEW names:
+     --paper (#F7F8F3) and --line (#E2E7DA) are the existing green-grey page
+     surface used by all three apps, and repointing them would restyle
+     agri.in and organicstore.in as a side effect of a milk.in spec. */
+  "--cream": "#FDFBF6", // cream page background (reference --paper)
+  "--cream-line": "#EDE6D6", // cream hairline on cream (reference --paper-border)
+  "--cream-deep": "#F4F0E6", // one step deeper: inset buttons, footer-adjacent (reference --paper-deep)
+  // The golden sponsored border. Its own literal, NOT var(--accent): a paid
+  // placement reads golden in every vertical, but organic's accent is #B5541C.
+  "--ad-border": "#E9A61C",
+  "--trust-bg": "#FEFAF0", // highlighted "we verify" trust card
+  // Card sub-lines on cream. Distinct from --sub (#5A6A5D), which is the
+  // `.vern` mother-tongue colour and is pinned by an AA contrast contract
+  // (see the `.vern` component below) — it must not be re-pointed.
+  "--muted": "#8A8574",
+  // Ink for text on the golden --accent (money buttons, hotline chip, coins).
+  // Follows the existing bg/fg pair convention (--coins-bg/--coins-fg).
+  "--accent-ink": "#4A2E00",
 };
 
 /** Pastel icon-square tints used by CategoryTile / ListingCard / ProductCard. */
@@ -89,10 +124,18 @@ export const agriPreset = {
         brand: "var(--brand)",
         "brand-deep": "var(--brand-deep)",
         "brand-soft": "var(--brand-soft)",
+        "brand-soft-2": "var(--brand-soft-2)",
         accent: "var(--accent)",
+        "accent-ink": "var(--accent-ink)",
         ink: "var(--ink)",
         sub: "var(--sub)",
+        muted: "var(--muted)",
         paper: "var(--paper)",
+        cream: "var(--cream)",
+        "cream-line": "var(--cream-line)",
+        "cream-deep": "var(--cream-deep)",
+        "ad-border": "var(--ad-border)",
+        "trust-bg": "var(--trust-bg)",
         page: "var(--page-bg)",
         card: "var(--card)",
         line: "var(--line)",

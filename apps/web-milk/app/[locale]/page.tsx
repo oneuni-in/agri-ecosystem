@@ -1,10 +1,10 @@
-import { AdSlot, PincodeHero } from "@agri/ui";
+import { AdCarousel, PincodeHero, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { HouseAdCard } from "@/components/molecules/HouseAdCard";
-import { CategoryTileRow } from "@/components/organisms/CategoryTileRow";
+import { HomeCategoryBar } from "@/components/organisms/HomeCategoryBar";
 import { Link } from "@/i18n/navigation";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
 import { fetchProductCategories } from "@/lib/taxonomy";
@@ -56,11 +56,10 @@ function homeJsonLd(): string {
 }
 
 /**
- * "Milk.in's homepage IS a pincode box" — the whole page above the
- * (untouched) site header is the `.pin-hero` pattern: `PincodeHero` is the
- * shared `@agri/ui` shell (title/subtitle/padding, already used for this
- * exact pattern in `apps/web-agri/app/demo/page.tsx`); `PincodeHeroFinder`
- * supplies the interactive pincode box + GPS pill.
+ * The Milk.in home, rebuilt to the approved reference
+ * (`docs/design-reference/desktop v3.html`). Pass 1 lands the frame:
+ * §3 hero ad · §4 search band · §5 category bar. The commerce and
+ * engagement sections below them arrive in passes 2 and 3.
  */
 export default async function HomePage({
   params,
@@ -69,46 +68,68 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const categories = await fetchProductCategories(locale);
+  const [categories, t] = await Promise.all([
+    fetchProductCategories(locale),
+    getTranslations("ui"),
+  ]);
   return (
-    <main className="bg-header-gradient">
+    <main className="bg-cream pb-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd() }} />
-      <PincodeHero
-        className="mx-auto max-w-[720px]"
-        title="Milk near you — all options, one place"
-        subtitle="உங்கள் பகுதியில் உள்ள எல்லா பால் · brands, local vendors, farm-fresh delivery"
-      >
-        <PincodeHeroFinder />
-      </PincodeHero>
-      <div className="mx-auto w-full max-w-[720px] pt-4">
-        <CategoryTileRow categories={categories} heading="Dairy categories" />
-      </div>
-      {/* M2: milk_home_hero ad slot. */}
-      <div className="mx-auto w-full max-w-[720px] px-4 pt-4">
-        <AdSlot
-          slotKey="milk_home_hero"
-          heightClass="h-[84px]"
-          fallback={
-            <HouseAdCard
-              title="List your dairy business"
-              vern="உங்கள் வணிகத்தைப் பதிவு செய்யுங்கள்"
-              href={listingsHref(CONSOLE_URL)}
-            />
-          }
-        />
-      </div>
-      {/* The killer flow (D25): demand posts its need, covering vendors reply. */}
-      <div className="mx-auto max-w-[720px] px-4 pb-6">
-        <Link
-          href="/post-need"
-          prefetch={false}
-          className="block rounded-card border border-line bg-card px-4 py-3 text-center text-[14px] font-bold text-ink no-underline"
-          data-testid="home-post-need-cta"
+
+      {/* §3 — full-bleed hero ad, D21 slot milk_home_hero_xl. Approved
+          creatives only: that is the engine's contract, re-checked in the
+          parse layer (NN1 defense in depth), so nothing here can weaken it.
+          The box is reserved by aspect ratio at the two seeded creative
+          sizes (750x360 mobile, 1600x420 desktop) — loading, empty and full
+          all occupy the same space, so the hero contributes zero CLS. */}
+      <AdCarousel
+        slotKey="milk_home_hero_xl"
+        heightClass="aspect-[750/360] md:aspect-[1600/420]"
+        badgeClassName="right-3 top-3"
+        arrows={{ prevLabel: t("heroAd.prev"), nextLabel: t("heroAd.next") }}
+        fallback={
+          <HouseAdCard
+            title="List your dairy business"
+            vern="உங்கள் வணிகத்தைப் பதிவு செய்யுங்கள்"
+            href={listingsHref(CONSOLE_URL)}
+          />
+        }
+      />
+
+      <Wrap>
+        {/* §4 — the ONE search on home. Same pincode/geo logic as before
+            (`PincodeHeroFinder` → `/{pincode}`, GPS via /api/identity/location),
+            restyled into the reference's contained band, plus the §29 voice
+            door into the D25 pipeline. */}
+        <PincodeHero
+          banded
+          className="mt-3.5"
+          title={t("pincode.title")}
+          subtitle={t("pincode.subtitle")}
         >
-          🥛 Post my need — vendors reply to you{" "}
-          <span className="vern font-normal text-sub">· என் தேவை</span>
-        </Link>
-      </div>
+          <PincodeHeroFinder micLabel={t("search.micLabel")} />
+        </PincodeHero>
+
+        {/* §5 — schema-driven category bar (D17 vertical registry). */}
+        <div className="mt-3">
+          <HomeCategoryBar categories={categories} />
+        </div>
+
+        {/* The killer flow (D25): demand posts its need, covering vendors
+            reply. Interim placement — pass 3 replaces it with the §9 CTA
+            tiles. */}
+        <div className="mt-4">
+          <Link
+            href="/post-need"
+            prefetch={false}
+            className="block rounded-card border border-cream-line bg-card px-4 py-3 text-center text-[14px] font-bold text-ink no-underline"
+            data-testid="home-post-need-cta"
+          >
+            🥛 Post my need — vendors reply to you{" "}
+            <span className="vern font-normal text-sub">· என் தேவை</span>
+          </Link>
+        </div>
+      </Wrap>
     </main>
   );
 }

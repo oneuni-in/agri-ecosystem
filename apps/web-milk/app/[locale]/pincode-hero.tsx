@@ -20,8 +20,13 @@ import { useRouter } from "@/i18n/navigation";
  */
 export function PincodeHeroFinder({
   hrefForPincode = (p) => `/${p}`,
+  micLabel,
 }: {
   hrefForPincode?: (pincode: string) => string;
+  /** Renders the U1 §29 voice button in the pincode row when supplied. It is
+   * a door into the EXISTING D25 voice pipeline (`/post-need`, whose form
+   * owns `voice-recorder.tsx`) — no new capture surface here. */
+  micLabel?: string;
 }) {
   const router = useRouter();
   const [pincode, setPincode] = useState("");
@@ -67,6 +72,20 @@ export function PincodeHeroFinder({
           findLabel="Find milk"
           aria-label="Enter pincode"
           placeholder="Enter pincode"
+          {...(micLabel
+            ? {
+                mic: (
+                  <button
+                    type="button"
+                    aria-label={micLabel}
+                    onClick={() => router.push("/post-need")}
+                    className="tap-target px-1 text-[17px] text-brand"
+                  >
+                    <span aria-hidden="true">🎙️</span>
+                  </button>
+                ),
+              }
+            : {})}
           value={pincode}
           findDisabled={pincode.length !== 6}
           onFind={() => go(pincode)}

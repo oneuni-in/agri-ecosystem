@@ -9,6 +9,8 @@ import {
   CallButton,
   Card,
   CardsRow,
+  CategoryBar,
+  CategoryBarLink,
   CategoryGroup,
   CategoryTile,
   CertBar,
@@ -40,6 +42,8 @@ import {
   TodayStrip,
   TypeFilter,
   TypeFilterRow,
+  UtilityLink,
+  UtilityStrip,
   WhatsAppButton,
   Wrap,
   cn,
@@ -122,6 +126,18 @@ export default async function DemoPage({
       </div>
 
       <main>
+      {/* ═══ composite: utility-strip (U1 §1) ═══ */}
+      <UtilityStrip
+        tagline="Every milk near you · பால் · दूध"
+        links={
+          <>
+            <UtilityLink href="#">List your business</UtilityLink>
+            <UtilityLink href="#">Advertise</UtilityLink>
+          </>
+        }
+        hotline="Post need on WhatsApp: 96000-00000"
+      />
+
       {/* ═══ composite: header stack + searchband ═══ */}
       <HeaderStack
         logo="agri.in"
@@ -282,6 +298,85 @@ export default async function DemoPage({
               <GpsPill>{t.en("pincode.gps")} · என் இடம்</GpsPill>
             </PincodeHero>
           </div>
+        </Section>
+
+        {/* ═══ composite: header — flat/nowrap variant (U1 §2) ═══
+            No search input: on milk.in search lives in the band below, and
+            the brand lockup is two lines with their own line-heights so the
+            Tamil/Devanagari tagline cannot collide with the logo. */}
+        <Section title="Header · milk.in pattern (flat, no search)">
+          <div className="overflow-hidden rounded-band">
+            <HeaderStack
+              flat
+              nowrap
+              logo="milk.in"
+              tagline="பால் · दूध · every milk near you"
+              location={
+                <LocationPill>
+                  📍 <span className="max-sm:hidden">Coimbatore · 641001</span> ▾
+                </LocationPill>
+              }
+              right={
+                <>
+                  <LangSwitcher label={t.en("lang.label")} />
+                  <CoinsPill amount="1,240" />
+                  <Avatar initial="A" aria-label="Profile: @arun" />
+                </>
+              }
+            />
+          </div>
+        </Section>
+
+        {/* ═══ composite: pincode band — banded variant (U1 §4) ═══ */}
+        <Section title="Search band · milk.in pattern (banded)">
+          <PincodeHero
+            banded
+            title={t.en("pincode.title")}
+            subtitle={t.en("pincode.subtitle")}
+          >
+            <PincodeInput
+              defaultValue="641001"
+              aria-label={t.en("pincode.inputLabel")}
+              findLabel={t.en("pincode.find")}
+              mic={
+                <button
+                  type="button"
+                  aria-label={t.en("search.micLabel")}
+                  className="tap-target px-1 text-[17px] text-brand"
+                >
+                  <span aria-hidden="true">🎙️</span>
+                </button>
+              }
+            />
+            <GpsPill>{t.en("pincode.gps")} · என் இடம்</GpsPill>
+          </PincodeHero>
+        </Section>
+
+        {/* ═══ composite: category-bar (U1 §5) ═══
+            The overflow rule is the binding part: nowrap, horizontal scroll,
+            hidden scrollbar, edge fade, and the two attribute filters pinned
+            right on desktop / absent below 1024px. Resize to check. */}
+        <Section title="Category bar · milk.in pattern">
+          <CategoryBar
+            label="Dairy categories"
+            filters={
+              <>
+                <CategoryBarLink href="#">🚚 Home delivery</CategoryBarLink>
+                <CategoryBarLink href="#">🌿 Organic</CategoryBarLink>
+              </>
+            }
+          >
+            <CategoryBarLink href="#" active>
+              All milk
+            </CategoryBarLink>
+            {["Ghee", "Paneer", "Curd", "Yogurt", "Buttermilk", "Cheese", "Butter", "Milk powder"].map(
+              (label) => (
+                <CategoryBarLink key={label} href="#">
+                  {label}
+                </CategoryBarLink>
+              ),
+            )}
+          </CategoryBar>
         </Section>
 
         {/* ═══ composite: type filter row ═══ */}

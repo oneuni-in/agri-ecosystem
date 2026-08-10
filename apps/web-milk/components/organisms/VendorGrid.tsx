@@ -1,4 +1,11 @@
-import { Badge, Card, RatingStars, cn } from "@agri/ui";
+import {
+  Badge,
+  Card,
+  type ListEntry,
+  RatingStars,
+  SponsoredListingCard,
+  cn,
+} from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -98,23 +105,26 @@ function VendorCard({
 }
 
 export async function VendorGrid({
-  cards,
+  entries,
   ratings,
   recommendedIds,
   milkTypes,
   pincode,
   className,
 }: {
-  cards: MilkCard[];
+  /** Organic cards with M3.B sponsored entries already spliced in by
+   * `injectSponsored` — the render-layer flow, never a re-ordered list. */
+  entries: ListEntry<MilkCard>[];
   ratings: Record<string, RatingSummary>;
   recommendedIds: Set<string>;
   milkTypes: ProductCategory[];
   pincode: string;
   className?: string;
 }) {
-  const [t, tActions] = await Promise.all([
+  const [t, tActions, tBadges] = await Promise.all([
     getTranslations("ui.home.vendors"),
     getTranslations("ui.actions"),
+    getTranslations("ui.badges"),
   ]);
   const typeLabels = new Map(milkTypes.map((m) => [m.value, m.label]));
   const labels = {
@@ -124,7 +134,7 @@ export async function VendorGrid({
     whatsapp: tActions("whatsapp"),
   };
 
-  if (cards.length === 0) {
+  if (entries.length === 0) {
     return (
       <p className={cn("rounded-card border border-cream-line bg-card p-4 text-sm text-sub", className)}>
         {t("empty", { pincode })}
@@ -133,17 +143,29 @@ export async function VendorGrid({
   }
   return (
     <div className={cn("grid gap-2.5 md:grid-cols-2 lg:grid-cols-3", className)}>
-      {cards.map((card) => (
-        <VendorCard
-          key={card.id}
-          card={card}
-          {...(ratings[card.id] ? { rating: ratings[card.id] } : {})}
-          recommended={recommendedIds.has(card.id)}
-          typeLabels={typeLabels}
-          pincode={pincode}
-          labels={labels}
-        />
-      ))}
+      {entries.map((entry) =>
+        entry.kind === "sponsored" ? (
+          // §8: a paid card is a 2px golden border plus the floating badge the
+          // component already enforces. Placement and caps come from M3 —
+          // nothing here decides where it lands.
+          <SponsoredListingCard
+            key={`s-${entry.ad.placement_id}`}
+            ad={entry.ad}
+            sponsoredLabel={tBadges("sponsored")}
+            className="rounded-card border-2 border-ad-border"
+          />
+        ) : (
+          <VendorCard
+            key={entry.item.id}
+            card={entry.item}
+            {...(ratings[entry.item.id] ? { rating: ratings[entry.item.id] } : {})}
+            recommended={recommendedIds.has(entry.item.id)}
+            typeLabels={typeLabels}
+            pincode={pincode}
+            labels={labels}
+          />
+        ),
+      )}
     </div>
   );
 }

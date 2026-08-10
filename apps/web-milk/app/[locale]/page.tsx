@@ -182,7 +182,7 @@ export default async function HomePage({
 
         {/* §8 vendors (+ §8a2 house band) and §8f brands. */}
         <Suspense fallback={<HomeVendorsSkeleton />}>
-          <HomeVendors data={dataPromise} milkTypes={milkTypes} />
+          <HomeVendors data={dataPromise} milkTypes={milkTypes} locale={locale} />
         </Suspense>
 
         {/* §8g — dairy services → existing /c/ landing pages. */}

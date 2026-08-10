@@ -337,12 +337,20 @@ measured above.
    above the §3 hero. The slot key and its house creatives still exist in the
    engine, so re-mounting it on the routes that have no hero of their own is a
    one-line change whenever that inventory is wanted back.
-2. **M3 sponsored injection is not on the home vendor grid.** The home is ISR;
-   injecting a per-viewer ad would cache one advertiser for everyone for an
-   hour and break impression caps. Injection stays on the dynamic
-   `/{city}/{pincode}` results page, where it already lives — U1 forbids
-   touching that logic, and this respects it. The §8a2 house band ships in the
-   vendor block as specified.
+2. **M3 sponsored injection now runs on the home vendor grid — resolved.** The
+   objection was that the home was ISR, so a per-viewer ad would be cached for
+   everyone and blow the frequency caps. §4a made the home per-request, so that
+   no longer applies. It uses the SAME server-side path the `/{city}/{pincode}`
+   results page uses — `fetchSponsoredListings()` (which forwards the viewer's
+   IP and user-agent so caps survive the server hop) feeding `injectSponsored()`
+   — so positions, caps and the organic order are the engine's, untouched.
+
+   Measured: the paid card renders **first in the grid** (M3's
+   `SPONSORED_POSITIONS[0]`) with a **2px `--ad-border`** golden border, the
+   five organic cards keep their exact prior order, and the badge localises
+   (`★ Sponsored` / `★ விளம்பரம்`). CLS 0.0006–0.0217. Cards are in the SSR
+   HTML, so there is no client island and no injected-content shift. The M3
+   organic-order test stays green.
 3. ~~The home renders a configured pincode~~ — **resolved**, see §4a: the home
    now renders the visitor's own pincode and the header cannot disagree with
    the content.

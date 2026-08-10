@@ -1,43 +1,36 @@
-import { AdCarousel, AdSlot, Wrap } from "@agri/ui";
+import { AdCarousel, AdSlot, LOC_COOKIE, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { cookies } from "next/headers";
+import { Suspense } from "react";
 
 import { HouseAdCard } from "@/components/molecules/HouseAdCard";
-import {
-  BrandsAvailable,
-  DairyServices,
-  ShowcaseProducts,
-} from "@/components/organisms/HomeCommerce";
-import {
-  HowItWorks,
-  PopularNearYou,
-  ReviewsStrip,
-  StatsBand,
-} from "@/components/organisms/HomeEngagement";
-import {
-  AdvertiseBand,
-  FamilyStrip,
-  HomeCtaTiles,
-  HomeFaq,
-  TrustRow,
-} from "@/components/organisms/HomeStatic";
+import { DairyServices, ShowcaseProducts } from "@/components/organisms/HomeCommerce";
+import { HowItWorks } from "@/components/organisms/HomeEngagement";
+import { FamilyStrip, HomeFaq, TrustRow } from "@/components/organisms/HomeStatic";
 import { HomeCategoryBar } from "@/components/organisms/HomeCategoryBar";
-import { MilkTypeChips } from "@/components/organisms/MilkTypeChips";
-import { Link } from "@/i18n/navigation";
-import { PriceTicker } from "@/components/organisms/PriceTicker";
-import { VendorGrid } from "@/components/organisms/VendorGrid";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
-import { fetchHomeData, homeStats, HOME_PINCODE } from "@/lib/home";
+import { fetchHomeData, resolveHomePincode } from "@/lib/home";
 import { getShowcaseProducts } from "@/lib/showcase";
 import { fetchMilkTypes, fetchProductCategories } from "@/lib/taxonomy";
 
+import {
+  HomeEngagementBlock,
+  HomeEngagementSkeleton,
+  HomeFilters,
+  HomeFiltersSkeleton,
+  HomeVendors,
+  HomeVendorsSkeleton,
+} from "./home-sections";
 import { PincodeHeroFinder } from "./pincode-hero";
 
 const SITE = "https://milk.in";
-// Every section renders from cached server-side reads (no per-visitor data),
-// so the whole page stays ISR-cacheable.
-export const revalidate = 3600;
+// The page renders for the VISITOR's pincode (their `agri_loc` cookie), so it
+// is per-request rather than ISR. The cost is contained: the shell, hero and
+// search band do not await the location-bound blend — it streams in behind a
+// Suspense boundary whose skeleton reserves the same space (zero CLS).
+export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
   return {
@@ -103,8 +96,14 @@ export default async function HomePage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const [data, categories, milkTypes, showcase, t, tFaq] = await Promise.all([
-    fetchHomeData(),
+  // The visitor's own pincode (header pill / §4 box / GPS all write this
+  // cookie), falling back to the launch city for a first-time guest.
+  const pincode = resolveHomePincode((await cookies()).get(LOC_COOKIE)?.value);
+  // Deliberately NOT awaited here: the shell, hero and search band render
+  // immediately and the location-bound sections stream in behind Suspense.
+  const dataPromise = fetchHomeData(pincode);
+
+  const [categories, milkTypes, showcase, t, tFaq] = await Promise.all([
     fetchProductCategories(locale),
     fetchMilkTypes(locale),
     getShowcaseProducts("milk", 4, locale),
@@ -112,12 +111,6 @@ export default async function HomePage({
     getTranslations("ui.home.faq"),
   ]);
 
-  const home = data.home;
-  const pincode = home?.location?.pincode ?? HOME_PINCODE;
-  const resultsBase = home?.location
-    ? `/${home.location.district.toLowerCase().replace(/\s+/g, "-")}/${pincode}`
-    : "/search";
-  const recommendedIds = new Set((home?.recommended ?? []).map((card) => card.id));
   const faq = (["1", "2", "3", "4"] as const).map((n) => ({
     q: tFaq(`q${n}`),
     a: tFaq(`a${n}`),
@@ -153,7 +146,7 @@ export default async function HomePage({
             {t("pincode.title")}
           </h1>
           <p className="mb-4 text-sm text-brand-soft">{t("pincode.subtitle")}</p>
-          <PincodeHeroFinder micLabel={t("search.micLabel")} />
+          <PincodeHeroFinder micLabel={t("search.micLabel")} setsLocation />
         </div>
 
         {/* §5 — schema-driven category bar (D17 vertical registry). */}
@@ -161,10 +154,11 @@ export default async function HomePage({
           <HomeCategoryBar categories={categories} />
         </div>
 
-        {/* §5c — milk-type chips, schema-driven, feeding D23's filter state. */}
-        {home ? (
-          <MilkTypeChips filters={home.filters} milkTypes={milkTypes} base={resultsBase} />
-        ) : null}
+        {/* §5c type chips + §5b price ticker — both bound to the visitor's
+            pincode, so they stream rather than block the shell. */}
+        <Suspense fallback={<HomeFiltersSkeleton />}>
+          <HomeFilters data={dataPromise} milkTypes={milkTypes} />
+        </Suspense>
 
         {/* §5d — category-partner banner, D21 slot, approved-only, collapses
             when the slot is empty (no fallback passed). */}
@@ -180,57 +174,27 @@ export default async function HomePage({
           sponsoredLabel={t("badges.sponsored")}
         />
 
-        {/* §5b — live price ticker from the D23 price-banner computation. */}
-        {home ? <PriceTicker home={home} milkTypes={milkTypes} /> : null}
-
         {/* §6 — organic trust row (static i18n content component). */}
         <TrustRow />
 
         {/* §7 — certified products, via the single showcase accessor. */}
         <ShowcaseProducts products={showcase} />
 
-        {/* §8 — vendors, with §8a2's house advertise band inside the block. */}
-        <section className="pb-2 pt-[22px]" id="shops">
-          <div className="mb-3.5 flex items-baseline justify-between gap-2.5">
-            <h2 className="font-display text-xl font-extrabold">{t("home.vendors.title")}</h2>
-            <Link
-              href={resultsBase}
-              prefetch={false}
-              className="text-[13px] font-bold text-brand-deep no-underline"
-            >
-              {t("home.vendors.showMap")}
-            </Link>
-          </div>
-          <VendorGrid
-            cards={home?.vendors ?? []}
-            ratings={data.ratings}
-            recommendedIds={recommendedIds}
-            milkTypes={milkTypes}
-            pincode={pincode}
-          />
-          <AdvertiseBand />
-        </section>
-
-        {/* §8f — brands available in this pincode (hidden when none). */}
-        <BrandsAvailable brands={home?.brands ?? []} milkTypes={milkTypes} pincode={pincode} />
+        {/* §8 vendors (+ §8a2 house band) and §8f brands. */}
+        <Suspense fallback={<HomeVendorsSkeleton />}>
+          <HomeVendors data={dataPromise} milkTypes={milkTypes} />
+        </Suspense>
 
         {/* §8g — dairy services → existing /c/ landing pages. */}
         <DairyServices />
 
-        {/* §8b — stats band from real aggregates. */}
-        <StatsBand stats={homeStats(data)} />
-
-        {/* §8c — how it works. */}
+        {/* §8c — how it works (static i18n). */}
         <HowItWorks />
 
-        {/* §8d — approved reviews only; hidden when empty. */}
-        <ReviewsStrip reviews={data.reviews} locale={locale} />
-
-        {/* §8e — popular near you, from the real covered-geo feed. */}
-        <PopularNearYou covered={data.coveredPincodes} />
-
-        {/* §9 — the two big CTA tiles. */}
-        <HomeCtaTiles pincode={pincode} />
+        {/* §8b stats, §8d approved reviews, §8e popular-near-you, §9 CTA tiles. */}
+        <Suspense fallback={<HomeEngagementSkeleton />}>
+          <HomeEngagementBlock data={dataPromise} locale={locale} />
+        </Suspense>
 
         {/* §10c — FAQ (also emitted as FAQPage JSON-LD above). */}
         <HomeFaq />

@@ -290,23 +290,62 @@ worth an owner decision: **if the IdP is unreachable, the consumer home blanks
 into a browser error page.** Recorded here, not fixed — it is outside U1's
 view-layer scope.
 
+### 4a. Location is now one shared value (owner request)
+
+The home renders from **the visitor's own pincode**, not a build-time constant.
+
+| Case | Header pill | Page content |
+| --- | --- | --- |
+| First-time guest (no login, no pincode typed, no GPS) | `📍 Coimbatore · 641001 ✏️` | 641001 — 5 vendors, "Brands available in 641001" |
+| After typing `636810` in the §4 box | `📍 Dharmapuri · 636810 ✏️` | 636810 — 1 vendor, brands section correctly hidden |
+
+Both measured in a real browser, not asserted.
+
+One value, one owner: `resolveHomePincode()` reads the `agri_loc` cookie (D19)
+and falls back to `DEFAULT_LOCATION` config. The §4 pincode box now *sets* that
+cookie through the same `/api/identity/location` endpoint the header pill uses
+— so the server stays the validator, and header and content cannot disagree.
+The `✏️` next to the pincode is the explicit change affordance the owner asked
+for; the D27 category pages keep the old navigate-only behaviour via the
+`setsLocation` opt-in.
+
+`DEFAULT_LOCATION` lives in its own module (`lib/default-location.ts`) because
+both sides need it and `lib/home.ts` is server-only — importing that into the
+client header island would drag `API_BASE_URL` and server `fetch` into the
+browser bundle.
+
+**Cost of going per-visitor, measured.** The location-bound sections stream
+behind three Suspense boundaries whose skeletons reserve the loaded dimensions
+(§35), so the shell, hero and search band never wait on the blend:
+
+- **TTFB 26–44 ms**, full response 42–61 ms warm / 283 ms for a cold pincode.
+- **CLS 0.0016** unthrottled, **0.0070** at 4× CPU throttling — *better* than
+  the 0.0084 measured before the change, and far under the 0.1 "good" bar.
+
+**Lighthouse could not be run for this change.** It now fails `PAGE_HUNG` on
+this machine against *every* route including `/offline`, the simplest page in
+the app — so it is the local Lighthouse environment, not the home page. (The
+same box also cannot complete `lhci autorun` at all: chrome-launcher `EPERM`.)
+Two audits are therefore outstanding and CI remains the arbiter. What is *not*
+outstanding is the metric this change actually put at risk — CLS — which is
+measured above.
+
 ### Open items and deviations
 
-1. **`milk_global_header` is no longer mounted.** It sat in the shared layout,
-   is absent from the reference, and stacked a second ad unit directly above
-   the §3 hero. Removing the mount takes it off every milk page, so the slot's
-   inventory needs an owner decision: re-mount per-page on the routes that have
-   no hero of their own, or retire the slot.
+1. **`milk_global_header` unmounted — owner-approved.** It sat in the shared
+   layout, is absent from the reference, and stacked a second ad unit directly
+   above the §3 hero. The slot key and its house creatives still exist in the
+   engine, so re-mounting it on the routes that have no hero of their own is a
+   one-line change whenever that inventory is wanted back.
 2. **M3 sponsored injection is not on the home vendor grid.** The home is ISR;
    injecting a per-viewer ad would cache one advertiser for everyone for an
    hour and break impression caps. Injection stays on the dynamic
    `/{city}/{pincode}` results page, where it already lives — U1 forbids
    touching that logic, and this respects it. The §8a2 house band ships in the
    vendor block as specified.
-3. **The home renders a configured pincode** (`HOME_PINCODE`, default 641001),
-   exactly as the reference does, because ISR cannot read the visitor's
-   location cookie without going dynamic. The header pill can therefore show a
-   different pincode than the sections — worth an owner view.
+3. ~~The home renders a configured pincode~~ — **resolved**, see §4a: the home
+   now renders the visitor's own pincode and the header cannot disagree with
+   the content.
 4. **House-ad art is generated from the English copy.** Ad *copy* is per-locale
    in the DB, but `seed_sample_media.py` renders one image from the `en`
    variant, so the hero art reads English on `/ta`. Dev seed art only; real

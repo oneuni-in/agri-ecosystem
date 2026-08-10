@@ -1,16 +1,23 @@
+import { parseLocCookie } from "@agri/ui";
+
+import { DEFAULT_LOCATION } from "./default-location";
 import { fetchMilkHome, type MilkCard, type MilkHome } from "./milk";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 /**
- * The home is ISR (`revalidate`, no `cookies()`/`headers()`), so it cannot
- * read the visitor's `agri_loc` pincode server-side without going dynamic and
- * losing the Lighthouse budget. The approved reference solves this the same
- * way: it renders a concrete pincode ("Brands available in 641001", "Today in
- * 641001") and lets the location pill / pincode box move the visitor to
- * `/{city}/{pincode}`. So the pincode is CONFIG, not a literal.
+ * The visitor's pincode for this render: their `agri_loc` cookie (D19 — set
+ * by the header pill, the §4 pincode box, or GPS) falling back to
+ * `DEFAULT_LOCATION`.
+ *
+ * Reading the cookie is what makes the home render "based on the header
+ * pincode". It also makes the route dynamic, which is why the location-bound
+ * sections stream behind a Suspense boundary in `page.tsx` — the shell, hero
+ * and search band do not wait on this.
  */
-export const HOME_PINCODE: string = process.env.HOME_PINCODE ?? "641001";
+export function resolveHomePincode(cookieValue: string | undefined): string {
+  return parseLocCookie(cookieValue)?.pincode ?? DEFAULT_LOCATION.pincode;
+}
 
 /** §16: "if a stat is embarrassing pre-launch, hide that cell via config,
  * don't fake it." Comma-separated stat keys to hide. */
@@ -84,9 +91,9 @@ async function fetchCoveredPincodes(): Promise<{ pincode: string; district: stri
  * already on this page — approved-only comes from the engine itself, which
  * only ever returns approved rows to a public caller.
  */
-export async function fetchHomeData(): Promise<HomeData> {
+export async function fetchHomeData(pincode: string): Promise<HomeData> {
   const [home, coveredPincodes] = await Promise.all([
-    fetchMilkHome(HOME_PINCODE),
+    fetchMilkHome(pincode),
     fetchCoveredPincodes(),
   ]);
 

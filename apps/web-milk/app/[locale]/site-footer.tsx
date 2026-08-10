@@ -84,6 +84,9 @@ export async function SiteFooter({ locale }: { locale: string }) {
               label={tLowData("label")}
               onLabel={tLowData("on")}
               offLabel={tLowData("off")}
+              // The toggle defaults to --sub, a light-background colour that
+              // measures 1.55:1 on this dark footer.
+              className="text-brand-soft-2"
             />
           </span>
         </div>
@@ -96,7 +99,7 @@ function FooterCol({ title, children }: { title: string; children: React.ReactNo
   return (
     <div>
       <h3 className="mb-2 text-[12px] font-semibold text-white">{title}</h3>
-      <ul className="list-none text-[11px] leading-[2.1]">{children}</ul>
+      <ul className="list-none text-[11px]">{children}</ul>
     </div>
   );
 }
@@ -110,14 +113,19 @@ function FooterLink({
   external?: boolean;
   children: React.ReactNode;
 }) {
+  // `inline-flex` + a 24px min box: an 11px link on a 2.1 line-height was only
+  // ~23px tall, which fails WCAG 2.2's target-size floor (axe flagged every
+  // footer link). The row spacing is unchanged — the box just becomes the
+  // hit area rather than the text.
+  const className = "inline-flex min-h-[24px] items-center no-underline hover:text-white";
   return (
     <li>
       {external ? (
-        <a href={href} className="no-underline hover:text-white">
+        <a href={href} className={className}>
           {children}
         </a>
       ) : (
-        <Link href={href} prefetch={false} className="no-underline hover:text-white">
+        <Link href={href} prefetch={false} className={className}>
           {children}
         </Link>
       )}

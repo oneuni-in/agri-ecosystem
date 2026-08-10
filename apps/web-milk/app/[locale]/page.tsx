@@ -11,6 +11,7 @@ import { HowItWorks } from "@/components/organisms/HomeEngagement";
 import { FamilyStrip, HomeFaq, TrustRow } from "@/components/organisms/HomeStatic";
 import { HomeCategoryBar } from "@/components/organisms/HomeCategoryBar";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
+import { serveAds } from "@/lib/ads";
 import { fetchHomeData, resolveHomePincode } from "@/lib/home";
 import { getShowcaseProducts } from "@/lib/showcase";
 import { fetchMilkTypes, fetchProductCategories } from "@/lib/taxonomy";
@@ -103,10 +104,13 @@ export default async function HomePage({
   // immediately and the location-bound sections stream in behind Suspense.
   const dataPromise = fetchHomeData(pincode);
 
-  const [categories, milkTypes, showcase, t, tFaq] = await Promise.all([
+  const [categories, milkTypes, showcase, heroAds, t, tFaq] = await Promise.all([
     fetchProductCategories(locale),
     fetchMilkTypes(locale),
     getShowcaseProducts("milk", 4, locale),
+    // Served here, not in the browser: the hero is the LCP element, and a
+    // client fetch delays its image until after hydration.
+    serveAds("milk_home_hero_xl", { pincode, locale }, 5),
     getTranslations("ui"),
     getTranslations("ui.home.faq"),
   ]);
@@ -126,6 +130,7 @@ export default async function HomePage({
           loading, empty and full all occupy the same space. */}
       <AdCarousel
         slotKey="milk_home_hero_xl"
+        initialAds={heroAds}
         heightClass="aspect-[750/360] md:aspect-[1600/420]"
         badgeClassName="right-3 top-3"
         sponsoredLabel={t("badges.sponsored")}
@@ -174,6 +179,10 @@ export default async function HomePage({
           sponsoredLabel={t("badges.sponsored")}
         />
 
+        {/* Everything from here down is below the fold on a phone. See
+            `.below-fold` in globals.css: these skip layout/paint until scrolled
+            near, which is what keeps a 44-section page's first paint cheap. */}
+        <div className="below-fold">
         {/* §6 — organic trust row (static i18n content component). */}
         <TrustRow />
 
@@ -201,6 +210,7 @@ export default async function HomePage({
 
         {/* §10 — family strip. */}
         <FamilyStrip />
+        </div>
       </Wrap>
     </main>
   );

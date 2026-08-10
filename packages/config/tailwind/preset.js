@@ -53,7 +53,11 @@ const shared = {
   "--page-bg": "#E9EBE2",
   "--card": "#FFFFFF",
   "--line": "#E2E7DA",
-  "--call": "#1E9E4A",
+  // AA on white text: #1E9E4A measured 3.47:1, under the 4.5 floor. This was
+  // carried as the "known call/rating WCAG conflict" (D02); the U1 home puts a
+  // Call button on every vendor card, which turned a documented deviation into
+  // a failing gate. #15803C is 5.02:1 and still unmistakably the call green.
+  "--call": "#15803C",
   "--wa": "#22B45A",
   "--wa-soft": "#E6F8EC",
   "--wa-deep": "#157A3C",
@@ -69,7 +73,9 @@ const shared = {
   "--sponsored-fg": "#8A5B00",
   "--cert-bg": "#EAF2DC",
   "--cert-fg": "#3E5A14",
-  "--rating": "#C77700",
+  // 3.46:1 on white before; #A25F00 is 5.03:1. Same half of the D02 conflict —
+  // rating stars now appear on every vendor card and in the reviews strip.
+  "--rating": "#A25F00",
   "--ghost": "#F2F4EC",
   "--glass": "rgba(255,255,255,.16)",
 
@@ -89,7 +95,11 @@ const shared = {
   // Card sub-lines on cream. Distinct from --sub (#5A6A5D), which is the
   // `.vern` mother-tongue colour and is pinned by an AA contrast contract
   // (see the `.vern` component below) — it must not be re-pointed.
-  "--muted": "#8A8574",
+  // The reference's #8A8574 measures 3.69:1 on white and fails AA at the card
+  // sub-line sizes it is used at (39 nodes flagged). #736E5F is 5.09:1 and
+  // keeps the warm grey the reference intends, rather than falling back to the
+  // green-grey --sub.
+  "--muted": "#736E5F",
   // Ink for text on the golden --accent (money buttons, hotline chip, coins).
   // Follows the existing bg/fg pair convention (--coins-bg/--coins-fg).
   "--accent-ink": "#4A2E00",

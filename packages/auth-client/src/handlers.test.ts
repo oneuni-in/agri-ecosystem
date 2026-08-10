@@ -91,9 +91,54 @@ describe("GET /api/auth/login", () => {
   });
 
   it("silent=1 adds prompt=none", async () => {
-    const { GET } = createHandlers(cfg);
-    const res = await GET(new Request("http://localhost:3000/api/auth/login?silent=1"));
-    expect(new URL(res.headers.get("location")!).searchParams.get("prompt")).toBe("none");
+    // The silent path first probes the provider for reachability; a reachable
+    // provider must still get the full prompt=none authorize redirect.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
+    try {
+      const { GET } = createHandlers(cfg);
+      const res = await GET(new Request("http://localhost:3000/api/auth/login?silent=1"));
+      expect(new URL(res.headers.get("location")!).searchParams.get("prompt")).toBe("none");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("silent=1 bounces back to the app when the provider is unreachable", async () => {
+    // Silent SSO runs as a TOP-LEVEL navigation (the provider's session cookie
+    // is SameSite=Lax, so a cross-site fetch would never carry it). That makes
+    // an unreachable provider destructive: the browser would replace the page
+    // the visitor is reading with its own error page. Instead we return them
+    // to where they were, still logged out.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("connect ECONNREFUSED"));
+    try {
+      const { GET } = createHandlers(cfg);
+      const res = await GET(
+        new Request("http://localhost:3000/api/auth/login?silent=1&next=%2Fshop"),
+      );
+      expect(res.status).toBe(302);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/shop");
+      // No transaction is opened for a probe that never left the building.
+      expect(setCookies(res)).toEqual([]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("an INTERACTIVE login still redirects when the provider is unreachable", async () => {
+    // The user asked to sign in. Silently returning them to the page as if
+    // nothing happened would be a worse lie than showing them the failure.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("connect ECONNREFUSED"));
+    try {
+      const { GET } = createHandlers(cfg);
+      const res = await GET(new Request("http://localhost:3000/api/auth/login"));
+      expect(new URL(res.headers.get("location")!).origin).toBe("http://localhost:3003");
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });
 

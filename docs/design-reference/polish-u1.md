@@ -367,6 +367,90 @@ strip showed the same vendor three times — it sorts by rating, and that
 business owned every top row. The strip now takes at most one review per
 business, so three testimonials mean three businesses.
 
+### 4c. Clearing the three open items
+
+**All three traced back to fewer causes than they appeared to have.**
+
+**Silent-SSO blanking — fixed.** Silent SSO runs as a TOP-LEVEL navigation, and
+it has to: the provider's session cookie is `SameSite=Lax`, so a cross-site
+`fetch` would never carry it (an iframe would hit the same wall via
+third-party-cookie blocking). That makes an unreachable provider destructive
+rather than merely unhelpful. Two changes:
+
+* `handleLogin` probes the provider server-side before redirecting. Silent
+  requests bounce back to the page when it is down; an INTERACTIVE login is
+  never short-circuited, because the user asked to sign in and a silent
+  no-op would be a worse lie than a visible failure.
+* `?probe=1` answers "would this redirect get anywhere?" as JSON, so the
+  client skips the navigation entirely. This matters beyond error pages:
+  **every logged-out visitor was paying a full extra page load** to discover
+  there was no session — measured at **8739ms of redirect cost**.
+
+Covered by three new tests (reachable → still `prompt=none`; unreachable →
+bounce with no transaction opened; interactive → always redirects).
+
+**Lighthouse — now runs, and it was the same bug.** My earlier note that
+"Lighthouse is broken in this environment" was **wrong**, and I checked instead
+of assuming: a trivial static page scored 1.00, so the tool was fine. The
+audits were dying on the silent-SSO navigation to a dead provider. Fixing that
+made the home auditable for the first time.
+
+It also showed my ad-hoc harness had been lying in the other direction: `seo`
+read 0.92 until I passed the CI's pinned `Chrome-Lighthouse` user agent, which
+is exactly the streamed-metadata trap `lighthouserc.cjs` documents. With the
+CI settings it is **1.00**.
+
+**House-ad art — fixed.** `Creative.copy` is per-locale but `media_keys` has no
+locale dimension, and `AdUnit` renders the image INSTEAD of the copy, so any
+sentence baked into generated art is frozen in the language that made it. The
+seeder now draws **locale-neutral** panels — colour field, geometry and the
+`milk.in` wordmark, no sentences. Art that says nothing is correct in every
+locale; the words come from `copy`, which is translated.
+
+#### What the audit then exposed
+
+| | Before | After | Floor |
+| --- | --- | --- | --- |
+| performance | 0.56 | **0.77** | 0.90 ✗ |
+| accessibility | 0.92 | **1.00** | 0.95 ✓ |
+| SEO | 0.92 | **1.00** | 0.95 ✓ |
+| best-practices | 0.96 | 0.96 | — |
+| CLS | 0.0226 | **0.0121** | — |
+| LCP | 9021ms | 4251ms | — |
+
+Accessibility work (0.92 → 1.00):
+
+* `--muted` (the reference's `#8A8574`) measured **3.69:1** on white and failed
+  AA across 39 nodes. Now `#736E5F` (5.09:1), keeping the warm grey rather than
+  falling back to the green-grey `--sub`.
+* `--call` and `--rating` were carried as D02's "known call/rating WCAG
+  conflict". The home puts a Call button and rating stars on every vendor card,
+  which turned a documented deviation into a failing gate, so the debt is paid:
+  `--call` `#1E9E4A` → `#15803C` (white text 3.47:1 → 5.02:1), `--rating`
+  `#C77700` → `#A25F00` (3.46:1 → 5.03:1). **These are shared tokens — agri.in
+  and organicstore.in inherit slightly deeper green/amber.**
+* Footer links were ~23px tall, under WCAG 2.2's target-size floor; and the
+  data-saver toggle inherited `--sub` onto the new dark footer at 1.55:1.
+
+Performance work (0.56 → 0.77), each step measured:
+
+* removed the silent-SSO redirect — **8739ms**;
+* server-rendered the hero creative (`serveAds()` + `AdCarousel initialAds`)
+  so the LCP image no longer waits for hydration — killed **2372ms of LCP load
+  delay**, and the LCP element is now the `<h1>` rather than the ad;
+* `fetchPriority="high"` on the eager slide;
+* `content-visibility` on below-the-fold sections — style/layout **2413ms →
+  ~1830ms**.
+
+**Performance still misses the 0.90 floor at 0.77 and I am not claiming
+otherwise.** What remains is the page itself: 47 sections and ~1.8s of
+style/layout under 4× CPU throttling, on a box also running Postgres, Redis,
+MinIO, Meilisearch, the API and the Next server (Lighthouse measured TTFB
+851ms where `curl` measures 26–44ms, so some of the gap is contention). CI on a
+clean runner is the arbiter. If it fails there too, the honest options are a
+carve-out for this route or shipping fewer cards above the fold — a product
+decision, not one to smuggle in as a styling tweak.
+
 ### Open items and deviations
 
 1. **`milk_global_header` unmounted — owner-approved.** It sat in the shared

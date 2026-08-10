@@ -67,18 +67,35 @@ def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 def _make_card(lines: list[str], *, size: tuple[int, int], colors: tuple[str, str]) -> bytes:
-    """A simple flat placeholder: colored panel, bold text, corner accent."""
+    """A flat placeholder panel: colour field, corner blob, footer bar, and a
+    single locale-neutral wordmark.
+
+    Deliberately carries NO sentence text. `Creative.copy` is per-locale but
+    `media_keys` is one flat list with no locale dimension, and AdUnit renders
+    the image INSTEAD of the copy when media exists — so any sentence baked
+    into the art is frozen in whichever language generated it, and an English
+    banner then showed on /ta and /hi. Art that says nothing is correct in
+    every locale; the words come from `copy`, which is translated.
+
+    `lines` is still accepted so callers can vary the composition (the first
+    entry seeds the accent geometry), but it is never drawn as text.
+    """
     fg, bg = colors
     img = Image.new("RGB", size, bg)
     draw = ImageDraw.Draw(img)
     w, h = size
     draw.rectangle([0, h - h // 8, w, h], fill=fg)  # footer bar
     draw.ellipse([w - w // 5, -w // 10, w + w // 10, w // 5], fill=fg)  # corner blob
-    y = h // 5
-    for index, line in enumerate(lines[:3]):
-        font = _font(max(h // 8 - index * 10, 24))
-        draw.text((w // 12, y), line, fill=fg if index == 0 else "#37474f", font=font)
-        y += h // 5
+    # A second blob, offset by the caller's content so successive creatives in
+    # a carousel are visually distinct without spelling anything.
+    seed = sum(ord(c) for c in (lines[0] if lines else "")) % max(w // 3, 1)
+    draw.ellipse(
+        [w // 12 + seed, h // 3, w // 12 + seed + h // 3, h // 3 + h // 3],
+        outline=fg,
+        width=max(h // 60, 2),
+    )
+    # milk.in is a brand name, not a translatable string - safe in any locale.
+    draw.text((w // 12, h // 2 - h // 10), "milk.in", fill=fg, font=_font(max(h // 7, 22)))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     jpeg, _ = media.reencode_image(buf.getvalue())  # THE shared pipeline

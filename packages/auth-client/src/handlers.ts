@@ -18,6 +18,10 @@ import { projectUser, type SessionPayload } from "./session";
 
 export const SESSION_COOKIE_MAX_AGE = 30 * 86_400; // refresh-token lifetime
 const TX_COOKIE_MAX_AGE = 600;
+/** Reachability probe budget for the identity provider before a SILENT SSO
+ * redirect. Short on purpose: it sits in front of a page render, and a slow
+ * answer is indistinguishable from a down provider for this decision. */
+const IDP_PROBE_TIMEOUT_MS = 1500;
 const CLOCK_SKEW_SECONDS = 30;
 
 interface TxPayload {
@@ -119,10 +123,56 @@ function rolesAllowed(cfg: ResolvedConfig, roles: readonly string[]): boolean {
   return cfg.requiredRoles.some((role) => roles.includes(role));
 }
 
+/**
+ * Is the identity provider answering at all?
+ *
+ * Silent SSO is best-effort BACKGROUND work, but it runs as a top-level
+ * navigation — which it has to, because the provider's session cookie is
+ * SameSite=Lax and a cross-site `fetch` would never send it. The consequence
+ * is that an unreachable provider does not merely fail the probe: the browser
+ * replaces the page the visitor is reading with its own error page.
+ *
+ * So the reachability check moves to the server, where it can fail safely.
+ * Deliberately cheap and deliberately forgiving: any answer at all — including
+ * a 4xx or 5xx — counts as reachable, because this is only asking "is there
+ * something at that origin", never "is it healthy". Only a connection error or
+ * the timeout is treated as down.
+ */
+async function idpReachable(origin: string): Promise<boolean> {
+  try {
+    await fetch(new URL("/", origin), {
+      method: "HEAD",
+      redirect: "manual",
+      signal: AbortSignal.timeout(IDP_PROBE_TIMEOUT_MS),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleLogin(cfg: ResolvedConfig, req: Request): Promise<Response> {
   const url = new URL(req.url);
   const next = safeNext(url.searchParams.get("next"));
   const silent = url.searchParams.get("silent") === "1";
+  if (silent) {
+    const reachable = await idpReachable(cfg.idPublicOrigin);
+    // `probe=1` answers "would a silent redirect get anywhere?" as JSON, so
+    // the client can skip the navigation altogether. That matters for more
+    // than error pages: silent SSO is a TOP-LEVEL navigation, so every
+    // logged-out visitor otherwise pays a full extra page load to discover
+    // there is no session to restore — measured at ~8.7s of redirect cost in
+    // a throttled audit. No transaction is opened for a probe.
+    if (url.searchParams.get("probe") === "1") {
+      return json({ reachable }, 200);
+    }
+    // Non-probe silent request with the provider down: bounce back so the
+    // visitor keeps the page they were reading instead of landing on the
+    // browser's error page. An INTERACTIVE login is never short-circuited —
+    // the user asked to sign in, and silently returning them as if nothing
+    // happened would be a worse lie than showing them the failure.
+    if (!reachable) return redirect(`${cfg.appOrigin}${next}`);
+  }
   const verifier = generateVerifier();
   const state = generateState();
   const authorize = new URL("/authorize", cfg.idPublicOrigin);

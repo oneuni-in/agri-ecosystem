@@ -75,6 +75,7 @@ export function AdCarousel({
   arrows,
   badgeClassName,
   sponsoredLabel,
+  initialAds,
 }: {
   slotKey: string;
   pincode?: string | null;
@@ -92,14 +93,25 @@ export function AdCarousel({
   badgeClassName?: string;
   /** Translated wording for that label. */
   sponsoredLabel?: string;
+  /**
+   * Creatives already served on the SERVER. When supplied the client fetch is
+   * skipped entirely and slide 1 ships in the SSR HTML — which is the whole
+   * point: a client-fetched hero cannot start downloading its image until
+   * hydration has run, and that was measured at 2372ms of LCP load delay.
+   * Impressions are unaffected; they still fire from the viewport observer.
+   */
+  initialAds?: ServedAd[];
 }) {
-  const [ads, setAds] = useState<ServedAd[] | null>(null); // null = loading
+  // `initialAds` means "already resolved" - not a loading state, and not an
+  // empty one either; an empty array from the server is a real "no fill".
+  const [ads, setAds] = useState<ServedAd[] | null>(initialAds ?? null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(false);
   const indexRef = useRef(0);
   const [dot, setDot] = useState(0);
 
   useEffect(() => {
+    if (initialAds) return; // server already answered; never re-serve on mount
     let cancelled = false;
     const ctx = {
       pincode: pincode !== undefined ? pincode : pincodeFromCookieHeader(document.cookie),
@@ -118,7 +130,7 @@ export function AdCarousel({
     return () => {
       cancelled = true;
     };
-  }, [slotKey, pincode, locale, endpoint]);
+  }, [slotKey, pincode, locale, endpoint, initialAds]);
 
   const count = ads?.length ?? 0;
   useEffect(() => {

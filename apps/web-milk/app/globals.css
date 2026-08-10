@@ -5,6 +5,20 @@
 /* D02 layers the design-system tokens (docs/design-system.md §1) onto the
    [data-theme] selectors set in layout.tsx. No raw hex belongs in app code. */
 
+/* U1 — below-the-fold sections skip layout and paint until they are scrolled
+   near. The reference home is a long page (14 vendor/brand cards, a product
+   grid, stats, reviews, FAQ), and on a throttled phone the browser spent
+   2413ms in style/layout laying out all of it before first paint.
+
+   `contain-intrinsic-size` supplies a placeholder height so scrollbar geometry
+   and CLS are unaffected — without it this trades paint cost for layout shift,
+   which would be a bad bargain. Content stays in the DOM: find-in-page and
+   crawlers are unaffected. */
+.below-fold > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
 /* U1 §5b — the price ticker's marquee. The lane is rendered twice and
    translated by half its width, so the loop is seamless. Declared here (not
    as a Tailwind keyframe) because it is the only animation in the app that

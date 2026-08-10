@@ -24,6 +24,10 @@ export function AdImage({
       src={src}
       alt={alt}
       loading={eager ? "eager" : "lazy"}
+      // The eager slide is the hero, i.e. the LCP element. Without an explicit
+      // high priority the preload scanner still queues it behind the page's
+      // other subresources (Lighthouse: prioritize-lcp-image, 466ms).
+      {...(eager ? { fetchPriority: "high" as const } : {})}
       decoding="async"
       draggable={false}
       className={cn("h-full w-full object-cover", className)}

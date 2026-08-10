@@ -330,6 +330,43 @@ Two audits are therefore outstanding and CI remains the arbiter. What is *not*
 outstanding is the metric this change actually put at risk — CLS — which is
 measured above.
 
+### 4b. Demo depth (`scripts/seed_u1_demo.py`)
+
+The home rendered thin not because sections were missing but because three
+signals were nearly absent in the seeded data. An audit of the launch pincode
+found **101 covering businesses, exactly 1 verified, and 2 with any review**.
+
+`seed_u1_demo.py` fills those three gaps and nothing else. It creates **no
+businesses** — it decorates the ones the real vendor import already produced,
+so the names, coverage and products stay the imported catalogue rather than
+invented rows. Dev-only (`refuse_in_prod`) and idempotent (a second run
+reports `+0 / +0 / +0`).
+
+| Signal | Before | After |
+| --- | --- | --- |
+| Verified covering businesses | 1 | 14 (a deliberate minority of 62 — a directory where everything is verified teaches the reader the badge is meaningless) |
+| Businesses with approved reviews | 2 | 12, spread across authors, mixed EN/TA bodies |
+| Advertisers | house only | + `Kovai Dairy Collective`, geo-targeted and budgeted, on the hero, partner-banner and sponsored-listing slots |
+
+Rendered result: 8 vendor cards (6 with a live rating), 6 brands, **2 sponsored
+positions** (M3 fills both `SPONSORED_POSITIONS` once two ads exist), 3
+Recommended, 3 reviews from **3 distinct businesses**, and all four stats cells
+populated (14 verified vendors · 39 pincodes covered · 14 sellers · 39 reviews)
+where `verified vendors` had previously been hidden for reading 0.
+
+**A bug this surfaced.** The first run created 41 approved reviews but only 2
+`rating_aggregates`, so every card still read rating 0.
+`reviews_service.moderate()` deliberately does *not* touch the cached
+aggregate — the admin route calls `recompute_aggregate()` after it, and the
+seeder was standing in for that route without doing the same. Fixed, and the
+recompute now runs for every business touched (not only ones that gained a
+review) so a re-run repairs aggregates left by an earlier pass.
+
+**A UI bug this surfaced.** With one heavily-reviewed business, the reviews
+strip showed the same vendor three times — it sorts by rating, and that
+business owned every top row. The strip now takes at most one review per
+business, so three testimonials mean three businesses.
+
 ### Open items and deviations
 
 1. **`milk_global_header` unmounted — owner-approved.** It sat in the shared

@@ -127,10 +127,21 @@ export async function fetchHomeData(pincode: string): Promise<HomeData> {
   }
 
   // Highest-rated first so the strip leads with the strongest social proof,
-  // then a stable id tiebreak so ISR revalidations don't reshuffle the page.
+  // then a stable id tiebreak so a re-render doesn't reshuffle the page.
   reviews.sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id));
 
-  return { home, ratings, reviews, coveredPincodes };
+  // At most one review per business. Without this the strip reads as three
+  // testimonials but shows the same vendor two or three times, because a
+  // single well-reviewed business owns all the top-rated rows — which makes
+  // the marketplace look smaller than it is, not larger.
+  const seen = new Set<string>();
+  const distinct = reviews.filter((review) => {
+    if (seen.has(review.business.slug)) return false;
+    seen.add(review.business.slug);
+    return true;
+  });
+
+  return { home, ratings, reviews: distinct, coveredPincodes };
 }
 
 /** §8b stats — every number traced to a real source, or the cell is hidden. */

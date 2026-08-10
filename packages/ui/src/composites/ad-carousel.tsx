@@ -74,6 +74,7 @@ export function AdCarousel({
   fallback,
   arrows,
   badgeClassName,
+  sponsoredLabel,
 }: {
   slotKey: string;
   pincode?: string | null;
@@ -89,6 +90,8 @@ export function AdCarousel({
   arrows?: { prevLabel: string; nextLabel: string };
   /** Corner placement of the always-on "★ Sponsored" label (see `AdUnit`). */
   badgeClassName?: string;
+  /** Translated wording for that label. */
+  sponsoredLabel?: string;
 }) {
   const [ads, setAds] = useState<ServedAd[] | null>(null); // null = loading
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -191,6 +194,7 @@ export function AdCarousel({
                   endpoint={endpoint}
                   eager={i === 0}
                   {...(badgeClassName ? { badgeClassName } : {})}
+                  {...(sponsoredLabel ? { sponsoredLabel } : {})}
                 />
               </div>
             ))}

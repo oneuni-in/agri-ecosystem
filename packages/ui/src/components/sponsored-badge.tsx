@@ -5,6 +5,12 @@ import { Badge } from "./badge";
  * <Badge variant="sponsored"> - that variant type-forbids children, so the
  * "★ Sponsored" text can never be overridden or omitted.
  */
-export function SponsoredBadge({ className }: { className?: string }) {
-  return <Badge variant="sponsored" {...(className ? { className } : {})} />;
+export function SponsoredBadge({ className, label }: { className?: string; label?: string }) {
+  return (
+    <Badge
+      variant="sponsored"
+      {...(className ? { className } : {})}
+      {...(label ? { label } : {})}
+    />
+  );
 }

@@ -10,7 +10,7 @@ import { WHATSAPP_HOTLINE, advertiseHref, hotlineHref } from "@/lib/contact";
 import { HeaderLocation } from "./header-location";
 import { LocaleSwitcher } from "./locale-switcher";
 
-export async function SiteHeader() {
+export async function SiteHeader({ locale }: { locale: string }) {
   const t = await getTranslations("ui");
   return (
     <>
@@ -18,10 +18,19 @@ export async function SiteHeader() {
           header, so anything that hydrates here would push the whole page
           down as it populates. */}
       <UtilityStrip
+        // At /en this is the reference's bilingual line, with the Devanagari
+        // "दूध" as an inline SVG (issue #45: the literal glyph would pull
+        // ~121 KB of Noto Sans Devanagari onto every English page). At /ta and
+        // /hi the tagline is simply that language — a locale switch leaves no
+        // English behind, and the reader's own script is already loaded.
         tagline={
-          <>
-            Every milk near you · பால் · <DudhGlyph />
-          </>
+          locale === "en" ? (
+            <>
+              {t("utility.tagline")} · பால் · <DudhGlyph />
+            </>
+          ) : (
+            t("utility.tagline")
+          )
         }
         links={
           <>
@@ -61,10 +70,14 @@ export async function SiteHeader() {
         // the English half joins from `sm` up — the mobile reference snapshot
         // shows exactly "பால் · दूध" here.
         tagline={
-          <>
-            பால் · <DudhGlyph />
-            <span className="max-sm:hidden"> · every milk near you</span>
-          </>
+          locale === "en" ? (
+            <>
+              பால் · <DudhGlyph />
+              <span className="max-sm:hidden"> · {t("utility.brandTagline")}</span>
+            </>
+          ) : (
+            t("utility.brandTagline")
+          )
         }
         location={<HeaderLocation />}
         right={
@@ -78,7 +91,7 @@ export async function SiteHeader() {
             </Suspense>
             <CoinsBalancePill endpoint="/api/coins/balance" />
             <NotificationBellIsland basePath="/api/notify" href="/notifications" label="Notifications" />
-            <AuthCluster />
+            <AuthCluster loginLabel={t("auth.login")} />
           </>
         }
       />

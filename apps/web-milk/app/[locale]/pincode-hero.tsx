@@ -1,6 +1,7 @@
 "use client";
 
 import { GpsPill, parseLocationResponse, PincodeInput } from "@agri/ui";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { useRouter } from "@/i18n/navigation";
@@ -29,6 +30,10 @@ export function PincodeHeroFinder({
   micLabel?: string;
 }) {
   const router = useRouter();
+  // Every label here comes from the catalogs: at /ta the whole control is
+  // Tamil (placeholder, button, GPS pill), at /hi Hindi. Nothing English
+  // survives a locale switch.
+  const t = useTranslations("ui.pincode");
   const [pincode, setPincode] = useState("");
 
   function go(next: string) {
@@ -69,9 +74,9 @@ export function PincodeHeroFinder({
         className="w-full"
       >
         <PincodeInput
-          findLabel="Find milk"
-          aria-label="Enter pincode"
-          placeholder="Enter pincode"
+          findLabel={t("find")}
+          aria-label={t("inputLabel")}
+          placeholder={t("inputLabel")}
           {...(micLabel
             ? {
                 mic: (
@@ -93,7 +98,7 @@ export function PincodeHeroFinder({
         />
       </form>
       <GpsPill type="button" onClick={useGps}>
-        📍 Or use my location · என் இடம்
+        {t("gps")}
       </GpsPill>
     </div>
   );

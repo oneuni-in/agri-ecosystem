@@ -91,6 +91,7 @@ export function AdUnit({
   endpoint,
   eager = false,
   badgeClassName = "left-2 top-2",
+  sponsoredLabel,
 }: {
   ad: ServedAd;
   endpoint: string;
@@ -99,6 +100,9 @@ export function AdUnit({
    * itself is never optional (module rule: never serve an unlabeled ad).
    * U1 §3 puts the hero's corner tag top-RIGHT. */
   badgeClassName?: string;
+  /** Translated "Sponsored" wording. The label is never optional — this only
+   * decides which language it is written in. */
+  sponsoredLabel?: string;
 }) {
   const ref = useImpression(ad, endpoint);
   const external = typeof window !== "undefined" && !sameOrigin(ad.target_url);
@@ -123,7 +127,10 @@ export function AdUnit({
           ) : null}
         </span>
       )}
-      <SponsoredBadge className={cn("absolute", badgeClassName)} />
+      <SponsoredBadge
+        className={cn("absolute", badgeClassName)}
+        {...(sponsoredLabel ? { label: sponsoredLabel } : {})}
+      />
     </a>
   );
 }
@@ -137,6 +144,8 @@ export function AdSlot({
   heightClass,
   className,
   fallback,
+  badgeClassName,
+  sponsoredLabel,
 }: {
   slotKey: string;
   category?: string;
@@ -152,6 +161,11 @@ export function AdSlot({
   /** Rendered when the engine returns nothing (flag off, no fill, blocked).
    * Omit to collapse the slot entirely. */
   fallback?: ReactNode;
+  /** Corner placement of the always-on "★ Sponsored" label — placement only,
+   * the label itself is never optional. */
+  badgeClassName?: string;
+  /** Translated wording for that label. */
+  sponsoredLabel?: string;
 }) {
   const [ad, setAd] = useState<ServedAd | null>(null);
   const [state, setState] = useState<"loading" | "empty" | "ready">("loading");
@@ -186,7 +200,12 @@ export function AdSlot({
   return (
     <div className={cn(heightClass, "w-full", className)} data-testid={`ad-slot-${slotKey}`}>
       {state === "ready" && ad ? (
-        <AdUnit ad={ad} endpoint={endpoint} />
+        <AdUnit
+          ad={ad}
+          endpoint={endpoint}
+          {...(badgeClassName ? { badgeClassName } : {})}
+          {...(sponsoredLabel ? { sponsoredLabel } : {})}
+        />
       ) : state === "empty" ? (
         fallback
       ) : (

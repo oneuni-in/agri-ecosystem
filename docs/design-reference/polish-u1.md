@@ -207,3 +207,110 @@ fallback instead of a served creative).
 **Before:** the pre-U1 home is the parent commit of this branch's first Pass-1
 commit; its four-viewport capture is pending a rebuild at that commit and is
 recorded here as outstanding rather than claimed.
+
+---
+
+## 4. Full-reference build (passes 2 + 3, merged at the owner's direction)
+
+The owner redirected from the pass-by-pass plan to "make it match the
+reference, fully bound and fully localised". Every remaining section shipped in
+one pass. Sections build from **one server-side aggregate** (`lib/home.ts`
+`fetchHomeData()`); there is no client fetch and no mock row on the page.
+
+| § | Section | Renders from |
+| --- | --- | --- |
+| 5b | Price ticker | D23 `compute_price_banner()` via `/catalog/milk/home/{pincode}` — real ₹ bands from approved listings |
+| 5c | Milk-type chips | schema `filters` array + D17 `milk_type` `option_meta` labels |
+| 5d | Partner banner | D21 slot `milk_category_banner`, approved-only, collapses when empty |
+| 6 | Trust row | static i18n content component (allowed) |
+| 7 | Certified products | `getShowcaseProducts()` — the ONE accessor, over `/catalog/verticals/{v}/products` |
+| 8 | Vendor grid | `covers()` blend + D18 `/reviews/summary` (rating **and** count) + M3.C `recommended` |
+| 8a2 | Advertise band | house copy → M5 wizard, rate from config |
+| 8f | Brands available | same blend's `shop` cards; hidden when the pincode has none |
+| 8g | Dairy services | D17 business categories → existing `/c/{category}` pages |
+| 8b | Stats band | real aggregates; a cell with no honest source is not rendered |
+| 8c | How it works | static i18n |
+| 8d | Reviews strip | D18 per-business reviews (public reads are approved-only), composed across the page's businesses |
+| 8e | Popular near you | D28 covered-pincode feed → existing ISR city pages |
+| 9 | CTA tiles | D25 post-need + D16 claim flow; ₹ from config |
+| 10c | FAQ | static i18n + FAQPage JSON-LD from the same strings |
+| 10 | Family strip | live coins route; theorganic tile behind config → "coming soon" |
+| 11 | Footer | 5-col, neutrality line verbatim, categories from D17 |
+| 12 | Bottom nav | fixed 64px + safe-area; `<body>` reserves the height so the footer clears it |
+
+### Localisation (owner requirement: a locale switch leaves no English behind)
+
+`/en` renders the reference including its designed Tamil accents; `/ta` and
+`/hi` render entirely in that language. Fixed in this pass: the pincode box
+(placeholder, Find button, GPS pill), the utility-strip and brand taglines, the
+`Login` label, the `★ Sponsored` badge, the data-saver ON/OFF words, and the
+`/week` rate suffix — all now read from the catalogs.
+
+`Badge variant="sponsored"` gained an optional `label`: the disclosure still
+cannot be omitted or replaced with arbitrary children (empty/whitespace falls
+back to "★ Sponsored"), it can only be **translated**.
+
+**Verified in a real Chromium** (`node scripts/verify-u1.mjs`):
+
+| Locale | Sections rendered | Console errors | Untranslated UI chrome |
+| --- | --- | --- | --- |
+| en | 34 | 0 | 92 (expected — this page *is* English) |
+| **ta** | 34 | 0 | **0** |
+| **hi** | 34 | 0 | **0** |
+
+The probe deliberately excludes DB-driven text. Business names, product names,
+review bodies and district names are stored in one language and are **not**
+translatable strings — Tamil pages legitimately show "Sri Balaji Milk Supply"
+and "Milk in Salem".
+
+**NN5 proven by measurement**: the category bar holds 14 items on exactly one
+row (`contentRows: 1`, constant 44px height) at 320/360/414/480/640/768/1024/
+1280/1440/1600/1920 — `wrapsAt: []`.
+
+### Harness traps that produced false greens (all now asserted against)
+
+An earlier run reported "0 untranslated strings in every locale" — from a page
+that had never rendered. Three separate causes, each of which turns a
+non-result into something indistinguishable from a pass:
+
+1. `waitUntil: "networkidle"` never settles (coins pill, notification bell and
+   ad carousel all poll), so the navigation ended on `chrome-error://` and
+   every probe returned empty.
+2. next-intl writes a `NEXT_LOCALE` cookie, so a `/` visit after a `/ta` one
+   redirected mid-run and destroyed the execution context. Each page now gets
+   its own browser context.
+3. **`AuthCluster`'s silent-SSO probe navigates the TOP-LEVEL window** to the
+   AgriID IdP (`:3003`, `prompt=none`). With that app not running the tab
+   landed on the browser error page ~1s after render — blanking the page after
+   the "did it load?" check had already passed. The harness now answers that
+   request with `204` (stay put) and **re-asserts after the capture**.
+
+Point 3 is a pre-existing D10 behaviour, not something U1 introduced, but it is
+worth an owner decision: **if the IdP is unreachable, the consumer home blanks
+into a browser error page.** Recorded here, not fixed — it is outside U1's
+view-layer scope.
+
+### Open items and deviations
+
+1. **`milk_global_header` is no longer mounted.** It sat in the shared layout,
+   is absent from the reference, and stacked a second ad unit directly above
+   the §3 hero. Removing the mount takes it off every milk page, so the slot's
+   inventory needs an owner decision: re-mount per-page on the routes that have
+   no hero of their own, or retire the slot.
+2. **M3 sponsored injection is not on the home vendor grid.** The home is ISR;
+   injecting a per-viewer ad would cache one advertiser for everyone for an
+   hour and break impression caps. Injection stays on the dynamic
+   `/{city}/{pincode}` results page, where it already lives — U1 forbids
+   touching that logic, and this respects it. The §8a2 house band ships in the
+   vendor block as specified.
+3. **The home renders a configured pincode** (`HOME_PINCODE`, default 641001),
+   exactly as the reference does, because ISR cannot read the visitor's
+   location cookie without going dynamic. The header pill can therefore show a
+   different pincode than the sections — worth an owner view.
+4. **House-ad art is generated from the English copy.** Ad *copy* is per-locale
+   in the DB, but `seed_sample_media.py` renders one image from the `en`
+   variant, so the hero art reads English on `/ta`. Dev seed art only; real
+   advertisers upload their own creative.
+5. **Delivery window and coverage-pincode lines** from the reference's vendor
+   card are not on the `covers()` wire payload, so they are not rendered rather
+   than faked.

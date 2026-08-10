@@ -13,6 +13,7 @@ Run:
     .venv/Scripts/python.exe scripts/seed_sample_media.py
 """
 
+import argparse
 import asyncio
 import io
 
@@ -35,7 +36,18 @@ _LEGACY_AD_PREFIX = "ads/sample/"  # first seed run used this; migrated below
 _PRODUCT_PREFIX = "products/sample/"
 _MAX_PRODUCTS = 80
 _DEFAULT_AD_SIZE = (1200, 628)
-_SLOT_SIZES = {"milk_home_hero_xl": (1600, 420)}
+# Creative size per slot. A slot is a SHAPE, not just a key: one 1200x628
+# master cropped into a 64px banner box renders as an unreadable slice of
+# giant text (AdImage is object-cover by contract). Each slot gets art at the
+# ratio its reserved box actually uses.
+_SLOT_SIZES = {
+    "milk_home_hero_xl": (1600, 420),  # U1 §3 full-bleed home hero
+    "milk_global_header": (1200, 160),  # thin page-head banner
+    "milk_category_banner": (1200, 160),  # U1 §5d partner banner
+    "milk_search_inline": (1200, 160),
+    "milk_profile_footer": (1200, 200),
+    "milk_sponsored_listing": (800, 600),  # M3.B injected card
+}
 
 # Milk-ish palette for generated cards (content, not UI - token rule doesn't apply)
 _PALETTE = [
@@ -73,7 +85,7 @@ def _make_card(lines: list[str], *, size: tuple[int, int], colors: tuple[str, st
     return jpeg
 
 
-async def _seed_creative_media(session: AsyncSession) -> int:
+async def _seed_creative_media(session: AsyncSession, reimage: bool = False) -> int:
     house = await session.scalar(select(Business).where(Business.name == _HOUSE_BUSINESS))
     if house is None:
         print("seed_sample_media: no house business - run seed_house_ads.py first")  # noqa: T201
@@ -88,7 +100,11 @@ async def _seed_creative_media(session: AsyncSession) -> int:
     ).all()
     done = 0
     for index, (creative, campaign_name, slot_key) in enumerate(rows):
-        if creative.media_keys and not creative.media_keys[0].startswith(_LEGACY_AD_PREFIX):
+        if (
+            not reimage
+            and creative.media_keys
+            and not creative.media_keys[0].startswith(_LEGACY_AD_PREFIX)
+        ):
             continue  # already has media under the public prefix - idempotent skip
         copy_en = (creative.copy or {}).get("en", {})
         title = copy_en.get("title", campaign_name)
@@ -139,16 +155,22 @@ async def _seed_product_media(session: AsyncSession) -> int:
     return done
 
 
-async def run() -> None:
+async def run(reimage: bool = False) -> None:
     # ONE grant only - see prefix comment above (policy calls replace, not merge)
     await storage.ensure_prefix_public_read("products/")
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
-        creatives = await _seed_creative_media(session)
+        creatives = await _seed_creative_media(session, reimage)
         products = await _seed_product_media(session)
         await session.commit()
     print(f"seed_sample_media: {creatives} creatives + {products} products imaged")  # noqa: T201
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--reimage",
+        action="store_true",
+        help="regenerate house-ad art at the current per-slot size (see _SLOT_SIZES)",
+    )
+    asyncio.run(run(parser.parse_args().reimage))

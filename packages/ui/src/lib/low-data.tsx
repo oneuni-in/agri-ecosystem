@@ -31,7 +31,17 @@ export function useLowData(): boolean {
   );
 }
 
-export function LowDataToggle({ label }: { label: string }) {
+export function LowDataToggle({
+  label,
+  onLabel = "ON",
+  offLabel = "OFF",
+}: {
+  label: string;
+  /** Translated state words — the toggle sits in the footer of a fully
+   * localised page, so "ON"/"OFF" must not stay English there. */
+  onLabel?: string;
+  offLabel?: string;
+}) {
   const on = useLowData();
   return (
     <button
@@ -42,7 +52,7 @@ export function LowDataToggle({ label }: { label: string }) {
       onClick={() => setLowData(!on)}
       className="tap-target whitespace-nowrap text-[12px] font-bold text-sub"
     >
-      {label}: {on ? "ON" : "OFF"}
+      {label}: {on ? onLabel : offLabel}
     </button>
   );
 }

@@ -23,3 +23,21 @@ export function hotlineHref(number: string): string {
 export function advertiseHref(base: string): string {
   return `${base.replace(/\/+$/, "")}/business/ads`;
 }
+
+/**
+ * The rate-card line ("from ₹499/week"). U1's binding rules call this out by
+ * name: changing it in config must update the CTA tile, the advertise band and
+ * the footer together — so it lives here and nowhere else.
+ */
+export const ADVERTISE_AMOUNT: string = process.env.NEXT_PUBLIC_ADVERTISE_AMOUNT ?? "₹499";
+
+/** The amount is config; the "/week" suffix is a translated string, so the
+ * rate card reads correctly in Tamil and Hindi instead of leaving an English
+ * word inside an otherwise localised sentence. */
+export function advertisePrice(perWeek: string): string {
+  return `${ADVERTISE_AMOUNT}${perWeek}`;
+}
+
+/** theorganic.in is not live yet (§10). Unset → the family tile renders as a
+ * "coming soon" item instead of a link to nowhere. */
+export const ORGANIC_URL: string = process.env.NEXT_PUBLIC_ORGANIC_URL ?? "";

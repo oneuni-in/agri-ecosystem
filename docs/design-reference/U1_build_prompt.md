@@ -1,6 +1,8 @@
 # PASTE-READY CLAUDE CODE PROMPT — SPEC U1: MILK.IN HOME REBUILD TO APPROVED REFERENCE
-# Repo prep BEFORE pasting: copy milkin_home_reference.html into the repo at
-#   docs/ui/reference/milkin_home_reference.html   (commit it — it is the binding visual spec)
+# Repo prep BEFORE pasting: ensure these exist and are committed:
+#   docs/design-reference/milkin_home_reference.html  ← BINDING spec (responsive, numbered sections)
+#   docs/design-reference/desktop v3.html · mobile v4.html  ← supplementary visual snapshots only;
+#     where they disagree with milkin_home_reference.html, the reference wins.
 # Then open a FRESH Claude Code session in D:\agri-ecosystem and paste everything below the line.
 
 ═══════════════════════════════════════════════════════════════
@@ -52,13 +54,13 @@ checkpoint summary — do not silently skip):
 
 CONTEXT: The Milk.in home (apps/web-milk, route /en and locale siblings) works end-to-end but is
 visually unfinished. A human-approved reference implementation exists at
-docs/ui/reference/milkin_home_reference.html — a single self-contained file with desktop AND
+docs/design-reference/milkin_home_reference.html — a single self-contained file with desktop AND
 mobile behavior (resize to see both). Your job is to make the REAL home page match that
 reference: same section order, same tokens, same responsive behavior — but wired to the real
 data sources listed per-section below. The kitchen sink at apps/web-agri /demo?theme=milk is
 the component catalog; every new pattern lands there FIRST as a named section, then on the page.
 
-READ FIRST (in order): 1. docs/ui/reference/milkin_home_reference.html (the spec) ·
+READ FIRST (in order): 1. docs/design-reference/milkin_home_reference.html (the spec) ·
 2. /demo?theme=milk source (existing catalog) · 3. the home page as built today. Produce a
 gap list (component-by-component: token deviations + structure deviations) in your plan BEFORE
 writing code.
@@ -190,7 +192,7 @@ BACKEND BINDING TABLE (UI section → built source; a section may NOT ship on mo
   Bottom nav Ask/mic.... D25 voice-first post-need route
 
 BINDING PROOF (mandatory — "wired" must be demonstrated, not claimed):
-For EVERY section in the table above, docs/ui/polish-u1.md must record: (a) the exact
+For EVERY section in the table above, docs/design-reference/polish-u1.md must record: (a) the exact
 endpoint / server function / query the section renders from, and (b) a mutation check —
 change the underlying data in the dev DB or via the existing admin, reload, show the UI
 changed. Examples of the required checks:
@@ -217,14 +219,14 @@ demo data) · no touching delivery/injection/tracking logic · no search bar in 
 hardcoded category list · no raw hex · no new fonts · no localStorage · no third-party UI kits ·
 no autoplay without prefers-reduced-motion respect.
 NON-NEGOTIABLES: 1. side-by-side match: real home vs reference at 360/768/1024/1440px
-(screenshots into docs/ui/polish-u1.md, before + after) · 2. Lighthouse ≥90 mobile on home
+(screenshots into docs/design-reference/polish-u1.md, before + after) · 2. Lighthouse ≥90 mobile on home
 with hero carousel live · 3. TA/HI render without layout break on every section (screenshots) ·
 4. existing tests green, ESPECIALLY M3 organic-order-identical and approved-creative-only ·
 5. category bar never wraps at any viewport 320–1920px (test or documented manual check).
 THREAT MODEL: CLS from hero/category bar (reserved boxes) · regression into delivery logic
 disguised as styling (diff review: only view-layer files may change beyond tokens/seeds/config) ·
 i18n gaps · kitchen-sink drift (new components missing from demo page).
-DoD: gap list → build → 5 NNs green → screenshots in docs/ui/polish-u1.md → STOP. Do NOT
+DoD: gap list → build → 5 NNs green → screenshots in docs/design-reference/polish-u1.md → STOP. Do NOT
 proceed to other pages. Present the home before/after for human approval. Same-day PR → dev:
 `feat(u1): milk.in home rebuilt to approved v7 reference`.
 

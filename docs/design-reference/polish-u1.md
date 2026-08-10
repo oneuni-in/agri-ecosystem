@@ -451,6 +451,54 @@ clean runner is the arbiter. If it fails there too, the honest options are a
 carve-out for this route or shipping fewer cards above the fold — a product
 decision, not one to smuggle in as a styling tweak.
 
+### 4d. Demo depth, second pass — and the two engine caps
+
+`seed_u1_demo.py` now seeds the **launch cluster** (641001 plus 641002 / 641004
+/ 641005 / 641007 / 641011) rather than one pincode, and a **field of four
+advertisers** rather than one. Still idempotent (`+0 / +0 / +0` on a re-run).
+
+| Pincode | vendors | brands | verified | recommended | price bands |
+| --- | --- | --- | --- | --- | --- |
+| 641001 | 13 | 6 | 19 | 3 | 5 |
+| 641002 | 7 | 3 | 10 | 3 | 4 |
+| 641005 | 9 | 3 | 12 | 3 | 4 |
+| 641011 | 9 | 3 | 12 | 3 | 5 |
+
+Seeding the cluster is what makes the §4a pincode switcher worth using —
+before it, changing location landed on a near-empty page.
+
+Ad inventory: `milk_home_hero_xl` 5 placements / 4 advertisers (the carousel's
+`AD_CAROUSEL_MAX`), `milk_sponsored_listing` 10 / 5, `milk_category_banner`
+4 / 3. Placements carry distinct weights so share-of-voice rotation has
+something to rotate between.
+
+**Two caps this data deliberately cannot exceed**, and they are features:
+
+* **Recommended is capped at 3** (`RECOMMENDED_LIMIT`). More verified,
+  well-reviewed businesses *compete* for those three slots; they never add a
+  fourth. Paid signals can never enter that ranking at all (M3.C).
+* **Sponsored listings are capped at 2 per page** (`MAX_SPONSORED_PER_PAGE`,
+  at `SPONSORED_POSITIONS` 0 and 5). More advertisers change *which* card
+  appears, not how many.
+
+### Why ads "suddenly stop showing" in dev
+
+Not a bug — the anti-fraud frequency cap. `ads_freq_cap_per_day = 3`, applied
+**per placement, per viewer**, and in dev every request from one machine hashes
+to a single viewer. Measured on the live page:
+
+| page load | sponsored cards | hero slides |
+| --- | --- | --- |
+| 1–3 | 2 | 5 |
+| 4+ | **0** | **0** |
+| after `--reset-caps` | 2 | 5 |
+
+In production each visitor has their own hash and their own three. It became
+more visible once the hero moved to a server-side serve (§4c), because the hero
+now draws from that same per-viewer bucket on every render. Any script that
+loads the page repeatedly must reset caps between loads, which is why both
+`capture-u1.mjs` and `verify-u1.mjs` do.
+
 ### Open items and deviations
 
 1. **`milk_global_header` unmounted — owner-approved.** It sat in the shared

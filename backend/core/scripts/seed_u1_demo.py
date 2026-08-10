@@ -41,7 +41,10 @@ from modules.identity import service as identity_service
 from shared.db import get_sessionmaker
 from shared.dev_only import refuse_in_prod
 
-_DEFAULT_PINCODE = "641001"
+# The launch pincode plus its neighbours. Seeding the cluster (not just one
+# pincode) is what makes the header's pincode switcher worth using: before
+# this, changing location landed on a near-empty page.
+_DEFAULT_PINCODES = ["641001", "641002", "641004", "641005", "641007", "641011"]
 # How many covering businesses to verify / review. Deliberately a MINORITY of
 # the ~100 covering rows: a directory where everything is verified teaches the
 # reader that the badge is meaningless.
@@ -70,60 +73,174 @@ _REVIEW_TEXTS: list[tuple[int, dict[str, str]]] = [
     (4, {"en": "Curd and ghee are also good. Ordering on WhatsApp is easy."}),
 ]
 
-# Sample ADS from a real (non-house) advertiser: geo-targeted to the launch
-# pincode, with a serve budget, so the surfaces demonstrate a paid placement
-# rather than only first-party house fill.
-_ADS: list[tuple[str, str, dict[str, dict[str, str]], str]] = [
+# Sample ADS from real (non-house) advertisers, so the surfaces demonstrate
+# paid placements competing rather than only first-party house fill.
+#
+# Deliberately several advertisers: the hero carousel holds up to
+# AD_CAROUSEL_MAX (5) creatives and the serve engine rotates by weight, so one
+# advertiser proves the plumbing but only a field of them shows rotation,
+# share-of-voice and the "Sponsored" label doing real work.
+#
+# Note the two engine caps this data cannot exceed, by design:
+#   · Recommended is capped at RECOMMENDED_LIMIT (3) - more verified,
+#     well-reviewed businesses compete for those three slots, they do not add
+#     a fourth;
+#   · sponsored listings are capped at MAX_SPONSORED_PER_PAGE (2), at
+#     SPONSORED_POSITIONS 0 and 5. More advertisers vary WHICH card shows.
+_Ad = tuple[str, str, dict[str, dict[str, str]], str]
+
+_ADVERTISERS: list[tuple[str, int, list[_Ad]]] = [
     (
-        "hero",
-        "milk_home_hero_xl",
-        {
-            "en": {
-                "title": "Farm-fresh A2 milk, delivered by 6 AM",
-                "body": "Kovai Dairy Collective - 40 farmer families, one doorstep.",
-            },
-            "ta": {
-                "title": "பண்ணை புதிய A2 பால், காலை 6 மணிக்குள்",
-                "body": "கோவை பால் கூட்டமைப்பு - 40 விவசாய குடும்பங்கள்.",
-            },
-            "hi": {
-                "title": "ताज़ा A2 दूध, सुबह 6 बजे तक",
-                "body": "कोवई डेयरी कलेक्टिव - 40 किसान परिवार।",
-            },
-        },
-        "/coimbatore/641001",
+        "Kovai Dairy Collective",
+        3,
+        [
+            (
+                "hero",
+                "milk_home_hero_xl",
+                {
+                    "en": {
+                        "title": "Farm-fresh A2 milk, delivered by 6 AM",
+                        "body": "40 farmer families, one doorstep.",
+                    },
+                    "ta": {
+                        "title": "பண்ணை புதிய A2 பால், காலை 6 மணிக்குள்",
+                        "body": "40 விவசாய குடும்பங்கள், ஒரே வாசல்.",
+                    },
+                    "hi": {
+                        "title": "ताज़ा A2 दूध, सुबह 6 बजे तक",
+                        "body": "40 किसान परिवार, एक दरवाज़ा।",
+                    },
+                },
+                "/coimbatore/641001",
+            ),
+            (
+                "banner",
+                "milk_category_banner",
+                {
+                    "en": {
+                        "title": "Ghee pressed the old way",
+                        "body": "Wood-churned, this week only.",
+                    },
+                    "ta": {"title": "பாரம்பரிய முறையில் நெய்", "body": "இந்த வாரம் மட்டும்."},
+                    "hi": {"title": "पारंपरिक तरीके से घी", "body": "सिर्फ़ इस हफ़्ते।"},
+                },
+                "/p/ghee",
+            ),
+            (
+                "listing",
+                "milk_sponsored_listing",
+                {
+                    "en": {
+                        "title": "Kovai Dairy Collective",
+                        "body": "Daily cow, buffalo and A2 - covers 641001-641004.",
+                    },
+                    "ta": {
+                        "title": "கோவை பால் கூட்டமைப்பு",
+                        "body": "பசு, எருமை, A2 - 641001-641004 பகுதிகளில்.",
+                    },
+                    "hi": {
+                        "title": "कोवई डेयरी कलेक्टिव",
+                        "body": "गाय, भैंस और A2 - 641001-641004 में।",
+                    },
+                },
+                "/coimbatore/641001",
+            ),
+        ],
     ),
     (
-        "banner",
-        "milk_category_banner",
-        {
-            "en": {
-                "title": "Ghee pressed the old way",
-                "body": "Wood-churned, this week only.",
-            },
-            "ta": {"title": "பாரம்பரிய முறையில் நெய்", "body": "இந்த வாரம் மட்டும்."},
-            "hi": {"title": "पारंपरिक तरीके से घी", "body": "सिर्फ़ इस हफ़्ते।"},
-        },
-        "/p/ghee",
+        "Nilgiri Farm Fresh",
+        2,
+        [
+            (
+                "hero",
+                "milk_home_hero_xl",
+                {
+                    "en": {
+                        "title": "Hill-farm milk, chilled within the hour",
+                        "body": "Glass bottles, collected back every morning.",
+                    },
+                    "ta": {
+                        "title": "மலைப் பண்ணை பால், ஒரு மணி நேரத்தில் குளிரூட்டப்படும்",
+                        "body": "கண்ணாடி பாட்டில், தினமும் திரும்பப் பெறப்படும்.",
+                    },
+                    "hi": {
+                        "title": "पहाड़ी फ़ार्म का दूध, एक घंटे में ठंडा",
+                        "body": "काँच की बोतलें, हर सुबह वापस।",
+                    },
+                },
+                "/coimbatore/641001",
+            ),
+            (
+                "listing",
+                "milk_sponsored_listing",
+                {
+                    "en": {
+                        "title": "Nilgiri Farm Fresh",
+                        "body": "Cow and A2, glass-bottle delivery.",
+                    },
+                    "ta": {"title": "நீலகிரி பண்ணை", "body": "பசு மற்றும் A2, கண்ணாடி பாட்டில்."},
+                    "hi": {"title": "नीलगिरि फ़ार्म फ़्रेश", "body": "गाय और A2, काँच की बोतल।"},
+                },
+                "/coimbatore/641001",
+            ),
+        ],
     ),
     (
-        "listing",
-        "milk_sponsored_listing",
-        {
-            "en": {
-                "title": "Kovai Dairy Collective",
-                "body": "Daily cow, buffalo and A2 - covers 641001-641004.",
-            },
-            "ta": {
-                "title": "கோவை பால் கூட்டமைப்பு",
-                "body": "பசு, எருமை, A2 - 641001-641004 பகுதிகளில்.",
-            },
-            "hi": {
-                "title": "कोवई डेयरी कलेक्टिव",
-                "body": "गाय, भैंस और A2 - 641001-641004 में।",
-            },
-        },
-        "/coimbatore/641001",
+        "Anna Dairy Co-operative",
+        2,
+        [
+            (
+                "hero",
+                "milk_home_hero_xl",
+                {
+                    "en": {
+                        "title": "Curd, paneer and ghee from one co-operative",
+                        "body": "Run by 1,200 member farmers since 1974.",
+                    },
+                    "ta": {
+                        "title": "ஒரே கூட்டுறவில் தயிர், பன்னீர், நெய்",
+                        "body": "1974 முதல் 1,200 உறுப்பினர் விவசாயிகள்.",
+                    },
+                    "hi": {
+                        "title": "एक ही सहकारी से दही, पनीर और घी",
+                        "body": "1974 से 1,200 सदस्य किसान।",
+                    },
+                },
+                "/p/curd",
+            ),
+            (
+                "banner",
+                "milk_category_banner",
+                {
+                    "en": {
+                        "title": "Paneer, pressed to order",
+                        "body": "Same-day, no preservatives.",
+                    },
+                    "ta": {"title": "ஆர்டருக்கு ஏற்ப பன்னீர்", "body": "அன்றைய தினமே, பதப்படுத்தல் இல்லை."},
+                    "hi": {"title": "ऑर्डर पर बना पनीर", "body": "उसी दिन, बिना परिरक्षक।"},
+                },
+                "/p/paneer",
+            ),
+        ],
+    ),
+    (
+        "Sakthi Milk Agencies",
+        1,
+        [
+            (
+                "listing",
+                "milk_sponsored_listing",
+                {
+                    "en": {
+                        "title": "Sakthi Milk Agencies",
+                        "body": "Toned and full-cream, 5 AM drop.",
+                    },
+                    "ta": {"title": "சக்தி பால் ஏஜென்சீஸ்", "body": "டோன்டு மற்றும் ஃபுல் கிரீம், காலை 5 மணி."},
+                    "hi": {"title": "शक्ति मिल्क एजेंसीज़", "body": "टोन्ड और फ़ुल क्रीम, सुबह 5 बजे।"},
+                },
+                "/coimbatore/641001",
+            ),
+        ],
     ),
 ]
 
@@ -229,83 +346,95 @@ async def _review(session: AsyncSession, ids: list[uuid.UUID], authors: list[uui
     return added
 
 
-async def _ads(session: AsyncSession, pincode: str) -> int:
-    """A real advertiser with geo-targeted, budgeted, approved creatives.
+async def _ads(session: AsyncSession, pincodes: list[str]) -> int:
+    """Real advertisers with geo-targeted, budgeted, approved creatives.
 
-    Serve-time `is_servable()` is fail-closed, so the advertiser must be a real
+    Serve-time `is_servable()` is fail-closed, so each advertiser must be a real
     active directory business - the same requirement seed_house_ads.py
     documents for the house advertiser.
-    """
-    advertiser = await session.scalar(select(Business).where(Business.name == _ADVERTISER))
-    if advertiser is None:
-        advertiser = await directory_service.create_business(
-            session,
-            owner_user_id=uuid.uuid4(),  # not an FK into identity (module independence)
-            name=_ADVERTISER,
-            type_="shop",
-            primary_pincode=pincode,
-        )
-        await session.commit()
 
+    Placements are geo-targeted to every seeded pincode and carry distinct
+    weights, so the engine's share-of-voice rotation has something to actually
+    rotate between instead of one creative winning by default.
+    """
     today = date.today()
     added = 0
-    for tag, slot_key, copy, path in _ADS:
-        name = f"Demo - {_ADVERTISER} - {tag}"
-        if await session.scalar(select(Campaign).where(Campaign.name == name)):
-            continue
-        campaign = Campaign(
-            advertiser_business_id=advertiser.id,
-            name=name,
-            status="active",
-            flight_start=today - timedelta(days=1),
-            flight_end=today + timedelta(days=365),
-            budget_display="Demo budget",
-            budget_serves_total=100_000,
-        )
-        session.add(campaign)
-        await session.flush()
-        session.add(
-            Creative(
-                campaign_id=campaign.id,
-                media_keys=[],  # copy-only: renders the text variant, which reads
-                # correctly at every slot size (see seed_sample_media._SLOT_SIZES)
-                copy=copy,
-                target_url=f"http://localhost:3000{path}",
-                moderation_status="approved",
+    for name, weight, ads in _ADVERTISERS:
+        advertiser = await session.scalar(select(Business).where(Business.name == name))
+        if advertiser is None:
+            advertiser = await directory_service.create_business(
+                session,
+                owner_user_id=uuid.uuid4(),  # not an FK into identity (module independence)
+                name=name,
+                type_="shop",
+                primary_pincode=pincodes[0],
             )
-        )
-        session.add(
-            Placement(
-                campaign_id=campaign.id,
-                slot_key=slot_key,
-                geo_target={"pincodes": [pincode]},
-                weight=1,
+            await session.commit()
+
+        for tag, slot_key, copy, path in ads:
+            campaign_name = f"Demo - {name} - {tag}"
+            if await session.scalar(select(Campaign).where(Campaign.name == campaign_name)):
+                continue
+            campaign = Campaign(
+                advertiser_business_id=advertiser.id,
+                name=campaign_name,
+                status="active",
+                flight_start=today - timedelta(days=1),
+                flight_end=today + timedelta(days=365),
+                budget_display="Demo budget",
+                budget_serves_total=100_000,
             )
-        )
-        await session.commit()
-        added += 1
+            session.add(campaign)
+            await session.flush()
+            session.add(
+                Creative(
+                    campaign_id=campaign.id,
+                    media_keys=[],  # copy-only: renders the localised text variant
+                    copy=copy,
+                    target_url=f"http://localhost:3000{path}",
+                    moderation_status="approved",
+                )
+            )
+            session.add(
+                Placement(
+                    campaign_id=campaign.id,
+                    slot_key=slot_key,
+                    geo_target={"pincodes": pincodes},
+                    weight=weight,
+                )
+            )
+            await session.commit()
+            added += 1
     return added
 
 
-async def run(pincode: str) -> None:
+async def run(pincodes: list[str]) -> None:
     refuse_in_prod("seed_u1_demo.py")
     sessionmaker = get_sessionmaker()
+    totals = {"verified": 0, "reviews": 0, "covering": 0}
     async with sessionmaker() as session:
-        ids = await _covering(session, pincode)
-        if not ids:
-            print(f"seed_u1_demo: no covering businesses at {pincode} - run the seeds first")  # noqa: T201
-            return
-        verified = await _verify(session, ids)
         authors = await _authors(session)
-        reviews = await _review(session, ids, authors)
-        ads = await _ads(session, pincode)
+        for pincode in pincodes:
+            ids = await _covering(session, pincode)
+            if not ids:
+                print(f"seed_u1_demo: no covering businesses at {pincode} - skipped")  # noqa: T201
+                continue
+            totals["covering"] += len(ids)
+            totals["verified"] += await _verify(session, ids)
+            totals["reviews"] += await _review(session, ids, authors)
+        ads = await _ads(session, pincodes)
     print(  # noqa: T201
-        f"seed_u1_demo: {len(ids)} covering at {pincode} -> "
-        f"+{verified} verified, +{reviews} approved reviews, +{ads} advertiser campaigns"
+        f"seed_u1_demo: {len(pincodes)} pincode(s), {totals['covering']} covering -> "
+        f"+{totals['verified']} verified, +{totals['reviews']} approved reviews, "
+        f"+{ads} advertiser campaigns"
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pincode", default=_DEFAULT_PINCODE)
-    asyncio.run(run(parser.parse_args().pincode))
+    parser.add_argument(
+        "--pincodes",
+        default=",".join(_DEFAULT_PINCODES),
+        help="comma-separated pincodes to give demo depth (default: the launch cluster)",
+    )
+    asyncio.run(run([p.strip() for p in parser.parse_args().pincodes.split(",") if p.strip()]))

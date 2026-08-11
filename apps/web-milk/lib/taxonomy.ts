@@ -55,11 +55,15 @@ function vernacularFor(label: Record<string, string>, locale: string, primary: s
   return vern && vern !== primary ? vern : "";
 }
 
-export function categoriesFromSchema(payload: unknown, locale: string): ProductCategory[] {
+export function categoriesFromSchema(
+  payload: unknown,
+  locale: string,
+  fieldKey = "category",
+): ProductCategory[] {
   const fields = (payload as { fields?: unknown } | null)?.fields;
   if (!Array.isArray(fields)) return [];
   const field = fields.find(
-    (f) => (f as { key?: string })?.key === "category",
+    (f) => (f as { key?: string })?.key === fieldKey,
   ) as { options?: unknown; option_meta?: Record<string, SchemaOptionMeta> } | undefined;
   if (!field || !Array.isArray(field.options)) return [];
   const meta = field.option_meta ?? {};
@@ -84,13 +88,33 @@ export function categoriesFromSchema(payload: unknown, locale: string): ProductC
  * `fetchCoveredPincodes` in lib/milk.ts, which sitemap generation relies on).
  */
 export async function fetchProductCategories(locale: string): Promise<ProductCategory[]> {
+  return (await fetchSchemaOptions(locale, "category")) ?? [];
+}
+
+/**
+ * The `milk_type` value set (cow / buffalo / a2 / toned / organic / mixed),
+ * read from the SAME D17 schema and the SAME `option_meta` labels as the
+ * categories. This is what makes the §5c type chips localise: at `/ta` the
+ * primary label is the Tamil one, so nothing English survives.
+ *
+ * `MILK_TYPE_META` in `lib/milk.ts` is presentation-only fallback (icons and
+ * a vernacular line for legacy callers) — it must never be the label source.
+ */
+export async function fetchMilkTypes(locale: string): Promise<ProductCategory[]> {
+  return (await fetchSchemaOptions(locale, "milk_type")) ?? [];
+}
+
+async function fetchSchemaOptions(
+  locale: string,
+  fieldKey: string,
+): Promise<ProductCategory[] | null> {
   try {
     const res = await fetch(`${API}/catalog/verticals/milk/schema`, {
       next: { revalidate: 3600 },
     });
-    if (!res.ok) return [];
-    return categoriesFromSchema(await res.json(), locale);
+    if (!res.ok) return null;
+    return categoriesFromSchema(await res.json(), locale, fieldKey);
   } catch {
-    return [];
+    return null;
   }
 }

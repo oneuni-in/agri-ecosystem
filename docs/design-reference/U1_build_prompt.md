@@ -7,7 +7,7 @@
 
 ═══════════════════════════════════════════════════════════════
 ## SPEC U1 — MILK.IN CONSUMER HOME → APPROVED v7 REFERENCE
-   (~6h) · feat/u1-milk-home-ui · UI-ONLY
+    · feat/u1-milk-home-ui · UI-ONLY
 ═══════════════════════════════════════════════════════════════
 EXECUTION PLAN — CHECKPOINT SUB-SPRINTS (context management, MANDATORY):
 Work in three passes. At the end of EACH pass: run the pass's verification commands, commit

@@ -5,8 +5,11 @@ import { cn } from "../lib/cn";
 type PillButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
 /** Glass pill on the header gradient (`.loc-pill` / `.lang-pill`). */
+// `whitespace-nowrap`: below `sm` the location pill drops its label and is
+// left with just "📍 ▾", narrow enough that the two glyphs wrapped onto two
+// lines and rendered the pill as a squashed circle in a single-row header.
 const glass =
-  "tap-target flex items-center gap-1.5 rounded-pill border border-white/30 bg-glass px-3.5 py-[7px] text-[13px] font-semibold text-white";
+  "tap-target flex items-center gap-1.5 whitespace-nowrap rounded-pill border border-white/30 bg-glass px-3.5 py-[7px] text-[13px] font-semibold text-white";
 
 export function LocationPill({ className, children, ...props }: PillButtonProps) {
   return (
@@ -59,7 +62,12 @@ export function CoinsPill({
       )}
       {...props}
     >
-      🪙 {amount}
+      {/* Below `sm` the pill is the glyph alone. The signed-in cluster
+          (coins + bell + avatar) measured 402px across a 393px phone on
+          Linux glyph metrics — a 9px overflow Windows fonts hid — and the
+          balance digits are the one element here that is information, not
+          navigation: the full number lives one tap away. */}
+      🪙 <span className="max-sm:hidden">{amount}</span>
     </button>
   );
 }

@@ -16,6 +16,7 @@
     "baseline": "node scripts/capture-baseline.mjs",
     "gen:types": "turbo run gen:types",
     "e2e": "playwright test --config e2e/playwright.config.ts --project=desktop",
+    "e2e:auth": "playwright test --config e2e/playwright.config.ts --project=desktop auth sso bff-path-traversal",
     "e2e:matrix": "playwright test --config e2e/playwright.config.ts --project=mobile-chrome --project=mobile-safari",
     "e2e:api": "node scripts/e2e-api.mjs"
   },

@@ -522,6 +522,7 @@ async def test_milk_slot_keys_are_registered(
     for slot in (
         "milk_global_header",
         "milk_home_hero",
+        "milk_home_hero_xl",  # U1 §3 full-bleed home hero
         "milk_category_banner",
         "milk_search_inline",
         "milk_profile_footer",
@@ -857,15 +858,19 @@ async def test_pending_creative_never_serves_on_milk_slot(
     tn_geo_sample: None,
     ads_redis: Redis,
 ) -> None:
-    """M2 NON-NEGOTIABLE 1: unapproved/pending creative NEVER renders."""
+    """M2 NON-NEGOTIABLE 1: unapproved/pending creative NEVER renders.
+
+    Covers the U1 §3 hero slot too: it is the most visible surface on the
+    site (full-bleed, above the fold), so "approved creatives only" is
+    asserted on it directly rather than inferred from the shared code path.
+    """
     client, session = api
     await _enable_ads(session)
-    await _seed_ad(
-        session, geo_target={}, slot_key="milk_global_header", moderation_status="pending"
-    )
-    r = await client.get(
-        "/ads/serve",
-        params={"slot": "milk_global_header", "pincode": COIMBATORE_PINCODE, "count": 5},
-    )
-    assert r.status_code == 200
-    assert r.json()["ad"] is None and r.json()["ads"] == []
+    for slot in ("milk_global_header", "milk_home_hero_xl"):
+        await _seed_ad(session, geo_target={}, slot_key=slot, moderation_status="pending")
+        r = await client.get(
+            "/ads/serve",
+            params={"slot": slot, "pincode": COIMBATORE_PINCODE, "count": 5},
+        )
+        assert r.status_code == 200, (slot, r.text)
+        assert r.json()["ad"] is None and r.json()["ads"] == [], slot

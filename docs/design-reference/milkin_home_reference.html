@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>milk.in — home reference (U1 approved v7)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   milk.in home — U1 APPROVED REFERENCE (v7)
+   Single-file sample. Tokens first; structure per frozen spec.
+   Breakpoints: mobile <768 · tablet 768–1023 · desktop >=1024
+   ============================================================ */
+:root{
+  /* existing milk theme tokens */
+  --mk:#2563A8; --mk-deep:#174A85; --mk-soft:#E9F1FA; --mk-soft-2:#B9D2EE;
+  --mk-accent:#E9A61C; --mk-accent-ink:#4A2E00;
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --wa:#22B45A; --call:#22A34F; --wa-tint:#E8F7EE; --wa-border:#BFE7CE; --wa-ink:#0F6E42;
+  /* NEW tokens introduced by U1 (enter design system before use) */
+  --paper:#FDFBF6;           /* cream page background */
+  --paper-border:#EDE6D6;    /* cream hairline */
+  --paper-deep:#F4F0E6;      /* footer-adjacent cream */
+  --ad-border:#E9A61C;       /* golden sponsored border */
+  --trust-bg:#FEFAF0;        /* highlighted trust card */
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+h1,h2,.display{font-family:var(--font-display)}
+h2{font-size:18px;font-weight:600;margin-bottom:10px}
+:focus-visible{outline:3px solid var(--mk);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- buttons (primitives — binding) ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500;border-radius:10px;min-height:44px;padding:10px 18px;font-size:14px}
+.btn-primary{background:var(--mk);color:#fff}
+.btn-money{background:var(--mk-accent);color:var(--mk-accent-ink);border-radius:99px}
+.btn-call{background:var(--call);color:#fff}
+.btn-wa{background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink)}
+.btn-tertiary{background:var(--paper);color:var(--mk-deep)}
+.badge{font-size:11px;font-weight:500;border-radius:99px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px}
+.badge-sponsored{background:var(--mk-accent);color:var(--mk-accent-ink)}
+.badge-verified{background:#E1F5EE;color:#085041}
+.badge-reco{background:#FAEEDA;color:#854F0B}
+
+/* ---------- 1. utility strip ---------- */
+.util{background:var(--mk-deep);color:var(--mk-soft-2);font-size:12px}
+.util .wrap{display:flex;align-items:center;gap:16px;padding-top:6px;padding-bottom:6px}
+.util .spacer{flex:1}
+.util .hotline{background:var(--mk-accent);color:var(--mk-accent-ink);border-radius:5px;padding:3px 9px;font-weight:500;white-space:nowrap}
+@media(max-width:767px){.util .link{display:none}}
+
+/* ---------- 2. main header ---------- */
+.hdr{background:var(--mk);color:#fff}
+.hdr .wrap{display:flex;align-items:center;gap:18px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;flex-direction:column;line-height:1.05}
+.brand b{font-family:var(--font-display);font-weight:600;font-size:22px}
+.brand small{color:var(--mk-soft-2);font-size:10px}
+.hdr .loc{font-size:13px;color:var(--mk-soft);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.hdr .spacer{flex:1}
+.hdr .lang{font-size:13px;color:var(--mk-soft)}
+.coins{background:#FEF3DC;color:#854F0B;font-weight:500;font-size:13px;border-radius:99px;padding:5px 12px;display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.bell{position:relative;font-size:18px}
+.bell i{font-style:normal}
+.bell .n{position:absolute;top:-6px;right:-9px;background:var(--mk-accent);color:var(--mk-accent-ink);font-size:9px;font-weight:500;border-radius:99px;padding:1px 5px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--mk-accent);color:var(--mk-deep);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+@media(max-width:767px){.hdr .acct-label{display:none}.hdr .wrap{gap:8px}.hdr .lang{font-size:11px}}
+
+/* ---------- 3. hero ad (full-bleed, D21 slot milk_home_hero_xl) ---------- */
+.hero-ad{background:var(--mk-deep);color:#fff;position:relative}
+.hero-ad .inner{max-width:1180px;margin:0 auto;padding:34px 64px;display:flex;align-items:center;gap:24px;min-height:300px}
+.hero-ad h1{font-size:clamp(22px,3.4vw,36px);font-weight:600;line-height:1.18;max-width:14em}
+.hero-ad p{color:var(--mk-soft-2);font-size:14px;margin:10px 0 20px;max-width:34em}
+.hero-ad .creatives{margin-left:auto;display:flex;gap:18px}
+.panel{width:185px;height:225px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px}
+.panel.a{background:var(--mk-soft);color:var(--mk-deep)}
+.panel.b{background:var(--mk);border:1px solid rgba(255,255,255,.22);color:var(--mk-soft-2)}
+.panel .glyph{font-size:64px;line-height:1}
+.ad-tag{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.92);color:#854F0B;font-size:11px;font-weight:500;border-radius:6px;padding:2px 9px}
+.hero-nav{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hero-nav.prev{left:14px}.hero-nav.next{right:14px}
+.dots{display:flex;justify-content:center;gap:6px;padding:10px 0 0}
+.dots span{width:8px;height:5px;border-radius:99px;background:#D8D2C2}
+.dots .on{width:22px;background:var(--mk)}
+@media(max-width:767px){
+  .hero-ad .inner{padding:20px 18px 30px;min-height:0;gap:14px}
+  .hero-ad p{font-size:11px;margin:6px 0 12px}
+  .creatives .panel.b{display:none}
+  .panel{width:96px;height:112px}.panel .glyph{font-size:34px}
+  .hero-nav{display:none}
+}
+
+/* ---------- 4. search band ---------- */
+.search-band{background:var(--mk);color:#fff;border-radius:var(--radius-lg);margin:14px 0 0;padding:26px 20px 28px;text-align:center}
+.search-band h1{font-size:clamp(19px,2.4vw,27px);font-weight:600}
+.search-band .sub{color:#CFE0F2;font-size:13px;margin:6px 0 16px}
+.pin-row{max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:6px 6px 6px 18px;display:flex;align-items:center;gap:10px}
+.pin-row input{flex:1;border:0;font-size:16px;font-weight:500;letter-spacing:2px;color:var(--ink);min-width:0;font-family:inherit}
+.pin-row input:focus{outline:none}
+.geo{display:inline-block;margin-top:12px;font-size:12px;color:var(--mk-soft);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:5px 14px}
+
+/* ---------- 5. category bar (overflow rule §5) ---------- */
+.cat-bar{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius);margin-top:12px;padding:10px 16px;display:flex;align-items:center;gap:22px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cat-bar::-webkit-scrollbar{display:none}
+.cat-bar>*{flex:0 0 auto}
+.cat-bar a{font-size:13px;color:var(--ink)}
+.cat-bar a.active{color:var(--mk-deep);font-weight:500;border-bottom:2px solid var(--mk);padding-bottom:6px;margin-bottom:-6px}
+.cat-bar a.more{color:var(--mk)}
+.cat-bar .pin-right{margin-left:auto;display:flex;gap:18px}
+@media(max-width:1023px){.cat-bar .pin-right{display:none}} /* filters leave the bar on mobile/tablet */
+
+/* ---------- 6. organic trust row ---------- */
+.section{margin-top:20px}
+.trust-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1.15fr;gap:10px}
+.trust-card{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:11px}
+.trust-card.hl{background:var(--trust-bg);border-color:var(--mk-accent)}
+.trust-ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.trust-card b{display:block;font-size:12.5px;font-weight:500}
+.trust-card small{font-size:10.5px;color:var(--muted)}
+@media(max-width:767px){.trust-grid{grid-template-columns:1fr 1fr}}
+
+/* ---------- 7. certified products (cross-vertical showcase) ---------- */
+.row-head{display:flex;align-items:baseline;justify-content:space-between}
+.row-head .see{font-size:12px;color:var(--mk)}
+.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.card{background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden}
+.card .media{height:84px;display:flex;align-items:center;justify-content:center;font-size:34px}
+.card .body{padding:10px 12px}
+.card .cert{font-size:9.5px;font-weight:500;border-radius:99px;padding:2px 8px}
+.card b{display:block;font-size:12.5px;font-weight:500;margin:5px 0 2px}
+.card .meta{font-size:10.5px;color:var(--muted);margin-bottom:8px}
+.card .btn{width:100%;min-height:38px;font-size:12px;border-radius:9px;padding:8px 0}
+@media(max-width:767px){.prod-grid{grid-template-columns:1fr 1fr}}
+
+/* ---------- 8. vendors ---------- */
+.vendor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.vendor{position:relative}
+.vendor.sponsored{border:2px solid var(--ad-border)}
+.vendor .float-badge{position:absolute;top:-9px;left:12px}
+.vendor .name-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.vendor .actions{display:flex;gap:7px;margin-top:9px}
+.vendor .actions .btn{flex:1;min-height:40px;font-size:12.5px;padding:8px 0;border-radius:10px}
+@media(max-width:767px){.vendor-grid{grid-template-columns:1fr}}
+
+/* ---------- 9. big CTA tiles ---------- */
+.cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+.cta{border-radius:var(--radius-lg);padding:20px 22px;color:#fff}
+.cta.blue{background:var(--mk)}.cta.deep{background:var(--mk-deep)}
+.cta .em{font-size:22px}
+.cta b{display:block;font-family:var(--font-display);font-size:17px;font-weight:600;margin:7px 0 4px}
+.cta p{font-size:12px;color:var(--mk-soft-2);margin-bottom:13px}
+@media(max-width:767px){.cta-grid{grid-template-columns:1fr}}
+
+/* ---------- 10. family strip ---------- */
+.family{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.family a{border-radius:var(--radius);padding:11px 16px;color:#fff}
+.family b{font-size:13px;font-weight:500}
+.family small{display:block;font-size:10px;opacity:.85}
+.family .milk{background:var(--mk)}.family .org{background:#3B6D11}.family .coin{background:#854F0B}
+
+/* ---------- 11. footer ---------- */
+footer{background:var(--mk-deep);color:var(--mk-soft-2);margin-top:24px}
+.foot-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:20px;padding:26px 0 18px}
+.foot-grid h3{color:#fff;font-size:12px;font-weight:500;margin-bottom:8px}
+.foot-grid ul{list-style:none;font-size:11px;line-height:2.1}
+.foot-brand b{font-family:var(--font-display);color:#fff;font-size:17px;font-weight:600}
+.foot-brand p{font-size:11px;line-height:1.7;margin:6px 0 12px}
+.socials{display:flex;gap:8px}
+.socials span{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mk-soft)}
+.legal{border-top:1px solid rgba(255,255,255,.18);padding:12px 0;display:flex;align-items:center;gap:16px;font-size:10.5px}
+.legal .spacer{flex:1}
+@media(max-width:767px){
+  .foot-grid{grid-template-columns:1fr 1fr;padding:22px 0 14px}
+  .foot-grid .foot-brand{grid-column:1/-1}
+  .legal{flex-direction:column;align-items:flex-start;gap:4px}
+}
+
+/* ---------- 12. mobile bottom nav ---------- */
+.bottom-nav{display:none}
+@media(max-width:767px){
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid #DCE4D8;z-index:50;align-items:center}
+  .bottom-nav a{flex:1;text-align:center;font-size:10px;color:var(--sub)}
+  .bottom-nav a.on{color:var(--mk)}
+  .bottom-nav .ic{display:block;font-size:19px;font-style:normal}
+  .bottom-nav .mic{width:46px;height:46px;margin:-20px auto 0;border-radius:50%;background:var(--mk);border:3px solid var(--paper);display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px}
+}
+
+/* ---------- trending-design layer (2026 marketplace conventions) ---------- */
+.card,.trust-card,.cta,.vendor{transition:transform .18s ease,box-shadow .18s ease}
+.card:hover,.trust-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(23,74,133,.08)}
+.hero-ad{background:linear-gradient(115deg,var(--mk-deep) 0%,#1E5A9E 55%,var(--mk) 100%)}
+.search-band{background:linear-gradient(135deg,var(--mk) 0%,#1E5A9E 100%)}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
+
+/* live price ticker (D23 price data) */
+.ticker{background:#EFF6FF;border:1px solid var(--mk-soft-2);border-radius:99px;margin-top:12px;overflow:hidden;position:relative}
+.ticker .lane{display:flex;gap:34px;padding:8px 0;white-space:nowrap;animation:tick 28s linear infinite;width:max-content}
+.ticker:hover .lane{animation-play-state:paused}
+.ticker span{font-size:12px;color:var(--mk-deep)}
+.ticker b{color:var(--ink);font-weight:500}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){.ticker .lane{animation:none}}
+
+/* stats band (directory/leads counts) */
+.stats{background:#F3F8EF;border:1px solid #DCEAD0;border-radius:var(--radius-lg);display:flex;margin-top:20px}
+.stats>div{flex:1;text-align:center;padding:16px 8px}
+.stats>div+div{border-left:1px solid #DCEAD0}
+.stats b{font-family:var(--font-display);font-size:24px;font-weight:600;color:#3B6D11;display:block}
+.stats small{font-size:11px;color:var(--sub)}
+@media(max-width:767px){.stats{flex-wrap:wrap}.stats>div{flex:1 1 50%}.stats>div:nth-child(3){border-left:0}}
+
+/* how it works */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.step{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:16px;text-align:center}
+.step .n{width:38px;height:38px;margin:0 auto 8px;border-radius:50%;background:var(--mk-soft);color:var(--mk-deep);font-weight:600;font-family:var(--font-display);display:flex;align-items:center;justify-content:center;font-size:16px}
+.step b{font-size:13px;font-weight:500;display:block}
+.step small{font-size:11px;color:var(--muted)}
+@media(max-width:767px){.steps{grid-template-columns:1fr}}
+
+/* reviews strip (D18 reviews engine) */
+.reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.review{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:14px}
+.review .stars{color:#E9A61C;font-size:12px;letter-spacing:2px}
+.review p{font-size:12px;color:var(--ink);margin:7px 0 9px;line-height:1.55}
+.review .who{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.review .who .av{width:24px;height:24px;border-radius:50%;background:var(--mk-soft);color:var(--mk-deep);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center}
+@media(max-width:767px){.reviews{grid-template-columns:1fr}}
+
+/* popular cities (ISR city pages / SEO) */
+.cities{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cities a{background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:8px 15px;font-size:12px;color:var(--ink)}
+.cities a:hover{border-color:var(--mk);color:var(--mk-deep)}
+
+/* app / PWA band (D28) */
+.app-band{background:linear-gradient(120deg,var(--mk-deep),#0F3A6E);border-radius:var(--radius-lg);margin-top:20px;padding:22px 24px;display:flex;align-items:center;gap:18px;color:#fff}
+.app-band .em{font-size:34px}
+.app-band b{font-family:var(--font-display);font-size:17px;font-weight:600;display:block}
+.app-band p{font-size:12px;color:var(--mk-soft-2);margin-top:3px}
+.app-band .spacer{flex:1}
+@media(max-width:767px){.app-band{flex-direction:column;align-items:flex-start}.app-band .spacer{display:none}}
+
+/* FAQ accordion (SEO/JSON-LD) */
+.faq{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.faq details{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius);padding:0 16px}
+.faq summary{list-style:none;cursor:pointer;font-size:13px;font-weight:500;padding:13px 0;display:flex;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';margin-left:auto;font-size:16px;color:var(--mk)}
+.faq details[open] summary::after{content:'–'}
+.faq .a{font-size:12px;color:var(--sub);padding:0 0 13px;line-height:1.6}
+
+
+/* milk-type icon filter chips (5c) */
+.type-chips{display:flex;gap:9px;margin-top:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.type-chips::-webkit-scrollbar{display:none}
+.type-chips a{flex:0 0 auto;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:10px 14px;text-align:center;min-width:76px}
+.type-chips a.active{background:var(--mk-soft);border-color:var(--mk)}
+.type-chips .ic{font-size:22px;display:block;margin-bottom:3px}
+.type-chips b{font-size:11.5px;font-weight:500;display:block;color:var(--ink)}
+.type-chips small{font-size:9.5px;color:var(--muted)}
+
+/* richer vendor card details */
+.vendor .price-line{font-size:13px;color:var(--ink);margin:4px 0 2px}
+.vendor .price-line b{font-weight:600}
+.vendor .detail{font-size:10.5px;color:var(--sub);display:flex;align-items:center;gap:5px;margin-top:3px}
+.vendor .pill{font-size:10px;font-weight:500;border-radius:99px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center;margin-bottom:6px}
+.pill-verified{background:#DDF2E4;color:#0F6E42}
+.pill-sponsored{background:#FAEEDA;color:#854F0B}
+
+/* brands available (8f) */
+.brand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.brand-card{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 14px}
+.brand-card .top{display:flex;gap:11px;align-items:center}
+.brand-card .logo{width:44px;height:44px;border-radius:11px;background:var(--mk-soft);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.brand-card b{font-size:13.5px;font-weight:500;display:block}
+.brand-card .meta{font-size:11px;color:var(--sub);line-height:1.5}
+.brand-card .go{display:block;margin-top:11px;text-align:center;background:var(--paper-deep);border:1px solid var(--paper-border);border-radius:10px;padding:9px 0;font-size:12px;font-weight:500;color:var(--ink)}
+.brand-card .go:hover{border-color:var(--mk);color:var(--mk-deep)}
+@media(max-width:767px){.brand-grid{grid-template-columns:1fr}}
+
+/* dairy services tiles (8g) */
+.svc-grid{display:flex;gap:10px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.svc-grid::-webkit-scrollbar{display:none}
+.svc-grid a{flex:0 0 auto;width:118px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:14px 8px;text-align:center}
+.svc-grid .ic{width:44px;height:44px;margin:0 auto 7px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.svc-grid b{font-size:11.5px;font-weight:500;display:block;color:var(--ink)}
+.svc-grid small{font-size:9.5px;color:var(--muted)}
+
+
+/* final-version additions (v8): guest state, need-status, partner banner, advertise band, alerts card, coins nudge, skeletons */
+.hdr .btn-login{background:#fff;color:var(--mk-deep);border-radius:99px;padding:7px 16px;font-size:13px;font-weight:500;min-height:0}
+.need-strip{background:#EFF6FF;border-bottom:1px solid var(--mk-soft-2);font-size:12px;color:var(--mk-deep)}
+.need-strip .wrap{display:flex;align-items:center;gap:8px;padding-top:8px;padding-bottom:8px}
+.need-strip b{color:var(--ink)}
+.need-strip .go{margin-left:auto;color:var(--mk);font-weight:500;white-space:nowrap}
+.partner-banner{background:#FAEEDA;border:1px solid var(--paper-border);border-radius:var(--radius);margin-top:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative}
+.partner-banner .ic{font-size:22px}
+.partner-banner b{font-size:13px;font-weight:500;color:#633806;display:block}
+.partner-banner small{font-size:10.5px;color:#854F0B}
+.partner-banner .tag{margin-left:auto;font-size:9.5px;background:#fff;color:#854F0B;border-radius:99px;padding:2px 8px;font-weight:500;white-space:nowrap}
+.advertise-band{background:var(--mk-deep);border-radius:14px;margin-top:10px;padding:13px 15px;display:flex;align-items:center;gap:11px;color:#fff}
+.advertise-band .em{font-size:20px}
+.advertise-band b{font-size:12.5px;font-weight:500;display:block}
+.advertise-band small{font-size:10.5px;color:var(--mk-soft-2)}
+.advertise-band .spacer{flex:1}
+.alert-card{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);margin-top:20px;padding:15px 17px;display:flex;align-items:center;gap:13px}
+.alert-card .em{font-size:24px}
+.alert-card b{font-size:13px;font-weight:500;display:block}
+.alert-card small{font-size:11px;color:var(--muted)}
+.alert-card .spacer{flex:1}
+.coins-nudge{font-size:11px;color:#854F0B;background:#FEF3DC;border-radius:99px;padding:4px 12px;display:inline-flex;gap:5px;align-items:center}
+.skeleton{background:linear-gradient(90deg,#F1EDE2 25%,#FAF7EF 50%,#F1EDE2 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.skeleton{animation:none}}
+.search-mic{font-size:17px;color:var(--mk);padding:0 4px}
+@media(max-width:767px){.hdr .lang-mobile{display:inline;color:var(--mk-soft);font-size:12px}}
+
+</style>
+</head>
+<body>
+
+<!-- 1 · utility strip -->
+<div class="util"><div class="wrap">
+  <span>Every milk near you · பால் · दूध</span>
+  <span class="spacer"></span>
+  <a class="link" href="#list">List your business</a>
+  <a class="link" href="#advertise">Advertise</a>
+  <span class="hotline">Post need on WhatsApp: 96000-00000</span>
+</div></div>
+
+<!-- 2 · main header (no search bar — search lives in the search band) -->
+<header class="hdr"><div class="wrap">
+  <a class="brand" href="/"><b>milk.in</b><small>பால் · दूध · every milk near you</small></a>
+  <button class="loc">📍 Coimbatore · 641001 ▾</button>
+  <span class="spacer"></span>
+  <span class="lang lang-mobile">EN · த · हि</span>
+  <!-- GUEST STATE: when logged out, coins pill + bell + avatar are replaced by:
+       <a class="btn-login" href="/login">Login</a>
+       Contact reveal then gates with "Login to view contact" (D18 rule). -->
+  <span class="coins">🪙 1,240</span>
+  <span class="bell"><i>🔔</i><span class="n">11</span></span>
+  <span style="display:flex;align-items:center;gap:6px"><span class="avatar">A</span><span class="acct-label" style="font-size:13px;color:var(--mk-soft)">Account</span></span>
+</div></header>
+
+
+<!-- 2b · my-need live status strip — D25 both-side status; renders ONLY when user has an active need -->
+<div class="need-strip"><div class="wrap">
+  <span>🥛</span><span>Your need: <b>1L cow milk · daily</b> — <b>2 vendors responded</b></span>
+  <a class="go" href="#">View →</a>
+</div></div>
+
+<!-- 3 · hero ad — full bleed, D21 slot milk_home_hero_xl, approved creatives only -->
+<section class="hero-ad" aria-label="Sponsored banner">
+  <span class="ad-tag">Ad</span>
+  <div class="inner">
+    <div>
+      <h1>Aavin fresh cow milk gives your family full nutrition</h1>
+      <p>Now delivering in 12 more Coimbatore pincodes · farm-collected every morning · உங்கள் வீட்டு வாசலில்</p>
+      <a class="btn btn-money" href="#shops">View shops near you</a>
+    </div>
+    <div class="creatives">
+      <div class="panel a"><span class="glyph">🥛</span>product creative</div>
+      <div class="panel b"><span class="glyph">🧑‍🌾</span>farmer photo</div>
+    </div>
+  </div>
+  <button class="hero-nav prev" aria-label="Previous ad">‹</button>
+  <button class="hero-nav next" aria-label="Next ad">›</button>
+</section>
+<div class="dots" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span></div>
+
+<div class="wrap">
+
+  <!-- 4 · search band -->
+  <section class="search-band">
+    <h1>Milk near you — all options, one place</h1>
+    <div class="sub">All milk in your area · brands, local vendors, farm-fresh delivery</div>
+    <form class="pin-row" action="#" onsubmit="return false">
+      <label for="pin" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Enter pincode</label>
+      <input id="pin" inputmode="numeric" maxlength="6" placeholder="Enter pincode" value="641001">
+      <button class="search-mic" type="button" aria-label="Voice search — D25 voice pipeline">🎙️</button>
+      <button class="btn btn-primary" type="submit">Find milk</button>
+    </form>
+    <button class="geo">📍 Or use my location · என் இடம்</button>
+  </section>
+
+  <!-- 5 · category bar — schema-driven; nowrap horizontal scroll; filters pinned right on desktop, absent on mobile -->
+  <nav class="cat-bar" aria-label="Dairy categories">
+    <a class="active" href="#">All milk</a><a href="#">Ghee</a><a href="#">Paneer</a><a href="#">Curd</a>
+    <a href="#">Yogurt</a><a href="#">Buttermilk</a><a href="#">Cheese</a><a href="#">Butter</a>
+    <a href="#">Milk powder</a><a class="more" href="#">All 13 ›</a>
+    <span class="pin-right"><a href="#">🚚 Home delivery</a><a href="#">🌿 Organic</a></span>
+  </nav>
+
+
+
+  <!-- 5c · milk-type filter chips — D17 milk-type schema values + attribute filters -->
+  <div class="type-chips" role="tablist" aria-label="Milk type filters">
+    <a class="active" href="#"><span class="ic">🥛</span><b>All</b><small>எல்லாம்</small></a>
+    <a href="#"><span class="ic">🐄</span><b>Cow</b><small>பசு</small></a>
+    <a href="#"><span class="ic">🐃</span><b>Buffalo</b><small>எருமை</small></a>
+    <a href="#"><span class="ic">✨</span><b>A2 milk</b><small>ஏ2</small></a>
+    <a href="#"><span class="ic">🌿</span><b>Organic</b><small>இயற்கை</small></a>
+    <a href="#"><span class="ic">🧈</span><b>Curd &amp; ghee</b><small>தயிர் நெய்</small></a>
+    <a href="#"><span class="ic">🏠</span><b>Home delivery</b><small>டெலிவரி</small></a>
+  </div>
+
+
+  <!-- 5d · category-partner banner — D21 slot milk_category_banner surfacing on home (approved only) -->
+  <div class="partner-banner">
+    <span class="ic">🏅</span>
+    <span><b>Sakthi pure ghee — festival offer</b><small>Ghee category partner · this week</small></span>
+    <span class="tag">★ Sponsored</span>
+  </div>
+
+  <!-- 5b · live price ticker — D23 price-banner data, per pincode -->
+  <div class="ticker" aria-label="Today's prices in 641001">
+    <div class="lane">
+      <span>Today in <b>641001</b></span><span>Cow milk <b>₹34–64/L</b></span><span>Buffalo <b>₹70/L</b></span><span>Toned <b>₹22–56/L</b></span><span>A2 <b>₹52/500ml</b></span><span>Ghee <b>₹560–720/kg</b></span><span>Paneer <b>₹90–120/250g</b></span><span>Curd <b>₹30–45/500g</b></span><span><b>32 sellers found</b> in 641001 ·</span>
+      <span>Today in <b>641001</b></span><span>Cow milk <b>₹34–64/L</b></span><span>Buffalo <b>₹70/L</b></span><span>Toned <b>₹22–56/L</b></span><span>A2 <b>₹52/500ml</b></span><span>Ghee <b>₹560–720/kg</b></span><span>Paneer <b>₹90–120/250g</b></span><span>Curd <b>₹30–45/500g</b></span><span><b>32 sellers found</b> in 641001 ·</span>
+    </div>
+  </div>
+
+  <!-- 6 · organic trust row -->
+  <section class="section">
+    <h2>How to know it's really organic</h2>
+    <div class="trust-grid">
+      <div class="trust-card"><span class="trust-ic" style="background:var(--mk-soft);color:var(--mk-deep);font-size:11px;font-weight:500">IN</span><span><b>India Organic (NPOP)</b><small>Govt of India certified</small></span></div>
+      <div class="trust-card"><span class="trust-ic" style="background:#FAEEDA">🤝</span><span><b>PGS-India Green</b><small>Farmer-group certified</small></span></div>
+      <div class="trust-card"><span class="trust-ic" style="background:#E1F5EE">🌎</span><span><b>USDA Organic</b><small>For export-grade products</small></span></div>
+      <div class="trust-card hl"><span class="trust-ic" style="background:#EEEDFE">✔️</span><span><b>We verify every certificate</b><small>Document checked before badge is shown</small></span></div>
+    </div>
+  </section>
+
+  <!-- 7 · certified products — cross-vertical showcase fed by TheOrganic.in catalog -->
+  <section class="section">
+    <div class="row-head"><h2>Certified products</h2><a class="see" href="#">See all →</a></div>
+    <div class="prod-grid">
+      <div class="card"><div class="media" style="background:#FBEAF0">🍚</div><div class="body">
+        <span class="cert" style="background:var(--mk-soft);color:var(--mk-deep)">🇮🇳 NPOP ✓</span>
+        <b>Mapillai Samba Rice 5kg</b><div class="meta">Kovai Naturals · ★ 4.8</div>
+        <button class="btn btn-primary">Where to buy 📍</button></div></div>
+      <div class="card"><div class="media" style="background:#EAF3DE">🫒</div><div class="body">
+        <span class="cert" style="background:var(--mk-soft);color:var(--mk-deep)">🇮🇳 NPOP ✓</span>
+        <b>Cold-pressed Groundnut Oil 1L</b><div class="meta">Terra Organics · ★ 4.6</div>
+        <button class="btn btn-primary">Where to buy 📍</button></div></div>
+      <div class="card"><div class="media" style="background:#FAEEDA">🍯</div><div class="body">
+        <span class="cert" style="background:#FAEEDA;color:#854F0B">🤝 PGS ✓</span>
+        <b>Wild Forest Honey 500g</b><div class="meta">Nilgiri Bee Farms · ★ 4.7</div>
+        <button class="btn btn-primary">Where to buy 📍</button></div></div>
+      <div class="card"><div class="media" style="background:#FCEBEB">🌶️</div><div class="body">
+        <span class="cert" style="background:#E1F5EE;color:#085041">🌎 USDA ✓</span>
+        <b>Turmeric Powder 250g</b><div class="meta">Erode Organics · ★ 4.9</div>
+        <button class="btn btn-primary">Where to buy 📍</button></div></div>
+    </div>
+  </section>
+
+  <!-- 8 · vendors — sponsored position 1 (golden border), organic order untouched -->
+  <section class="section" id="shops">
+    <div class="row-head"><h2>Local vendors · உள்ளூர் விற்பனையாளர்கள்</h2><a class="see" href="#">Show map</a></div>
+    <div class="vendor-grid">
+      <div class="card vendor sponsored">
+        <div class="body" style="padding-top:12px">
+          <span class="pill pill-sponsored">★ Sponsored</span>
+          <div class="name-row"><b style="font-size:14px">Anbu Buffalo Dairy</b></div>
+          <div class="meta">★ <b>4.6</b> (156) · 3.1 km · Thick buffalo milk</div>
+          <div class="price-line"><b>₹70/L</b> buffalo</div>
+          <div class="detail">🕐 Evening delivery · min 1L daily</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+      <div class="card vendor">
+        <div class="body">
+          <span class="pill pill-verified">✓ Verified vendor</span>
+          <div class="name-row"><b style="font-size:14px">Murugan Dairy Farm</b><span class="badge badge-reco">Recommended</span></div>
+          <div class="meta">★ <b>4.7</b> (214) · 1.2 km · Fresh cow &amp; A2</div>
+          <div class="price-line"><b>₹55/L</b> cow · <b>₹110/L</b> A2</div>
+          <div class="detail">🕐 Delivers 5:30–7:30 AM · covers 641001, 641002, 641004</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+      <div class="card vendor">
+        <div class="body">
+          <span class="pill pill-verified">✓ Verified vendor</span>
+          <div class="name-row"><b style="font-size:14px">Kovai Organic Milk Co.</b></div>
+          <div class="meta">★ <b>4.5</b> (98) · 2.8 km · Organic certified</div>
+          <div class="price-line"><b>₹85/L</b> organic cow</div>
+          <div class="detail">🕐 Morning &amp; evening · glass bottle return</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- 8f · brands available in {pincode} — D24 brand pages (aavin/arokya/sakthi seeds) + covers() -->
+  <section class="section reveal">
+    <div class="row-head"><h2>Brands available in 641001</h2><a class="see" href="#">All brands →</a></div>
+    <div class="brand-grid">
+      <a class="brand-card" href="#">
+        <span class="top"><span class="logo">🥛</span><span><b>Aavin</b><span class="meta">Toned ₹44 · Full cream ₹60 · 14 shops near you</span></span></span>
+        <span class="go">Nearest shops →</span>
+      </a>
+      <a class="brand-card" href="#">
+        <span class="top"><span class="logo">🥛</span><span><b>Arokya · Hatsun</b><span class="meta">Std ₹50 · Curd, ghee available · 22 shops</span></span></span>
+        <span class="go">Nearest shops →</span>
+      </a>
+      <a class="brand-card" href="#">
+        <span class="top"><span class="logo">🥛</span><span><b>Sakthi Dairy</b><span class="meta">Cow ₹52 · Local favourite · 9 shops</span></span></span>
+        <span class="go">Nearest shops →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 8g · dairy services — D17 business categories: vet / feed-supplier / dairy-farm / equipment / cooperative (/en/c/ pages) -->
+  <section class="section reveal">
+    <h2>Dairy services · பால் பண்ணை சேவைகள்</h2>
+    <div class="svc-grid">
+      <a href="#"><span class="ic" style="background:#FBEAF0">🐄</span><b>Vet doctor</b><small>மருத்துவர்</small></a>
+      <a href="#"><span class="ic" style="background:#FAF3DC">🌾</span><b>Cattle feed</b><small>தீவனம்</small></a>
+      <a href="#"><span class="ic" style="background:#E9F1FA">🏭</span><b>Dairy farms</b><small>பண்ணைகள்</small></a>
+      <a href="#"><span class="ic" style="background:#E3F2FB">🧊</span><b>Chillers &amp; equip.</b><small>உபகரணம்</small></a>
+      <a href="#"><span class="ic" style="background:#FAEEDA">🤝</span><b>Cooperatives</b><small>கூட்டுறவு</small></a>
+    </div>
+  </section>
+
+  <!-- 8b · live stats band — directory + leads engine counts -->
+  <section class="stats reveal" aria-label="Milk.in in numbers">
+    <div><b data-count="148">0</b><small>verified vendors</small></div>
+    <div><b data-count="2300">0</b><small>pincodes covered</small></div>
+    <div><b data-count="96">0</b><small>% needs answered</small></div>
+    <div><b data-count="1200">0</b><small>daily price checks</small></div>
+  </section>
+
+  <!-- 8c · how it works -->
+  <section class="section reveal">
+    <h2>How it works · எப்படி</h2>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><b>Enter your pincode</b><small>See every milk option near you — brands and local vendors</small></div>
+      <div class="step"><span class="n">2</span><b>Compare &amp; choose</b><small>Prices, distance, ratings, verified badge — you decide</small></div>
+      <div class="step"><span class="n">3</span><b>Call or WhatsApp direct</b><small>Talk to the vendor. No middlemen, no commission — ever</small></div>
+    </div>
+  </section>
+
+  <!-- 8d · what people say — D18 reviews engine (approved reviews only) -->
+  <section class="section reveal">
+    <div class="row-head"><h2>What people say</h2><span class="coins-nudge">🪙 Write a review, earn 5 AgriCoins</span></div>
+    <div class="reviews">
+      <div class="review"><span class="stars">★★★★★</span><p>"Found a farm 1 km from home. Fresh cow milk every morning at the gate. Posted my need once, three vendors called."</p><span class="who"><span class="av">R</span>Revathi · 641004</span></div>
+      <div class="review"><span class="stars">★★★★★</span><p>"நல்ல தரமான பால். Verified badge பார்த்து தான் தேர்வு செய்தேன் — நம்பிக்கையா இருக்கு."</p><span class="who"><span class="av">M</span>Murugan · 638051</span></div>
+      <div class="review"><span class="stars">★★★★☆</span><p>"Listed my dairy free in 10 minutes. Getting 4–5 enquiries a week from my own pincode now."</p><span class="who"><span class="av">S</span>Sakthi Dairy · vendor</span></div>
+    </div>
+  </section>
+
+  <!-- 8e · popular near you — ISR city/pincode pages (SEO) -->
+  <section class="section reveal">
+    <h2>Popular near you</h2>
+    <div class="cities">
+      <a href="#">Milk in Coimbatore</a><a href="#">Milk in Chennai</a><a href="#">Milk in Madurai</a>
+      <a href="#">Ghee in Coimbatore</a><a href="#">A2 milk in Coimbatore</a><a href="#">Paneer in Chennai</a>
+      <a href="#">Organic milk near me</a><a href="#">Dairy farms in Tamil Nadu</a><a href="#">All cities →</a>
+    </div>
+  </section>
+
+  <!-- 9 · big CTA tiles -->
+  <section class="cta-grid">
+    <div class="cta blue">
+      <span class="em">🎙️</span>
+      <b>Need daily milk? Tell us once.</b>
+      <p>"1 litre cow milk, every morning, 641001" — nearby vendors contact YOU. Speak it or type it.</p>
+      <a class="btn btn-tertiary" href="#">Post my need · தேவையை சொல்லுங்கள்</a>
+    </div>
+    <div class="cta deep" id="list">
+      <span class="em">🏪</span>
+      <b>Dairy vendor or brand?</b>
+      <p>List free — buyers in your pincodes find you. Advertise from ₹499/week to reach more.</p>
+      <a class="btn btn-money" href="#" id="advertise">List my business</a>
+      <a class="btn btn-tertiary" href="#" style="margin-left:8px">How to apply · எப்படி</a>
+    </div>
+  </section>
+
+
+
+  <!-- 10a · price-alert opt-in — D28 push notifications; hidden when permission already granted -->
+  <section class="alert-card reveal">
+    <span class="em">🔔</span>
+    <span><b>Get price alerts for 641001</b><small>Milk price changes &amp; new vendors near you — free notifications</small></span>
+    <span class="spacer"></span>
+    <button class="btn btn-primary" style="min-height:40px;font-size:12.5px">Turn on</button>
+  </section>
+
+  <!-- 10b · app / PWA install band — D28 PWA + push -->
+  <section class="app-band reveal">
+    <span class="em">📱</span>
+    <div><b>Get milk.in on your phone</b><p>Installs in one tap — works offline, loads light on 3G, price alerts by notification. No app store needed.</p></div>
+    <span class="spacer"></span>
+    <button class="btn btn-money">Install app</button>
+  </section>
+
+  <!-- 10c · FAQ — SEO + JSON-LD FAQPage -->
+  <section class="section reveal">
+    <h2>Common questions</h2>
+    <div class="faq">
+      <details><summary>Is milk.in free to use?</summary><div class="a">Yes — searching, comparing, and contacting vendors is completely free. We never add commission to any price.</div></details>
+      <details><summary>Does milk.in sell or deliver milk?</summary><div class="a">No. We list every option near you — brands and local vendors — and you deal with them directly. We list, you choose, we never sell.</div></details>
+      <details><summary>What does the Verified badge mean?</summary><div class="a">Our team has checked the business's documents before the badge is shown. Verification can never be bought — and paid placements are always marked "Sponsored".</div></details>
+      <details><summary>How do I list my dairy business?</summary><div class="a">Tap "List my business", verify with OTP, add your pincodes and products. Listing is free; advertising from ₹499/week is optional.</div></details>
+    </div>
+  </section>
+
+  <!-- 10 · family strip -->
+  <section class="section">
+    <h2 style="font-size:14px">Our family · one login works everywhere</h2>
+    <div class="family">
+      <a class="milk" href="#"><b>🥛 milk.in</b><small>All milk options in your pincode</small></a>
+      <a class="org" href="#"><b>🌿 theorganic.in</b><small>Certified organic brands &amp; products</small></a>
+      <a class="coin" href="#"><b>🪙 AgriCoins</b><small>Your rewards: 1,240 coins</small></a>
+    </div>
+  </section>
+</div>
+
+<!-- 11 · footer -->
+<footer><div class="wrap">
+  <div class="foot-grid">
+    <div class="foot-brand">
+      <b>milk.in</b>
+      <p>Every milk option near you — brands, local vendors, farm-fresh. Part of the Agri.in family. We list, you choose — we never sell.</p>
+      <div class="socials"><span>💬</span><span>▶️</span><span>📷</span></div>
+    </div>
+    <div><h3>Categories</h3><ul><li>Milk · பால்</li><li>Ghee · நெய்</li><li>Paneer · Curd</li><li>All 13 categories</li></ul></div>
+    <div><h3>Cities</h3><ul><li>Coimbatore</li><li>Chennai</li><li>Madurai</li><li>All Tamil Nadu</li></ul></div>
+    <div><h3>For vendors</h3><ul><li>List your business — free</li><li>Advertise from ₹499/week</li><li>Vendor console</li><li>How verification works</li></ul></div>
+    <div><h3>Company</h3><ul><li>About · Agri.in family</li><li>Contact us</li><li>Privacy policy</li><li>Terms of use</li></ul></div>
+  </div>
+  <div class="legal">
+    <span>© 2026 Oneuni Agri Platform Pvt Ltd · milk.in lists businesses, we never sell or deliver</span>
+    <span class="spacer"></span>
+    <span style="color:var(--mk-soft)">English · தமிழ் · हिन्दी</span>
+    <span>Data saver: OFF</span>
+  </div>
+</div></footer>
+
+<!-- 12 · mobile bottom nav (fixed; body padding clears it) -->
+<nav class="bottom-nav" aria-label="Primary">
+  <a class="on" href="#"><span class="ic">🏠</span>Home</a>
+  <a href="#"><span class="ic">🗂️</span>Categories</a>
+  <a href="#"><span class="mic">🎙️</span>Ask</a>
+  <a href="#"><span class="ic">🔔</span>Alerts</a>
+  <a href="#"><span class="ic">👤</span>Profile</a>
+</nav>
+
+
+<script>
+/* count-up + scroll reveal — both respect prefers-reduced-motion */
+const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add('in');
+  e.target.querySelectorAll('[data-count]').forEach(el => {
+    const end = +el.dataset.count, fmt = n => n >= 1000 ? n.toLocaleString('en-IN') + '+' : n;
+    if (rm) { el.textContent = fmt(end); return; }
+    const t0 = performance.now(), dur = 900;
+    const tick = t => { const p = Math.min((t - t0) / dur, 1);
+      el.textContent = fmt(Math.round(end * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  io.unobserve(e.target);
+}), { threshold: .25 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+</script>
+</body>
+</html>

@@ -39,6 +39,11 @@ _FLIGHT_DAYS = 3650  # effectively evergreen; re-runs extend
 MILK_SLOTS = (
     "milk_global_header",
     "milk_home_hero",
+    # U1 §3 - the full-bleed home hero. Seeded with the same two house
+    # messages as every other slot so the carousel is never empty (and, with
+    # two creatives, actually rotates: one creative collapses it to a static
+    # banner by design).
+    "milk_home_hero_xl",
     "milk_category_banner",
     "milk_search_inline",
     "milk_profile_footer",

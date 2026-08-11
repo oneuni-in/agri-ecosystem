@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 
@@ -11,6 +11,9 @@ export interface PincodeInputProps
   onFind?: () => void;
   /** Disable the "Find" button independently of the input. */
   findDisabled?: boolean;
+  /** Optional control between the input and "Find" — U1 §29 puts the D25
+   * voice-pipeline mic here. Omitted, the row is byte-identical to before. */
+  mic?: ReactNode;
 }
 
 /**
@@ -23,6 +26,7 @@ export function PincodeInput({
   className,
   onFind,
   findDisabled,
+  mic,
   ...inputProps
 }: PincodeInputProps) {
   return (
@@ -40,6 +44,7 @@ export function PincodeInput({
         className="min-w-0 flex-1 border-none bg-transparent px-3.5 py-3 text-lg font-bold tracking-[.15em] text-ink placeholder:text-sub focus:outline-none"
         {...inputProps}
       />
+      {mic}
       <button
         type="button"
         onClick={onFind}

@@ -44,7 +44,8 @@
     },
     "badges": {
       "verified": "✔ Verified",
-      "certVerified": "✔ Cert verified"
+      "certVerified": "✔ Cert verified",
+      "sponsored": "★ Sponsored"
     },
     "product": {
       "whereToBuy": "Where to buy 📍"
@@ -144,7 +145,8 @@
       "gated": {
         "title": "Login coming shortly",
         "body": "We're finishing SMS verification with our provider. The rest of Milk.in works without an account."
-      }
+      },
+      "login": "Login"
     },
     "categories": {
       "seeds": "Seeds",
@@ -309,7 +311,9 @@
       "iosInstallFirst": "Install Milk.in first (Share → Add to Home Screen), then enable alerts here."
     },
     "lowData": {
-      "label": "Data saver"
+      "label": "Data saver",
+      "on": "ON",
+      "off": "OFF"
     },
     "report": {
       "trigger": "Report this listing",
@@ -334,6 +338,177 @@
       "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
       "error": "Could not submit — please try again.",
       "loginCta": "Login to report this listing"
+    },
+    "utility": {
+      "advertise": "Advertise",
+      "hotline": "Post need on WhatsApp: {number}",
+      "listBusiness": "List your business",
+      "tagline": "Every milk near you",
+      "brandTagline": "every milk near you"
+    },
+    "categoryBar": {
+      "label": "Dairy categories",
+      "all": "All milk",
+      "homeDelivery": "🚚 Home delivery",
+      "organic": "🌿 Organic"
+    },
+    "heroAd": {
+      "prev": "Previous ad",
+      "next": "Next ad"
+    },
+    "home": {
+      "ticker": {
+        "today": "Today in {pincode}",
+        "sellers": "{count} sellers found in {pincode}"
+      },
+      "types": {
+        "title": "Milk type",
+        "all": "All"
+      },
+      "trust": {
+        "title": "How to know it is really organic",
+        "npop": {
+          "name": "India Organic (NPOP)",
+          "sub": "Govt of India certified"
+        },
+        "pgs": {
+          "name": "PGS-India Green",
+          "sub": "Farmer-group certified"
+        },
+        "usda": {
+          "name": "USDA Organic",
+          "sub": "For export-grade products"
+        },
+        "verify": {
+          "name": "We verify every certificate",
+          "sub": "Document checked before badge is shown"
+        }
+      },
+      "products": {
+        "title": "Certified products",
+        "seeAll": "See all"
+      },
+      "vendors": {
+        "title": "Local vendors",
+        "showMap": "Show map",
+        "verified": "Verified vendor",
+        "recommended": "Recommended",
+        "delivers": "Delivers",
+        "covers": "Covers {pincodes}",
+        "empty": "No vendors listed in {pincode} yet - post your need and they will contact you."
+      },
+      "brands": {
+        "title": "Brands available in {pincode}",
+        "all": "All brands",
+        "nearest": "Nearest shops",
+        "shops": "{count} shops near you"
+      },
+      "services": {
+        "title": "Dairy services"
+      },
+      "stats": {
+        "verifiedVendors": "verified vendors",
+        "coveredPincodes": "pincodes covered",
+        "sellers": "sellers near you",
+        "reviews": "reviews written"
+      },
+      "how": {
+        "title": "How it works",
+        "s1": {
+          "t": "Enter your pincode",
+          "d": "See every milk option near you - brands and local vendors"
+        },
+        "s2": {
+          "t": "Compare and choose",
+          "d": "Prices, distance, ratings, verified badge - you decide"
+        },
+        "s3": {
+          "t": "Call or WhatsApp direct",
+          "d": "Talk to the vendor. No middlemen, no commission - ever"
+        }
+      },
+      "reviews": {
+        "title": "What people say",
+        "coinsNudge": "Write a review, earn 5 AgriCoins"
+      },
+      "popular": {
+        "title": "Popular near you",
+        "milkIn": "Milk in {place}"
+      },
+      "cta": {
+        "needTitle": "Need daily milk? Tell us once.",
+        "needSub": "“1 litre cow milk, every morning, {pincode}” - nearby vendors contact YOU. Speak it or type it.",
+        "needCta": "Post my need",
+        "listTitle": "Dairy vendor or brand?",
+        "listSub": "List free - buyers in your pincodes find you. Advertise from {price} to reach more.",
+        "listCta": "List my business",
+        "howTo": "How to apply"
+      },
+      "advertise": {
+        "title": "Reach milk buyers in your pincode",
+        "sub": "Advertise from {price}",
+        "cta": "Advertise",
+        "perWeek": "/week"
+      },
+      "alerts": {
+        "title": "Get price alerts for {pincode}",
+        "sub": "Milk price changes and new vendors near you - free notifications",
+        "cta": "Turn on",
+        "dismiss": "Not now"
+      },
+      "myNeed": {
+        "label": "Your need:",
+        "litres": "{qty}L",
+        "schedule": {
+          "daily": "daily",
+          "alternate_days": "alternate days",
+          "weekly": "weekly"
+        },
+        "responded": "{count, plural, =0 {no vendors have replied yet} one {# vendor responded} other {# vendors responded}}",
+        "view": "View →"
+      },
+      "app": {
+        "title": "Get milk.in on your phone",
+        "sub": "Installs in one tap - works offline, loads light on 3G, price alerts by notification. No app store needed.",
+        "cta": "Install app"
+      },
+      "faq": {
+        "title": "Common questions",
+        "q1": "Is milk.in free to use?",
+        "a1": "Yes - searching, comparing, and contacting vendors is completely free. We never add commission to any price.",
+        "q2": "Does milk.in sell or deliver milk?",
+        "a2": "No. We list every option near you - brands and local vendors - and you deal with them directly. We list, you choose, we never sell.",
+        "q3": "What does the Verified badge mean?",
+        "a3": "Our team has checked the business documents before the badge is shown. Verification can never be bought - and paid placements are always marked Sponsored.",
+        "q4": "How do I list my dairy business?",
+        "a4": "Tap List my business, verify with OTP, add your pincodes and products. Listing is free; advertising is optional."
+      },
+      "family": {
+        "title": "Our family - one login works everywhere",
+        "milk": "All milk options in your pincode",
+        "organic": "Certified organic brands and products",
+        "coins": "Your rewards",
+        "soon": "Coming soon"
+      },
+      "footer": {
+        "about": "Every milk option near you - brands, local vendors, farm-fresh. Part of the Agri.in family.",
+        "neutrality": "We list, you choose - we never sell.",
+        "categories": "Categories",
+        "cities": "Cities",
+        "forVendors": "For vendors",
+        "company": "Company",
+        "allCategories": "All categories",
+        "allCities": "All Tamil Nadu",
+        "listFree": "List your business - free",
+        "advertise": "Advertise",
+        "console": "Vendor console",
+        "verification": "How verification works",
+        "aboutUs": "About - Agri.in family",
+        "contact": "Contact us",
+        "privacy": "Privacy policy",
+        "terms": "Terms of use",
+        "legal": "© {year} Oneuni Agri Platform Pvt Ltd - milk.in lists businesses, we never sell or deliver"
+      }
     }
   },
   "coins": {

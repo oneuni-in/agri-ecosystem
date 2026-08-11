@@ -19,15 +19,36 @@ export async function fetchSponsoredListings(ctx: {
   category?: string | null;
   locale?: string;
 }): Promise<ServedAd[]> {
+  return serveAds(SPONSORED_LISTING_SLOT, ctx, 2);
+}
+
+/**
+ * Server-side serve for ANY slot, so a slot above the fold can render its
+ * creative in the SSR HTML instead of waiting on a client fetch.
+ *
+ * That wait is not theoretical: with the hero carousel fetching client-side,
+ * Lighthouse measured 2372ms of LCP "load delay" — the image could not even
+ * begin downloading until hydration had run, called /ads/serve and rendered
+ * the <img>. Serving it here removes that whole leg.
+ *
+ * Same identity-forwarding contract as the listings above: without the
+ * viewer's IP and user-agent the backend would hash every server render into
+ * one viewer and the frequency caps would be meaningless.
+ */
+export async function serveAds(
+  slotKey: string,
+  ctx: { pincode?: string | null; category?: string | null; locale?: string },
+  count: number,
+): Promise<ServedAd[]> {
   try {
     const h = await headers();
     const fwd: Record<string, string> = { "user-agent": h.get("user-agent") ?? "" };
     const xff = h.get("x-forwarded-for");
     if (xff) fwd["x-forwarded-for"] = xff;
-    const res = await fetch(
-      `${API}/ads/serve?${serveQuery(SPONSORED_LISTING_SLOT, { ...ctx, count: 2 })}`,
-      { cache: "no-store", headers: fwd },
-    );
+    const res = await fetch(`${API}/ads/serve?${serveQuery(slotKey, { ...ctx, count })}`, {
+      cache: "no-store",
+      headers: fwd,
+    });
     if (!res.ok) return [];
     return parseServeResponse(await res.json());
   } catch {

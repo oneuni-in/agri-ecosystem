@@ -7,9 +7,9 @@ import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { GlobalAdBanner } from "@/components/organisms/GlobalAdBanner";
 import { routing } from "@/i18n/routing";
 
+import { MilkBottomNav } from "./milk-bottom-nav";
 import { PwaClient } from "./pwa-client";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
@@ -42,14 +42,22 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
   return (
     <html lang={locale} data-theme={THEME} className={fontVariables}>
-      <body>
+      {/* §12: the bottom nav is `position: fixed`, so the body reserves its
+          height (plus the iOS safe-area inset) — otherwise the last footer row
+          sits underneath it. `md:pb-0` drops the reservation where the bar
+          itself is hidden. */}
+      <body className="pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
         <NextIntlClientProvider>
-          <SiteHeader />
-          {/* M2: milk_global_header ad slot on EVERY page. Client island -
-              the layout stays static (no headers()/cookies() here). */}
-          <GlobalAdBanner />
+          <SiteHeader locale={locale} />
+          {/* The M2 milk_global_header slot used to mount here, on EVERY page.
+              It is not in the approved reference, and above the home's
+              full-bleed §3 hero it put two ad units above the fold. The home
+              hero (milk_home_hero_xl) is now the page's head placement; this
+              slot's inventory moves to the pages that have no hero of their
+              own rather than stacking on top of one. */}
           {children}
-          <SiteFooter />
+          <SiteFooter locale={locale} />
+          <MilkBottomNav />
           <PwaClient />
         </NextIntlClientProvider>
       </body>

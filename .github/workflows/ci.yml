@@ -350,6 +350,12 @@ jobs:
   # Playwright. OTP codes come from the flag-gated mock peek route.
   e2e-auth:
     runs-on: ubuntu-latest
+    # Scoped to its NAME: `pnpm run e2e` had silently become the whole
+    # desktop suite (92 tests after U1) and this job burnt its entire
+    # ceiling every PR push — 35 minutes of private-repo Actions time per
+    # round, twice over with the docs twin. The auth surface (auth + sso +
+    # bff-path-traversal, 10 tests) is what D09/D10/D30 gate here; every
+    # other spec keeps its CI coverage in e2e-matrix's device projects.
     timeout-minutes: 15
     services:
       postgres:
@@ -411,7 +417,7 @@ jobs:
             if [ "$i" = 30 ]; then echo 'MinIO never became healthy' >&2; docker logs minio >&2; exit 1; fi
             sleep 2
           done
-      - run: pnpm run e2e
+      - run: pnpm run e2e:auth
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -21,10 +21,14 @@ export function SponsoredListingCard({
   ad,
   endpoint = "/api/ads",
   className,
+  sponsoredLabel,
 }: {
   ad: ServedAd;
   endpoint?: string;
   className?: string;
+  /** Translated wording for the always-on badge. The badge itself is never
+   * optional — this only decides which language it is written in. */
+  sponsoredLabel?: string;
 }) {
   const ref = useImpression(ad, endpoint);
   return (
@@ -37,7 +41,7 @@ export function SponsoredListingCard({
       data-testid={`sponsored-listing-${ad.placement_id}`}
     >
       <ListingCard
-        badge={<SponsoredBadge />}
+        badge={<SponsoredBadge {...(sponsoredLabel ? { label: sponsoredLabel } : {})} />}
         icon="📢"
         tint="gold"
         title={ad.title}

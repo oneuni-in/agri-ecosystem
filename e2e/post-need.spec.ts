@@ -93,6 +93,15 @@ test.describe("D25 post my need", () => {
     });
     expect(respond.status()).toBe(201);
 
+    // 2b. U1 §2b — the home's my-need strip is the same both-side status,
+    //     rendered under the header. It reads /leads/needs/mine server-side
+    //     with the session bearer, so this proves the binding end to end: an
+    //     open need with one reply shows the summary AND the reply count.
+    await page.goto(`${MILK}/en`);
+    const strip = page.getByTestId("my-need-strip");
+    await expect(strip).toBeVisible({ timeout: 20_000 });
+    await expect(strip).toContainText(/1 vendor responded/i);
+
     // 3. User sees the response + per-vendor status in My needs.
     await page.goto(`${MILK}/my-needs`);
     await expect(page.getByTestId("need-response").first()).toContainText(/6am/, {
@@ -115,7 +124,21 @@ test.describe("D25 post my need", () => {
       timeout: 20_000,
     });
 
+    // 6. §2b's other half: the strip is for ACTIVE needs only. With the need
+    //    fulfilled it must be gone — the mutation check U1 asks for, run
+    //    against the real engine rather than asserted from the component.
+    await page.goto(`${MILK}/en`);
+    await expect(page.getByTestId("my-need-strip")).toHaveCount(0);
+
     await vendor.dispose();
+  });
+
+  /** A guest has no session, so §2b costs one early return and no request —
+   * the strip must never appear, and must never reserve space above the hero. */
+  test("§2b my-need strip is absent for a guest", async ({ page }) => {
+    await page.goto(`${MILK}/en`);
+    await waitForHeaderSettled(page);
+    await expect(page.getByTestId("my-need-strip")).toHaveCount(0);
   });
 
   test("no covering vendor → warm fallback, nothing routed", async ({ page }) => {

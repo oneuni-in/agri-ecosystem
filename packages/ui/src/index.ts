@@ -67,10 +67,24 @@ export type { AdServeContext, ListEntry, ServedAd } from "./lib/sponsored";
 export { AD_CAROUSEL_INTERVAL_MS, AD_CAROUSEL_MAX, AdCarousel } from "./composites/ad-carousel";
 export { AdSlot, AdUnit, sendAdBeacon, useImpression } from "./composites/ad-slot";
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";
+export { CategoryBar, CategoryBarLink } from "./composites/category-bar";
 export { CategoryGroup } from "./composites/category-group";
 export { CertBar, CertCard } from "./composites/cert-bar";
 export { EcoPill, EcoStrip } from "./composites/eco-strip";
 export { HeaderStack, SearchBand } from "./composites/header-stack";
+// U1 home patterns — shared so the kitchen sink and the page render the same
+// components rather than two copies of the same markup.
+export {
+  AlertCard,
+  AppBand,
+  IconTile,
+  Marquee,
+  NeedStrip,
+  ReviewCard,
+  StatBand,
+  StatCell,
+  VendorCard,
+} from "./composites/home-patterns";
 export { HelplineBand } from "./composites/helpline-band";
 export { NotificationsPanel } from "./composites/notifications-panel";
 export type {
@@ -85,3 +99,4 @@ export { SponsoredAd } from "./composites/sponsored-ad";
 export { SponsoredListingCard } from "./composites/sponsored-listing-card";
 export { TodayCard, TodayStrip } from "./composites/today-strip";
 export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";
+export { UtilityLink, UtilityStrip } from "./composites/utility-strip";

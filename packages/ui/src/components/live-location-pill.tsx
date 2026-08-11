@@ -87,6 +87,8 @@ export function LiveLocationPill({
   onChanged,
   strings = DEFAULT_LIVE_LOCATION_STRINGS,
   className,
+  fallbackLabel,
+  changeLabel,
   fetchImpl = fetch,
 }: {
   contextEndpoint?: string;
@@ -96,6 +98,16 @@ export function LiveLocationPill({
   onChanged?: (loc: LocContext) => void;
   strings?: LiveLocationPillStrings;
   className?: string;
+  /**
+   * Shown when the visitor has no location of their own yet — a first-time
+   * guest who has not logged in, typed a pincode or granted GPS. The page
+   * behind this pill renders the SAME fallback location server-side, so the
+   * header and the content can never disagree. Omit it and the pill falls
+   * back to the old "Set location" call-to-action.
+   */
+  fallbackLabel?: string;
+  /** Accessible name for the explicit "change pincode" affordance. */
+  changeLabel?: string;
   fetchImpl?: typeof fetch;
 }) {
   const [loc, setLoc] = useState<LocContext | null>(null);
@@ -191,8 +203,20 @@ export function LiveLocationPill({
     <Modal
       key={applyGen}
       trigger={
-        <LocationPill className={className} aria-label={locLabel(loc) ?? strings.set}>
-          📍 <span className="max-sm:hidden">{locLabel(loc) ?? strings.set}</span> ▾
+        <LocationPill
+          className={className}
+          aria-label={`${locLabel(loc) ?? fallbackLabel ?? strings.set}${
+            changeLabel ? ` — ${changeLabel}` : ""
+          }`}
+        >
+          📍{" "}
+          <span className="max-sm:hidden">{locLabel(loc) ?? fallbackLabel ?? strings.set}</span>{" "}
+          {/* An explicit change affordance next to the pincode, not just a
+              disclosure caret: the location is now what the whole page renders
+              from, so "you can change this" has to be legible at a glance. */}
+          <span aria-hidden="true" className="text-[11px]">
+            ✏️
+          </span>
         </LocationPill>
       }
       title={strings.title}

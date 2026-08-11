@@ -21,7 +21,18 @@ const themes = {
     "--brand": "#2563A8",
     "--brand-deep": "#174A85",
     "--brand-soft": "#E9F1FA",
+    // U1 §13: the mid-tone between --brand-soft and --brand. Exact value from
+    // the approved reference (`docs/design-reference/desktop v3.html`, --mk-soft-2).
+    // It carries every de-emphasised line on a brand surface: the utility
+    // strip, the header tagline, hero body copy, footer body. Only milk has a
+    // designed value today; agri/organic fall back to --brand-soft (see
+    // `shared`) until their own surfaces are specced.
+    "--brand-soft-2": "#B9D2EE",
     "--accent": "#E9A61C",
+    // U1 §13 "cream page bg, then consume": milk.in's page surface is cream,
+    // not the shared grey-green. Scoped to this theme so agri.in and
+    // organicstore.in are untouched; one line to revert.
+    "--page-bg": "var(--cream)",
   },
   "theme-organic": {
     "--brand": "#4A6B2A",
@@ -35,11 +46,18 @@ const themes = {
 const shared = {
   "--ink": "#1D2A20",
   "--sub": "#5A6A5D",
+  // Fallback for themes with no designed mid-tone yet (see theme-milk).
+  // Declared here so `text-brand-soft-2` can never resolve to nothing.
+  "--brand-soft-2": "var(--brand-soft)",
   "--paper": "#F7F8F3",
   "--page-bg": "#E9EBE2",
   "--card": "#FFFFFF",
   "--line": "#E2E7DA",
-  "--call": "#1E9E4A",
+  // AA on white text: #1E9E4A measured 3.47:1, under the 4.5 floor. This was
+  // carried as the "known call/rating WCAG conflict" (D02); the U1 home puts a
+  // Call button on every vendor card, which turned a documented deviation into
+  // a failing gate. #15803C is 5.02:1 and still unmistakably the call green.
+  "--call": "#15803C",
   "--wa": "#22B45A",
   "--wa-soft": "#E6F8EC",
   "--wa-deep": "#157A3C",
@@ -55,9 +73,36 @@ const shared = {
   "--sponsored-fg": "#8A5B00",
   "--cert-bg": "#EAF2DC",
   "--cert-fg": "#3E5A14",
-  "--rating": "#C77700",
+  // 3.46:1 on white before; #A25F00 is 5.03:1. Same half of the D02 conflict —
+  // rating stars now appear on every vendor card and in the reviews strip.
+  "--rating": "#A25F00",
   "--ghost": "#F2F4EC",
   "--glass": "rgba(255,255,255,.16)",
+
+  /* ── U1 §13 — the cream/trust/sponsored layer.
+     Values are exact from the approved reference
+     (`docs/design-reference/desktop v3.html` :root). Deliberately NEW names:
+     --paper (#F7F8F3) and --line (#E2E7DA) are the existing green-grey page
+     surface used by all three apps, and repointing them would restyle
+     agri.in and organicstore.in as a side effect of a milk.in spec. */
+  "--cream": "#FDFBF6", // cream page background (reference --paper)
+  "--cream-line": "#EDE6D6", // cream hairline on cream (reference --paper-border)
+  "--cream-deep": "#F4F0E6", // one step deeper: inset buttons, footer-adjacent (reference --paper-deep)
+  // The golden sponsored border. Its own literal, NOT var(--accent): a paid
+  // placement reads golden in every vertical, but organic's accent is #B5541C.
+  "--ad-border": "#E9A61C",
+  "--trust-bg": "#FEFAF0", // highlighted "we verify" trust card
+  // Card sub-lines on cream. Distinct from --sub (#5A6A5D), which is the
+  // `.vern` mother-tongue colour and is pinned by an AA contrast contract
+  // (see the `.vern` component below) — it must not be re-pointed.
+  // The reference's #8A8574 measures 3.69:1 on white and fails AA at the card
+  // sub-line sizes it is used at (39 nodes flagged). #736E5F is 5.09:1 and
+  // keeps the warm grey the reference intends, rather than falling back to the
+  // green-grey --sub.
+  "--muted": "#736E5F",
+  // Ink for text on the golden --accent (money buttons, hotline chip, coins).
+  // Follows the existing bg/fg pair convention (--coins-bg/--coins-fg).
+  "--accent-ink": "#4A2E00",
 };
 
 /** Pastel icon-square tints used by CategoryTile / ListingCard / ProductCard. */
@@ -89,10 +134,18 @@ export const agriPreset = {
         brand: "var(--brand)",
         "brand-deep": "var(--brand-deep)",
         "brand-soft": "var(--brand-soft)",
+        "brand-soft-2": "var(--brand-soft-2)",
         accent: "var(--accent)",
+        "accent-ink": "var(--accent-ink)",
         ink: "var(--ink)",
         sub: "var(--sub)",
+        muted: "var(--muted)",
         paper: "var(--paper)",
+        cream: "var(--cream)",
+        "cream-line": "var(--cream-line)",
+        "cream-deep": "var(--cream-deep)",
+        "ad-border": "var(--ad-border)",
+        "trust-bg": "var(--trust-bg)",
         page: "var(--page-bg)",
         card: "var(--card)",
         line: "var(--line)",
@@ -143,6 +196,20 @@ export const agriPreset = {
         callglow: "0 4px 14px rgba(30,158,74,.4)",
         nav: "0 -6px 20px rgba(0,0,0,.06)",
         ai: "0 4px 12px color-mix(in srgb, var(--brand) 40%, transparent)",
+      },
+      keyframes: {
+        // U1 §5b — the price ticker's lane. The lane is rendered twice and
+        // translated by half the track width, so the loop is seamless. Lives
+        // in the preset, not one app's globals.css, because the `Marquee`
+        // composite that uses it ships from @agri/ui — a keyframe defined in
+        // web-milk would leave the same component motionless in the kitchen
+        // sink, which is the demo-and-product-disagree failure U1 warns about.
+        ticker: { from: { transform: "translateX(0)" }, to: { transform: "translateX(-50%)" } },
+      },
+      animation: {
+        // Reduced motion is honoured at the call site with
+        // `motion-reduce:[animation:none]`, which degrades to a static row.
+        ticker: "ticker 28s linear infinite",
       },
       backgroundImage: {
         "header-gradient": "linear-gradient(160deg, var(--brand-deep), var(--brand))",

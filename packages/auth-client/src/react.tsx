@@ -40,10 +40,28 @@ export function useAgriUser({ autoSilentSso = true }: { autoSilentSso?: boolean 
           return;
         }
         if (shouldAttemptSilentSso(res.status, autoSilentSso, sessionStorage.getItem(SSO_MARKER))) {
-          sessionStorage.setItem(SSO_MARKER, "1");
-          window.location.assign(
-            `/api/auth/login?silent=1&next=${encodeURIComponent(currentRelativeUrl(window.location))}`,
+          const next = encodeURIComponent(currentRelativeUrl(window.location));
+          // Ask before navigating. Silent SSO is a TOP-LEVEL navigation (the
+          // provider's session cookie is SameSite=Lax, so a cross-site fetch
+          // would never carry it), which means an unreachable provider costs
+          // this visitor a whole extra page load — or, worse, drops them on
+          // the browser's error page. One cheap same-origin JSON call decides
+          // whether the navigation is worth making at all.
+          const probe = await fetch(`/api/auth/login?silent=1&probe=1&next=${next}`).catch(
+            () => null,
           );
+          if (cancelled) return;
+          const reachable =
+            probe?.ok === true &&
+            ((await probe.json().catch(() => null)) as { reachable?: boolean } | null)?.reachable ===
+              true;
+          if (cancelled) return;
+          if (!reachable) {
+            setStatus("unauthenticated");
+            return;
+          }
+          sessionStorage.setItem(SSO_MARKER, "1");
+          window.location.assign(`/api/auth/login?silent=1&next=${next}`);
           return;
         }
         setStatus("unauthenticated");
@@ -98,8 +116,11 @@ export function AuthCluster({ loginLabel = "Login" }: { loginLabel?: string }) {
       />
     );
   }
+  // `data-testid` because the label is translated: e2e's "wait for the header
+  // to settle" helper matched /^login$/i and could therefore never settle on
+  // /ta or /hi, where the button reads "உள்நுழை" / "लॉगिन".
   return (
-    <Button variant="brand" onClick={login}>
+    <Button variant="brand" onClick={login} data-testid="auth-login">
       {loginLabel}
     </Button>
   );

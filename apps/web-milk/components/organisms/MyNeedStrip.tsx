@@ -46,11 +46,15 @@ export async function MyNeedStrip({
    * that would fall out of date the moment a value is added. */
   milkTypes: ProductCategory[];
 }) {
-  const token = await auth.getAccessToken();
-  if (!token) return null; // guest — the strip is user state
-
+  // Everything up to and including the session read is inside the guard:
+  // `getAccessToken()` itself throws when the auth config is unusable (e.g.
+  // AUTH_SESSION_SECRET missing in production — auth-client's lazy-config
+  // contract), and the home page must degrade to the guest view, not 500,
+  // because a personalised strip could not check the session.
   let needs: Need[] = [];
   try {
+    const token = await auth.getAccessToken();
+    if (!token) return null; // guest — the strip is user state
     const res = await fetch(`${API}/leads/needs/mine?limit=${SCAN}`, {
       headers: { authorization: `Bearer ${token}` },
       cache: "no-store",

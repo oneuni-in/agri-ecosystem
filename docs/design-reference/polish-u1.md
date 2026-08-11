@@ -603,3 +603,49 @@ thin bindings. Demo and product cannot drift because they are the same code.
   tab crash (`Target crashed`) and the notify-me dev-JIT navigation timeout.
 - §-marker sweep: §2b, §10a, §10b now render; the page carries all 25
   numbered reference sections.
+
+### 5d. Lighthouse on the finished page (2026-08-11, local)
+
+Prod build (`next build` + `next start`), host API, CI-identical settings
+(pinned PSI UA, simulated 3G, 4x CPU), direct `lighthouse` CLI because `lhci
+autorun` still cannot complete on Windows. Three runs:
+
+| run | perf | LCP | TTFB | TBT | CLS |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0.84 | 3883ms | 869ms | 145ms | 0.0036 |
+| 2 | 0.79 | 4361ms | 102ms | 121ms | 0.0112 |
+| 3 | 0.81 | 4322ms | 118ms | 104ms | 0.0209 |
+
+a11y **1.00** · SEO **1.00** · best-practices 0.96 on every run. Median perf
+**0.82** — the same band as before the three new sections, which cost the
+audit nothing by construction: §10a/§10b render null in a headless audit and
+§2b returns early for a guest.
+
+What the number is made of: the LCP element is the §4 `<h1>` and its cost is
+almost entirely modelled render delay — main-thread on 4x CPU totals ~4.8s
+(Style & Layout 1657ms, Other 1425ms, Script eval 1072ms). The remaining
+levers are structural (fewer cards above the fold — a product decision) or a
+gate decision (route carve-out), so the call belongs to the owner IF the CI
+runner agrees with the local number. Issue #45's record says it may not:
+its fix measured ~0.80 on this box and passed 0.90 green in CI. The PR's
+lighthouse job (which audits `/` on web-milk changes) is the arbiter.
+
+Two things the measurement itself surfaced and fixed:
+
+1. **§2b could 500 the entire home in production.** `auth.getAccessToken()`
+   sat outside the strip's try/catch, and auth-client's lazy config throws
+   when `AUTH_SESSION_SECRET` is unset in a production build — which is
+   exactly how CI's lighthouse job runs `next start`. The session read is now
+   inside the guard: the home degrades to the guest view, never 500s, proven
+   by a prod start with no secret serving 200. Found only because the
+   measurement used a real production build.
+2. **The dev minio had lost its public-read bucket policy** (every media URL
+   403'd, so every run measured a page with no images). Re-applied via
+   `shared.storage.ensure_prefix_public_read` — worth remembering next time
+   every creative "disappears" locally.
+
+One environment observation, not a defect: the hero slide 1 that served
+during these runs was a text-only creative (an M5 advertiser with no
+`media_urls`), so the audit exercised the text-card path. That is a real
+production scenario and the component's contract — arbitrary approved
+creatives, image or not.

@@ -4,34 +4,13 @@ import { Button } from "@agri/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-}
-
-const DISMISS_COOKIE = "milk_a2hs=0; path=/; max-age=2592000; samesite=lax";
-const dismissed = () => document.cookie.split("; ").includes("milk_a2hs=0");
-const standalone = () =>
-  window.matchMedia("(display-mode: standalone)").matches ||
-  (navigator as { standalone?: boolean }).standalone === true;
-
-/** Runs `fn` once the page has loaded and the main thread is idle. Both the
- * SW install/precache and the install-prompt listener are post-paint work;
- * doing either during first paint cost measurable Lighthouse perf on the
- * audited home page (CI floor 0.90). */
-function afterLoadIdle(fn: () => void): () => void {
-  const run = () => {
-    const idle = (window as { requestIdleCallback?: typeof requestIdleCallback })
-      .requestIdleCallback;
-    if (idle) idle(fn, { timeout: 3000 });
-    else setTimeout(fn, 1000);
-  };
-  if (document.readyState === "complete") {
-    run();
-    return () => {};
-  }
-  window.addEventListener("load", run, { once: true });
-  return () => window.removeEventListener("load", run);
-}
+import {
+  afterLoadIdle,
+  dismissInstall,
+  type InstallSnapshot,
+  promptInstall,
+  subscribeInstall,
+} from "@/lib/install-prompt";
 
 /**
  * Single client island for all D28 PWA behaviour: service-worker
@@ -40,45 +19,45 @@ function afterLoadIdle(fn: () => void): () => void {
  * points worse locally, and a `next/dynamic` wrapper only added another
  * chunk round-trip on throttled connections.
  *
- * Android/Chrome: defers `beforeinstallprompt` behind our own banner.
- * iOS Safari never fires it, so an Add-to-Home-Screen hint stands in (web
- * push there requires the installed PWA, 16.4+). Dismissal lasts 30 days.
+ * The `beforeinstallprompt` capture itself lives in `lib/install-prompt.ts`,
+ * shared with §10b's inline install band: Chrome honours only the FIRST
+ * `prompt()` on that event, so a second listener here would leave one of the
+ * two buttons holding a dead event. Both surfaces read the same snapshot and
+ * the same 30-day dismissal.
+ *
+ * Android/Chrome: defers the event behind our own banner. iOS Safari never
+ * fires it, so an Add-to-Home-Screen hint stands in (web push there requires
+ * the installed PWA, 16.4+).
  */
 export function PwaClient() {
   const t = useTranslations("ui.pwa");
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [ios, setIos] = useState(false);
+  const [snapshot, setSnapshot] = useState<InstallSnapshot>({
+    event: null,
+    ios: false,
+    hidden: false,
+  });
 
   useEffect(() => {
-    const swEnabled =
-      process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_ENABLE_SW === "1";
-    let onPrompt: ((event: Event) => void) | null = null;
-
+    // SW registration stays here — post-paint for the same perf reason the
+    // shared module documents (CI floor 0.90 on this route).
     const cancel = afterLoadIdle(() => {
+      const swEnabled =
+        process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_ENABLE_SW === "1";
       if (swEnabled && "serviceWorker" in navigator) {
         void navigator.serviceWorker.register("/sw.js");
       }
-      if (standalone() || dismissed()) return;
-      onPrompt = (event: Event) => {
-        event.preventDefault();
-        setDeferred(event as BeforeInstallPromptEvent);
-      };
-      window.addEventListener("beforeinstallprompt", onPrompt);
-      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) setIos(true);
     });
-
+    const unsubscribe = subscribeInstall(setSnapshot);
     return () => {
       cancel();
-      if (onPrompt) window.removeEventListener("beforeinstallprompt", onPrompt);
+      unsubscribe();
     };
   }, []);
 
-  if (!deferred && !ios) return null;
-  const dismiss = () => {
-    document.cookie = DISMISS_COOKIE;
-    setDeferred(null);
-    setIos(false);
-  };
+  const deferred = snapshot.event;
+  const ios = snapshot.ios;
+  if (snapshot.hidden || (!deferred && !ios)) return null;
+  const dismiss = dismissInstall;
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[720px] items-center gap-3 rounded-t-card border border-line bg-card px-4 py-3 shadow-lift"
@@ -91,9 +70,7 @@ export function PwaClient() {
         <b>{t("installTitle")}</b>
         {deferred ? null : <span className="block text-sub">{t("iosHint")}</span>}
       </p>
-      {deferred ? (
-        <Button onClick={() => void deferred.prompt().finally(dismiss)}>{t("installCta")}</Button>
-      ) : null}
+      {deferred ? <Button onClick={() => void promptInstall()}>{t("installCta")}</Button> : null}
       <button
         type="button"
         onClick={dismiss}

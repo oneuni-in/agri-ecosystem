@@ -13,9 +13,18 @@ import { MILK, VENDOR_PHONE, apiAs, fixtureSlug } from "./helpers";
  * routing of beacon rows is test_ads_beacons.py/test_ads_migration.py.)
  */
 
-test("global banner serves a labeled house ad on home", async ({ page }) => {
+/**
+ * The M2 DoD is "house ads visible on home", not "on slot milk_global_header".
+ * U1 unmounted that slot from the milk layout (owner-approved: it is absent
+ * from the approved reference and stacked a second ad unit directly above the
+ * §3 hero) and the home's head banner is now the reference's own full-bleed
+ * hero, `milk_home_hero_xl`. Same engine, same approved-only contract, same
+ * always-on label — so the assertion moves with the surface. The slot key and
+ * its house creatives still exist for the routes that have no hero.
+ */
+test("the home's head banner serves a labeled house ad", async ({ page }) => {
   await page.goto(`${MILK}/`);
-  const banner = page.getByTestId("ad-carousel-milk_global_header");
+  const banner = page.getByTestId("ad-carousel-milk_home_hero_xl");
   await expect(banner).toBeVisible();
   // A served house ad carries the wire label -> badge. If the engine were
   // dark we would see the unlabeled local fallback instead - fail loudly.

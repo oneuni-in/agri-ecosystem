@@ -4,79 +4,31 @@ import { Button } from "@agri/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
-
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-  const raw = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
-}
-
-type State = "unsupported" | "ios-install" | "idle" | "subscribed" | "denied";
+import { detectPushState, type PushState, subscribePush, unsubscribePush } from "@/lib/push";
 
 /** Device-level push toggle (D28). The push *channel preference* stays
  * opt-out server-side (D12 model, PUT /notify/preferences accepts "push");
  * this card manages THIS device's subscription. Hidden entirely until a
- * VAPID public key is provisioned (feature-dark default). */
+ * VAPID public key is provisioned (feature-dark default).
+ *
+ * The subscribe/unsubscribe flow itself lives in `lib/push.ts`, shared with
+ * §10a's price-alert card on the home — one flow, so a visitor who opts in
+ * from either surface sees the same state on the other. */
 export function PushAlertsCard() {
   const t = useTranslations("ui.pushAlerts");
-  const [state, setState] = useState<State>("unsupported");
+  const [state, setState] = useState<PushState>("unsupported");
 
   useEffect(() => {
-    if (!VAPID) return; // no key provisioned -> feature stays dark
-    if (!("serviceWorker" in navigator)) return;
-    if (!("PushManager" in window)) {
-      // iOS Safari exposes PushManager only inside an installed PWA (16.4+)
-      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) setState("ios-install");
-      return;
-    }
-    if (Notification.permission === "denied") {
-      setState("denied");
-      return;
-    }
-    void navigator.serviceWorker.ready
-      .then((registration) => registration.pushManager.getSubscription())
-      .then((subscription) => setState(subscription ? "subscribed" : "idle"));
+    let live = true;
+    void detectPushState().then((next) => {
+      if (live) setState(next);
+    });
+    return () => {
+      live = false;
+    };
   }, []);
 
   if (state === "unsupported") return null;
-
-  const subscribe = async () => {
-    const registration = await navigator.serviceWorker.ready;
-    if ((await Notification.requestPermission()) !== "granted") {
-      setState("denied");
-      return;
-    }
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID) as BufferSource,
-    });
-    const json = subscription.toJSON();
-    const res = await fetch("/api/notify/push/subscriptions", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        endpoint: json.endpoint,
-        keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth },
-      }),
-    });
-    if (res.ok) setState("subscribed");
-    else await subscription.unsubscribe(); // don't leave an orphan browser sub
-  };
-
-  const unsubscribe = async () => {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) {
-      await fetch("/api/notify/push/subscriptions", {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ endpoint: subscription.endpoint }),
-      });
-      await subscription.unsubscribe();
-    }
-    setState("idle");
-  };
 
   return (
     <section
@@ -92,9 +44,11 @@ export function PushAlertsCard() {
           {state === "ios-install" ? t("iosInstallFirst") : t("body")}
         </p>
       </div>
-      {state === "idle" ? <Button onClick={() => void subscribe()}>{t("enable")}</Button> : null}
+      {state === "idle" ? (
+        <Button onClick={() => void subscribePush().then(setState)}>{t("enable")}</Button>
+      ) : null}
       {state === "subscribed" ? (
-        <Button variant="ghost" onClick={() => void unsubscribe()}>
+        <Button variant="ghost" onClick={() => void unsubscribePush().then(setState)}>
           {t("disable")}
         </Button>
       ) : null}

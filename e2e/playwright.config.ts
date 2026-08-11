@@ -44,11 +44,24 @@ export default defineConfig({
     {
       // NEXT_PUBLIC_ENABLE_SW: dev-mode opt-in so the D28 service-worker
       // registration island runs under `next dev` (see sw-register.tsx).
+      //
+      // NEXT_PUBLIC_VAPID_PUBLIC_KEY: a well-formed but non-functional key, so
+      // U1 §10a's price-alert card leaves its feature-dark state and can be
+      // asserted. It deliberately does NOT make subscription work — bundled
+      // Chromium has no push channel at all, which is why the real
+      // subscribe→deliver proof lives in push-verification.spec.ts (owner-run,
+      // real Chrome). What this key buys is coverage of the gate: the card
+      // appears only when a key is provisioned.
       command: "pnpm --filter @agri/web-milk dev",
       url: "http://localhost:3000",
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
-      env: { NEXT_PUBLIC_ENABLE_SW: "1" },
+      env: {
+        NEXT_PUBLIC_ENABLE_SW: "1",
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ??
+          "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U",
+      },
     },
     {
       command: "pnpm --filter @agri/web-organic dev",

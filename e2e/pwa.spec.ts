@@ -72,4 +72,56 @@ test.describe("D28 PWA", () => {
     await expect(page.getByTestId("offline-last-seen")).toContainText("641001");
     await context.close();
   });
+
+  /**
+   * U1 §10a — the price-alert opt-in card. Bound to the same D28 subscription
+   * flow as the /notifications device toggle (lib/push.ts).
+   *
+   * What this suite can assert is the NEGATIVE half of "never nag": a browser
+   * that has blocked notifications never sees the card, so the visitor is
+   * never shown a button that could only fail.
+   *
+   * The positive half — card visible, naming the visitor's own pincode, and
+   * dismissable — cannot run here at any permission setting: headless
+   * Chromium reports `Notification.permission === "denied"` regardless of
+   * Playwright's `grantPermissions`, because it has no notification backend to
+   * grant. Verified instead in push-verification.spec.ts, which already runs
+   * real Chrome for exactly this reason (`PUSH_VERIFY=1`).
+   */
+  test("§10a price-alert card stays hidden when notifications are blocked", async ({ page }) => {
+    // The VAPID key IS provisioned in this config, so an absent card here
+    // proves the permission gate rather than merely the feature-dark default.
+    await page.goto(`${MILK}/en`);
+    await expect(page.getByTestId("app-install-band")).toHaveCount(0); // not installable here either
+    await page.waitForTimeout(2_000); // let the island's detect() settle before asserting absence
+    await expect(page.getByTestId("price-alert-card")).toHaveCount(0);
+  });
+
+  /**
+   * U1 §10b — the app/PWA install band. Chromium never fires
+   * `beforeinstallprompt` under automation, so the Android path cannot be
+   * asserted here; the iOS path can, and it is the one with a fallback worth
+   * proving: Safari never fires the event at all, so the band must still
+   * render with the Add-to-Home-Screen instruction and no dead Install button.
+   */
+  test("§10b install band falls back to the iOS hint with no install button", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    });
+    const page = await context.newPage();
+    await page.goto(`${MILK}/en`);
+    const band = page.getByTestId("app-install-band");
+    await expect(band).toBeVisible({ timeout: 30_000 });
+    await expect(band).toContainText(/add to home screen/i);
+    await expect(band.getByRole("button", { name: /install/i })).toHaveCount(0);
+    // "Dismissed stays dismissed": a 30-day cookie, shared with the fixed banner.
+    await band.getByRole("button", { name: /dismiss/i }).click();
+    await expect(band).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId("app-install-band")).toHaveCount(0);
+    await context.close();
+  });
 });

@@ -19,16 +19,6 @@
   contain-intrinsic-size: auto 420px;
 }
 
-/* U1 §5b — the price ticker's marquee. The lane is rendered twice and
-   translated by half its width, so the loop is seamless. Declared here (not
-   as a Tailwind keyframe) because it is the only animation in the app that
-   needs a named keyframe, and `motion-reduce:[animation:none]` on the element
-   is what honours prefers-reduced-motion. */
-@keyframes ticker {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
+/* The §5b ticker keyframe moved to the Tailwind preset (`animation-ticker`)
+   when the marquee became a shared `@agri/ui` composite — a keyframe defined
+   in one app leaves the same component motionless in the kitchen sink. */

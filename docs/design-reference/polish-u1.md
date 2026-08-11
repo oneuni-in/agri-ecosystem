@@ -530,3 +530,76 @@ loads the page repeatedly must reset caps between loads, which is why both
 5. **Delivery window and coverage-pincode lines** from the reference's vendor
    card are not on the `covers()` wire payload, so they are not rendered rather
    than faked.
+
+---
+
+## 5. Section completion — §2b, §10a, §10b (the last three DO items)
+
+The audit after the cluster seeding found the build at 22 of the reference's
+25 numbered sections. The three absent were U1 DO items 30, 33 and 20 — all
+"none optional", all against backends that already existed. This pass built
+them, and every new pattern landed in the kitchen sink as the SAME shared
+component the page renders (see §5c below).
+
+### Binding proof
+
+| § | Section | Renders from | Mutation check |
+| --- | --- | --- | --- |
+| 2b | My-need status strip (`MyNeedStrip`) | `GET /leads/needs/mine` (D25), called server-side with the session bearer; milk-type label from the D17 schema the page already fetched | **Demonstrated in e2e** (`post-need.spec.ts`): post a need → vendor responds → the home strip shows the summary AND "1 vendor responded"; accept the vendor (need → fulfilled) → reload → **the strip is gone**. A guest triggers no request and never sees it. |
+| 10a | Price-alert opt-in (`PriceAlertCard`) | `lib/push.ts` — the SAME D28 subscribe/unsubscribe flow as the `/notifications` device toggle (`POST/DELETE /api/notify/push/subscriptions`), so opting in on either surface flips the other | Feature-dark until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is provisioned. **Never nag** is e2e-asserted where it CAN be: blocked-notifications browsers never see the card (`pwa.spec.ts`). The positive path (card names the visitor's own pincode, dismiss removes it) runs in `push-verification.spec.ts` — real Chrome, because headless Chromium hard-reports permission `denied` whatever Playwright grants. |
+| 10b | App/PWA install band (`AppInstallBand`) | `lib/install-prompt.ts` — ONE `beforeinstallprompt` capture shared with the existing fixed banner. Not a duplication nicety: Chrome honours only the FIRST `prompt()` per event, so two listeners means one dead button. | **Demonstrated in e2e** (`pwa.spec.ts`): iOS UA → band renders the Add-to-Home-Screen hint with NO dead Install button; dismiss → gone; reload → **stays gone** (30-day cookie, shared with the fixed banner — localStorage is banned by U1). Hidden when standalone. |
+
+The strip renders inline above the hero (not behind Suspense) on purpose:
+streaming it in late would push the whole page down. Only a signed-in visitor
+pays the blocking read; a guest costs one early `return null`.
+
+### 5b. Regressions the section work surfaced and fixed
+
+1. **`e2e/helpers.ts` could never settle on /ta or /hi.** `waitForHeaderSettled`
+   matched `/^login$/i`, but the button reads "உள்நுழை"/"लॉगिन" there. Now a
+   `data-testid="auth-login"` on the `AuthCluster` button, 45s ceiling (WebKit
+   takes ~10s of `/api/auth/me` churn to settle even idle).
+2. **Three e2e specs still asserted the pre-U1 page** and were red on dev:
+   `taxonomy.spec.ts` (the M1 tile row U1 replaced with the §5 category bar —
+   assertions moved to the bar, scoped to `category-bar` because the §11
+   footer links the same category pages), and `ads-surfaces.spec.ts` (asserted
+   slot `milk_global_header`, unmounted owner-approved — the M2 "house ads on
+   home" DoD now asserts the §3 hero slot).
+3. **Three real a11y defects (axe, serious):** `CertBar` was a keyboard trap in
+   reverse (scrollable, nothing focusable — `tabIndex={0}`); the stats band's
+   alpha tint (`bg-cert-bg/40`) was unresolvable by contrast tooling → solid
+   token; and `.tap-target`-style class merging ate the install band's solid
+   underlay — `cn()` runs tailwind-merge, which cannot tell `bg-cta-gradient`
+   is an image and silently DROPS a `bg-brand-deep` beside it (verified).
+   **`bg-<color>` + `bg-<gradient>` must never share a `cn()` — use an
+   arbitrary property for the underlay.**
+4. **WebKit + `content-visibility` = axe misattribution.** For skipped
+   subtrees WebKit reports degenerate geometry, and axe then "finds" white-card
+   text sitting on the stats band's tint. The a11y spec now neutralises
+   `content-visibility` for the audit (it changes nothing a user sees), plus
+   one scoped, documented exclusion for the §10b band's copy (5.7:1 in
+   reality; Chromium audits it clean).
+
+### 5c. Kitchen-sink drift cleared
+
+The U1 threat model names this, and the full build inverted it. Now every U1
+pattern is a shared `@agri/ui` composite (`home-patterns.tsx`) that BOTH the
+page and `/demo?theme=milk` render — `Marquee` (§5b, keyframe moved from
+web-milk's globals.css into the preset so it animates in the demo too),
+`StatBand`/`StatCell` (§8b), `NeedStrip` (§2b), `AlertCard` (§10a), `AppBand`
+(§10b), `ReviewCard` (§8d), `IconTile` (§8f/§8g), `VendorCard` (§8/§24,
+slot-based — each slot is a different backend). The demo's "U1 · home
+patterns" section renders them with literal data; the milk organisms are now
+thin bindings. Demo and product cannot drift because they are the same code.
+
+### Verification record (2026-08-11)
+
+- Workspace gates: lint 10/10 · typecheck 10/10 · tests 4/4 (79 UI, 63
+  auth-client, 15 milk, 2 observability) · `check:hex` clean.
+- e2e (local stack): `post-need` 3/3 (incl. both §2b checks) · `pwa` 6/6 ·
+  `taxonomy` 5/5 · `ads-surfaces` · `sponsored-listing` · `milk-home` ·
+  `a11y` green across desktop/mobile-chrome/mobile-safari. Two known flake
+  classes on a loaded box, both pre-existing and both pass on rerun: a WebKit
+  tab crash (`Target crashed`) and the notify-me dev-JIT navigation timeout.
+- §-marker sweep: §2b, §10a, §10b now render; the page carries all 25
+  numbered reference sections.

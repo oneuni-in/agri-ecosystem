@@ -84,7 +84,19 @@ test.describe("D28 push — real browser, real FCM", () => {
       await completeNewUserSteps(page);
       await expect(page).toHaveURL(/\/notifications/, { timeout: 30_000 });
 
+      // --- U1 §10a: the home's price-alert card is the same opt-in ---
+      // Same `lib/push.ts` flow as the device toggle below, so this is the one
+      // browser where its visible state can be asserted at all (headless
+      // Chromium reports permission "denied" no matter what is granted).
+      await page.goto(`${MILK}/en`);
+      const alertCard = page.getByTestId("price-alert-card");
+      await expect(alertCard).toBeVisible({ timeout: 30_000 });
+      await expect(alertCard).toContainText("641001"); // the visitor's own pincode, not a configured one
+      await alertCard.getByRole("button", { name: /not now/i }).click();
+      await expect(alertCard).toHaveCount(0); // "never nag"
+
       // --- subscribe: the real browser <-> push-service handshake ---
+      await page.goto(`${MILK}/notifications`);
       const card = page.getByTestId("push-alerts-card");
       await expect(card).toBeVisible({ timeout: 15_000 });
       const [subscribeResponse] = await Promise.all([

@@ -141,7 +141,13 @@ export const WEBKIT_HTTP_COOKIE_SKIP =
  * so wait for the header to settle on its logged-out "Login" button first.
  */
 export async function waitForHeaderSettled(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible({ timeout: 20_000 });
+  // By test id, not by accessible name: the label is translated, so the
+  // original /^login$/i match could never settle on /ta or /hi and every
+  // localised test timed out in the helper rather than on its own assertion.
+  // 45s, not 20: WebKit takes ~10s of /api/auth/me churn to settle even on an
+  // idle box, and on a runner already driving three dev servers late in a
+  // suite that stretches past 20 (same rationale as the SW-install waits).
+  await expect(page.getByTestId("auth-login")).toBeVisible({ timeout: 45_000 });
 }
 
 /** Resolve the seeded fixture's slug from the live API. BY SLUG, never by

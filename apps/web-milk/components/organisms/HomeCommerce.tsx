@@ -1,4 +1,4 @@
-import { Badge, Card, Section } from "@agri/ui";
+import { Badge, Card, IconTile, Section } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES } from "@/lib/categories";
@@ -96,29 +96,17 @@ export async function BrandsAvailable({
             className="rounded-card border border-cream-line bg-card p-3.5 no-underline"
             data-testid={`home-brand-${brand.slug}`}
           >
-            <span className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-11 w-11 flex-none items-center justify-center rounded-icon bg-brand-soft text-xl"
-              >
-                🥛
-              </span>
-              <span>
-                <b className="block text-[13.5px] font-semibold text-ink">{brand.name}</b>
-                <span className="block text-[11px] leading-relaxed text-sub">
-                  {brand.products
-                    .filter((p) => p.price_display)
-                    .slice(0, 3)
-                    .map((p) =>
-                      `${typeLabels.get(p.milk_type ?? "") ?? ""} ${p.price_display}`.trim(),
-                    )
-                    .join(" · ")}
-                </span>
-              </span>
-            </span>
-            <span className="mt-2.5 block rounded-btn border border-cream-line bg-cream-deep py-2 text-center text-[12px] font-semibold text-ink">
-              {t("nearest")}
-            </span>
+            <IconTile
+              variant="row"
+              icon="🥛"
+              title={brand.name}
+              sub={brand.products
+                .filter((p) => p.price_display)
+                .slice(0, 3)
+                .map((p) => `${typeLabels.get(p.milk_type ?? "") ?? ""} ${p.price_display}`.trim())
+                .join(" · ")}
+              footer={t("nearest")}
+            />
           </Link>
         ))}
       </div>
@@ -153,15 +141,10 @@ export async function DairyServices() {
             className="w-[118px] flex-none rounded-card border border-cream-line bg-card px-2 py-3.5 text-center no-underline"
             data-testid={`service-${slug}`}
           >
-            <span
-              aria-hidden="true"
-              className="mx-auto mb-1.5 flex h-11 w-11 items-center justify-center rounded-icon bg-brand-soft text-[22px]"
-            >
-              {icons[slug]}
-            </span>
-            <b className="block text-[11.5px] font-semibold text-ink">
-              {tCat(`${CATEGORY_MESSAGE_KEY[slug]}.name`)}
-            </b>
+            <IconTile
+              icon={icons[slug] ?? "🥛"}
+              title={tCat(`${CATEGORY_MESSAGE_KEY[slug]}.name`)}
+            />
           </Link>
         ))}
       </div>

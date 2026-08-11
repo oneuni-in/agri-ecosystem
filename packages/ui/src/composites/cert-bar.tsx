@@ -2,9 +2,20 @@ import type { ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 
-/** Cert trust bar (`.certbar`): horizontal scroll cards. */
+/**
+ * Cert trust bar (`.certbar`): horizontal scroll cards.
+ *
+ * `tabIndex={0}` because the cards are static content with nothing focusable
+ * inside: a scrollable region that cannot be reached by keyboard is a serious
+ * axe violation (`scrollable-region-focusable`) and, more to the point, a
+ * keyboard user could not read the cards past the fold on a phone.
+ */
 export function CertBar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex gap-2.5 overflow-x-auto pb-1.5", className)}>{children}</div>;
+  return (
+    <div tabIndex={0} className={cn("flex gap-2.5 overflow-x-auto pb-1.5", className)}>
+      {children}
+    </div>
+  );
 }
 
 /**

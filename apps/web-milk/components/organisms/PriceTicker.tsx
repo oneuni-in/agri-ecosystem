@@ -1,3 +1,4 @@
+import { Marquee } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import type { MilkHome } from "@/lib/milk";
@@ -11,10 +12,9 @@ import type { ProductCategory } from "@/lib/taxonomy";
  * Type names come from the D17 schema's `option_meta` labels (localised), not
  * from a hardcoded map — at `/ta` the whole strip is Tamil.
  *
- * The lane is duplicated because the marquee translates by -50%: the second
- * copy is what makes the loop seamless. It is `aria-hidden` so screen readers
- * hear the prices once. Motion is CSS-only and the whole animation is off
- * under `prefers-reduced-motion`, where it degrades to a static row.
+ * The seamless loop, the hover pause and the reduced-motion fallback all live
+ * in the shared `Marquee` composite (kitchen sink: "marquee"); this component
+ * only builds the lane.
  */
 export async function PriceTicker({
   home,
@@ -53,17 +53,8 @@ export async function PriceTicker({
   );
 
   return (
-    <div
-      className="relative mt-3 overflow-hidden rounded-pill border border-brand-soft-2 bg-brand-soft"
-      aria-label={t("today", { pincode })}
-      data-testid="price-ticker"
-    >
-      <div className="flex w-max gap-[34px] whitespace-nowrap py-2 text-[12px] text-brand-deep [animation:ticker_28s_linear_infinite] hover:[animation-play-state:paused] motion-reduce:[animation:none]">
-        {lane}
-        <span aria-hidden="true" className="contents">
-          {lane}
-        </span>
-      </div>
-    </div>
+    <Marquee className="mt-3" label={t("today", { pincode })} data-testid="price-ticker">
+      {lane}
+    </Marquee>
   );
 }

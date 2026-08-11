@@ -1,9 +1,9 @@
 import {
   Badge,
-  Card,
   type ListEntry,
   RatingStars,
   SponsoredListingCard,
+  VendorCard as VendorCardShell,
   cn,
 } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
@@ -48,59 +48,64 @@ function VendorCard({
   const href = `/directory/businesses/${card.slug}?pin=${pincode}`;
 
   return (
-    <Card
-      hover
+    <VendorCardShell
       data-testid={`home-vendor-${card.slug}`}
-      className="flex flex-col gap-1.5 border-cream-line p-4"
-    >
-      <div className="flex flex-wrap items-center gap-1.5">
-        {card.verification_status === "verified" ? (
-          <Badge variant="verified">{labels.verified}</Badge>
-        ) : null}
-        {recommended ? <Badge variant="cert">{labels.recommended}</Badge> : null}
-      </div>
-      <h3 className="text-[15.5px] font-extrabold leading-[1.3] text-ink">{card.name}</h3>
-      <p className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted">
-        {rating?.rating_avg ? (
-          <>
-            <RatingStars value={rating.rating_avg} />
-            <span>({rating.rating_count})</span>
-            <span aria-hidden="true">·</span>
-          </>
-        ) : null}
-        <span>{km} km</span>
-      </p>
-      {priced.length > 0 ? (
-        <p className="text-[13px] text-ink">
-          {priced.map((product, index) => (
-            <span key={`${product.milk_type}-${index}`}>
-              {index > 0 ? <span aria-hidden="true"> · </span> : null}
-              {/* `price_display` is free text that already carries its own
-                  unit ("₹55/L", "₹340/500ml"), so the pack size is NOT
-                  appended — doing so rendered "₹340/500ml 500ml". */}
-              <b className="font-semibold">{product.price_display}</b>{" "}
-              <span className="text-muted">
-                {product.milk_type ? (typeLabels.get(product.milk_type) ?? product.milk_type) : ""}
+      name={card.name}
+      badges={
+        <>
+          {card.verification_status === "verified" ? (
+            <Badge variant="verified">{labels.verified}</Badge>
+          ) : null}
+          {recommended ? <Badge variant="cert">{labels.recommended}</Badge> : null}
+        </>
+      }
+      meta={
+        <>
+          {rating?.rating_avg ? (
+            <>
+              <RatingStars value={rating.rating_avg} />
+              <span>({rating.rating_count})</span>
+              <span aria-hidden="true">·</span>
+            </>
+          ) : null}
+          <span>{km} km</span>
+        </>
+      }
+      {...(priced.length > 0
+        ? {
+            prices: priced.map((product, index) => (
+              <span key={`${product.milk_type}-${index}`}>
+                {index > 0 ? <span aria-hidden="true"> · </span> : null}
+                {/* `price_display` is free text that already carries its own
+                    unit ("₹55/L", "₹340/500ml"), so the pack size is NOT
+                    appended — doing so rendered "₹340/500ml 500ml". */}
+                <b className="font-semibold">{product.price_display}</b>{" "}
+                <span className="text-muted">
+                  {product.milk_type
+                    ? (typeLabels.get(product.milk_type) ?? product.milk_type)
+                    : ""}
+                </span>
               </span>
-            </span>
-          ))}
-        </p>
-      ) : null}
-      <div className="mt-1 flex gap-2">
-        <Link
-          href={href}
-          className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn bg-call text-[12.5px] font-bold text-white no-underline"
-        >
-          {labels.call}
-        </Link>
-        <Link
-          href={href}
-          className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn border border-wa-line bg-wa-soft text-[12.5px] font-bold text-wa-deep no-underline"
-        >
-          {labels.whatsapp}
-        </Link>
-      </div>
-    </Card>
+            )),
+          }
+        : {})}
+      actions={
+        <>
+          <Link
+            href={href}
+            className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn bg-call text-[12.5px] font-bold text-white no-underline"
+          >
+            {labels.call}
+          </Link>
+          <Link
+            href={href}
+            className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn border border-wa-line bg-wa-soft text-[12.5px] font-bold text-wa-deep no-underline"
+          >
+            {labels.whatsapp}
+          </Link>
+        </>
+      }
+    />
   );
 }
 

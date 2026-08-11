@@ -22,10 +22,13 @@ import {
   GpsPill,
   HeaderStack,
   HelplineBand,
+  IconTile,
   LangSwitcher,
   ListingCard,
   LocationPill,
+  Marquee,
   Modal,
+  NeedStrip,
   NotificationBell,
   PincodeHero,
   PincodeInput,
@@ -34,16 +37,21 @@ import {
   ProductGrid,
   ProfileNudge,
   RatingStars,
+  ReviewCard,
   SearchBand,
   SearchBar,
   Section,
   Skeleton,
+  SponsoredBadge,
+  StatBand,
+  StatCell,
   TodayCard,
   TodayStrip,
   TypeFilter,
   TypeFilterRow,
   UtilityLink,
   UtilityStrip,
+  VendorCard,
   WhatsAppButton,
   Wrap,
   cn,
@@ -56,6 +64,7 @@ import type { ReactNode } from "react";
 
 import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
+import { U1BandsDemo } from "./u1-bands-demo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Design system demo — D02",
@@ -573,6 +582,139 @@ export default async function DemoPage({
             </Modal>
             <ToastDemo />
           </div>
+        </Section>
+
+        {/* ═══ U1 home patterns ═══
+            Every pattern the Milk.in home introduced, as the SAME @agri/ui
+            component the page renders — not a copy of its markup. U1's rule
+            is "demo and product may never disagree", and the only way to
+            guarantee that is to make them the same code. Best viewed with
+            ?theme=milk, which is where these were designed. */}
+        <Section title="U1 · home patterns (milk)">
+          <Label>Need strip — §2b, full-bleed under the header (D25 active need)</Label>
+          <div className="-mx-4">
+            <NeedStrip
+              icon="🥛"
+              action={<a href="#" className="no-underline">View →</a>}
+            >
+              Your need: <b className="text-ink">2L · Cow milk · daily</b> —{" "}
+              <b className="text-ink">2 vendors responded</b>
+            </NeedStrip>
+          </div>
+
+          <Label>Marquee — §5b price ticker; pauses on hover, static under reduced motion</Label>
+          <Marquee label="Today's milk prices in 641001">
+            <span>Today in 641001</span>
+            <span>
+              Cow <b className="font-medium text-ink">₹52–58/L</b>
+            </span>
+            <span>
+              Buffalo <b className="font-medium text-ink">₹68–74/L</b>
+            </span>
+            <span>
+              A2 <b className="font-medium text-ink">₹105–120/L</b>
+            </span>
+            <span>
+              <b className="font-medium text-ink">18 sellers in 641001</b>
+            </span>
+          </Marquee>
+
+          <Label>Stat band — §8b; server-rendered finals, no count-up animation</Label>
+          <StatBand label="Marketplace at a glance">
+            <StatCell first value="126" label="Verified vendors" />
+            <StatCell value="1,204" label="Pincodes covered" />
+            <StatCell value="18" label="Sellers near you" />
+            <StatCell value="341" label="Reviews" />
+          </StatBand>
+
+          <Label>Vendor card — §8/§24; every slot is a different backend</Label>
+          <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            <VendorCard
+              name="Sakthi Dairy Farm"
+              badges={
+                <>
+                  <Badge variant="verified">Verified</Badge>
+                  <Badge variant="cert">Recommended</Badge>
+                </>
+              }
+              meta={
+                <>
+                  <RatingStars value="4.6" />
+                  <span>(23)</span>
+                  <span aria-hidden="true">·</span>
+                  <span>1.4 km</span>
+                </>
+              }
+              prices={
+                <>
+                  <b className="font-semibold">₹55/L</b> <span className="text-muted">Cow</span>
+                  <span aria-hidden="true"> · </span>
+                  <b className="font-semibold">₹110/L</b> <span className="text-muted">A2</span>
+                </>
+              }
+              actions={
+                <>
+                  <CallButton label={t.en("actions.call")} href="tel:18001801551" />
+                  <WhatsAppButton label={t.en("actions.whatsapp")} href="#" />
+                </>
+              }
+            />
+            {/* A paid card is the same grid cell with a 2px golden border —
+                placement and caps are M3's, never the card's. */}
+            <VendorCard
+              className="border-2 border-ad-border"
+              name="Aavin Milk Booth"
+              badges={<SponsoredBadge label="★ Sponsored" />}
+              meta={<span>0.8 km</span>}
+              actions={<CallButton label={t.en("actions.call")} href="tel:18001801551" />}
+            />
+          </div>
+
+          <Label>Review card — §8d; approved reviews only, body is locale-keyed</Label>
+          <div className="grid gap-2.5 md:grid-cols-3">
+            <ReviewCard
+              stars={<RatingStars value="5" />}
+              body="Fresh milk every morning at 6am, never missed a day."
+              attribution="Sakthi Dairy Farm"
+            />
+            <ReviewCard
+              stars={<RatingStars value="4" />}
+              body="தினமும் காலையில் நல்ல பால். விலையும் நியாயம்."
+              attribution="Anbu Milk Supply"
+            />
+          </div>
+
+          <Label>Icon tile — §8g service tile (stack) and §8f brand card (row)</Label>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {[
+              { icon: "🐄", title: t.en("categories.vet") },
+              { icon: "🌾", title: "Cattle feed" },
+              { icon: "🏭", title: "Dairy farms" },
+              { icon: "🤝", title: "Cooperatives" },
+            ].map((tile) => (
+              <a
+                key={tile.title}
+                href="#"
+                className="w-[118px] flex-none rounded-card border border-cream-line bg-card px-2 py-3.5 text-center no-underline"
+              >
+                <IconTile icon={tile.icon} title={tile.title} />
+              </a>
+            ))}
+          </div>
+          <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            <a href="#" className="rounded-card border border-cream-line bg-card p-3.5 no-underline">
+              <IconTile
+                variant="row"
+                icon="🥛"
+                title="Aavin"
+                sub="Cow ₹48/L · Buffalo ₹62/L"
+                footer="Nearest shops →"
+              />
+            </a>
+          </div>
+
+          <Label>Opt-in bands — §10a price alerts, §10b app install (both dismissible)</Label>
+          <U1BandsDemo />
         </Section>
 
         {/* ═══ locale matrix — icon + EN + vernacular in all 3 locales ═══ */}

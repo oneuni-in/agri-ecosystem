@@ -1,4 +1,4 @@
-import { Card, RatingStars, Section } from "@agri/ui";
+import { RatingStars, ReviewCard, Section, StatBand, StatCell } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -23,25 +23,16 @@ export async function StatsBand({ stats }: { stats: Record<string, number> }) {
     .map((key) => ({ key, value: stats[key] as number, label: t(key) }));
   if (cells.length === 0) return null;
   return (
-    <section
-      aria-label={t("verifiedVendors")}
-      data-testid="stats-band"
-      className="mt-5 flex flex-wrap rounded-card border border-cert-bg bg-cert-bg/40"
-    >
+    <StatBand label={t("verifiedVendors")} data-testid="stats-band" className="mt-5">
       {cells.map((cell, index) => (
-        <div
+        <StatCell
           key={cell.key}
-          className={`flex-1 basis-1/2 px-2 py-4 text-center md:basis-0 ${
-            index > 0 ? "md:border-l md:border-cream-line" : ""
-          }`}
-        >
-          <b className="block font-display text-2xl font-extrabold text-cert-fg">
-            {cell.value.toLocaleString("en-IN")}
-          </b>
-          <small className="text-[11px] text-sub">{cell.label}</small>
-        </div>
+          value={cell.value.toLocaleString("en-IN")}
+          label={cell.label}
+          first={index === 0}
+        />
       ))}
-    </section>
+    </StatBand>
   );
 }
 
@@ -96,16 +87,20 @@ export async function ReviewsStrip({
         {reviews.slice(0, 3).map((review) => {
           const body = review.body[locale] ?? Object.values(review.body)[0] ?? "";
           return (
-            <Card key={review.id} className="border-cream-line p-3.5" data-testid="home-review">
-              <RatingStars value={String(review.rating)} />
-              <p className="my-2 text-[12px] leading-relaxed text-ink">{body}</p>
-              <Link
-                href={`/directory/businesses/${review.business.slug}`}
-                className="text-[11px] text-muted no-underline"
-              >
-                {review.business.name}
-              </Link>
-            </Card>
+            <ReviewCard
+              key={review.id}
+              data-testid="home-review"
+              stars={<RatingStars value={String(review.rating)} />}
+              body={body}
+              attribution={
+                <Link
+                  href={`/directory/businesses/${review.business.slug}`}
+                  className="text-muted no-underline"
+                >
+                  {review.business.name}
+                </Link>
+              }
+            />
           );
         })}
       </div>

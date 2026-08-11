@@ -197,6 +197,20 @@ export const agriPreset = {
         nav: "0 -6px 20px rgba(0,0,0,.06)",
         ai: "0 4px 12px color-mix(in srgb, var(--brand) 40%, transparent)",
       },
+      keyframes: {
+        // U1 §5b — the price ticker's lane. The lane is rendered twice and
+        // translated by half the track width, so the loop is seamless. Lives
+        // in the preset, not one app's globals.css, because the `Marquee`
+        // composite that uses it ships from @agri/ui — a keyframe defined in
+        // web-milk would leave the same component motionless in the kitchen
+        // sink, which is the demo-and-product-disagree failure U1 warns about.
+        ticker: { from: { transform: "translateX(0)" }, to: { transform: "translateX(-50%)" } },
+      },
+      animation: {
+        // Reduced motion is honoured at the call site with
+        // `motion-reduce:[animation:none]`, which degrades to a static row.
+        ticker: "ticker 28s linear infinite",
+      },
       backgroundImage: {
         "header-gradient": "linear-gradient(160deg, var(--brand-deep), var(--brand))",
         "cta-gradient": "linear-gradient(140deg, var(--brand-deep), var(--brand))",

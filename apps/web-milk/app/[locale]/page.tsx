@@ -6,10 +6,12 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 
 import { HouseAdCard } from "@/components/molecules/HouseAdCard";
+import { AppInstallBand, PriceAlertCard } from "@/components/organisms/HomeAlerts";
 import { DairyServices, ShowcaseProducts } from "@/components/organisms/HomeCommerce";
 import { HowItWorks } from "@/components/organisms/HomeEngagement";
 import { FamilyStrip, HomeFaq, TrustRow } from "@/components/organisms/HomeStatic";
 import { HomeCategoryBar } from "@/components/organisms/HomeCategoryBar";
+import { MyNeedStrip } from "@/components/organisms/MyNeedStrip";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
 import { serveAds } from "@/lib/ads";
 import { fetchHomeData, resolveHomePincode } from "@/lib/home";
@@ -85,9 +87,9 @@ function homeJsonLd(faq: { q: string; a: string }[]): string {
  *
  * Every data-bearing section renders from a real backend source through
  * `fetchHomeData()` — one server-side aggregate, no client fetch, no mock
- * rows. The page is ISR, so it renders a configured pincode (`HOME_PINCODE`)
- * exactly as the reference does; the location pill and the §4 pincode box move
- * the visitor to their own `/{city}/{pincode}`.
+ * rows. The page is per-request and renders the VISITOR's own pincode (their
+ * `agri_loc` cookie), which the header pill, the §4 box and GPS all write, so
+ * the header and the content can never disagree.
  */
 export default async function HomePage({
   params,
@@ -123,6 +125,13 @@ export default async function HomePage({
   return (
     <main className="bg-cream pb-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd(faq) }} />
+
+      {/* §2b — active-need strip (D25), directly under the header. Rendered
+          inline rather than behind Suspense on purpose: it sits ABOVE the
+          hero, so streaming it in late would push the whole page down. A guest
+          has no session bearer and returns null without making a request, so
+          the blocking read only ever happens for a signed-in visitor. */}
+      <MyNeedStrip milkTypes={milkTypes} />
 
       {/* §3 — full-bleed hero ad, D21 slot milk_home_hero_xl. Approved
           creatives only (engine contract, re-checked in the parse layer). The
@@ -204,6 +213,13 @@ export default async function HomePage({
         <Suspense fallback={<HomeEngagementSkeleton />}>
           <HomeEngagementBlock data={dataPromise} locale={locale} />
         </Suspense>
+
+        {/* §10a price alerts + §10b install band. Both are permission-gated
+            client islands that render nothing until the browser has been asked
+            what it supports — so neither reserves space, and on the Lighthouse
+            run (headless Chrome, no install prompt, no push) both are absent. */}
+        <PriceAlertCard pincode={pincode} />
+        <AppInstallBand />
 
         {/* §10c — FAQ (also emitted as FAQPage JSON-LD above). */}
         <HomeFaq />

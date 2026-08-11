@@ -116,8 +116,11 @@ export function AuthCluster({ loginLabel = "Login" }: { loginLabel?: string }) {
       />
     );
   }
+  // `data-testid` because the label is translated: e2e's "wait for the header
+  // to settle" helper matched /^login$/i and could therefore never settle on
+  // /ta or /hi, where the button reads "உள்நுழை" / "लॉगिन".
   return (
-    <Button variant="brand" onClick={login}>
+    <Button variant="brand" onClick={login} data-testid="auth-login">
       {loginLabel}
     </Button>
   );

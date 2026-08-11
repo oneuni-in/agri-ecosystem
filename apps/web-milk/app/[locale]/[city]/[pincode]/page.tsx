@@ -1,14 +1,19 @@
+import { Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl, citySlug } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { ListBusinessCta } from "@/components/molecules/ListBusinessCta";
+import { MilkTypeChips } from "@/components/organisms/MilkTypeChips";
+import { PriceTicker } from "@/components/organisms/PriceTicker";
 import { Link } from "@/i18n/navigation";
 import { fetchSponsoredListings } from "@/lib/ads";
 import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
 import { fetchCovers } from "@/lib/directory";
+import { fetchReviewSignals } from "@/lib/home";
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
+import { fetchMilkTypes } from "@/lib/taxonomy";
 
 import { CategoryChips } from "./category-chips";
 import { CategoryResults } from "./category-results";
@@ -16,7 +21,6 @@ import { LastSeenWriter } from "./last-seen-writer";
 import { NotifyMe } from "./notify-me";
 import { OutOfArea } from "./out-of-area";
 import { RecommendedRail } from "./recommended-rail";
-import { TypeFilterRow } from "./type-filter-row";
 import { VendorResults } from "./vendor-results";
 
 const SITE = "https://milk.in";
@@ -157,20 +161,19 @@ export default async function PincodePage({
     const t = await getTranslations("ui");
     const categoryLabel = t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category]}.name`);
     return (
-      <main
-        className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6"
-        data-testid="scope-category"
-      >
-        <h1 className="font-display text-[22px] font-extrabold text-ink">
-          {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
-        </h1>
-        <CategoryChips base={base} active={category} />
-        <CategoryResults
-          items={covers.items}
-          categoryLabel={categoryLabel}
-          base={base}
-          sponsored={sponsored}
-        />
+      <main className="bg-cream" data-testid="scope-category">
+        <Wrap className="flex flex-col gap-5 py-6">
+          <h1 className="font-display text-[22px] font-extrabold text-ink">
+            {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
+          </h1>
+          <CategoryChips base={base} active={category} />
+          <CategoryResults
+            items={covers.items}
+            categoryLabel={categoryLabel}
+            base={base}
+            sponsored={sponsored}
+          />
+        </Wrap>
       </main>
     );
   }
@@ -192,6 +195,8 @@ export default async function PincodePage({
     }
   }
 
+  const t = await getTranslations("ui.results");
+
   // ---- Warm empty states (features, never error screens) ----
   if (data.scope === "out_of_area") {
     return <OutOfArea pincode={pincode} />;
@@ -205,11 +210,9 @@ export default async function PincodePage({
         data-testid="scope-tn-no-vendors"
       >
         <h1 className="font-display text-[22px] font-extrabold text-ink">
-          No milk vendors in {place} yet
+          {t("noVendorsTitle", { place })}
         </h1>
-        <p className="text-[15px] text-sub">
-          Be the first to know when a dairy lists here.
-        </p>
+        <p className="text-[15px] text-sub">{t("noVendorsBody")}</p>
         <NotifyMe pincode={pincode} {...(district ? { district } : {})} />
         <ListBusinessCta />
       </main>
@@ -218,75 +221,102 @@ export default async function PincodePage({
 
   // ---- Covered ----
   const filteredEmpty = data.vendors.length === 0 && data.brands.length === 0;
-  // M3.B: fetched server-side and injected at the render layer only -
-  // data.vendors/data.brands (and the JSON-LD built from them) stay pristine.
-  const sponsored = filteredEmpty
-    ? []
-    : await fetchSponsoredListings({
-        pincode,
-        category: product_category && product_category !== "all" ? product_category : null,
-        locale,
-      });
+  // The SAME shared paths the home vendor grid renders from (U1b Group A):
+  // localised D17 type labels, D18 review summaries for every card on the
+  // page, and M3.B sponsored listings fetched server-side and injected at
+  // the render layer only - data.vendors/data.brands (and the JSON-LD built
+  // from them) stay pristine.
+  const [milkTypes, { ratings }, sponsored] = await Promise.all([
+    fetchMilkTypes(locale),
+    fetchReviewSignals([...data.vendors, ...data.brands, ...data.recommended]),
+    filteredEmpty
+      ? Promise.resolve([])
+      : fetchSponsoredListings({
+          pincode,
+          category: product_category && product_category !== "all" ? product_category : null,
+          locale,
+        }),
+  ]);
+  const typeLabels = Object.fromEntries(milkTypes.map((m) => [m.value, m.label]));
+
   return (
-    <main
-      className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6"
-      data-testid="scope-covered"
-    >
+    <main className="bg-cream" data-testid="scope-covered">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: itemListJsonLd(pincode, data) }}
       />
-      <h1 className="font-display text-[22px] font-extrabold text-ink">
-        Milk in {data.location?.district ?? pincode}
-      </h1>
-      <TypeFilterRow base={base} filters={data.filters} active={type} />
-      <CategoryChips base={base} active={null} />
-
-      {data.price_banner ? (
-        <>
-          <div
-            className="rounded-card border border-dashed border-line bg-brand-soft px-3 py-2 text-[13px] text-ink"
-            data-testid="price-banner"
-          >
-            <b>Today in {pincode}:</b> {priceBannerText(data.price_banner)}
-          </div>
-          <LastSeenWriter
-            pincode={pincode}
-            district={data.location?.district ?? null}
-            banner={priceBannerText(data.price_banner)}
+      <Wrap className="flex flex-col gap-5 py-6">
+        <h1 className="font-display text-[22px] font-extrabold text-ink">
+          {t("title", { place: data.location?.district ?? pincode })}
+        </h1>
+        <div className="flex flex-col gap-1.5">
+          <MilkTypeChips
+            filters={data.filters}
+            milkTypes={milkTypes}
+            base={base}
+            active={type}
+            testId="type-filter-row"
           />
-        </>
-      ) : null}
+          <CategoryChips base={base} active={null} />
+        </div>
 
-      <Link
-        href="/post-need"
-        prefetch={false}
-        className="rounded-card border border-line bg-card px-3 py-3 text-[13px] font-bold text-ink no-underline"
-        data-testid="post-need-cta"
-      >
-        🥛 Post my need — vendors here reply to you{" "}
-        <span className="vern font-normal text-sub">· என் தேவை</span>
-      </Link>
+        {data.price_banner ? (
+          <>
+            <PriceTicker home={data} milkTypes={milkTypes} />
+            <LastSeenWriter
+              pincode={pincode}
+              district={data.location?.district ?? null}
+              banner={priceBannerText(data.price_banner)}
+            />
+          </>
+        ) : null}
 
-      {!filteredEmpty ? <RecommendedRail cards={data.recommended} pincode={pincode} /> : null}
+        <Link
+          href="/post-need"
+          prefetch={false}
+          className="rounded-card border border-cream-line bg-card px-3 py-3 text-[13px] font-bold text-ink no-underline"
+          data-testid="post-need-cta"
+        >
+          {t("postNeed")}
+          {locale === "en" ? (
+            // The reference's designed Tamil accent — /en only; ta/hi carry
+            // the fully translated line above instead.
+            <span className="vern font-normal text-sub"> · என் தேவை</span>
+          ) : null}
+        </Link>
 
-      {filteredEmpty ? (
-        <p className="text-[14px] text-sub" data-testid="filtered-empty">
-          No {type === "all" ? "" : `${milkTypeMeta(type).en.toLowerCase()} `}milk listed here
-          yet —{" "}
-          <Link className="font-bold text-brand-deep" href={base}>
-            see all
-          </Link>
-          .
-        </p>
-      ) : (
-        <VendorResults
-          vendors={data.vendors}
-          brands={data.brands}
-          pincode={pincode}
-          sponsored={sponsored}
-        />
-      )}
+        {!filteredEmpty ? (
+          <RecommendedRail
+            cards={data.recommended}
+            pincode={pincode}
+            ratings={ratings}
+            typeLabels={typeLabels}
+          />
+        ) : null}
+
+        {filteredEmpty ? (
+          <p className="text-[14px] text-sub" data-testid="filtered-empty">
+            {type === "all"
+              ? t("filteredEmptyAll")
+              : t("filteredEmpty", {
+                  type: typeLabels[type] ?? milkTypeMeta(type).en.toLowerCase(),
+                })}{" "}
+            <Link className="font-bold text-brand-deep" href={base}>
+              {t("seeAll")}
+            </Link>
+            .
+          </p>
+        ) : (
+          <VendorResults
+            vendors={data.vendors}
+            brands={data.brands}
+            pincode={pincode}
+            sponsored={sponsored}
+            ratings={ratings}
+            typeLabels={typeLabels}
+          />
+        )}
+      </Wrap>
     </main>
   );
 }

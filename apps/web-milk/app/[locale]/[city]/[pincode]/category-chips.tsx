@@ -27,14 +27,14 @@ export async function CategoryChips({
       // min-h-[44px]: single-line chips measured 40px tall, under the 44px
       // minimum tap target (design-system.md §1.5). The type-filter chips clear
       // it only because their icon adds a second line (D29).
-      "flex min-h-[44px] min-w-[86px] shrink-0 flex-col items-center justify-center gap-[3px] rounded-card border-2 border-line bg-card px-3.5 py-2.5 text-center text-ink no-underline",
+      "flex min-h-[44px] min-w-[86px] shrink-0 flex-col items-center justify-center gap-[3px] rounded-card border-2 border-cream-line bg-card px-3.5 py-2.5 text-center text-ink no-underline",
       on && "border-brand bg-brand-soft",
     );
 
   return (
     <div
       role="group"
-      aria-label="Dairy categories"
+      aria-label={t("categoryBrowse.rowLabel")}
       className="flex gap-[9px] overflow-x-auto pb-1"
       data-testid="category-chip-row"
     >

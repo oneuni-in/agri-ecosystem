@@ -270,7 +270,30 @@
     "categoryBrowse": {
       "heading": "{category} in {place}",
       "empty": "Nothing listed here yet — check back soon.",
-      "allMilk": "All milk"
+      "allMilk": "All milk",
+      "rowLabel": "Dairy categories"
+    },
+    "results": {
+      "title": "Milk in {place}",
+      "localVendors": "Local vendors",
+      "brandsNearby": "Brands & shops nearby",
+      "showMap": "🗺 Show map",
+      "hideMap": "Hide map",
+      "postNeed": "🥛 Post my need — vendors here reply to you",
+      "filteredEmptyAll": "No milk listed here yet —",
+      "filteredEmpty": "No {type} milk listed here yet —",
+      "seeAll": "see all",
+      "noVendorsTitle": "No milk vendors in {place} yet",
+      "noVendorsBody": "Be the first to know when a dairy lists here.",
+      "outTitle": "We're live in Tamil Nadu right now",
+      "outBody": "{pincode} isn't in our coverage yet — more areas coming soon. Leave your number and we'll reach out the moment milk vendors arrive."
+    },
+    "notify": {
+      "placeholder": "Phone or email (optional)",
+      "contactLabel": "Contact for notification",
+      "button": "Notify me",
+      "done": "🎉 Thanks — we'll tell you the moment milk vendors reach {place}.",
+      "error": "Something went wrong — please try again."
     },
     "brandPage": {
       "products": "Products",

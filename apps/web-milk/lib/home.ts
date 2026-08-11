@@ -81,34 +81,35 @@ async function fetchCoveredPincodes(): Promise<{ pincode: string; district: stri
 }
 
 /**
- * ONE server-side aggregate for the whole home page (§16's "one cached
- * aggregate endpoint or server-side props; never client-computed from full
- * lists"). Every section below the hero renders from this — there is no
- * client fetch and no mock data anywhere on the page.
- *
- * Reviews: D18 exposes reviews per target, not as a global feed, and U1
- * forbids new API surface. So the strip is COMPOSED from the businesses
- * already on this page — approved-only comes from the engine itself, which
+ * The D18 review signals for a set of blend cards: per-business `/reviews/
+ * summary` aggregates (rating + count) and, when `reviewsPerCard > 0`, the
+ * approved review bodies themselves. ONE code path for every surface — the
+ * home grid, the pincode results page and the Recommended rail all rate
+ * their cards through this, so "rating with count" cannot mean two different
+ * things on two pages. Approved-only comes from the engine itself, which
  * only ever returns approved rows to a public caller.
  */
-export async function fetchHomeData(pincode: string): Promise<HomeData> {
-  const [home, coveredPincodes] = await Promise.all([
-    fetchMilkHome(pincode),
-    fetchCoveredPincodes(),
-  ]);
-
-  const cards: MilkCard[] = [...(home?.vendors ?? []), ...(home?.brands ?? [])];
+export async function fetchReviewSignals(
+  cards: MilkCard[],
+  reviewsPerCard = 0,
+): Promise<{ ratings: Record<string, RatingSummary>; reviews: ReviewItem[] }> {
   const ratings: Record<string, RatingSummary> = {};
   const reviews: ReviewItem[] = [];
 
+  // Dedupe: a card can appear twice in a caller's list (a recommended vendor
+  // is also in the vendor grid) — one fetch per business either way.
+  const unique = [...new Map(cards.map((card) => [card.id, card])).values()];
+
   const perCard = await Promise.all(
-    cards.map(async (card) => {
+    unique.map(async (card) => {
       const query = `target_type=business&target_id=${encodeURIComponent(card.id)}`;
       const [summary, list] = await Promise.all([
         getJson<RatingSummary>(`/reviews/summary?${query}`),
-        getJson<{ items: { id: string; rating: number; body: Record<string, string> }[] }>(
-          `/reviews?${query}&limit=2`,
-        ),
+        reviewsPerCard > 0
+          ? getJson<{ items: { id: string; rating: number; body: Record<string, string> }[] }>(
+              `/reviews?${query}&limit=${reviewsPerCard}`,
+            )
+          : Promise.resolve(null),
       ]);
       return { card, summary, list };
     }),
@@ -125,6 +126,27 @@ export async function fetchHomeData(pincode: string): Promise<HomeData> {
       });
     }
   }
+  return { ratings, reviews };
+}
+
+/**
+ * ONE server-side aggregate for the whole home page (§16's "one cached
+ * aggregate endpoint or server-side props; never client-computed from full
+ * lists"). Every section below the hero renders from this — there is no
+ * client fetch and no mock data anywhere on the page.
+ *
+ * Reviews: D18 exposes reviews per target, not as a global feed, and U1
+ * forbids new API surface. So the strip is COMPOSED from the businesses
+ * already on this page.
+ */
+export async function fetchHomeData(pincode: string): Promise<HomeData> {
+  const [home, coveredPincodes] = await Promise.all([
+    fetchMilkHome(pincode),
+    fetchCoveredPincodes(),
+  ]);
+
+  const cards: MilkCard[] = [...(home?.vendors ?? []), ...(home?.brands ?? [])];
+  const { ratings, reviews } = await fetchReviewSignals(cards, 2);
 
   // Highest-rated first so the strip leads with the strongest social proof,
   // then a stable id tiebreak so a re-render doesn't reshuffle the page.

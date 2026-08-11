@@ -743,3 +743,94 @@ The fonts.gstatic.com outage that muddied the earlier rounds (three build
 failures across two runs) resolved on retry; if it recurs, the standing
 contingency is self-hosting the four families via `next/font/local` in
 `packages/ui/src/fonts.ts`.
+
+---
+
+## 6. U1b — remaining consumer surfaces rebuilt to the U1 catalog
+
+Binding-proof record for SPEC U1b (`feat/u1b-milk-consumer-ui`). Appended per
+U1b's rule; earlier sections are U1's record and are not rewritten.
+
+### 6.0 Prompt-to-repo substitutions (recorded, not silently applied)
+
+| Prompt says | Repo reality | Substitution used |
+| --- | --- | --- |
+| "extend `verify-u1.mjs` to new routes" | The script was home-only (hard-coded `category-bar` ready-selector and home DOM floors) | Extended with a `SURFACES` table (home / results / search), per-surface ready selectors + render floors; home keeps its U1 file names, new surfaces prefix theirs (`live-results-*`, `live-search-*`). |
+| "copy `capture-u1.mjs`" for group screenshots | `capture-u1.mjs` is the home-vs-reference matrix and uses `networkidle` (the documented never-settles trap) | New `scripts/capture-u1b.mjs` — copies verify-u1's HARDENED patterns verbatim (caps reset before every load, domcontentloaded + ready selector, per-shot context, silent-SSO 204, rendered-DOM assertion after the shot), parameterised by group. |
+| Mutation checks "through the same owner/admin APIs" | The dockerised API on :8000 has no `OTP_TEST_PEEK` routes (the e2e-only harness has them) | Owner/staff sessions minted through the real OTP flow, reading the mock-SMS code from the API container log (the documented dev path); the 5/day phone throttle was cleared via its redis keys. |
+| "after the ISR window" for page assertions | Results page is `revalidate = 300` | Same honest method as U1 §5e: mutate, wait out one full window, assert on a single plain reload of the canonical URL. |
+
+### 6.1 Group A — results surfaces (`/{city}/{pincode}` · search)
+
+What changed, structurally:
+
+- **One vendor-card binding.** The card binding that lived inside the home's
+  `VendorGrid` is now `components/organisms/MilkVendorCard.tsx`, and every
+  vendor grid renders it: the home grid, the results grids (inside the D24.D
+  map↔list island, which now only owns selection state), and the M3.C
+  Recommended rail. The results page's own pre-U1 `vendor-card.tsx` and
+  `type-filter-row.tsx` one-offs are deleted. The catalog `VendorCard` shell
+  gained an optional `body` slot and optional `actions` (a search hit is the
+  same shell, link-wrapped, action-less) — kitchen sink shows the new shape.
+- **Shared data paths, not forks.** The results page now renders D18 rating
+  aggregates through the SAME `fetchReviewSignals()` path the home uses
+  (extracted from `fetchHomeData`, one code path, deduped per business);
+  sponsored listings stay `fetchSponsoredListings()` → `injectSponsored()` at
+  the render layer, now with the localised badge label and the 2px
+  `--ad-border` golden border on every surface (results, category view,
+  search — previously home-only). §5c chips are the shared `MilkTypeChips`
+  organism (new `active` prop for the results page; the D23 schema-driven
+  filter SET is untouched), §5b is the shared `PriceTicker` marquee.
+- **Localisation.** Every piece of results/search chrome moved into the
+  catalogs (`ui.results.*`, `ui.notify.*`, `categoryBrowse.rowLabel` — en/ta/
+  hi). EN copy is byte-identical to the pre-U1b strings the e2e suite
+  asserts. The `· என் தேவை` accent on the post-need CTA renders on /en only.
+- **e2e assertions moved, none deleted.** `milk-home.spec.ts` now asserts the
+  §5b `price-ticker` (the dashed `price-banner` box no longer exists). All
+  other testids (`scope-*`, `type-filter-row`, `vendor-card-*`, `map-toggle`,
+  `vendor-results`, `notify-me`/`notify-done`, `category-*`) are preserved.
+
+### 6.2 Binding proof — Group A
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| `/{city}/{pincode}` covered view | `fetchMilkHome()` (D23 blend over `covers()`) + `fetchReviewSignals()` (D18 `/reviews/summary` per card) + `fetchMilkTypes()` (D17 `option_meta` labels) + `fetchSponsoredListings()` (M3.B) — the same four paths the home renders from | **Price:** owner `PATCH /catalog/products/{id}` `₹55/L → ₹61/L` → after one window the page shows `₹61/L` (rail + grid), zero `₹55/L`; restored after. **Suspend:** `POST /admin/directory/businesses/{id}/suspend` → after one window the canonical URL renders 0 `vendor-card-e2e-milk-vendor` while 19 other cards stay; `reinstate` → card returns with the restored `₹55/L`. |
+| `/{city}/{pincode}` sponsored positions | M3 engine (`SPONSORED_POSITIONS`, caps) — render-layer injection only | 2 sponsored cards at the engine's positions with the golden border; badge localises (`★ Sponsored` / `★ விளம்பரம்` measured on the live page). Organic arrays and the JSON-LD ItemList untouched (M3 organic-order unit test green; ItemList spec unchanged). |
+| Search | `GET /search` (D19 Meili) via the page's server fetch, `no-store`; geo-boost from the visitor's `agri_loc` pincode | **khoa:** created `Fresh Khoa` (spec `category: khoa` — a D17-only schema value) on the fixture vendor via owner API, staff-approved it → `/search?q=khoa` page renders it (with the pre-existing `Dairy Mart Khoa`) with ZERO code change; archived after the check. |
+| Search sponsored slot + listings | M2 `milk_search_inline` slot + M3.B injection | Badge label now localised on the injected cards; slot behaviour unchanged (collapses when dark). |
+
+### 6.3 Group A verification record (2026-08-11)
+
+- Workspace gates: `@agri/ui` lint + typecheck + 79 tests · `@agri/web-milk`
+  lint + typecheck + 15 tests · `@agri/web-agri` lint + typecheck ·
+  `check:hex` clean. The M3 organic-order test
+  (`sponsored.test.ts`) and the i18n locale-completeness test (new keys in
+  all three catalogs) are inside those suites.
+- Backend: `pytest -k "m3 or ads or delivery or leads"` — **260 passed** (no
+  backend code changed in Group A).
+- Locale probe (`verify-u1.mjs`, extended): untranslated chrome **0 on /ta
+  and /hi for all three surfaces** (home / results / search); NN5 category
+  bar `wrapsAt: []` across 320–1920 unchanged.
+- Screenshots: `docs/design-reference/u1b/{results,search}-en-{360,768,1024,
+  1440}.png` + ta/hi at 360/1440 + full-page records, captured with caps
+  reset between loads (`capture-u1b.mjs`).
+- Caps observed: sweep screenshots taken with `--reset-caps` between loads;
+  the 2-cards-per-page sponsored cap and positions are the engine's.
+
+Notes / observations, recorded rather than hidden:
+
+1. **Transient review-signal degradation under load.** During heavy sweep
+   loads on this dev box, a results render occasionally lost its rating rows
+   (a `/reviews/summary` fetch failing silently → `getJson` null → the
+   designed degradation). DOM-verified correct on every quiet load; two
+   early screenshot sets caught the degraded state and were re-taken with a
+   per-shot DOM assertion (`stars: true` logged for all four locale shots).
+   This is the same fail-soft contract the home has carried since U1.
+2. **A dev-only hydration warning** ("tree hydrated but some attributes…")
+   fires intermittently on home and search sweeps under load, including on
+   the UNCHANGED home surface, and does not reproduce on quiet loads of any
+   route. Pre-existing dev-mode noise, not introduced by this pass; the
+   production-build e2e/a11y suites are the arbiter.
+3. **Search page width** stays a 720px reading column (the reference has no
+   /search screen; U1's recorded position). The 720px FOOTER remnant is
+   Group C's job, per the U1b spec.

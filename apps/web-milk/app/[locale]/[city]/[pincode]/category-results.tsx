@@ -1,4 +1,10 @@
-import { Card, EmptyState, injectSponsored, type ServedAd, SponsoredListingCard } from "@agri/ui";
+import {
+  EmptyState,
+  injectSponsored,
+  type ServedAd,
+  SponsoredListingCard,
+  VendorCard as VendorCardShell,
+} from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -11,11 +17,10 @@ const UNLOCATABLE_M = 1_000_000_000;
 
 /**
  * Results grid for the covers-based category browse view (D27 Task 13).
- * Deliberately simple vs. `VendorResults`/`VendorCard` (no map, no
- * call/WhatsApp actions, no verified badge) — this is a thin, noindexed
- * query-param view whose only job is "here are N businesses in this
- * category near you, tap through to their profile"; richer per-vertical
- * card content is Task 14+ territory.
+ * Cards render the catalog `VendorCard` shell (name + category + distance,
+ * link-wrapped, no action row) — a thin, noindexed query-param view whose
+ * only job is "here are N businesses in this category near you, tap through
+ * to their profile"; richer per-vertical card content is Task 14+ territory.
  */
 export async function CategoryResults({
   items,
@@ -30,7 +35,7 @@ export async function CategoryResults({
    * `items` (and the covers cursor upstream) are never touched. */
   sponsored?: ServedAd[];
 }) {
-  const t = await getTranslations("ui");
+  const [t, tBadges] = await Promise.all([getTranslations("ui"), getTranslations("ui.badges")]);
 
   if (items.length === 0) {
     return (
@@ -51,34 +56,38 @@ export async function CategoryResults({
   }
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2" data-testid="category-results">
+    <ul className="grid list-none gap-2.5 p-0 md:grid-cols-2 lg:grid-cols-3" data-testid="category-results">
       {injectSponsored(items, sponsored).map((entry) =>
         entry.kind === "sponsored" ? (
           <li key={`s-${entry.ad.placement_id}`}>
-            <SponsoredListingCard ad={entry.ad} />
+            <SponsoredListingCard
+              ad={entry.ad}
+              sponsoredLabel={tBadges("sponsored")}
+              className="rounded-card border-2 border-ad-border"
+            />
           </li>
         ) : (
           <li key={entry.item.id}>
-            <Card
-              hover
-              className="flex h-full flex-col gap-1.5 p-4"
-              data-testid={`category-result-${entry.item.slug}`}
+            <Link
+              href={`/directory/businesses/${entry.item.slug}`}
+              className="block h-full no-underline"
             >
-              <Link
-                href={`/directory/businesses/${entry.item.slug}`}
-                className="flex flex-col gap-1.5 no-underline"
-              >
-                <h3 className="text-[15.5px] font-extrabold leading-[1.3] text-ink">
-                  {entry.item.name}
-                </h3>
-                <p className="text-[12.5px] text-sub">{categoryLabel}</p>
-                {entry.item.distance_m < UNLOCATABLE_M ? (
-                  <p className="text-[12.5px] text-sub">
-                    {t("brandPage.kmAway", { km: (entry.item.distance_m / 1000).toFixed(1) })}
-                  </p>
-                ) : null}
-              </Link>
-            </Card>
+              <VendorCardShell
+                data-testid={`category-result-${entry.item.slug}`}
+                className="h-full"
+                name={entry.item.name}
+                meta={
+                  <>
+                    <span>{categoryLabel}</span>
+                    {entry.item.distance_m < UNLOCATABLE_M ? (
+                      <span>
+                        {t("brandPage.kmAway", { km: (entry.item.distance_m / 1000).toFixed(1) })}
+                      </span>
+                    ) : null}
+                  </>
+                }
+              />
+            </Link>
           </li>
         ),
       )}

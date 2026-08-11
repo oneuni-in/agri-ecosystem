@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 /**
@@ -13,6 +14,7 @@ import { useState } from "react";
  * failed submit just leaves the form re-submittable, no toast/crash.
  */
 export function NotifyMe({ pincode, district }: { pincode: string; district?: string }) {
+  const t = useTranslations("ui.notify");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [contact, setContact] = useState("");
   const place = district ?? pincode;
@@ -35,7 +37,7 @@ export function NotifyMe({ pincode, district }: { pincode: string; district?: st
   if (status === "done") {
     return (
       <p className="text-[14px] font-bold text-ink" data-testid="notify-done" role="status">
-        🎉 Thanks — we&apos;ll tell you the moment milk vendors reach {place}.
+        {t("done", { place })}
       </p>
     );
   }
@@ -47,20 +49,20 @@ export function NotifyMe({ pincode, district }: { pincode: string; district?: st
         inputMode="tel"
         value={contact}
         onChange={(e) => setContact(e.target.value)}
-        placeholder="Phone or email (optional)"
-        aria-label="Contact for notification"
-        className="min-h-11 flex-1 rounded-btn border border-line bg-card px-3 py-2.5 text-[14px] text-ink"
+        placeholder={t("placeholder")}
+        aria-label={t("contactLabel")}
+        className="min-h-11 flex-1 rounded-btn border border-cream-line bg-card px-3 py-2.5 text-[14px] text-ink"
       />
       <button
         type="submit"
         disabled={status === "sending"}
         className="min-h-11 rounded-btn bg-brand px-5 py-2.5 text-[14px] font-extrabold text-white disabled:opacity-50"
       >
-        Notify me
+        {t("button")}
       </button>
       {status === "error" ? (
         <p className="text-[12.5px] text-sub sm:basis-full" role="status">
-          Something went wrong — please try again.
+          {t("error")}
         </p>
       ) : null}
     </form>

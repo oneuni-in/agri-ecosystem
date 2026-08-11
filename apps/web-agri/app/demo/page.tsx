@@ -668,6 +668,29 @@ export default async function DemoPage({
               meta={<span>0.8 km</span>}
               actions={<CallButton label={t.en("actions.call")} href="tel:18001801551" />}
             />
+            {/* U1b: a search hit is the SAME shell, link-wrapped and
+                action-less (the whole card is the link — a Call row inside it
+                would be a nested control), with the kind pill in the badge
+                row and the description in the `body` slot. */}
+            <a href="#" className="block no-underline">
+              <VendorCard
+                className="h-full"
+                name="Fresh paneer 200g"
+                badges={
+                  <span className="rounded-pill bg-ghost px-[9px] py-[3px] text-[11px] font-extrabold text-sub">
+                    Product
+                  </span>
+                }
+                meta={
+                  <>
+                    <span>Sakthi Dairy Farm</span>
+                    <span>Coimbatore, Tamil Nadu</span>
+                  </>
+                }
+                body={<span className="line-clamp-2">Soft paneer made fresh every morning.</span>}
+                prices={<b className="font-semibold">₹90</b>}
+              />
+            </a>
           </div>
 
           <Label>Review card — §8d; approved reviews only, body is locale-keyed</Label>

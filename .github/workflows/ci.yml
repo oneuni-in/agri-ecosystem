@@ -350,7 +350,11 @@ jobs:
   # Playwright. OTP codes come from the flag-gated mock peek route.
   e2e-auth:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30, was 15: U1 grew the desktop suite to 92 tests (§2b/§10a/§10b + the
+    # taxonomy/pwa additions) on a single worker, and the job started timing
+    # out ~12 minutes into the tests — every "cancelled" e2e-auth on PR #58
+    # was this ceiling, not a hang. Costs nothing unless used (PR-only CI).
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16

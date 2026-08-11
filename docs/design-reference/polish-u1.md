@@ -676,3 +676,38 @@ beside the after/reference sets in `docs/design-reference/u1/` — captured from
 a real production build of `02bc1a4`, the branch's parent commit, served from
 a temporary worktree. NN1's before/after/reference matrix is complete at all
 four widths.
+
+### 5g. NN2 pre-commitment — decided BEFORE the first CI run on this branch
+
+Context corrections to §5d, for the record. CI has audited the milk home on
+earlier PRs (pre-U1 page) and passed it; what it has never measured is THIS
+page — so the CI number on this PR is new information, not confirmation of
+the issue-#45 local-floor precedent. The §2b 500 existed only for two
+commits inside this branch and was fixed before any push; no prior deferral
+pointed at a broken gate. And the measurement API ran with
+`ADS_FREQ_CAP_PER_DAY=100000` (the e2e harness env), so the text-only hero
+slide was creative rotation — a seeded advertiser with no media art — not cap
+exhaustion; the run-to-run spread has no cap component.
+
+**Pre-commitment, written before CI reports:** if CI perf < 0.90 on `/` →
+**carve-out for the home route at floor 0.80** in `lighthouserc.cjs`, with
+the perf issue number inline (same shape as the owner-approved D28b and
+`/demo` carve-outs — and like those, the owner ratifies it at PR review). U1
+merges. A perf ticket opens the same day and must close — floor restored to
+0.90 — **before the Milk.in launch**; launch gates on it, the PR does not.
+
+Why not the alternatives:
+
+- *Dropping §7 + §8f* does not target the cost. The measured LCP is the §4
+  `<h1>` and its cost is render delay — the heading cannot paint until the
+  main thread clears ~4.8s of modelled work (Style & Layout 1657ms, script
+  eval 1072ms). Both sections are already below the fold under
+  `content-visibility`; removing them trades real, monetizable product
+  surface for a fraction of the style/layout slice and none of the script
+  eval.
+- *Holding the merge* has no defined exit — there is no identified change
+  that closes 0.82 → 0.90; it is a hydration/script-eval perf sprint. Holding
+  strands the §2b production-500 fix, the AA token fixes the other verticals
+  inherit, and the auth-client silent-SSO change, and blocks U1b/U2/U3.
+
+If CI ≥ 0.90, none of this activates and the floor stands untouched.

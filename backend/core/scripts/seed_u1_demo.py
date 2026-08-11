@@ -37,6 +37,7 @@ from modules.ads.models import Campaign, Creative, Placement
 from modules.directory import reviews_service
 from modules.directory import service as directory_service
 from modules.directory.models import Business
+from modules.directory.reviews_models import Review
 from modules.identity import service as identity_service
 from shared.db import get_sessionmaker
 from shared.dev_only import refuse_in_prod
@@ -315,11 +316,11 @@ async def _review(session: AsyncSession, ids: list[uuid.UUID], authors: list[uui
             author = authors[(index * 3 + offset) % len(authors)]
             held = await session.scalar(
                 select(func.count())
-                .select_from(reviews_service.Review)
+                .select_from(Review)
                 .where(
-                    reviews_service.Review.author_user_id == author,
-                    reviews_service.Review.target_type == "business",
-                    reviews_service.Review.target_id == business_id,
+                    Review.author_user_id == author,
+                    Review.target_type == "business",
+                    Review.target_id == business_id,
                 )
             )
             if held:

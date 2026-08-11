@@ -8,7 +8,7 @@ Binding-proof + gap-list document for SPEC U1 (`feat/u1-milk-home-ui`).
 
 | Prompt says | Repo reality | Substitution used |
 | --- | --- | --- |
-| `docs/design-reference/milkin_home_reference.html` (BINDING spec) | **Does not exist** — never committed in any branch (`git log --all --diff-filter=AD` is empty for that path) | `docs/design-reference/desktop v3.html` — `<title>milk.in — home reference (U1 approved v7)</title>`, header comment `U1 APPROVED REFERENCE (v7)`, fully responsive (20 `@media` blocks, breakpoints mobile <768 / tablet 768–1023 / desktop ≥1024), numbered section comments `1 · 2 · 2b · 3 · 4 · 5 · 5c · 5d · 5b · 6 · 7 · 8 · 8f · 8g · 8b · 8c · 8d · 8e · 9 · 10a · 10b · 10c · 10 · 11 · 12` matching the prompt exactly. This **is** the binding reference under a different filename. |
+| `docs/design-reference/milkin_home_reference.html` (BINDING spec) | **Does not exist** — never committed in any branch (`git log --all --diff-filter=AD` is empty for that path) | `docs/design-reference/desktop v3.html` — `<title>milk.in — home reference (U1 approved v7)</title>`, header comment `U1 APPROVED REFERENCE (v7)`, fully responsive (20 `@media` blocks, breakpoints mobile <768 / tablet 768–1023 / desktop ≥1024), numbered section comments `1 · 2 · 2b · 3 · 4 · 5 · 5c · 5d · 5b · 6 · 7 · 8 · 8f · 8g · 8b · 8c · 8d · 8e · 9 · 10a · 10b · 10c · 10 · 11 · 12` matching the prompt exactly. This **is** the binding reference under a different filename. *Closed at the end of U1:* the file is now also committed under the canonical `milkin_home_reference.html` (a byte-identical copy), so U1b/U2/U3 prompts that point at that path resolve without re-absorbing this gap. |
 | `docs/design-reference/mobile v4.html` (supplementary) | Exists | Used as the v8 mobile snapshot only (375px static mock, no CSS of its own — it inherits `var(--*)` from a host page). Reference wins on conflict. |
 | `pnpm --filter @agri/web-milk lighthouse` | No `lighthouse` script in `apps/web-milk/package.json` | `node scripts/lhci-affected.mjs` (the CI gate) with `lighthouserc.cjs`; home `/` binds the Constitution floor (perf ≥ 0.90, a11y ≥ 0.95, seo ≥ 0.95). |
 | "token lint (no raw hex)" | — | `pnpm check:hex` (`scripts/check-hex.mjs`) — bans hex/`rgb()` in `apps/` and `packages/ui/`; `packages/config` is the only place literals may live. |
@@ -428,7 +428,7 @@ Accessibility work (0.92 → 1.00):
   which turned a documented deviation into a failing gate, so the debt is paid:
   `--call` `#1E9E4A` → `#15803C` (white text 3.47:1 → 5.02:1), `--rating`
   `#C77700` → `#A25F00` (3.46:1 → 5.03:1). **These are shared tokens — agri.in
-  and organicstore.in inherit slightly deeper green/amber.**
+  and theorganic.in inherit slightly deeper green/amber.**
 * Footer links were ~23px tall, under WCAG 2.2's target-size floor; and the
   data-saver toggle inherited `--sub` onto the new dark footer at 1.55:1.
 
@@ -523,10 +523,10 @@ loads the page repeatedly must reset caps between loads, which is why both
 3. ~~The home renders a configured pincode~~ — **resolved**, see §4a: the home
    now renders the visitor's own pincode and the header cannot disagree with
    the content.
-4. **House-ad art is generated from the English copy.** Ad *copy* is per-locale
-   in the DB, but `seed_sample_media.py` renders one image from the `en`
-   variant, so the hero art reads English on `/ta`. Dev seed art only; real
-   advertisers upload their own creative.
+4. ~~House-ad art is generated from the English copy~~ — **resolved** in §4c:
+   `seed_sample_media.py --reimage` now draws locale-neutral panels (colour
+   field, geometry, the `milk.in` wordmark — no sentences), so no locale reads
+   another language's ad art. Real advertisers upload their own creative.
 5. **Delivery window and coverage-pincode lines** from the reference's vendor
    card are not on the `covers()` wire payload, so they are not rendered rather
    than faked.

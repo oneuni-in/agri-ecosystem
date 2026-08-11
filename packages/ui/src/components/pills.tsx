@@ -62,7 +62,12 @@ export function CoinsPill({
       )}
       {...props}
     >
-      🪙 {amount}
+      {/* Below `sm` the pill is the glyph alone. The signed-in cluster
+          (coins + bell + avatar) measured 402px across a 393px phone on
+          Linux glyph metrics — a 9px overflow Windows fonts hid — and the
+          balance digits are the one element here that is information, not
+          navigation: the full number lives one tap away. */}
+      🪙 <span className="max-sm:hidden">{amount}</span>
     </button>
   );
 }

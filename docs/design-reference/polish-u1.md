@@ -711,3 +711,35 @@ Why not the alternatives:
   inherit, and the auth-client silent-SSO change, and blocks U1b/U2/U3.
 
 If CI ≥ 0.90, none of this activates and the floor stands untouched.
+
+### 5h. The pre-commitment activated (2026-08-11, PR #58)
+
+CI's first true measurement of this page — run 31469194724 attempt 2, fonts
+loading normally — scored **median 0.87** (0.80 / 0.87 / 0.85) on `/` against
+the 0.90 floor. §5g executed exactly as written, with no reopening: the home
+route carries a 0.80 carve-out in `lighthouserc.cjs` (scoped so every OTHER
+app home keeps the full floor), **issue #59** is the expiry, and restoring
+0.90 gates the Milk.in launch, not this PR. For calibration: the issue-#45
+local-floor precedent (local ~0.80 → CI 0.90) did NOT hold for this page —
+local 0.82 → CI 0.87. Closer, but under; the pre-commitment earned its keep.
+
+Two more findings from the same CI rounds, both invisible before because the
+docs-twin workflow had been green-stamping docs-only pushes:
+
+1. **The D29 tap floor had never met this page.** e2e-matrix's first genuine
+   run found ten U1 controls under 44px (footer links, card CTAs, nav items,
+   heading-row links). Fixed at the component (`.tap-target` overlays for
+   dense text rows, real 44px boxes for block controls); device-matrix 18/18
+   locally and green on CI.
+2. **The signed-in header overflowed 393px phones by ~9px on Linux glyph
+   metrics** (ta/hi/en my-needs + notifications) — Windows fonts are narrower,
+   which is why every local sweep passed. Fixed in the shared `CoinsPill`:
+   below `sm` it shows the glyph alone; the balance digits are information,
+   not navigation, and the full number is one tap away. Lesson recorded:
+   **cross-platform glyph variance means nowrap headers must be verified on
+   Linux metrics, not just locally.**
+
+The fonts.gstatic.com outage that muddied the earlier rounds (three build
+failures across two runs) resolved on retry; if it recurs, the standing
+contingency is self-hosting the four families via `next/font/local` in
+`packages/ui/src/fonts.ts`.

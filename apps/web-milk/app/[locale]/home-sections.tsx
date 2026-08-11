@@ -99,7 +99,9 @@ export async function HomeVendors({ data, milkTypes, locale }: Props) {
           <Link
             href={resultsBase(resolved)}
             prefetch={false}
-            className="text-[13px] font-bold text-brand-deep no-underline"
+            // `.tap-target`: same §1.5 treatment as Section's see-link — a
+            // 13px heading-row link is ~20px tall, under the 44px floor.
+            className="tap-target text-[13px] font-bold text-brand-deep no-underline"
           >
             {t("showMap")}
           </Link>

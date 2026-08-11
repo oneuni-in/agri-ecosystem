@@ -26,7 +26,13 @@ export function Section({
       <div className="mb-3.5 flex items-baseline justify-between gap-2.5">
         <h2 className="font-display text-xl font-extrabold">{title}</h2>
         {see ? (
-          <a href={seeHref ?? "#"} className="text-[13px] font-bold text-brand-deep no-underline">
+          // `.tap-target`: a 13px "See all" is a ~20px-tall box, less than
+          // half the 44px floor (design-system.md §1.5). The overlay enlarges
+          // the hit area without moving the heading row's baseline.
+          <a
+            href={seeHref ?? "#"}
+            className="tap-target text-[13px] font-bold text-brand-deep no-underline"
+          >
             {see}
           </a>
         ) : null}

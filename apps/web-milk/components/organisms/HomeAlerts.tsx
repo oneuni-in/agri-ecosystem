@@ -65,7 +65,7 @@ export function PriceAlertCard({ pincode }: { pincode: string }) {
           onClick={() => {
             void subscribePush().then(setState);
           }}
-          className="inline-flex min-h-[40px] items-center rounded-btn bg-brand px-4 text-[12.5px] font-bold text-white"
+          className="inline-flex min-h-[44px] items-center rounded-btn bg-brand px-4 text-[12.5px] font-bold text-white"
         >
           {t("cta")}
         </button>

@@ -93,9 +93,12 @@ export async function ReviewsStrip({
               stars={<RatingStars value={String(review.rating)} />}
               body={body}
               attribution={
+                // `.tap-target`: an 11px attribution line is a ~12px-tall
+                // link — §1.5's overlay gives it the 44px hit area without
+                // growing the card.
                 <Link
                   href={`/directory/businesses/${review.business.slug}`}
-                  className="text-muted no-underline"
+                  className="tap-target text-muted no-underline"
                 >
                   {review.business.name}
                 </Link>
@@ -130,7 +133,9 @@ export async function PopularNearYou({ covered }: { covered: HomeData["coveredPi
           <Link
             key={district}
             href={`/${district.toLowerCase().replace(/\s+/g, "-")}/${pincode}`}
-            className="rounded-pill border border-cream-line bg-card px-4 py-2 text-[12px] text-ink no-underline"
+            // min-h 44 (was py-2 ≈ 36px): the §1.5 floor. inline-flex keeps
+            // the pill's text vertically centred in the taller box.
+            className="inline-flex min-h-[44px] items-center rounded-pill border border-cream-line bg-card px-4 text-[12px] text-ink no-underline"
           >
             {t("milkIn", { place: district })}
           </Link>

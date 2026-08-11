@@ -93,13 +93,13 @@ function VendorCard({
         <>
           <Link
             href={href}
-            className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn bg-call text-[12.5px] font-bold text-white no-underline"
+            className="flex min-h-[44px] flex-1 items-center justify-center rounded-btn bg-call text-[12.5px] font-bold text-white no-underline"
           >
             {labels.call}
           </Link>
           <Link
             href={href}
-            className="flex min-h-[40px] flex-1 items-center justify-center rounded-btn border border-wa-line bg-wa-soft text-[12.5px] font-bold text-wa-deep no-underline"
+            className="flex min-h-[44px] flex-1 items-center justify-center rounded-btn border border-wa-line bg-wa-soft text-[12.5px] font-bold text-wa-deep no-underline"
           >
             {labels.whatsapp}
           </Link>

@@ -59,7 +59,10 @@ function NavItem({
       href={href}
       prefetch={false}
       {...(active ? { "aria-current": "page" as const } : {})}
-      className={`flex flex-1 flex-col items-center text-[10px] no-underline ${
+      // min-h 44: the icon+label column measured ~34px, under the §1.5 tap
+      // floor even though the bar itself is 64px — the LINK is the target,
+      // not the bar. justify-center keeps the column centred in the new box.
+      className={`flex min-h-[44px] flex-1 flex-col items-center justify-center text-[10px] no-underline ${
         active ? "text-brand" : "text-sub"
       }`}
     >

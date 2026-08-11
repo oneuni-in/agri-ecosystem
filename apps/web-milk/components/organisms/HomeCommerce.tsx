@@ -56,7 +56,7 @@ export async function ShowcaseProducts({ products }: { products: ShowcaseProduct
               </div>
               <Link
                 href={`/directory/businesses/${product.businessSlug}`}
-                className="flex min-h-[38px] w-full items-center justify-center rounded-btn bg-brand text-[12px] font-bold text-white no-underline"
+                className="flex min-h-[44px] w-full items-center justify-center rounded-btn bg-brand text-[12px] font-bold text-white no-underline"
               >
                 {tProduct("whereToBuy")}
               </Link>

@@ -113,11 +113,12 @@ function FooterLink({
   external?: boolean;
   children: React.ReactNode;
 }) {
-  // `inline-flex` + a 24px min box: an 11px link on a 2.1 line-height was only
-  // ~23px tall, which fails WCAG 2.2's target-size floor (axe flagged every
-  // footer link). The row spacing is unchanged — the box just becomes the
-  // hit area rather than the text.
-  const className = "inline-flex min-h-[24px] items-center no-underline hover:text-white";
+  // Two floors meet here. `min-h-[24px]` clears WCAG 2.2's target-size
+  // minimum (axe flagged the bare ~23px text rows), and `.tap-target` — the
+  // design system's own §1.5 mechanism, an ::after overlay sized
+  // max(100%, 44px) — carries the 44px thumb floor the D29 device matrix
+  // enforces, without changing the footer's compact row spacing.
+  const className = "tap-target inline-flex min-h-[24px] items-center no-underline hover:text-white";
   return (
     <li>
       {external ? (

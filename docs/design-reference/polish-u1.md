@@ -649,3 +649,30 @@ during these runs was a text-only creative (an M5 advertiser with no
 `media_urls`), so the audit exercised the text-card path. That is a real
 production scenario and the component's contract — arbitrary approved
 creatives, image or not.
+
+### 5e. Binding-proof mutation checks — all seven now demonstrated (2026-08-11)
+
+Run against the live dev stack: host API on :8000, production `next start` on
+:3000, mutations through the same owner/admin APIs the product uses, asserted
+by reloading the REAL home page. The blend/review reads are cached
+`revalidate: 300`, so the run mutates everything, waits out one window, and
+asserts on a single reload — U1's own wording for the price check ("after ISR
+window") made honest.
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | Add schema value `khoa` → category bar + chips | **Done** (Pass 1; now also pinned by `taxonomy.spec.ts`, which asserts the bar renders `khoa` with zero code). |
+| 2 | Approve/pend a creative → hero picks it up / drops it | **Done** (Pass 1, both directions). |
+| 3 | Edit a vendor's price → home card updates | **Done.** Owner `PATCH /catalog/products/{id}` `₹55/L → ₹61/L`; after the window the real home shows `₹61/L` and `₹55/L` is gone; restored after. |
+| 4 | Suspend a business → card vanishes | **Done.** `POST /admin/directory/businesses/{id}/suspend` on `sri-balaji-milk-supply-town-hall` → card present:true → false; `reinstate` returns it to the blend. |
+| 5 | Approve a review → strip-eligible; reject → never renders | **Done.** Created pending (201) → absent from the public list and the home; approve (200) → present in the public `/reviews` list the strip composes from; a second author's review rejected (200, with the required `note`) → never entered the public list at any point. Top-3 *placement* is competitive by design (rating desc, stable id tiebreak), so eligibility is asserted at the fail-closed source. |
+| 6 | Post + respond to a need → stat moves | **Adapted, documented.** The stats band renders no needs-answered cell: §16's honest-numbers rule — there is no cached aggregate source for it yet, and `HOME_HIDDEN_STATS` hides cells rather than faking them. The same D25 chain IS proven live on the home by the §2b e2e: post → vendor responds → the strip's response count moves; fulfil → strip gone. |
+| 7 | Change the ₹499 config → CTA tile + footer update | **Done.** One rebuild with `NEXT_PUBLIC_ADVERTISE_AMOUNT=₹599` → the footer line, the §9 CTA tile and the §8a2 advertise band all read ₹599, zero occurrences of ₹499; rebuild without it restores ₹499 everywhere. Build-time by design (`NEXT_PUBLIC_*` inlining) — the mutation is a deploy, not a DB write. |
+
+### 5f. Before-screenshots (NN1 complete)
+
+`home-before-{360,768,1024,1440}.png` (+ full-page and TA/HI variants) now sit
+beside the after/reference sets in `docs/design-reference/u1/` — captured from
+a real production build of `02bc1a4`, the branch's parent commit, served from
+a temporary worktree. NN1's before/after/reference matrix is complete at all
+four widths.

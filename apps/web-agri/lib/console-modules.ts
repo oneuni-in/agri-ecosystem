@@ -21,6 +21,7 @@ export interface ConsoleModule {
 }
 
 export const CONSOLE_MODULES: ConsoleModule[] = [
+  { id: "dashboard", title: "Dashboard", href: "/business" },
   { id: "inbox", title: "Lead inbox", href: "/business/inbox" },
   { id: "listings", title: "Listings", href: "/business/listings" },
   { id: "products", title: "Products", href: "/business/products" },

@@ -614,6 +614,31 @@
         "terms": "उपयोग की शर्तें",
         "legal": "© {year} Oneuni Agri Platform Pvt Ltd - milk.in व्यवसाय सूचीबद्ध करता है"
       }
+    },
+    "console": {
+      "heading": "व्यवसाय कंसोल",
+      "dashboard": {
+        "title": "डैशबोर्ड",
+        "manage": "प्रबंधित करें",
+        "yourBusinesses": "आपके व्यवसाय",
+        "colBusiness": "व्यवसाय",
+        "colPincode": "पिनकोड",
+        "colStatus": "स्थिति",
+        "colPlan": "प्लान",
+        "statusActive": "सक्रिय",
+        "statusSuspended": "निलंबित",
+        "statusDisabled": "अक्षम",
+        "verified": "सत्यापित",
+        "planFree": "निःशुल्क",
+        "statBusinesses": "व्यवसाय",
+        "statLeads": "प्राप्त पूछताछ",
+        "statResponded": "जवाब दिए गए",
+        "allTime": "कुल",
+        "onboardTitle": "अपना व्यवसाय नक्शे पर लाएँ",
+        "onboardBody": "आस-पास के खरीदारों तक पहुँचने के लिए अपनी लिस्टिंग बनाएँ — दाम, कवरेज और पूछताछ एक ही जगह।",
+        "onboardCta": "अपनी लिस्टिंग बनाएँ",
+        "onboardClaimHint": "पहले से सूचीबद्ध है? अपने व्यवसाय पृष्ठ पर “यह मेरा व्यवसाय है” चुनकर उसे क्लेम करें।"
+      }
     }
   },
   "coins": {

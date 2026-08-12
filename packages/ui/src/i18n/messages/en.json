@@ -614,6 +614,31 @@
         "terms": "Terms of use",
         "legal": "© {year} Oneuni Agri Platform Pvt Ltd - milk.in lists businesses, we never sell or deliver"
       }
+    },
+    "console": {
+      "heading": "Business console",
+      "dashboard": {
+        "title": "Dashboard",
+        "manage": "Manage",
+        "yourBusinesses": "Your businesses",
+        "colBusiness": "Business",
+        "colPincode": "Pincode",
+        "colStatus": "Status",
+        "colPlan": "Plan",
+        "statusActive": "Active",
+        "statusSuspended": "Suspended",
+        "statusDisabled": "Disabled",
+        "verified": "Verified",
+        "planFree": "Free",
+        "statBusinesses": "Businesses",
+        "statLeads": "Leads received",
+        "statResponded": "Responded",
+        "allTime": "all time",
+        "onboardTitle": "Get your business on the map",
+        "onboardBody": "Create your listing to reach buyers near you — prices, coverage and leads in one place.",
+        "onboardCta": "Create your listing",
+        "onboardClaimHint": "Already listed publicly? Open your business page and choose “This is my business” to claim it."
+      }
     }
   },
   "coins": {

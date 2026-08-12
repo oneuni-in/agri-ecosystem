@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import catalog_service, service
 from modules.directory.catalog_models import Product
-from modules.directory.models import Branch, Business
+from modules.directory.models import Branch, Business, BusinessCategory, Category
 from modules.identity import service as identity_service
 from modules.identity.models import Role, UserRole
 from shared.db import get_sessionmaker
@@ -85,6 +85,43 @@ _PRODUCTS: list[tuple[str, dict[str, Any], str]] = [
         "₹340/500ml",
     ),
 ]
+
+
+# U1b: business-category taxonomy is data-driven — a category exists on the
+# consumer surfaces (chips, /c landings, footer) only while ≥1 ACTIVE business
+# carries it (`GET /directory/categories/active`). Without assignments every
+# /c/{slug} page correctly 404s, which is exactly what broke the a11y and
+# locale specs on a fresh e2e DB. Spread the four D27 dairy categories across
+# the two seeded businesses so the landings the suite visits exist, the same
+# shape the real vendor import produces.
+_CATEGORY_ASSIGNMENTS: dict[str, tuple[str, ...]] = {
+    _BUSINESS_NAME: ("dairy-farm", "cooperative"),
+    _CLAIMABLE_NAME: ("veterinarian", "feed-supplier"),
+}
+
+
+async def _ensure_categories(session: AsyncSession) -> None:
+    added = 0
+    for name, slugs in _CATEGORY_ASSIGNMENTS.items():
+        business = await session.scalar(select(Business).where(Business.name == name))
+        if business is None:
+            continue
+        for slug in slugs:
+            category = await session.scalar(select(Category).where(Category.slug == slug))
+            if category is None:
+                continue  # migration seed missing the row — nothing to assign
+            pair = await session.scalar(
+                select(BusinessCategory).where(
+                    BusinessCategory.business_id == business.id,
+                    BusinessCategory.category_id == category.id,
+                )
+            )
+            if pair is None:
+                session.add(BusinessCategory(business_id=business.id, category_id=category.id))
+                added += 1
+    if added:
+        await session.commit()
+        print(f"seed_e2e_milk: assigned {added} business categories")  # noqa: T201
 
 
 async def _ensure_staff(session: AsyncSession) -> None:
@@ -220,6 +257,7 @@ async def run() -> None:
             await _ensure_products(session, existing)
             await _ensure_staff(session)
             await _ensure_claimable(session)
+            await _ensure_categories(session)
             return
 
         owner = await identity_service.get_by_phone(session, _OWNER_PHONE)
@@ -260,6 +298,7 @@ async def run() -> None:
 
         await _ensure_staff(session)
         await _ensure_claimable(session)
+        await _ensure_categories(session)
 
 
 if __name__ == "__main__":

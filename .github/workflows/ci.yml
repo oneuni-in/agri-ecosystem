@@ -431,11 +431,16 @@ jobs:
   # names the device instead of hiding in one long serial run.
   e2e-matrix:
     runs-on: ubuntu-latest
-    # 35, not 20: the suite itself is ~9min locally, but CI adds a webkit +
-    # chromium install with system deps on top of pnpm/pip install, migrations
-    # and the seed. The first run hit the 20min cap mid-suite and was killed,
-    # which reads as a failure rather than a timeout.
-    timeout-minutes: 35
+    # 45, raised from 35 (which was raised from 20): the suite itself is
+    # ~9min locally, CI adds browser installs + migrations + the seed, and
+    # the suite has grown with every UI pass (U1 took the job from ~13min to
+    # ~20min). PR #60 hit the 35min cap twice with a uniform ~2.2x slowdown
+    # traced to the §5b marquee animating under CI's software compositor —
+    # fixed via reducedMotion in e2e/playwright.config.ts — but the ceiling
+    # keeps headroom so a regression yields a COMPLETED run whose reporter
+    # names the slow specs, not an opaque cancellation. A successful run
+    # bills actual minutes, not the ceiling.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16

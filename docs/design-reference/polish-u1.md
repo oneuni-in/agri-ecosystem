@@ -968,3 +968,25 @@ tied to issue #59 exactly like the home's 0.80 carve-out — restoring 0.90
 gates the Milk.in launch, not this PR. a11y/SEO stay at the full floor. The
 rejected alternatives (retry-until-green; pulling #59's perf sprint into
 U1b) and the reasoning live in the lighthouserc.cjs comment.
+
+### 8.5 The e2e-matrix timeout (2026-08-12, PR #60 CI)
+
+`e2e-matrix` hit its 35-minute ceiling twice. Evidence from both cancelled
+logs vs PR #58's passing one (same 88 tests, 1 worker): the Meilisearch
+ConnectErrors in the harness are pre-existing background noise (40 of them
+in the PASSING run too — the job has no Meili service and /search degrades
+by design); the real signature is a UNIFORM ~2.2× stretch of the whole
+timeline — search-page visits every ~2.8min vs ~1.3min — starting exactly
+when tests start (server boot ran at normal speed), identical across both
+attempts. No single spec stalls; 18.2m × 2.2 ≈ 40m > 35m.
+
+Root cause: the §5b Marquee is an infinite CSS animation and U1b put it on
+the results pages most specs sit on; CI browsers have no GPU, so the
+compositor burns a core continuously — a time-proportional cost (U1's own
+13m→20m job growth coincided with the marquee arriving on the home).
+Fix: the suite now runs under `reducedMotion: "reduce"`
+(e2e/playwright.config.ts) — the marquee's own first-class degradation path
+(static strip, `motion-reduce:[animation:none]`), asserted by nothing that
+wants motion, already the ads-surfaces spec's per-test practice. The job
+ceiling moves 35→45 so any future regression completes with a reporter
+summary naming the slow specs instead of an opaque cancellation.

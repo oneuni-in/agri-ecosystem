@@ -1,27 +1,30 @@
 import { cn } from "@agri/ui";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
-import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES, type DairyCategory } from "@/lib/categories";
+import { categoryLabel, fetchBusinessCategories } from "@/lib/categories";
 
 /**
- * Category chip row (D27 Task 13) — reuses `TypeFilterRow`'s exact chip
- * classes (design-system.md §2/§74 `.tf`, ≥44px tap targets via
- * `px-3.5 py-2.5`) so the two chip rows read as one system. Rendered under
- * `TypeFilterRow` on the milk view (`active={null}`) and at the top of the
- * category view (`active={category}`), so the four dairy categories + "all
- * milk" stay one tap away from every covered pincode page. Plain navigation
- * `Link`s to `?category=` — server-rendered, back-button-safe, zero JS for
- * the happy path, same precedent as `TypeFilterRow`.
+ * Category chip row (D27 Task 13, rebound in U1b) — the chip SET comes from
+ * the public taxonomy read (`fetchBusinessCategories`, categories with ≥1
+ * active business), never a list in code; labels are the directory rows' own
+ * localized names. Reuses the type-filter chip classes so the two chip rows
+ * read as one system. Plain navigation `Link`s to `?category=` —
+ * server-rendered, back-button-safe, zero JS for the happy path.
  */
 export async function CategoryChips({
   base,
   active,
 }: {
   base: string; // canonical page path, e.g. /coimbatore/641001 (D28)
-  active: DairyCategory | null;
+  active: string | null;
 }) {
-  const t = await getTranslations("ui");
+  const [t, locale, categories] = await Promise.all([
+    getTranslations("ui"),
+    getLocale(),
+    fetchBusinessCategories(),
+  ]);
+  if (categories.length === 0 && active === null) return null; // taxonomy dark — collapse
   const chipClass = (on: boolean) =>
     cn(
       // min-h-[44px]: single-line chips measured 40px tall, under the 44px
@@ -46,17 +49,17 @@ export async function CategoryChips({
       >
         <b className="text-xs">{t("categoryBrowse.allMilk")}</b>
       </Link>
-      {DAIRY_CATEGORIES.map((slug) => {
-        const on = slug === active;
+      {categories.map((category) => {
+        const on = category.slug === active;
         return (
           <Link
-            key={slug}
-            href={`${base}?category=${slug}`}
+            key={category.slug}
+            href={`${base}?category=${category.slug}`}
             aria-current={on ? "true" : undefined}
             className={chipClass(on)}
-            data-testid={`category-chip-${slug}`}
+            data-testid={`category-chip-${category.slug}`}
           >
-            <b className="text-xs">{t(`dairyCategories.${CATEGORY_MESSAGE_KEY[slug]}.name`)}</b>
+            <b className="text-xs">{categoryLabel(category, locale)}</b>
           </Link>
         );
       })}

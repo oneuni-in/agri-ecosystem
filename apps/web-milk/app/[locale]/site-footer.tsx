@@ -2,7 +2,7 @@ import { LowDataToggle } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
-import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES } from "@/lib/categories";
+import { categoryLabel, fetchBusinessCategories } from "@/lib/categories";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
 import { advertiseHref, advertisePrice } from "@/lib/contact";
 import { fetchProductCategories } from "@/lib/taxonomy";
@@ -19,12 +19,12 @@ import { fetchProductCategories } from "@/lib/taxonomy";
  * fourth measurably cost CLS on the Lighthouse-audited home.
  */
 export async function SiteFooter({ locale }: { locale: string }) {
-  const [t, tCat, tAdv, tLowData, categories] = await Promise.all([
+  const [t, tAdv, tLowData, categories, businessCategories] = await Promise.all([
     getTranslations("ui.home.footer"),
-    getTranslations("ui.dairyCategories"),
     getTranslations("ui.home.advertise"),
     getTranslations("ui.lowData"),
     fetchProductCategories(locale),
+    fetchBusinessCategories(),
   ]);
 
   return (
@@ -61,9 +61,11 @@ export async function SiteFooter({ locale }: { locale: string }) {
           </FooterCol>
 
           <FooterCol title={t("cities")}>
-            {DAIRY_CATEGORIES.slice(0, 3).map((slug) => (
-              <FooterLink key={slug} href={`/c/${slug}`}>
-                {tCat(`${CATEGORY_MESSAGE_KEY[slug]}.name`)}
+            {/* U1b: the /c links are the public taxonomy read, never a list
+                in code — same source as the chips and the §8g tiles. */}
+            {businessCategories.slice(0, 3).map((category) => (
+              <FooterLink key={category.slug} href={`/c/${category.slug}`}>
+                {categoryLabel(category, locale)}
               </FooterLink>
             ))}
             <FooterLink href="/search">{t("allCities")}</FooterLink>

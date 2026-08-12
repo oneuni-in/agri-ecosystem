@@ -21,8 +21,14 @@ const GROUPS = {
     { key: "results", path: "/coimbatore/641001", ready: '[data-testid="scope-covered"]' },
     { key: "search", path: "/search?q=milk", ready: 'form[role="search"]' },
   ],
-  // Group B/C surfaces are appended when those groups build.
-  groupB: [],
+  groupB: [
+    { key: "category", path: "/c/dairy-farm", ready: "main h1" },
+    { key: "category-p", path: "/p/milk", ready: "main h1" },
+    // The brand variant (shop-type with a catalog): products, nearby shops,
+    // coverage, reveal gate. DB-heavy — screenshots only, no locale probe.
+    { key: "brand", path: "/directory/businesses/aavin", ready: '[data-testid="on-since"]' },
+  ],
+  // Group C surfaces are appended when that group builds.
   groupC: [],
 };
 

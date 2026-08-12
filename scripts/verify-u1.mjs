@@ -44,6 +44,18 @@ const SURFACES = [
     minSections: 1,
     minHeadings: 0,
   },
+  // U1b Group B: the /c landing (data-driven taxonomy; the h1 carries the
+  // category row's own localized name). The brand page is deliberately NOT
+  // probed — it is DB text end to end (about, addresses, product names) and
+  // the probe's exclusion list cannot express that; capture-u1b.mjs records
+  // it as screenshots instead.
+  {
+    key: "category",
+    path: "/c/dairy-farm",
+    ready: "main h1",
+    minSections: 1,
+    minHeadings: 1,
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });

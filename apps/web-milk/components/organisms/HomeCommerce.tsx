@@ -1,7 +1,7 @@
 import { Badge, Card, IconTile, Section } from "@agri/ui";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
-import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES } from "@/lib/categories";
+import { categoryIcon, categoryLabel, fetchBusinessCategories } from "@/lib/categories";
 import { Link } from "@/i18n/navigation";
 import type { ShowcaseProduct } from "@/lib/showcase";
 import type { MilkCard } from "@/lib/milk";
@@ -115,36 +115,30 @@ export async function BrandsAvailable({
 }
 
 /**
- * §8g — dairy service tiles. Schema-driven in the sense that matters: the
- * slugs are the D17/alembic business-category set (`lib/categories.ts`,
- * mirroring the migration), each linking its existing `/c/{category}` landing
- * page. Adding a category there lights up a tile with no change here.
+ * §8g — dairy service tiles, fully data-driven (U1b): the tile SET is the
+ * public taxonomy read (categories with ≥1 active business), each linking
+ * its `/c/{category}` landing page. Adding a category row + one active
+ * business lights up a tile with no change here; icons fall back to 🥛 for
+ * a slug this map has never seen. Collapses when the taxonomy is dark.
  */
 export async function DairyServices() {
-  const [t, tCat] = await Promise.all([
+  const [t, locale, categories] = await Promise.all([
     getTranslations("ui.home.services"),
-    getTranslations("ui.dairyCategories"),
+    getLocale(),
+    fetchBusinessCategories(),
   ]);
-  const icons: Record<string, string> = {
-    veterinarian: "🐄",
-    "feed-supplier": "🌾",
-    "dairy-farm": "🏭",
-    cooperative: "🤝",
-  };
+  if (categories.length === 0) return null;
   return (
     <Section title={t("title")}>
       <div className="flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {DAIRY_CATEGORIES.map((slug) => (
+        {categories.map((category) => (
           <Link
-            key={slug}
-            href={`/c/${slug}`}
+            key={category.slug}
+            href={`/c/${category.slug}`}
             className="w-[118px] flex-none rounded-card border border-cream-line bg-card px-2 py-3.5 text-center no-underline"
-            data-testid={`service-${slug}`}
+            data-testid={`service-${category.slug}`}
           >
-            <IconTile
-              icon={icons[slug] ?? "🥛"}
-              title={tCat(`${CATEGORY_MESSAGE_KEY[slug]}.name`)}
-            />
+            <IconTile icon={categoryIcon(category.slug)} title={categoryLabel(category, locale)} />
           </Link>
         ))}
       </div>

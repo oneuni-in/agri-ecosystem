@@ -271,7 +271,8 @@
       "heading": "{place} में {category}",
       "empty": "यहाँ अभी कुछ सूचीबद्ध नहीं है — जल्द ही फिर देखें।",
       "allMilk": "सारा दूध",
-      "rowLabel": "डेयरी श्रेणियाँ"
+      "rowLabel": "डेयरी श्रेणियाँ",
+      "genericDescription": "{name} अपने पास खोजें — सत्यापित लिस्टिंग, दाम और संपर्क Milk.in पर।"
     },
     "results": {
       "title": "{place} में दूध",
@@ -297,6 +298,12 @@
     },
     "brandPage": {
       "products": "उत्पाद",
+      "vendorProducts": "दूध उत्पाद",
+      "deliveryArea": "डिलीवरी क्षेत्र",
+      "branches": "शाखाएँ और डिलीवरी समय",
+      "typeVendor": "दूध विक्रेता",
+      "typeShop": "ब्रांड / दुकान",
+      "morePincodes": "+ {count} और",
       "shopsNearYou": "आपके पास की दुकानें",
       "pincodeLabel": "आपका पिनकोड",
       "find": "दुकानें खोजें",
@@ -306,6 +313,10 @@
       "onSince": "Milk.in पर {date} से",
       "unavailableTitle": "यह लिस्टिंग उपलब्ध नहीं है",
       "unavailableBody": "आप जिस लिस्टिंग को खोज रहे हैं उसे हटा दिया गया है या वह अस्थायी रूप से अनुपलब्ध है।"
+    },
+    "productPage": {
+      "nearYou": "आपके पास {name}",
+      "description": "सत्यापित डेयरी ब्रांड, स्थानीय विक्रेताओं और फ़ार्मों से {name} — तमिलनाडु भर में आपके पास।"
     },
     "localeSwitcher": {
       "label": "भाषा"

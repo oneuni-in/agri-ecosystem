@@ -30,6 +30,8 @@ from modules.directory.reveal import (
     claim_reveal_slot,
 )
 from modules.directory.schemas import (
+    ActiveCategoryOut,
+    ActiveCategoryPageOut,
     AnalyticsResponseOut,
     AnalyticsSectionOut,
     BranchCreateIn,
@@ -453,6 +455,28 @@ async def list_categories(
 
 
 # --- public reads (declared in backend/core/public_routes.txt) -------------
+
+
+@router.get("/categories/active", public=True)
+async def list_active_categories(
+    session: SessionDep, cursor: str | None = None, limit: LimitQuery = DEFAULT_PAGE_SIZE
+) -> ActiveCategoryPageOut:
+    """Public taxonomy read (U1b): the categories that at least one ACTIVE
+    business is assigned to, with that count. Consumer surfaces (chips,
+    service tiles, /c landing pages, footer) render exactly this set — no
+    category list lives in frontend code. Config-shaped data only: slug,
+    localized name, sort order, a count; no business rows, no PII."""
+    try:
+        page, counts = await service.list_active_categories(session, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return ActiveCategoryPageOut(
+        items=[
+            ActiveCategoryOut(**_category_out(c).model_dump(), business_count=counts.get(c.id, 0))
+            for c in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )
 
 
 @router.get("/businesses/{slug}", public=True)

@@ -271,7 +271,8 @@
       "heading": "{category} in {place}",
       "empty": "Nothing listed here yet — check back soon.",
       "allMilk": "All milk",
-      "rowLabel": "Dairy categories"
+      "rowLabel": "Dairy categories",
+      "genericDescription": "Find {name} near you — verified listings, prices and contact on Milk.in."
     },
     "results": {
       "title": "Milk in {place}",
@@ -297,6 +298,12 @@
     },
     "brandPage": {
       "products": "Products",
+      "vendorProducts": "Milk products",
+      "deliveryArea": "Delivery area",
+      "branches": "Branches & delivery hours",
+      "typeVendor": "Milk vendor",
+      "typeShop": "Brand / shop",
+      "morePincodes": "+ {count} more",
       "shopsNearYou": "Shops near you",
       "pincodeLabel": "Your pincode",
       "find": "Find shops",
@@ -306,6 +313,10 @@
       "onSince": "On Milk.in since {date}",
       "unavailableTitle": "This listing is unavailable",
       "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
+    },
+    "productPage": {
+      "nearYou": "{name} near you",
+      "description": "Find {name} from verified dairy brands, local vendors and farms near you across Tamil Nadu."
     },
     "localeSwitcher": {
       "label": "Language"

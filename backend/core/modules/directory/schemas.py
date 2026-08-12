@@ -219,6 +219,18 @@ class CategoryPageOut(BaseModel):
     next_cursor: str | None
 
 
+class ActiveCategoryOut(CategoryOut):
+    """A category with at least one active assigned business (U1b public
+    taxonomy read) — the count is how many active businesses carry it."""
+
+    business_count: int
+
+
+class ActiveCategoryPageOut(BaseModel):
+    items: list[ActiveCategoryOut]
+    next_cursor: str | None
+
+
 class CategoryAssignIn(BaseModel):
     category_ids: list[uuid.UUID] = Field(max_length=50)
 

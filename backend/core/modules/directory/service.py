@@ -11,7 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.models import Branch, Business, BusinessCategory, BusinessCoverage, Category
@@ -342,6 +342,45 @@ async def list_categories(
     session: AsyncSession, *, cursor: str | None = None, limit: int = DEFAULT_PAGE_SIZE
 ) -> Page[Category]:
     return await paginate(session, select(Category), cursor=cursor, limit=limit)
+
+
+async def list_active_categories(
+    session: AsyncSession, *, cursor: str | None = None, limit: int = DEFAULT_PAGE_SIZE
+) -> tuple[Page[Category], dict[uuid.UUID, int]]:
+    """Categories with at least one ACTIVE assigned business, plus that count.
+
+    This is the public taxonomy read (U1b): the consumer surfaces render
+    whatever this returns, so "which categories exist on the site" is decided
+    by real data (a category row + one active business assignment), never by
+    a list in code. Soft-deleted businesses are excluded by the shared ORM
+    listener; suspended/disabled ones by the status filter.
+    """
+    active = (
+        select(BusinessCategory.category_id)
+        .join(Business, Business.id == BusinessCategory.business_id)
+        .where(Business.status == "active")
+        .distinct()
+        .subquery()
+    )
+    page = await paginate(
+        session,
+        select(Category).join(active, active.c.category_id == Category.id),
+        cursor=cursor,
+        limit=limit,
+    )
+    counts: dict[uuid.UUID, int] = {}
+    if page.items:
+        rows = await session.execute(
+            select(BusinessCategory.category_id, func.count(Business.id.distinct()))
+            .join(Business, Business.id == BusinessCategory.business_id)
+            .where(
+                Business.status == "active",
+                BusinessCategory.category_id.in_([c.id for c in page.items]),
+            )
+            .group_by(BusinessCategory.category_id)
+        )
+        counts = {category_id: count for category_id, count in rows.all()}
+    return page, counts
 
 
 async def get_by_slug_any_status(session: AsyncSession, slug: str) -> Business | None:

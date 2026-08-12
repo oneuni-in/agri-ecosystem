@@ -834,3 +834,60 @@ Notes / observations, recorded rather than hidden:
 3. **Search page width** stays a 720px reading column (the reference has no
    /search screen; U1's recorded position). The 720px FOOTER remnant is
    Group C's job, per the U1b spec.
+
+---
+
+## 7. U1b Group B — discovery surfaces (brand · category)
+
+### 7.0 Decision record + substitutions
+
+| Item | Decision / substitution |
+| --- | --- |
+| Business-category taxonomy scope | `directory.categories` has NO site/vertical dimension, so "which categories belong on milk.in" could not be schema-derived. **Owner chose the data-driven scope** (AskUserQuestion, this session): the taxonomy = categories with ≥1 ACTIVE assigned business, served by a new public read. Consequence accepted: `dairy` (121) and `shop` (10) now appear as browse categories beside the D27 four. |
+| New public accessor | `GET /directory/categories/active` — the U1b-permitted shape (read-only, owning module, `paginate()` keyset, no PII; declared in `public_routes.txt`, pinned by `test_active_categories_public_counts_only_active` + the exact-registry test). Suspended/soft-deleted businesses never count; a category whose only carrier is suspended does not exist publicly. |
+| `dairy`/`shop` row names | Were en-only; ta/hi names backfilled by DATA (dev DB update). **OWNER ACTION for prod:** run the same two-row name backfill at deploy (category names are directory data, not message strings). |
+| Brand page locale probe | NOT probed by `verify-u1.mjs` — the page is DB text end to end (about, addresses, product names) and the probe's exclusion list cannot express that. Recorded as screenshots (`u1b/brand-*`); the localized chrome was grepped directly on the live /ta page instead (all six keys present). |
+| Dev-cache trap (recorded for Group C) | A killed `pnpm dev` leaves the node child holding :3000 — a poll that races the kill gets the ORPHAN's stale data cache and reads like a broken binding. Kill the netstat LISTEN pid, then restart. |
+
+### 7.1 What changed
+
+- **Taxonomy is data, everywhere.** `lib/categories.ts`'s hardcoded
+  `DAIRY_CATEGORIES` (mirroring alembic 0026) is gone. `fetchBusinessCategories()`
+  (public taxonomy read, revalidate 3600, [] on backend-down) now drives: the
+  results-page category chips, the home §8g service tiles, the `?category=`
+  browse view + its metadata, the `/c/{category}` landing pages
+  (`generateStaticParams` + `dynamicParams`, same M1 NN1 shape as `/p`), the
+  brand-page category chips (all now link their /c landing), the footer's /c
+  column, and the sitemap's /c entries. Labels are the category rows' own
+  localized names; `CATEGORY_MESSAGE_KEY` survives only as copy enrichment
+  (curated /c descriptions for the D27 four, generic localized line otherwise)
+  and the icon map falls back to 🥛 — both presentation-only, never taxonomy.
+- **Brand surface on the catalog.** Product cards render the catalog
+  `VendorCard` shell; every literal localized (`brandPage.vendorProducts` /
+  `deliveryArea` / `branches` / `typeVendor` / `typeShop` / `morePincodes`,
+  badge via `ui.badges.verified`); milk-type meta uses the D17 localized
+  labels; category chips got real 44px tap boxes.
+- **/p/{category}** localized (`productPage.nearYou` + description template;
+  the house fallback reads `results.postNeed` with the en-only vern accent).
+
+### 7.2 Binding proof — Group B
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| Category chips · §8g tiles · `/c/{slug}` · `?category=` view · footer /c col · sitemap | `GET /directory/categories/active` (categories × active businesses) + `covers()` for the browse view | **Demonstrated end to end:** inserted category row `milk-testing-lab` (en/ta/hi names) + ONE assignment (e2e-milk-vendor) → with zero code change the results page grew a `category-chip-milk-testing-lab`, the home grew `service-milk-testing-lab`, `/c/milk-testing-lab` rendered (a page never coded or built, generic localized description, Tamil name on /ta), and `?category=milk-testing-lab` listed the assigned business. Rows deleted → endpoint drops it (count-scoped: a category with no active carrier does not exist). |
+| Brand page (D24 variant) | `fetchBusiness` + `fetchProducts` + `fetchReviews` + D17 type labels; JSON-LD `["Organization","Brand"]` unchanged | Sections collapse rather than render empty: at 636810 (covered, 1 vendor, 0 brands) the brands section is ABSENT from the page; on the brand page About/branches/coverage/products render only with data. NearbyShops' zero-state is the localized `brandPage.empty` message line (no box); no seeded brand has zero branches, so that state is pinned by the component contract rather than reproduced live — recorded, not claimed. |
+| `/p/{category}` | M1 schema (`fetchProductCategories`, dynamicParams) — already zero-enumeration; U1's khoa check pins it | Localized this pass; taxonomy binding unchanged. |
+
+### 7.3 Verification record
+
+- Workspace gates: web-milk + @agri/ui lint/typecheck/tests green (locale-
+  completeness covers the new keys) · `check:hex` clean.
+- Backend: directory suite 22/22 + main 4/4 + the
+  `m3 or ads or delivery or leads or directory` slice **387 passed**; mypy
+  clean on the module; `ruff format` applied to the touched router.
+- Locale sweep (`verify-u1.mjs`, now 4 surfaces): untranslated chrome **0 on
+  /ta and /hi for home, results, search AND category**; NN5 `wrapsAt: []`.
+  The known intermittent dev-only hydration warning appears ≤1× per surface
+  (unchanged from Group A's record).
+- Screenshots: `u1b/{category,category-p,brand}-*` (en 4 widths + ta/hi +
+  full-page) and the Group A sets re-captured with the data-driven chip row.

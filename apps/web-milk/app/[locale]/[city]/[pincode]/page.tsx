@@ -9,7 +9,7 @@ import { MilkTypeChips } from "@/components/organisms/MilkTypeChips";
 import { PriceTicker } from "@/components/organisms/PriceTicker";
 import { Link } from "@/i18n/navigation";
 import { fetchSponsoredListings } from "@/lib/ads";
-import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
+import { CATEGORY_MESSAGE_KEY, categoryLabel, fetchBusinessCategories } from "@/lib/categories";
 import { fetchCovers } from "@/lib/directory";
 import { fetchReviewSignals } from "@/lib/home";
 import { fetchMilkHome, milkTypeMeta, priceBannerText, type MilkHome } from "@/lib/milk";
@@ -51,18 +51,26 @@ export async function generateMetadata({
   // Category query-param views (D27 Task 13) are thin duplicates of the
   // `/c/{category}` landing pages, which own indexing for that content —
   // canonical stays the plain landing URL and the view self-noindexes.
-  if (category !== undefined && isDairyCategory(category)) {
-    const t = await getTranslations({
-      locale,
-      namespace: `ui.dairyCategories.${CATEGORY_MESSAGE_KEY[category]}`,
-    });
-    return buildMetadata({
-      title: `${t("name")} in ${pincode} — Milk.in`,
-      description: t("description"),
-      canonical: canonicalUrl(SITE, path),
-      siteName: "Milk.in",
-      noIndex: true,
-    });
+  // The category SET is the public taxonomy read (U1b) — unknown values fall
+  // through to the plain milk view, exactly like the page itself does.
+  if (category !== undefined) {
+    const match = (await fetchBusinessCategories()).find((c) => c.slug === category);
+    if (match) {
+      const t = await getTranslations({ locale, namespace: "ui" });
+      const label = categoryLabel(match, locale);
+      const msgKey = CATEGORY_MESSAGE_KEY[category];
+      return buildMetadata({
+        title: `${label} in ${pincode} — Milk.in`,
+        // Hand-written copy where it exists (the D27 four), the generic
+        // localized line otherwise — copy enrichment, never taxonomy.
+        description: msgKey
+          ? t(`dairyCategories.${msgKey}.description`)
+          : t("categoryBrowse.genericDescription", { name: label }),
+        canonical: canonicalUrl(SITE, path),
+        siteName: "Milk.in",
+        noIndex: true,
+      });
+    }
   }
 
   const place = data?.location ? `${data.location.district} (${pincode})` : pincode;
@@ -142,34 +150,39 @@ export default async function PincodePage({
   const { type = "all", category, product_category } = await searchParams;
   const base = `/${city}/${pincode}`;
 
-  // ---- Category browse (D27 Task 13) ----
-  // An unrecognized `?category=` value is treated as absent, not an error —
-  // falls straight through to the normal milk view below. Deliberately does
-  // NOT reuse `fetchMilkHome`'s 3-way scope machinery (covered /
-  // tn_no_vendors / out_of_area): `/directory/covers` has no such concept,
-  // it just returns items or an empty page, so the category view only ever
-  // has two states, items or empty (handled inside `CategoryResults`) — but
-  // a `fetchCovers` null (backend unreachable / non-ok) is a genuine error,
-  // not a warm empty state, same distinction `fetchMilkHome`'s `!data` check
-  // makes below for the milk view.
-  if (category !== undefined && isDairyCategory(category)) {
+  // ---- Category browse (D27 Task 13, taxonomy rebound in U1b) ----
+  // The category SET is the public taxonomy read — an unrecognized
+  // `?category=` value is treated as absent, not an error, and falls straight
+  // through to the normal milk view below. Deliberately does NOT reuse
+  // `fetchMilkHome`'s 3-way scope machinery (covered / tn_no_vendors /
+  // out_of_area): `/directory/covers` has no such concept, it just returns
+  // items or an empty page, so the category view only ever has two states,
+  // items or empty (handled inside `CategoryResults`) — but a `fetchCovers`
+  // null (backend unreachable / non-ok) is a genuine error, not a warm empty
+  // state, same distinction `fetchMilkHome`'s `!data` check makes below for
+  // the milk view.
+  const categoryMatch =
+    category !== undefined
+      ? (await fetchBusinessCategories()).find((c) => c.slug === category)
+      : undefined;
+  if (category !== undefined && categoryMatch) {
     const covers = await fetchCovers(pincode, category);
     if (!covers) notFound();
     // M3.B render-layer injection: sponsored cards never touch covers.items
     // or its cursor - CategoryResults splices them into the RENDERED grid.
     const sponsored = await fetchSponsoredListings({ pincode, category, locale });
     const t = await getTranslations("ui");
-    const categoryLabel = t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category]}.name`);
+    const label = categoryLabel(categoryMatch, locale);
     return (
       <main className="bg-cream" data-testid="scope-category">
         <Wrap className="flex flex-col gap-5 py-6">
           <h1 className="font-display text-[22px] font-extrabold text-ink">
-            {t("categoryBrowse.heading", { category: categoryLabel, place: pincode })}
+            {t("categoryBrowse.heading", { category: label, place: pincode })}
           </h1>
           <CategoryChips base={base} active={category} />
           <CategoryResults
             items={covers.items}
-            categoryLabel={categoryLabel}
+            categoryLabel={label}
             base={base}
             sponsored={sponsored}
           />

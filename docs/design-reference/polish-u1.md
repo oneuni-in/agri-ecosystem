@@ -1032,3 +1032,73 @@ Design note: no red exists in the palette by design; the destructive
 confirm follows web-admin's convention (brand-filled confirm inside a
 dialog that names the consequence). Soft-delete copy rule is baked into
 `ConfirmAction`'s doc: say "hidden from public results", never "erased".
+
+### 7.2 Group B — ownership core (binding proof + THE IDOR SWEEP)
+
+Group B is write-side and behind `owned_by()`. Two backend soft-delete
+routes are new (`DELETE /directory/businesses/{id}`,
+`DELETE /catalog/products/{id}`); both funnel through the existing
+ownership gates, soft-delete only (Constitution — no hard DELETE), republish
+the fat events (null snapshot → the search worker tombstones the docs), and
+the business delete pauses running ad campaigns + writes an audit row. The
+listings and products console pages were rebuilt onto the U2 catalog
+(ConsoleField / ConsolePanel / ConsoleNotice / ConsoleTable / StateChip /
+ConfirmAction) and fully localized via `ui.console.*`.
+
+#### THE IDOR SWEEP (automated — `tests/test_u2_idor_sweep.py`)
+
+Signed in as vendor B, every console resource of vendor A is attempted —
+read, edit, delete, list. **Every one returns exactly 404** (never 403 —
+that confirms the row exists; never 2xx — that is a leak). Each row is
+re-run as the OWNER as a positive control (must NOT be 403/404), so a 404 is
+proven to be an authz decision, not a routing typo. 43 assertions, all green.
+Stricter than D30's 403-or-404 sweep, which stays as the D30 record.
+
+| Resource | Read | Edit | Delete | List |
+| --- | --- | --- | --- | --- |
+| Business (`/directory/businesses/{id}`) | tier-read 404 · analytics 404 | PATCH 404 · rename 404 | **DELETE 404** | owner-list excludes A's row ✓ |
+| Coverage (`.../coverage`) | — | PUT 404 | — | — |
+| Categories (`.../categories`) | — | PUT 404 | — | — |
+| Tier selection (`.../tier-selection`) | GET 404 | PUT 404 | — | — |
+| Branch (`.../branches`, `/branches/{id}`) | — | add 404 · PATCH 404 | — | — |
+| Product (`/catalog/products/{id}`) | — | PATCH 404 | **DELETE 404** | `/catalog/my/products?business_id=A` 404 |
+| Product create (`/catalog/businesses/{id}/products`) | — | POST 404 | — | — |
+| Product image (`.../images`, `.../images/{i}`) | — | upload 404 | DELETE 404 | — |
+| Lead (`/leads/inbox`, `/inquiries/{id}/...`) | inbox 404 · stats 404 | respond 404 | close 404 | — |
+
+Owner positive control passes for every row (200/201/204/409/422, never
+403/404). `test_u2_soft_delete.py` proves the recoverability half: after a
+DELETE, the row is absent from every public read AND the owner list, but
+survives under `execution_options(include_deleted=True)` with `deleted_at`
+set — the soft-delete contract, asserted directly.
+
+#### Mutation checks (live, `scripts/verify-u2.mjs` — 8/8, dev stack)
+
+Each mutates through the owner API (real `agri_sid` session) and asserts on
+the PUBLIC read; the price check asserts on the REAL consumer results page
+after the 300s cache window (U1 §5e precedent).
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | profile edit → public business page reflects it | **PASS** — owner PATCH description.en; `/directory/businesses/{slug}` carries the nonce |
+| 2 | listing price edit → the consumer results card changes (U1b surface) | **PASS** — `PATCH /catalog/products/{id}` ₹55→₹61; `/en/coimbatore/641001` shows it after the cache window |
+| 3 | listing soft-deleted → vanishes from public + owner list, row survives | **PASS** — scratch business DELETE→204, slug 404s, out of owner list; pytest proves `include_deleted` row survives |
+| 4 | product soft-deleted → public product page 404s | **PASS** — scratch product DELETE→204, `/catalog/products/{slug}` 404 |
+| 5 | media upload → renders on the public page | **PASS** — PNG upload → `/catalog/businesses/{slug}/products` images non-empty |
+| 6 | rejected file type is refused server-side | **PASS** — `text/plain` upload → 422 (shared.media.reencode_image), never client-only |
+| 7 | coverage pincode added → business appears in that pincode's `covers()` blend | **PASS** — PUT coverage +641011 → `/directory/covers/641011` lists the business |
+| 8 | soft-delete used for removals (never hard DELETE) | **PASS** — both routes call `shared.db.soft_delete`; pytest asserts the row + `deleted_at` survive |
+
+Screenshots: `docs/design-reference/u2/console-{listings,products}-{en,ta,hi}-1440.png`.
+TA and HI leave **zero English chrome** — nav, page titles, every form label,
+field hints, delivery-window day names, validation/error strings, the
+coverage panel, and the destructive-delete confirm all localize; only DB
+data (the business name, the description text) stays as stored. The mechanism
+is a `NEXT_LOCALE` cookie read by `i18n/request.ts` (web-agri has no URL
+locale routing yet — D02's note), set by the console's own locale switcher.
+
+**Substitution recorded:** `verify-u1.mjs`'s locale probe was NOT extended to
+console routes — it drives web-milk (public, no auth) and the console is
+auth-gated behind the BFF dance. The equivalent proof is the three real-browser
+TA/HI captures above plus the `ui.console.*` locale-completeness test
+(`packages/ui` — all three catalogs carry every key, or the suite fails).

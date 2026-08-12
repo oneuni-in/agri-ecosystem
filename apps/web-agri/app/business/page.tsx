@@ -222,7 +222,7 @@ export default async function BusinessDashboardPage() {
       <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
         {modules.map((entry) => (
           <Link key={entry.id} href={entry.href} className="no-underline">
-            <ConsoleModuleCard icon={MODULE_ICONS[entry.id] ?? "🗂️"} title={entry.title} />
+            <ConsoleModuleCard icon={MODULE_ICONS[entry.id] ?? "🗂️"} title={t(`nav.${entry.id}`)} />
           </Link>
         ))}
       </div>

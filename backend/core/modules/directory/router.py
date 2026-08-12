@@ -63,9 +63,11 @@ from modules.directory.schemas import (
     ViewBeaconIn,
     ViewBeaconOut,
 )
+from shared.audit import audit
 from shared.db import get_session
 from shared.events import publish
 from shared.geo.service import district_for_pincode
+from shared.lookups import pause_campaigns_for_business
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
 from shared.security import client_ip as _client_ip
@@ -263,6 +265,43 @@ async def rename_business(
     for product_payload in product_payloads:
         await _publish_best_effort("product.updated", product_payload)
     return out
+
+
+@router.delete("/businesses/{business_id}", status_code=204)
+async def delete_business(request: Request, business_id: uuid.UUID, session: SessionDep) -> None:
+    """Owner soft-delete (U2 Group B). Not-yours and missing both 404 (the
+    IDOR contract: a 403 would confirm the row exists); a disabled business
+    surfaces the app-wide enforcement lock instead of deleting its way out.
+    Running ad campaigns pause exactly as admin disable pauses them — a
+    deleted listing must stop spending; is_servable's fail-closed visibility
+    check is the backstop, the pause is the bookkeeping."""
+    user_id = _principal_user_id(request)
+    try:
+        business = await service.delete_business(
+            session, owner_user_id=user_id, business_id=business_id
+        )
+    except service.BusinessNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Business not found") from exc
+    paused = await pause_campaigns_for_business(session, business.id)
+    await audit(
+        session,
+        action="directory.business_deleted_by_owner",
+        actor_user_id=user_id,
+        target_type="business",
+        target_id=str(business.id),
+        metadata={"slug": business.slug, "campaigns_paused": paused},
+        ip=_client_ip(request),
+    )
+    # capture BEFORE commit — ORM attributes expire at commit. The business
+    # payload carries a null snapshot (tombstone) and each product payload
+    # nulls too (their parent is now invisible), so the search worker
+    # deletes every doc this listing owned.
+    payload = await search_sync.business_event_payload(session, business.id)
+    product_payloads = await _product_payloads(session, business.id)
+    await session.commit()
+    await _publish_best_effort("business.updated", payload)
+    for product_payload in product_payloads:
+        await _publish_best_effort("product.updated", product_payload)
 
 
 @router.post("/businesses/{business_id}/branches", status_code=201)

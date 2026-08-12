@@ -299,12 +299,12 @@ export function ConsoleField({
 }: {
   id: string;
   label: string;
-  hint?: string;
+  hint?: string | undefined;
   /** Validation message. Localized by the caller — error strings are the
    * usual place English survives a locale switch. */
-  error?: string;
+  error?: string | undefined;
   children: ReactNode;
-  className?: string;
+  className?: string | undefined;
 }) {
   return (
     <div className={className}>

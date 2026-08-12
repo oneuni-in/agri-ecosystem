@@ -233,6 +233,27 @@ async def update_product(
     return out
 
 
+@router.delete("/products/{product_id}", status_code=204)
+async def delete_product(request: Request, product_id: uuid.UUID, session: SessionDep) -> None:
+    """Owner soft-delete (U2 Group B): 404 for not-yours (never 403 — the
+    IDOR tell). Republishes the product (null snapshot → the worker
+    tombstones the doc) AND the business — removing the last active product
+    in a vertical must pull the business off that vertical's site (the same
+    rule the archive path documents above)."""
+    try:
+        product = await catalog_service.delete_product(
+            session, owner_user_id=_principal_user_id(request), product_id=product_id
+        )
+    except catalog_service.ProductNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Product not found") from exc
+    # capture EVERYTHING needed after commit BEFORE committing
+    payload = await search_sync.product_event_payload(session, product.id)
+    business_payload = await search_sync.business_event_payload(session, product.business_id)
+    await session.commit()
+    await _publish_best_effort("product.updated", payload)
+    await _publish_best_effort("business.updated", business_payload)
+
+
 @router.post("/products/{product_id}/images", status_code=201)
 async def upload_product_image(
     request: Request,

@@ -1,4 +1,6 @@
+import { ConsolePageHeader } from "@agri/ui";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth";
 
@@ -9,9 +11,10 @@ export const metadata = { title: "Listings", robots: { index: false } };
 export default async function ListingsPage() {
   const user = await auth.getServerUser();
   if (!user) redirect("/api/auth/login?next=/business/listings");
+  const t = await getTranslations("ui.console.common");
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="font-display text-[20px] font-extrabold text-ink">Listings</h1>
+    <main className="mx-auto max-w-3xl">
+      <ConsolePageHeader title={t("pageTitle.listings")} />
       <ListingsClient />
     </main>
   );

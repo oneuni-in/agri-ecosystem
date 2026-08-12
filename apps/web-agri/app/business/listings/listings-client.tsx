@@ -1,9 +1,28 @@
 "use client";
 
-import { Button, Card, Skeleton, cn } from "@agri/ui";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+/**
+ * U2 Group B: rebuilt onto the shared console catalog — ConsoleField /
+ * ConsolePanel / ConsoleNotice / ConfirmAction from @agri/ui render this
+ * page AND the /demo kitchen sink; this file only binds them to the D15
+ * owner API. All chrome reads ui.console.listings.* (en/ta/hi). The data
+ * flow (refs against stale async clobbering, per-business notices,
+ * disabled/suspended semantics) is D26's, unchanged.
+ */
 
-import { ApiError, getJson, patchJson, postJson, putJson } from "@/lib/api";
+import {
+  Button,
+  ConfirmAction,
+  ConsoleField,
+  ConsoleNotice,
+  ConsolePanel,
+  Skeleton,
+  cn,
+  consoleControlClass,
+} from "@agri/ui";
+import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+
+import { ApiError, deleteJson, getJson, patchJson, postJson, putJson } from "@/lib/api";
 
 type BusinessType = "vendor" | "shop" | "lab" | "farm";
 
@@ -28,30 +47,12 @@ interface BusinessOut {
   enforcement_reason: string | null;
 }
 
-const FIELD =
-  "mt-1 block min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-[13px] text-ink";
-const LABEL = "block text-[13px] font-semibold text-ink";
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 const TYPES: BusinessType[] = ["vendor", "shop", "lab", "farm"];
 const PINCODE_RE = /^\d{6}$/;
 
-function AlertNotice({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-card border border-alert-line bg-alert-bg p-3 text-[13px] font-semibold text-ink">
-      {children}
-    </div>
-  );
-}
-
-function OkNotice({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-card bg-verified-bg p-3 text-[13px] font-semibold text-verified-fg">
-      {children}
-    </div>
-  );
-}
-
 export function ListingsClient() {
+  const t = useTranslations("ui.console.listings");
   const [businesses, setBusinesses] = useState<BusinessOut[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -97,8 +98,10 @@ export function ListingsClient() {
       const list = (body.items as BusinessOut[] | undefined) ?? [];
       setBusinesses(list);
       if (list[0] && !selectedId) setSelectedId(list[0].id);
+      return list;
     } catch {
       setLoadError(true);
+      return null;
     }
   };
 
@@ -143,7 +146,7 @@ export function ListingsClient() {
 
   const create = async () => {
     if (!newName.trim() || !PINCODE_RE.test(newPincode)) {
-      setCreateError("Name and a 6-digit pincode are required.");
+      setCreateError(t("createValidation"));
       return;
     }
     setCreating(true);
@@ -158,7 +161,9 @@ export function ListingsClient() {
       setSelectedId(created.id as string);
     } catch (err) {
       setCreateError(
-        err instanceof ApiError ? `Could not create listing (${err.detail}).` : "Could not create listing.",
+        err instanceof ApiError
+          ? t("createFailedDetail", { detail: err.detail })
+          : t("createFailed"),
       );
     } finally {
       setCreating(false);
@@ -175,7 +180,8 @@ export function ListingsClient() {
       // server snapshot (preserves any key this console doesn't know about),
       // then set/clear each edited locale - a blanked box deletes only its
       // own key.
-      const existingDescription = businessesRef.current?.find((b) => b.id === savedFor)?.description ?? null;
+      const existingDescription =
+        businessesRef.current?.find((b) => b.id === savedFor)?.description ?? null;
       const merged: Record<string, string> = { ...existingDescription };
       const edits: [string, string][] = [
         ["en", descriptionEn.trim()],
@@ -198,27 +204,50 @@ export function ListingsClient() {
       // Update the picker's entry locally instead of refetching the whole list -
       // an un-awaited refetch here is what let stale GET responses clobber
       // in-progress edits on other businesses.
-      setBusinesses((prev) =>
-        prev?.map((b) =>
-          b.id === savedFor
-            ? { ...b, name: trimmedName, type, primary_pincode: primaryPincode, description, delivery_windows: windows }
-            : b,
-        ) ?? prev,
+      setBusinesses(
+        (prev) =>
+          prev?.map((b) =>
+            b.id === savedFor
+              ? {
+                  ...b,
+                  name: trimmedName,
+                  type,
+                  primary_pincode: primaryPincode,
+                  description,
+                  delivery_windows: windows,
+                }
+              : b,
+          ) ?? prev,
       );
       if (selectedIdRef.current !== savedFor) return;
-      setNotice({ kind: "ok", text: "Listing saved." });
+      setNotice({ kind: "ok", text: t("savedOk") });
     } catch (err) {
       if (selectedIdRef.current !== savedFor) return;
       const text =
         err instanceof ApiError && err.status === 403 && err.detail === "business_disabled"
-          ? "This listing has been disabled by Milk.in administrators — changes are locked."
+          ? t("saveLocked")
           : err instanceof ApiError && err.status === 422
-            ? "Check the highlighted fields — the About text must be plain text (max 2000 characters per language) and delivery windows need valid days and open < close times."
-            : "Could not save — please try again.";
+            ? t("save422")
+            : t("saveFailed");
       setNotice({ kind: "error", text });
     } finally {
       setSaving(null);
     }
+  };
+
+  const deleteListing = async () => {
+    if (!selectedId) return;
+    const deletedId = selectedId;
+    try {
+      await deleteJson(`/api/directory/businesses/${deletedId}`);
+    } catch {
+      setNotice({ kind: "error", text: t("deleteFailed") });
+      throw new Error("delete_failed"); // keeps the confirm dialog open
+    }
+    const remaining = (businessesRef.current ?? []).filter((b) => b.id !== deletedId);
+    setBusinesses(remaining);
+    setSelectedId(remaining[0]?.id ?? null);
+    setNotice({ kind: "ok", text: t("deletedOk") });
   };
 
   const addCoveragePincode = () => {
@@ -236,15 +265,13 @@ export function ListingsClient() {
     try {
       await putJson(`/api/directory/businesses/${savedFor}/coverage`, { pincodes: coverage });
       if (selectedIdRef.current !== savedFor) return;
-      setNotice({ kind: "ok", text: "Coverage saved — customers in these pincodes can now find you." });
+      setNotice({ kind: "ok", text: t("coverageSavedOk") });
     } catch (err) {
       if (selectedIdRef.current !== savedFor) return;
       setNotice({
         kind: "error",
         text:
-          err instanceof ApiError && err.status === 422
-            ? "Coverage not saved — check the pincodes (6 digits each, up to 500)."
-            : "Could not save coverage — please try again.",
+          err instanceof ApiError && err.status === 422 ? t("coverage422") : t("coverageFailed"),
       });
     } finally {
       setSaving(null);
@@ -258,7 +285,7 @@ export function ListingsClient() {
   if (loadError) {
     return (
       <div className="mt-4">
-        <AlertNotice>Could not load your businesses — please try again.</AlertNotice>
+        <ConsoleNotice tone="alert">{t("loadFailed")}</ConsoleNotice>
       </div>
     );
   }
@@ -277,202 +304,320 @@ export function ListingsClient() {
   return (
     <div className="mt-4 space-y-4">
       {businesses.length === 0 ? (
-        <Card className="space-y-3 p-4">
-          <p className="text-[13px] font-extrabold text-ink">Create your listing</p>
-          <label className={LABEL}>
-            Business name
-            <input className={FIELD} value={newName} maxLength={200} onChange={(e) => setNewName(e.target.value)} />
-          </label>
-          <label className={LABEL}>
-            Type
-            <select className={FIELD} value={newType} onChange={(e) => setNewType(e.target.value as BusinessType)}>
-              {TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </label>
-          <label className={LABEL}>
-            Primary pincode
-            <input className={FIELD} value={newPincode} maxLength={6} inputMode="numeric" onChange={(e) => setNewPincode(e.target.value)} />
-          </label>
-          {createError ? <AlertNotice>{createError}</AlertNotice> : null}
-          <Button type="button" variant="brand" disabled={creating} onClick={() => void create()}>
-            {creating ? "Creating..." : "Create listing"}
-          </Button>
-        </Card>
+        <ConsolePanel title={t("createTitle")}>
+          <div className="space-y-3">
+            <ConsoleField id="new-name" label={t("businessName")}>
+              <input
+                id="new-name"
+                className={consoleControlClass}
+                value={newName}
+                maxLength={200}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </ConsoleField>
+            <ConsoleField id="new-type" label={t("type")}>
+              <select
+                id="new-type"
+                className={consoleControlClass}
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as BusinessType)}
+              >
+                {TYPES.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`types.${value}`)}
+                  </option>
+                ))}
+              </select>
+            </ConsoleField>
+            <ConsoleField id="new-pincode" label={t("primaryPincode")} error={createError ?? undefined}>
+              <input
+                id="new-pincode"
+                className={consoleControlClass}
+                value={newPincode}
+                maxLength={6}
+                inputMode="numeric"
+                aria-invalid={createError ? "true" : undefined}
+                aria-describedby={createError ? "new-pincode-error" : undefined}
+                onChange={(e) => setNewPincode(e.target.value)}
+              />
+            </ConsoleField>
+            <Button
+              type="button"
+              variant="brand"
+              disabled={creating}
+              onClick={() => void create()}
+            >
+              {creating ? t("creating") : t("createCta")}
+            </Button>
+          </div>
+        </ConsolePanel>
       ) : (
         <>
-          <label className={LABEL}>
-            Business
-            <select className={FIELD} value={selectedId ?? ""} onChange={(e) => setSelectedId(e.target.value)}>
+          <ConsoleField id="business-picker" label={t("businessPicker")}>
+            <select
+              id="business-picker"
+              className={consoleControlClass}
+              value={selectedId ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
               {businesses.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
               ))}
             </select>
-          </label>
+          </ConsoleField>
 
           {selected?.status === "suspended" ? (
             <div data-testid="suspension-notice">
-              <AlertNotice>
-                This listing is suspended and hidden from Milk.in
-                {selected.enforcement_reason ? <> — reason: {selected.enforcement_reason}</> : null}.
-                You can still edit it; contact support to resolve the suspension.
-              </AlertNotice>
+              <ConsoleNotice tone="alert">
+                {t("suspendedNotice", {
+                  reason: selected.enforcement_reason
+                    ? t("suspendedReasonPrefix", { reason: selected.enforcement_reason })
+                    : "",
+                })}
+              </ConsoleNotice>
             </div>
           ) : null}
 
           {isDisabled ? (
             <div data-testid="disabled-notice">
-              <AlertNotice>
-                This listing has been disabled by Milk.in administrators. Dashboard access to it is
-                locked and nothing is served — contact support.
-              </AlertNotice>
+              <ConsoleNotice tone="alert">{t("disabledNotice")}</ConsoleNotice>
             </div>
           ) : null}
 
           {notice ? (
-            notice.kind === "ok" ? <OkNotice>{notice.text}</OkNotice> : <AlertNotice>{notice.text}</AlertNotice>
+            <ConsoleNotice tone={notice.kind === "ok" ? "ok" : "alert"}>
+              {notice.text}
+            </ConsoleNotice>
           ) : null}
 
           {isDisabled ? null : (
-          <>
-          <Card className="space-y-3 p-4">
-            <p className="text-[13px] font-extrabold text-ink">Listing details</p>
-            <label className={LABEL}>
-              Name
-              <input className={FIELD} value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className={LABEL}>
-              Type
-              <select className={FIELD} value={type} onChange={(e) => setType(e.target.value as BusinessType)}>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label className={LABEL}>
-              Primary pincode
-              <input className={FIELD} value={primaryPincode} maxLength={6} inputMode="numeric" onChange={(e) => setPrimaryPincode(e.target.value)} />
-            </label>
-            <label className={LABEL}>
-              About (English)
-              <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionEn} maxLength={2000} onChange={(e) => setDescriptionEn(e.target.value)} />
-            </label>
-            <label className={LABEL}>
-              About (Tamil)
-              <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionTa} maxLength={2000} lang="ta" onChange={(e) => setDescriptionTa(e.target.value)} />
-            </label>
-            <label className={LABEL}>
-              About (Hindi)
-              <textarea className={cn(FIELD, "min-h-[80px]")} value={descriptionHi} maxLength={2000} lang="hi" onChange={(e) => setDescriptionHi(e.target.value)} />
-            </label>
-            <p className="text-[12px] text-sub">
-              Shown as “About” on your public profile. Plain text only — up to 2000 characters per
-              language.
-            </p>
+            <>
+              <ConsolePanel title={t("detailsTitle")}>
+                <div className="space-y-3">
+                  <ConsoleField id="edit-name" label={t("name")}>
+                    <input
+                      id="edit-name"
+                      className={consoleControlClass}
+                      value={name}
+                      maxLength={200}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </ConsoleField>
+                  <ConsoleField id="edit-type" label={t("type")}>
+                    <select
+                      id="edit-type"
+                      className={consoleControlClass}
+                      value={type}
+                      onChange={(e) => setType(e.target.value as BusinessType)}
+                    >
+                      {TYPES.map((value) => (
+                        <option key={value} value={value}>
+                          {t(`types.${value}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </ConsoleField>
+                  <ConsoleField id="edit-pincode" label={t("primaryPincode")}>
+                    <input
+                      id="edit-pincode"
+                      className={consoleControlClass}
+                      value={primaryPincode}
+                      maxLength={6}
+                      inputMode="numeric"
+                      onChange={(e) => setPrimaryPincode(e.target.value)}
+                    />
+                  </ConsoleField>
+                  <ConsoleField id="edit-about-en" label={t("aboutEn")}>
+                    <textarea
+                      id="edit-about-en"
+                      className={cn(consoleControlClass, "min-h-[80px]")}
+                      value={descriptionEn}
+                      maxLength={2000}
+                      onChange={(e) => setDescriptionEn(e.target.value)}
+                    />
+                  </ConsoleField>
+                  <ConsoleField id="edit-about-ta" label={t("aboutTa")}>
+                    <textarea
+                      id="edit-about-ta"
+                      className={cn(consoleControlClass, "min-h-[80px]")}
+                      value={descriptionTa}
+                      maxLength={2000}
+                      lang="ta"
+                      onChange={(e) => setDescriptionTa(e.target.value)}
+                    />
+                  </ConsoleField>
+                  <ConsoleField id="edit-about-hi" label={t("aboutHi")}>
+                    <textarea
+                      id="edit-about-hi"
+                      className={cn(consoleControlClass, "min-h-[80px]")}
+                      value={descriptionHi}
+                      maxLength={2000}
+                      lang="hi"
+                      onChange={(e) => setDescriptionHi(e.target.value)}
+                    />
+                  </ConsoleField>
+                  <p className="text-[12px] text-sub">{t("aboutHint")}</p>
 
-            <p className="text-[13px] font-extrabold text-ink">Delivery windows</p>
-            {windows.map((window, index) => (
-              <div key={index} className="space-y-2 rounded-card border border-line p-3">
-                <div className="flex flex-wrap gap-2">
-                  {DAYS.map((day) => (
-                    <label key={day} className="flex min-h-[44px] items-center gap-1 text-[13px] text-ink">
-                      <input
-                        type="checkbox"
-                        checked={window.days.includes(day)}
-                        onChange={(e) =>
-                          updateWindow(index, {
-                            days: e.target.checked
-                              ? [...window.days, day]
-                              : window.days.filter((d) => d !== day),
-                          })
-                        }
-                      />
-                      {day}
-                    </label>
+                  <p className="text-[13px] font-extrabold text-ink">{t("windowsTitle")}</p>
+                  {windows.map((window, index) => (
+                    <div key={index} className="space-y-2 rounded-card border border-line p-3">
+                      <div className="flex flex-wrap gap-2">
+                        {DAYS.map((day) => (
+                          <label
+                            key={day}
+                            className="flex min-h-[44px] items-center gap-1 text-[13px] text-ink"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={window.days.includes(day)}
+                              onChange={(e) =>
+                                updateWindow(index, {
+                                  days: e.target.checked
+                                    ? [...window.days, day]
+                                    : window.days.filter((d) => d !== day),
+                                })
+                              }
+                            />
+                            {t(`days.${day}`)}
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <ConsoleField id={`window-open-${index}`} label={t("open")}>
+                          <input
+                            id={`window-open-${index}`}
+                            type="time"
+                            className={consoleControlClass}
+                            value={window.open}
+                            onChange={(e) => updateWindow(index, { open: e.target.value })}
+                          />
+                        </ConsoleField>
+                        <ConsoleField id={`window-close-${index}`} label={t("close")}>
+                          <input
+                            id={`window-close-${index}`}
+                            type="time"
+                            className={consoleControlClass}
+                            value={window.close}
+                            onChange={(e) => updateWindow(index, { close: e.target.value })}
+                          />
+                        </ConsoleField>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setWindows((prev) => prev.filter((_, i) => i !== index))}
+                        >
+                          {t("removeWindow")}
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </div>
-                <div className="flex items-end gap-2">
-                  <label className={LABEL}>
-                    Open
-                    <input type="time" className={FIELD} value={window.open} onChange={(e) => updateWindow(index, { open: e.target.value })} />
-                  </label>
-                  <label className={LABEL}>
-                    Close
-                    <input type="time" className={FIELD} value={window.close} onChange={(e) => updateWindow(index, { close: e.target.value })} />
-                  </label>
-                  <Button type="button" variant="ghost" onClick={() => setWindows((prev) => prev.filter((_, i) => i !== index))}>
-                    Remove
+                  {windows.length < 7 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        setWindows((prev) => [
+                          ...prev,
+                          { days: ["mon"], open: "06:00", close: "09:00" },
+                        ])
+                      }
+                    >
+                      {t("addWindow")}
+                    </Button>
+                  ) : null}
+
+                  <Button
+                    type="button"
+                    variant="brand"
+                    disabled={saving === "listing"}
+                    onClick={() => void saveListing()}
+                  >
+                    {saving === "listing" ? t("saving") : t("saveListing")}
                   </Button>
                 </div>
-              </div>
-            ))}
-            {windows.length < 7 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setWindows((prev) => [...prev, { days: ["mon"], open: "06:00", close: "09:00" }])}
-              >
-                Add delivery window
-              </Button>
-            ) : null}
+              </ConsolePanel>
 
-            <Button type="button" variant="brand" disabled={saving === "listing"} onClick={() => void saveListing()}>
-              {saving === "listing" ? "Saving..." : "Save listing"}
-            </Button>
-          </Card>
+              <ConsolePanel title={t("coverageTitle")}>
+                <div className="space-y-3">
+                  <p className="text-[12px] text-sub">{t("coverageHint")}</p>
+                  {detailLoading ? (
+                    <Skeleton width="100%" height="44px" />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {coverage.map((pincode) => (
+                        <span
+                          key={pincode}
+                          className="inline-flex items-center gap-1 rounded-pill bg-line px-[9px] py-[3px] text-[12px] font-semibold text-ink"
+                        >
+                          {pincode}
+                          <button
+                            type="button"
+                            aria-label={t("removePincode", { pincode })}
+                            className="min-h-[24px] min-w-[24px]"
+                            onClick={() => setCoverage((prev) => prev.filter((p) => p !== pincode))}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {coverage.length === 0 ? (
+                        <span className="text-[12px] text-sub">{t("noCoverage")}</span>
+                      ) : null}
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2">
+                    <ConsoleField id="coverage-add" label={t("addPincode")} className="flex-1">
+                      <input
+                        id="coverage-add"
+                        className={consoleControlClass}
+                        value={coverageInput}
+                        maxLength={6}
+                        inputMode="numeric"
+                        onChange={(e) => setCoverageInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCoveragePincode();
+                          }
+                        }}
+                      />
+                    </ConsoleField>
+                    <Button type="button" variant="ghost" onClick={addCoveragePincode}>
+                      {t("add")}
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="brand"
+                    disabled={saving === "coverage"}
+                    onClick={() => void saveCoverage()}
+                  >
+                    {saving === "coverage" ? t("saving") : t("saveCoverage")}
+                  </Button>
+                </div>
+              </ConsolePanel>
 
-          <Card className="space-y-3 p-4">
-            <p className="text-[13px] font-extrabold text-ink">Coverage pincodes</p>
-            <p className="text-[12px] text-sub">
-              Customers searching these pincodes will find this business. Up to 500.
-            </p>
-            {detailLoading ? (
-              <Skeleton width="100%" height="44px" />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {coverage.map((pincode) => (
-                  <span key={pincode} className="inline-flex items-center gap-1 rounded-pill bg-line px-[9px] py-[3px] text-[12px] font-semibold text-ink">
-                    {pincode}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${pincode}`}
-                      className="min-h-[24px] min-w-[24px]"
-                      onClick={() => setCoverage((prev) => prev.filter((p) => p !== pincode))}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                {coverage.length === 0 ? <span className="text-[12px] text-sub">No coverage yet.</span> : null}
-              </div>
-            )}
-            <div className="flex items-end gap-2">
-              <label className={cn(LABEL, "flex-1")}>
-                Add pincode
-                <input
-                  className={FIELD}
-                  value={coverageInput}
-                  maxLength={6}
-                  inputMode="numeric"
-                  onChange={(e) => setCoverageInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addCoveragePincode();
-                    }
-                  }}
-                />
-              </label>
-              <Button type="button" variant="ghost" onClick={addCoveragePincode}>
-                Add
-              </Button>
-            </div>
-            <Button type="button" variant="brand" disabled={saving === "coverage"} onClick={() => void saveCoverage()}>
-              {saving === "coverage" ? "Saving..." : "Save coverage"}
-            </Button>
-          </Card>
-          </>
+              {selected ? (
+                <ConsolePanel title={t("dangerTitle")}>
+                  <div className="flex max-w-[280px]">
+                    <ConfirmAction
+                      trigger={
+                        <Button type="button" variant="ghost">
+                          {t("deleteCta")}
+                        </Button>
+                      }
+                      title={t("deleteConfirmTitle")}
+                      description={t("deleteConfirmBody", { name: selected.name })}
+                      confirmLabel={t("deleteCta")}
+                      cancelLabel={t("deleteCancel")}
+                      onConfirm={deleteListing}
+                    />
+                  </div>
+                </ConsolePanel>
+              ) : null}
+            </>
           )}
         </>
       )}

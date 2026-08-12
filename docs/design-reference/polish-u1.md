@@ -946,3 +946,25 @@ Notes / observations, recorded rather than hidden:
   recorded in §2/§4c. The PR's lighthouse CI job is the arbiter, and these
   routes carry no carve-out: the 0.90 perf / 0.95 a11y / 0.95 seo floors
   apply (issue #59's 0.80 exception is scoped to `/` only).
+
+### 8.4 The pincode-landing perf gate (2026-08-12, PR #60 CI)
+
+The PR's lighthouse job failed on exactly one assertion:
+`/coimbatore/641001` performance median **0.88** (0.86/0.83/0.88) vs 0.90;
+every other URL and every a11y/SEO assertion passed. Diagnosis from the two
+runs' artifacts (PR #58 vs #60, same URL, same gate):
+
+- The pre-U1b page measured **0.94/0.83/0.89** — the 0.90 floor was only
+  ever cleared here by run-to-run variance, never held with headroom.
+- The U1b delta is +1KB JS transfer / +10 DOM nodes / same script count;
+  per-run bootup variance inside one build (671–1412ms) exceeds the
+  before/after gap.
+- The dominant cost is ~85% LCP render delay on the `<h1>` (2.7–2.9s at 4×
+  throttle) — the shared shell's font/hydration pipeline, the same
+  structural cost issue #59 tracks on the home.
+
+**Owner decision (ratified in-session): re-baseline this route to 0.85**,
+tied to issue #59 exactly like the home's 0.80 carve-out — restoring 0.90
+gates the Milk.in launch, not this PR. a11y/SEO stay at the full floor. The
+rejected alternatives (retry-until-green; pulling #59's perf sprint into
+U1b) and the reasoning live in the lighthouserc.cjs comment.

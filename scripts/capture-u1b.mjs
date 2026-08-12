@@ -28,8 +28,12 @@ const GROUPS = {
     // coverage, reveal gate. DB-heavy — screenshots only, no locale probe.
     { key: "brand", path: "/directory/businesses/aavin", ready: '[data-testid="on-since"]' },
   ],
-  // Group C surfaces are appended when that group builds.
-  groupC: [],
+  groupC: [
+    { key: "post-need", path: "/post-need", ready: '[data-testid="post-need-form"]' },
+    // Guest view: the localized login card (the signed-in list is exercised
+    // by post-need.spec.ts and the binding-proof API checks).
+    { key: "my-needs", path: "/my-needs", ready: "main h1" },
+  ],
 };
 
 const group = process.argv[2] ?? "groupA";

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PostNeedForm } from "./post-need-form";
 
@@ -19,16 +19,19 @@ export default async function PostNeedPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations("ui.needs");
   return (
     <main className="mx-auto max-w-[720px] space-y-4 px-4 py-6">
       <header className="space-y-1">
         <h1 className="font-display text-[22px] font-extrabold text-ink">
-          🥛 Post my need <span className="vern font-normal">· என் தேவை</span>
+          {t("title")}
+          {locale === "en" ? (
+            // The reference's designed Tamil accent — /en only; ta/hi carry
+            // the fully translated title (same policy as the results CTA).
+            <span className="vern font-normal"> · என் தேவை</span>
+          ) : null}
         </h1>
-        <p className="text-[13px] text-sub">
-          Tell vendors near you what milk you need — everyone covering your pincode gets it and
-          replies here.
-        </p>
+        <p className="text-[13px] text-sub">{t("intro")}</p>
       </header>
       <PostNeedForm />
     </main>

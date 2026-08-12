@@ -891,3 +891,58 @@ Notes / observations, recorded rather than hidden:
   (unchanged from Group A's record).
 - Screenshots: `u1b/{category,category-p,brand}-*` (en 4 widths + ta/hi +
   full-page) and the Group A sets re-captured with the data-driven chip row.
+
+---
+
+## 8. U1b Group C — need flow + shell
+
+### 8.1 What changed
+
+- **post-need on the catalog + catalogs.** The three selectable tile rows
+  render the catalog `TypeFilter` composite (the §5c chip — icon + label +
+  vernacular + aria-pressed) instead of a page-local tile button; every
+  string on the page/form/voice-recorder reads from the new `ui.needs.*`
+  namespace (50 keys × en/ta/hi). The designed Tamil accents (`· என் தேவை`
+  and friends) render on /en only, per the results-CTA policy. The
+  draft-then-OTP flow, enums, caps and testids are untouched.
+- **my-needs localized end to end** — status chips, summaries (schedule/time
+  labels from `ui.needs`, milk type carried by its icon), actions, empty and
+  login states; dates format with the visitor's locale. Same wire shapes,
+  same `GET /leads/needs/mine`, same testids.
+- **Footer**: already the U1 5-col grid mounted in the shared layout on every
+  consumer route (no 720px shell remnant survives — the 720px columns that
+  remain are deliberate reading-width mains, recorded in §6.3). Its /c
+  column reads the Group B taxonomy; its /p column the D17 schema.
+- Harness: `verify-u1.mjs` sweeps 6 surfaces; `capture-u1b.mjs groupC` adds
+  the post-need + my-needs sets.
+
+### 8.2 Binding proof — Group C
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| post-need → §2b strip → my-needs | D25 `/leads/needs` (post, BFF) · `GET /leads/needs/mine` (BOTH the §2b strip — server-side bearer — and the my-needs page read this one endpoint, so they cannot disagree) | **Demonstrated twice.** (a) Real browser, real login dance (fresh phone, OTP from the mock-SMS log, progressive-account steps): form posted → `need-posted` card → home renders `my-need-strip` ("Your need: 1L · Cow · daily — no vendors have replied yet") → `/my-needs` shows the same need → Mark fulfilled → status chip flips to Fulfilled → home reload: **strip gone**. (b) API-level: posted need `open` in `needs/mine`; `fulfill` → `fulfilled`; the signed-in home HTML tracks both states. |
+| Guest never triggers the request | `MyNeedStrip` returns null before any fetch when there is no token; `MyNeedsClient` fetches only on `status === "authenticated"` | Guest home HTML carries no `my-need-strip` (asserted); guest /my-needs renders the localized login card with no `needs/mine` call (by construction — the effect gates on the auth state). |
+| Footer categories | Group B's `/directory/categories/active` + D17 product schema | The Group B name backfill IS the live mutation: the footer's /c column reads "Dairies · Milk Shops · Veterinarians" (and their Tamil names on /ta) straight from the directory rows — no literal array anywhere in the footer. |
+
+### 8.3 Verification record (2026-08-12)
+
+- Workspace gates: web-milk lint/typecheck/tests 15/15 · @agri/ui 79/79
+  (locale-completeness covers the 3×50 new keys) · `check:hex` clean.
+- Locale sweep (`verify-u1.mjs`, 6 surfaces × 3 locales): untranslated
+  chrome **0 on /ta and /hi for every surface** (home, results, search,
+  category, post-need, my-needs); NN5 `wrapsAt: []` across 320–1920.
+- Screenshots: `u1b/{post-need,my-needs}-*` (en 4 widths + ta/hi 360/1440 +
+  full-page). my-needs is captured in its guest state; the signed-in list is
+  exercised by the browser proof above and `post-need.spec.ts`.
+- The intermittent dev-only hydration warning stays ≤1× per surface
+  (unchanged since the Group A record; absent on quiet loads).
+- Full backend suite before the PR: **1593 passed** (a first attempt reported
+  1 failed / 1156 skipped — Docker had stopped with the machine session and
+  every DB-backed test skipped on "postgres unreachable"; rerun green with
+  the stack up, no code change).
+- `node scripts/lhci-affected.mjs` attempted: builds + audits run, then dies
+  in the documented Windows chrome-launcher EPERM deleting its temp profile
+  (`lhci: FAILED` after "Generating results...") — the same local gap U1
+  recorded in §2/§4c. The PR's lighthouse CI job is the arbiter, and these
+  routes carry no carve-out: the 0.90 perf / 0.95 a11y / 0.95 seo floors
+  apply (issue #59's 0.80 exception is scoped to `/` only).

@@ -56,6 +56,23 @@ const SURFACES = [
     minSections: 1,
     minHeadings: 1,
   },
+  // U1b Group C: the need flow. post-need is the public form; my-needs is
+  // probed in its guest state (the localized login card) — the signed-in
+  // list is covered by post-need.spec.ts and the binding-proof API checks.
+  {
+    key: "post-need",
+    path: "/post-need",
+    ready: '[data-testid="post-need-form"]',
+    minSections: 2,
+    minHeadings: 1,
+  },
+  {
+    key: "my-needs",
+    path: "/my-needs",
+    ready: "main h1",
+    minSections: 1,
+    minHeadings: 1,
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });

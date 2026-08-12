@@ -1,4 +1,4 @@
-import { AdSlot, Badge, Card, Wrap } from "@agri/ui";
+import { AdSlot, Badge, Card, VendorCard as VendorCardShell, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -6,7 +6,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Link } from "@/i18n/navigation";
-import { CATEGORY_MESSAGE_KEY, isDairyCategory } from "@/lib/categories";
+import { categoryLabel } from "@/lib/categories";
+import { fetchMilkTypes } from "@/lib/taxonomy";
 import {
   fetchBusiness,
   fetchProducts,
@@ -127,18 +128,28 @@ function specText(specs: Record<string, unknown>, key: string): string | null {
   return typeof value === "string" && value ? value : null;
 }
 
-function ProductCardLite({ product }: { product: CatalogProduct }) {
-  const meta = [specText(product.specs, "milk_type"), specText(product.specs, "pack_size")]
+/** The catalog `VendorCard` shell as a product card (U1b): name + spec meta
+ * + price line, no action row — the profile page IS the destination. */
+function ProductCardLite({
+  product,
+  typeLabels,
+}: {
+  product: CatalogProduct;
+  typeLabels: Record<string, string>;
+}) {
+  const milkType = specText(product.specs, "milk_type");
+  const meta = [milkType ? (typeLabels[milkType] ?? milkType) : null, specText(product.specs, "pack_size")]
     .filter(Boolean)
     .join(" · ");
   return (
-    <Card className="space-y-1 p-3">
-      <h3 className="text-[14.5px] font-extrabold leading-[1.3] text-ink">{product.name}</h3>
-      {meta ? <p className="text-[12.5px] text-sub">{meta}</p> : null}
-      {product.price_display ? (
-        <p className="text-[15px] font-extrabold text-ink">{product.price_display}</p>
-      ) : null}
-    </Card>
+    <VendorCardShell
+      className="h-full"
+      name={product.name}
+      {...(meta ? { meta: <span>{meta}</span> } : {})}
+      {...(product.price_display
+        ? { prices: <b className="font-semibold">{product.price_display}</b> }
+        : {})}
+    />
   );
 }
 
@@ -197,7 +208,8 @@ export default async function VendorProfilePage({
   // as a brand (many outlets, one product line) rather than a single
   // physical premises. A `shop` with no products keeps the vendor layout.
   const isBrand = business.type === "shop" && products.length > 0;
-  const t = await getTranslations("ui");
+  const [t, milkTypes] = await Promise.all([getTranslations("ui"), fetchMilkTypes(locale)]);
+  const typeLabels = Object.fromEntries(milkTypes.map((m) => [m.value, m.label]));
   const shownPincodes = coverage_pincodes.slice(0, MAX_PINCODES_SHOWN);
   const morePincodes = coverage_pincodes.length - shownPincodes.length;
   // M1.5.C/D: locale-aware About + "On Milk.in since {month year}"
@@ -222,31 +234,30 @@ export default async function VendorProfilePage({
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-[26px] font-extrabold text-ink">{business.name}</h1>
             {business.verification_status === "verified" ? (
-              <Badge variant="verified">✔ Verified</Badge>
+              <Badge variant="verified">{t("badges.verified")}</Badge>
             ) : null}
           </div>
           <p className="text-[13px] font-semibold text-sub">
-            {business.type} · {business.primary_pincode} ·{" "}
+            {business.type === "shop" ? t("brandPage.typeShop") : t("brandPage.typeVendor")} ·{" "}
+            {business.primary_pincode} ·{" "}
             <span data-testid="on-since">{t("brandPage.onSince", { date: sinceDate })}</span>
           </p>
           {categories.length > 0 ? (
+            // U1b: every assigned category links its /c landing page (the
+            // data-driven taxonomy guarantees the page exists — this business
+            // itself keeps the category active), labelled by the row's own
+            // localized name.
             <div className="flex flex-wrap gap-2" data-testid="category-chips">
-              {categories.map((category) =>
-                isDairyCategory(category.slug) ? (
-                  <Link
-                    key={category.slug}
-                    href={`/c/${category.slug}`}
-                    className="rounded-pill border-2 border-line bg-card px-3.5 py-2.5 text-[12.5px] font-extrabold text-ink no-underline"
-                    data-testid={`category-chip-${category.slug}`}
-                  >
-                    {t(`dairyCategories.${CATEGORY_MESSAGE_KEY[category.slug]}.name`)}
-                  </Link>
-                ) : (
-                  <Badge key={category.slug} variant="neutral">
-                    {category.name.en ?? category.slug}
-                  </Badge>
-                ),
-              )}
+              {categories.map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/c/${category.slug}`}
+                  className="inline-flex min-h-[44px] items-center rounded-pill border-2 border-cream-line bg-card px-3.5 py-2.5 text-[12.5px] font-extrabold text-ink no-underline"
+                  data-testid={`category-chip-${category.slug}`}
+                >
+                  {categoryLabel(category, locale)}
+                </Link>
+              ))}
             </div>
           ) : null}
         </header>
@@ -265,11 +276,11 @@ export default async function VendorProfilePage({
         {products.length > 0 ? (
           <section className="mt-6 space-y-2.5" aria-labelledby="products-h">
             <h2 id="products-h" className="font-display text-[16px] font-extrabold text-ink">
-              {isBrand ? t("brandPage.products") : "Milk products"}
+              {isBrand ? t("brandPage.products") : t("brandPage.vendorProducts")}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {products.map((product) => (
-                <ProductCardLite key={product.id} product={product} />
+                <ProductCardLite key={product.id} product={product} typeLabels={typeLabels} />
               ))}
             </div>
           </section>
@@ -282,11 +293,11 @@ export default async function VendorProfilePage({
         {coverage_pincodes.length > 0 ? (
           <section className="mt-6 space-y-1.5" aria-labelledby="coverage-h">
             <h2 id="coverage-h" className="font-display text-[16px] font-extrabold text-ink">
-              Delivery area
+              {t("brandPage.deliveryArea")}
             </h2>
             <p className="text-[12.5px] text-sub" data-testid="coverage-pincodes">
               {shownPincodes.join(", ")}
-              {morePincodes > 0 ? ` + ${morePincodes} more` : ""}
+              {morePincodes > 0 ? ` ${t("brandPage.morePincodes", { count: morePincodes })}` : ""}
             </p>
           </section>
         ) : null}
@@ -294,7 +305,7 @@ export default async function VendorProfilePage({
         {branches.length > 0 ? (
           <section className="mt-6 space-y-2.5" aria-labelledby="branches-h">
             <h2 id="branches-h" className="font-display text-[16px] font-extrabold text-ink">
-              Branches &amp; delivery hours
+              {t("brandPage.branches")}
             </h2>
             <ul className="space-y-2">
               {branches.map((branch) => (

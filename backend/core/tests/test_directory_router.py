@@ -227,6 +227,52 @@ async def test_categories_endpoint_lists_seeded(
     assert {"farm", "dairy"} <= slugs
 
 
+async def test_active_categories_public_counts_only_active(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """U1b taxonomy read: a category exists publicly iff at least one ACTIVE
+    business carries it, and the count excludes suspended businesses — the
+    consumer surfaces render exactly this set, so this is the contract that
+    lets a new category light up the UI with zero frontend change."""
+    http, session = api
+    vet_cat = await session.scalar(select(Category).where(Category.slug == "veterinarian"))
+    farm_cat = await session.scalar(select(Category).where(Category.slug == "farm"))
+    assert vet_cat is not None and farm_cat is not None
+    active = Business(
+        owner_user_id=None,
+        name="Active Vet",
+        slug="active-vet",
+        type="shop",
+        primary_pincode="641001",
+    )
+    suspended = Business(
+        owner_user_id=None,
+        name="Suspended Vet",
+        slug="suspended-vet",
+        type="shop",
+        primary_pincode="641001",
+        status="suspended",
+    )
+    session.add_all([active, suspended])
+    await session.flush()
+    session.add_all(
+        [
+            BusinessCategory(business_id=active.id, category_id=vet_cat.id),
+            BusinessCategory(business_id=suspended.id, category_id=vet_cat.id),
+            BusinessCategory(business_id=suspended.id, category_id=farm_cat.id),
+        ]
+    )
+    await session.commit()
+
+    response = await http.get("/directory/categories/active")  # public: NO auth header
+    assert response.status_code == 200
+    by_slug = {c["slug"]: c for c in response.json()["items"]}
+    assert by_slug["veterinarian"]["business_count"] == 1
+    # farm's only carrier is suspended -> the category does not exist publicly
+    assert "farm" not in by_slug
+    assert (await http.get("/directory/categories/active?cursor=garbage")).status_code == 400
+
+
 async def test_bad_cursor_is_400(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     http, _ = api
     response = await http.get("/directory/businesses?cursor=garbage", headers=_as(USER_A))
@@ -367,6 +413,7 @@ def test_directory_public_routes_are_registered() -> None:
     assert "/directory/businesses/{slug}" in app.state.public_routes
     assert "/directory/covers/{pincode}" in app.state.public_routes
     assert "/directory/businesses/{slug}/nearby-branches" in app.state.public_routes
+    assert "/directory/categories/active" in app.state.public_routes
 
 
 class TestNearbyBranches:

@@ -19,9 +19,60 @@ const OUT = process.env.OUT_DIR ?? "docs/design-reference/u1";
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const PY = process.env.BACKEND_PY ?? "backend/core/.venv/Scripts/python.exe";
 const LOCALES = [
-  ["en", "/"],
+  ["en", ""],
   ["ta", "/ta"],
   ["hi", "/hi"],
+];
+
+/** U1b: the probe now sweeps every rebuilt consumer surface, not just the
+ * home. Each surface names the selector that proves it actually rendered
+ * (the anti-"empty probe reads as a pass" trap) and its own floor for how
+ * much DOM a healthy render carries. */
+const SURFACES = [
+  { key: "home", path: "/", ready: '[data-testid="category-bar"]', minSections: 10, minHeadings: 5 },
+  {
+    key: "results",
+    path: "/coimbatore/641001",
+    ready: '[data-testid="scope-covered"]',
+    minSections: 5,
+    minHeadings: 2,
+  },
+  {
+    key: "search",
+    path: "/search?q=milk",
+    ready: 'form[role="search"]',
+    minSections: 1,
+    minHeadings: 0,
+  },
+  // U1b Group B: the /c landing (data-driven taxonomy; the h1 carries the
+  // category row's own localized name). The brand page is deliberately NOT
+  // probed — it is DB text end to end (about, addresses, product names) and
+  // the probe's exclusion list cannot express that; capture-u1b.mjs records
+  // it as screenshots instead.
+  {
+    key: "category",
+    path: "/c/dairy-farm",
+    ready: "main h1",
+    minSections: 1,
+    minHeadings: 1,
+  },
+  // U1b Group C: the need flow. post-need is the public form; my-needs is
+  // probed in its guest state (the localized login card) — the signed-in
+  // list is covered by post-need.spec.ts and the binding-proof API checks.
+  {
+    key: "post-need",
+    path: "/post-need",
+    ready: '[data-testid="post-need-form"]',
+    minSections: 2,
+    minHeadings: 1,
+  },
+  {
+    key: "my-needs",
+    path: "/my-needs",
+    ready: "main h1",
+    minSections: 1,
+    minHeadings: 1,
+  },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -61,7 +112,7 @@ const PROBE = ({ dataSel, allowedSource }) => {
 };
 
 const DATA_SEL =
-  '[data-testid^="home-vendor-"],[data-testid^="home-brand-"],[data-testid^="showcase-"],[data-testid="home-review"],[data-testid="price-ticker"],[data-testid="utility-strip"]';
+  '[data-testid^="home-vendor-"],[data-testid^="home-brand-"],[data-testid^="showcase-"],[data-testid="home-review"],[data-testid="price-ticker"],[data-testid="utility-strip"],[data-testid^="vendor-card-"],[data-testid^="category-result-"],[data-testid="search-results"]';
 // Proper nouns and brand names that are correctly untranslated in every locale.
 const ALLOWED =
   "milk\\.in|agricoins|whatsapp|npop|pgs|usda|otp|oneuni|pvt|ltd|theorganic|agri\\.in|salem|dharmapuri|tiruppur|coimbatore|chennai|erode|madurai";
@@ -72,7 +123,12 @@ const report = {};
 /** One isolated page: own context (no NEXT_LOCALE bleed), service worker
  * blocked (its activation re-navigates), and a hard assertion that the page
  * actually rendered before any probe runs. */
-async function withPage(url, width, fn) {
+async function withPage(url, width, fn, opts = {}) {
+  const {
+    ready = '[data-testid="category-bar"]',
+    minSections = 10,
+    minHeadings = 5,
+  } = opts;
   resetCaps();
   const ctx = await browser.newContext({ serviceWorkers: "block" });
   const page = await ctx.newPage();
@@ -93,13 +149,17 @@ async function withPage(url, width, fn) {
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   await page.setViewportSize({ width, height: 900 });
   await page.goto(url, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-testid="category-bar"]', { timeout: 20000 });
+  await page.waitForSelector(ready, { timeout: 20000 });
   const loaded = await page.evaluate(() => ({
     url: location.href,
     sections: document.querySelectorAll("[data-testid]").length,
     headings: document.querySelectorAll("h1,h2").length,
   }));
-  if (!loaded.url.startsWith("http") || loaded.sections < 10 || loaded.headings < 5) {
+  if (
+    !loaded.url.startsWith("http") ||
+    loaded.sections < minSections ||
+    loaded.headings < minHeadings
+  ) {
     throw new Error(`page did not render: ${url} @${width} -> ${JSON.stringify(loaded)}`);
   }
   const result = await fn(page, loaded);
@@ -110,43 +170,58 @@ async function withPage(url, width, fn) {
     url: location.href,
     sections: document.querySelectorAll("[data-testid]").length,
   }));
-  if (!still.url.startsWith("http") || still.sections < 10) {
+  if (!still.url.startsWith("http") || still.sections < minSections) {
     throw new Error(`page blanked during capture: ${url} @${width} -> ${JSON.stringify(still)}`);
   }
   await ctx.close();
   return { result, errors };
 }
 
-for (const [locale, path] of LOCALES) {
-  report[locale] = { consoleErrors: [], untranslatedChrome: [], sections: 0 };
-
-  for (const width of [360, 1440]) {
-    const { result, errors } = await withPage(`${BASE}${path}`, width, async (page, loaded) => {
-      await page.evaluate(() => document.fonts.ready);
-      await page.addStyleTag({ content: "*{animation-play-state:paused!important}" });
-      await page.waitForTimeout(400);
-      await page.screenshot({
-        path: `${OUT}/live-${locale}-${width}.png`,
-        fullPage: width === 1440,
-      });
-      if (width !== 1440) return { sections: loaded.sections };
-      return {
-        sections: loaded.sections,
-        untranslated: await page.evaluate(PROBE, {
-          dataSel: DATA_SEL,
-          allowedSource: ALLOWED,
-        }),
-      };
+for (const surface of SURFACES) {
+  const surfaceReport = (report[surface.key] = {});
+  for (const [locale, prefix] of LOCALES) {
+    const entry = (surfaceReport[locale] = {
+      consoleErrors: [],
+      untranslatedChrome: [],
+      sections: 0,
     });
-    report[locale].consoleErrors.push(...errors);
-    report[locale].sections = result.sections;
-    if (result.untranslated) report[locale].untranslatedChrome = result.untranslated;
+    // Home keeps its U1 file names (live-{locale}-{width}); the U1b surfaces
+    // are prefixed so the sets sit side by side in the same directory.
+    const shotKey = surface.key === "home" ? locale : `${surface.key}-${locale}`;
+
+    for (const width of [360, 1440]) {
+      const { result, errors } = await withPage(
+        `${BASE}${prefix}${surface.path}`,
+        width,
+        async (page, loaded) => {
+          await page.evaluate(() => document.fonts.ready);
+          await page.addStyleTag({ content: "*{animation-play-state:paused!important}" });
+          await page.waitForTimeout(400);
+          await page.screenshot({
+            path: `${OUT}/live-${shotKey}-${width}.png`,
+            fullPage: width === 1440,
+          });
+          if (width !== 1440) return { sections: loaded.sections };
+          return {
+            sections: loaded.sections,
+            untranslated: await page.evaluate(PROBE, {
+              dataSel: DATA_SEL,
+              allowedSource: ALLOWED,
+            }),
+          };
+        },
+        surface,
+      );
+      entry.consoleErrors.push(...errors);
+      entry.sections = result.sections;
+      if (result.untranslated) entry.untranslatedChrome = result.untranslated;
+    }
+    // 401s on the auth/coins/notify probes are the CORRECT logged-out response,
+    // not a defect — collapse them so real errors stand out.
+    entry.consoleErrors = [
+      ...new Set(entry.consoleErrors.filter((e) => !/401 \(Unauthorized\)/.test(e))),
+    ];
   }
-  // 401s on the auth/coins/notify probes are the CORRECT logged-out response,
-  // not a defect — collapse them so real errors stand out.
-  report[locale].consoleErrors = [
-    ...new Set(report[locale].consoleErrors.filter((e) => !/401 \(Unauthorized\)/.test(e))),
-  ];
 }
 
 // NN5: the category bar must never wrap at any viewport 320-1920.

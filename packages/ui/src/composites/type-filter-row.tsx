@@ -7,14 +7,20 @@ export function TypeFilterRow({
   children,
   label,
   className,
+  ...rest
 }: {
   children: ReactNode;
   /** Accessible group label, e.g. "Milk type". */
   label: string;
   className?: string;
-}) {
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "children" | "className">) {
   return (
-    <div role="group" aria-label={label} className={cn("flex gap-[9px] overflow-x-auto pb-1 pt-3.5", className)}>
+    <div
+      role="group"
+      aria-label={label}
+      className={cn("flex gap-[9px] overflow-x-auto pb-1 pt-3.5", className)}
+      {...rest}
+    >
       {children}
     </div>
   );

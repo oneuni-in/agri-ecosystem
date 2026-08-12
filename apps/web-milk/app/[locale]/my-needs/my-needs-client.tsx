@@ -2,6 +2,7 @@
 
 import { Button, Card, cn, EmptyState } from "@agri/ui";
 import { useAgriUser } from "@agri/auth-client/react";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { Link } from "@/i18n/navigation";
@@ -47,16 +48,11 @@ const MILK_ICON: Record<string, string> = {
   mixed: "🥛",
 };
 
-const SCHEDULE_LABEL: Record<string, string> = {
-  daily: "Daily",
-  alternate_days: "Alternate days",
-  weekly: "Weekly",
-};
-
-const TIME_LABEL: Record<string, string> = {
-  morning: "Morning",
-  evening: "Evening",
-  any: "Any time",
+/** payload.schedule wire value → ui.needs.schedules key. */
+const SCHEDULE_KEY: Record<string, string> = {
+  daily: "daily",
+  alternate_days: "alternateDays",
+  weekly: "weekly",
 };
 
 function statusChip(status: NeedOut["status"] | RouteOut["status"]): string {
@@ -72,28 +68,35 @@ function statusChip(status: NeedOut["status"] | RouteOut["status"]): string {
   }
 }
 
-function needSummary(need: NeedOut): string {
-  const p = need.payload;
-  const parts = [
-    `${MILK_ICON[p.milk_type ?? ""] ?? "🥛"} ${p.qty_liters ?? "?"}L`,
-    SCHEDULE_LABEL[p.schedule ?? ""] ?? p.schedule ?? "",
-    TIME_LABEL[p.delivery_time ?? ""] ?? "",
-  ];
-  return parts.filter(Boolean).join(" · ");
-}
-
 /**
  * D25.C: posted needs + per-vendor responses + accept / mark-fulfilled /
  * close. Cursor-paginated "load more" (never offset). Inline status only
- * (no ToastProvider on web-milk).
+ * (no ToastProvider on web-milk). Reads the SAME `GET /leads/needs/mine`
+ * the §2b home strip renders from, so the two can never disagree.
  */
 export function MyNeedsClient() {
   const { status } = useAgriUser({ autoSilentSso: false });
+  const t = useTranslations("ui.needs");
+  const locale = useLocale();
   const [needs, setNeeds] = useState<NeedOut[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // need id being acted on
+
+  const needSummary = (need: NeedOut): string => {
+    const p = need.payload;
+    const scheduleKey = SCHEDULE_KEY[p.schedule ?? ""];
+    const timeKey = ["morning", "evening", "any"].includes(p.delivery_time ?? "")
+      ? p.delivery_time
+      : undefined;
+    const parts = [
+      `${MILK_ICON[p.milk_type ?? ""] ?? "🥛"} ${p.qty_liters ?? "?"}L`,
+      scheduleKey ? t(`schedules.${scheduleKey}`) : (p.schedule ?? ""),
+      timeKey ? t(`times.${timeKey}`) : "",
+    ];
+    return parts.filter(Boolean).join(" · ");
+  };
 
   const load = useCallback(async (cursor?: string | null) => {
     try {
@@ -119,33 +122,33 @@ export function MyNeedsClient() {
   }, [status, load]);
 
   if (status === "loading") {
-    return <p className="text-[13px] text-sub">Loading...</p>;
+    return <p className="text-[13px] text-sub">{t("loading")}</p>;
   }
 
   if (status === "unauthenticated") {
+    // Guest: render the login card only — the /leads/needs/mine request is
+    // never made (the effect above fires on `authenticated` alone).
     return (
       <Card className="space-y-2 p-4">
-        <p className="text-[13px] text-sub">Login with your phone to see your posted needs.</p>
+        <p className="text-[13px] text-sub">{t("loginBody")}</p>
         <a
           href={`/api/auth/login?next=${encodeURIComponent("/my-needs")}`}
           className="inline-block min-h-[44px] rounded-btn bg-brand px-4 py-3 text-[13px] font-bold text-white no-underline"
         >
-          📱 Continue with phone · OTP
+          {t("continueOtp")}
         </a>
       </Card>
     );
   }
 
   if (state === "loading") {
-    return <p className="text-[13px] text-sub">Loading...</p>;
+    return <p className="text-[13px] text-sub">{t("loading")}</p>;
   }
 
   if (state === "error") {
     return (
       <Card className="p-4">
-        <p className="text-[13px] font-semibold text-ink">
-          Could not load your needs — please refresh.
-        </p>
+        <p className="text-[13px] font-semibold text-ink">{t("loadError")}</p>
       </Card>
     );
   }
@@ -154,14 +157,15 @@ export function MyNeedsClient() {
     return (
       <EmptyState
         icon="🥛"
-        title="No needs posted yet"
-        description="Tell vendors near you what milk you need — everyone covering your pincode gets it."
+        title={t("emptyTitle")}
+        description={t("emptyBody")}
         action={
           <Link
             href="/post-need"
             className="inline-block w-full min-h-[44px] rounded-btn bg-brand px-4 py-3 text-[13px] font-bold text-white no-underline"
           >
-            Post my need · என் தேவை
+            {t("postCta")}
+            {locale === "en" ? <span className="vern font-normal"> · என் தேவை</span> : null}
           </Link>
         }
       />
@@ -178,12 +182,12 @@ export function MyNeedsClient() {
         body: JSON.stringify(path === "fulfill" && businessId ? { business_id: businessId } : {}),
       });
       if (!res.ok) {
-        setActionError("Could not update — please refresh and try again.");
+        setActionError(t("actionError"));
       } else {
         await load();
       }
     } catch {
-      setActionError("Could not update — please refresh and try again.");
+      setActionError(t("actionError"));
     } finally {
       setBusy(null);
     }
@@ -202,18 +206,19 @@ export function MyNeedsClient() {
             <div>
               <p className="text-[15px] font-extrabold text-ink">{needSummary(need)}</p>
               <p className="text-[12px] text-sub">
-                📍 {need.pincode} · {new Date(need.created_at).toLocaleDateString("en-IN")} · sent
-                to {need.routed_count} vendor{need.routed_count === 1 ? "" : "s"}
+                📍 {need.pincode} ·{" "}
+                {new Date(need.created_at).toLocaleDateString(`${locale}-IN`)} ·{" "}
+                {t("sentTo", { count: need.routed_count })}
               </p>
             </div>
             <span
               className={cn(
-                "rounded-btn border px-2 py-1 text-[12px] font-bold capitalize",
+                "rounded-btn border px-2 py-1 text-[12px] font-bold",
                 statusChip(need.status),
               )}
               data-testid="need-status"
             >
-              {need.status}
+              {t(`status.${need.status}`)}
             </span>
           </header>
 
@@ -228,16 +233,16 @@ export function MyNeedsClient() {
 
           <ul className="space-y-2">
             {need.routes.map((route) => (
-              <li key={route.inquiry_id} className="rounded-card border border-line p-3">
+              <li key={route.inquiry_id} className="rounded-card border border-cream-line p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] font-bold text-ink">{route.business_name}</span>
                   <span
                     className={cn(
-                      "rounded-btn border px-2 py-0.5 text-[11px] font-bold capitalize",
+                      "rounded-btn border px-2 py-0.5 text-[11px] font-bold",
                       statusChip(route.status),
                     )}
                   >
-                    {route.status}
+                    {t(`status.${route.status}`)}
                   </span>
                 </div>
                 {route.responses.map((response) => (
@@ -258,7 +263,8 @@ export function MyNeedsClient() {
                     onClick={() => void act(need.id, "fulfill", route.business_id)}
                     data-testid="accept-vendor"
                   >
-                    ✅ Accept <span className="vern">· ஏற்றுக்கொள்</span>
+                    {t("accept")}
+                    {locale === "en" ? <span className="vern"> · ஏற்றுக்கொள்</span> : null}
                   </Button>
                 ) : null}
               </li>
@@ -275,7 +281,7 @@ export function MyNeedsClient() {
                 onClick={() => void act(need.id, "fulfill")}
                 data-testid="mark-fulfilled"
               >
-                ✅ Mark fulfilled
+                {t("markFulfilled")}
               </Button>
               <Button
                 type="button"
@@ -285,7 +291,7 @@ export function MyNeedsClient() {
                 onClick={() => void act(need.id, "close")}
                 data-testid="close-need"
               >
-                ✖ Close
+                {t("closeNeed")}
               </Button>
             </footer>
           ) : null}
@@ -298,7 +304,7 @@ export function MyNeedsClient() {
           className="max-w-[200px]"
           onClick={() => void load(nextCursor)}
         >
-          Load more
+          {t("loadMore")}
         </Button>
       ) : null}
     </div>

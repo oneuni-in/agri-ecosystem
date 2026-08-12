@@ -270,10 +270,111 @@
     "categoryBrowse": {
       "heading": "{category} in {place}",
       "empty": "Nothing listed here yet — check back soon.",
-      "allMilk": "All milk"
+      "allMilk": "All milk",
+      "rowLabel": "Dairy categories",
+      "genericDescription": "Find {name} near you — verified listings, prices and contact on Milk.in."
+    },
+    "results": {
+      "title": "Milk in {place}",
+      "localVendors": "Local vendors",
+      "brandsNearby": "Brands & shops nearby",
+      "showMap": "🗺 Show map",
+      "hideMap": "Hide map",
+      "postNeed": "🥛 Post my need — vendors here reply to you",
+      "filteredEmptyAll": "No milk listed here yet —",
+      "filteredEmpty": "No {type} milk listed here yet —",
+      "seeAll": "see all",
+      "noVendorsTitle": "No milk vendors in {place} yet",
+      "noVendorsBody": "Be the first to know when a dairy lists here.",
+      "outTitle": "We're live in Tamil Nadu right now",
+      "outBody": "{pincode} isn't in our coverage yet — more areas coming soon. Leave your number and we'll reach out the moment milk vendors arrive."
+    },
+    "notify": {
+      "placeholder": "Phone or email (optional)",
+      "contactLabel": "Contact for notification",
+      "button": "Notify me",
+      "done": "🎉 Thanks — we'll tell you the moment milk vendors reach {place}.",
+      "error": "Something went wrong — please try again."
+    },
+    "needs": {
+      "title": "🥛 Post my need",
+      "intro": "Tell vendors near you what milk you need — everyone covering your pincode gets it and replies here.",
+      "milkTypeLegend": "Milk type",
+      "types": {
+        "cow": "Cow",
+        "buffalo": "Buffalo",
+        "goat": "Goat",
+        "mixed": "Mixed"
+      },
+      "qtyLabel": "Litres per delivery",
+      "less": "Less milk",
+      "more": "More milk",
+      "scheduleLegend": "How often",
+      "schedules": {
+        "daily": "Daily",
+        "alternateDays": "Alternate days",
+        "weekly": "Weekly"
+      },
+      "timeLegend": "Delivery time",
+      "times": {
+        "morning": "Morning",
+        "evening": "Evening",
+        "any": "Any time"
+      },
+      "pincodeLabel": "Pincode",
+      "noteLabel": "Anything else?",
+      "optional": "(optional)",
+      "voiceLabel": "Voice note",
+      "voiceDenied": "Microphone unavailable — the form works fine without it.",
+      "voiceStop": "⏹ Stop",
+      "voiceRecord": "⏺ Record",
+      "voiceReRecord": "⏺ Record again",
+      "voiceRemove": "🗑 Remove",
+      "loading": "Loading...",
+      "sending": "Sending...",
+      "submit": "Post my need",
+      "continueOtp": "📱 Continue with phone · OTP",
+      "draftKept": "Your details stay filled in — verify your phone with a one-time code and we post it.",
+      "errorLimit": "Daily limit reached — please try again tomorrow.",
+      "errorInvalid": "Please check the details you entered.",
+      "errorGeneric": "Could not post — please try again.",
+      "doneTitle": "🎉 Sent to {count, plural, one {# vendor} other {# vendors}} near you",
+      "doneVoiceFailed": "(Your voice note could not be attached — the need itself was sent.)",
+      "doneTrack": "They will reply here — track everything in one place.",
+      "seeMyNeeds": "See my needs",
+      "noCoverageTitle": "No vendors here yet — we'll tell them you're waiting",
+      "noCoverageBody": "No milk vendor covers {pincode} on Milk.in yet. We record the demand and prioritise onboarding vendors where people are waiting.",
+      "noCoverageNoted": "🎉 Noted — we'll be in touch as vendors join.",
+      "noCoverageNotify": "Tell me when vendors join",
+      "changePincode": "← Change pincode",
+      "myTitle": "My needs",
+      "loginBody": "Login with your phone to see your posted needs.",
+      "loadError": "Could not load your needs — please refresh.",
+      "emptyTitle": "No needs posted yet",
+      "emptyBody": "Tell vendors near you what milk you need — everyone covering your pincode gets it.",
+      "postCta": "Post my need",
+      "sentTo": "sent to {count, plural, one {# vendor} other {# vendors}}",
+      "status": {
+        "open": "Open",
+        "fulfilled": "Fulfilled",
+        "closed": "Closed",
+        "new": "New",
+        "responded": "Responded"
+      },
+      "accept": "✅ Accept",
+      "markFulfilled": "✅ Mark fulfilled",
+      "closeNeed": "✖ Close",
+      "loadMore": "Load more",
+      "actionError": "Could not update — please refresh and try again."
     },
     "brandPage": {
       "products": "Products",
+      "vendorProducts": "Milk products",
+      "deliveryArea": "Delivery area",
+      "branches": "Branches & delivery hours",
+      "typeVendor": "Milk vendor",
+      "typeShop": "Brand / shop",
+      "morePincodes": "+ {count} more",
       "shopsNearYou": "Shops near you",
       "pincodeLabel": "Your pincode",
       "find": "Find shops",
@@ -283,6 +384,10 @@
       "onSince": "On Milk.in since {date}",
       "unavailableTitle": "This listing is unavailable",
       "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
+    },
+    "productPage": {
+      "nearYou": "{name} near you",
+      "description": "Find {name} from verified dairy brands, local vendors and farms near you across Tamil Nadu."
     },
     "localeSwitcher": {
       "label": "Language"

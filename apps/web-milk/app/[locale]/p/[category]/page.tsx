@@ -2,7 +2,7 @@ import { AdSlot } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { HouseAdCard } from "@/components/molecules/HouseAdCard";
 import { routing } from "@/i18n/routing";
@@ -34,9 +34,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { locale, category } = await params;
   const match = (await fetchProductCategories(locale)).find((c) => c.value === category);
   if (!match) return { title: "Milk.in" };
+  const t = await getTranslations({ locale, namespace: "ui.productPage" });
   return buildMetadata({
-    title: `${match.label} near you — Milk.in`,
-    description: `Find ${match.label} from verified dairy brands, local vendors and farms near you across Tamil Nadu.`,
+    title: `${t("nearYou", { name: match.label })} — Milk.in`,
+    description: t("description", { name: match.label }),
     canonical: canonicalUrl(SITE, `/p/${category}`),
     siteName: "Milk.in",
   });
@@ -61,15 +62,18 @@ export default async function ProductCategoryPage({ params }: { params: Params }
   setRequestLocale(locale);
   const match = (await fetchProductCategories(locale)).find((c) => c.value === category);
   if (!match) notFound();
+  const t = await getTranslations("ui");
   const canonical = canonicalUrl(SITE, `/p/${category}`);
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: collectionJsonLd(match.label, canonical) }}
+        dangerouslySetInnerHTML={{
+          __html: collectionJsonLd(t("productPage.nearYou", { name: match.label }), canonical),
+        }}
       />
       <h1 className="font-display text-[22px] font-extrabold text-ink">
-        {match.label} near you
+        {t("productPage.nearYou", { name: match.label })}
       </h1>
       {match.vern ? <p className="vern text-[15px] text-sub">{match.vern}</p> : null}
       {/* M2: milk_category_banner - context is the M1 schema category value,
@@ -80,8 +84,8 @@ export default async function ProductCategoryPage({ params }: { params: Params }
         heightClass="h-[72px]"
         fallback={
           <HouseAdCard
-            title="🥛 Post your need — vendors reply to you"
-            vern="என் தேவை"
+            title={t("results.postNeed")}
+            {...(locale === "en" ? { vern: "என் தேவை" } : {})}
             href="/post-need"
           />
         }

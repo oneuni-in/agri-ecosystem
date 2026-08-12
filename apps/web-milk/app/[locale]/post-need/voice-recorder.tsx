@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@agri/ui";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 type RecState = "idle" | "recording" | "recorded" | "denied" | "unsupported";
@@ -13,6 +14,8 @@ type RecState = "idle" | "recording" | "recorded" | "denied" | "unsupported";
  * never voice-only).
  */
 export function VoiceRecorder({ onBlob }: { onBlob: (blob: Blob | null) => void }) {
+  const t = useTranslations("ui.needs");
+  const locale = useLocale();
   const [state, setState] = useState<RecState>("idle");
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -73,14 +76,11 @@ export function VoiceRecorder({ onBlob }: { onBlob: (blob: Blob | null) => void 
   return (
     <div className="space-y-2">
       <p className="text-[13px] font-semibold text-ink">
-        Voice note <span className="vern font-normal">· குரல் குறிப்பு</span>{" "}
-        <span className="font-normal text-sub">(optional)</span>
+        {t("voiceLabel")}
+        {locale === "en" ? <span className="vern font-normal"> · குரல் குறிப்பு</span> : null}{" "}
+        <span className="font-normal text-sub">{t("optional")}</span>
       </p>
-      {state === "denied" ? (
-        <p className="text-[13px] text-sub">
-          Microphone unavailable — the form works fine without it.
-        </p>
-      ) : null}
+      {state === "denied" ? <p className="text-[13px] text-sub">{t("voiceDenied")}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         {state === "recording" ? (
           <Button
@@ -90,7 +90,7 @@ export function VoiceRecorder({ onBlob }: { onBlob: (blob: Blob | null) => void 
             onClick={stop}
             data-testid="voice-stop"
           >
-            ⏹ Stop
+            {t("voiceStop")}
           </Button>
         ) : (
           <Button
@@ -100,8 +100,8 @@ export function VoiceRecorder({ onBlob }: { onBlob: (blob: Blob | null) => void 
             onClick={() => void start()}
             data-testid="voice-record"
           >
-            ⏺ {state === "recorded" ? "Record again" : "Record"}{" "}
-            <span className="vern">· பேசுங்கள்</span>
+            {state === "recorded" ? t("voiceReRecord") : t("voiceRecord")}
+            {locale === "en" ? <span className="vern"> · பேசுங்கள்</span> : null}
           </Button>
         )}
         {state === "recorded" && playbackUrl ? (
@@ -114,7 +114,7 @@ export function VoiceRecorder({ onBlob }: { onBlob: (blob: Blob | null) => void 
               onClick={discard}
               data-testid="voice-discard"
             >
-              🗑 Remove
+              {t("voiceRemove")}
             </Button>
           </>
         ) : null}

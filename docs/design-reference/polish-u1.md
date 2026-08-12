@@ -743,3 +743,250 @@ The fonts.gstatic.com outage that muddied the earlier rounds (three build
 failures across two runs) resolved on retry; if it recurs, the standing
 contingency is self-hosting the four families via `next/font/local` in
 `packages/ui/src/fonts.ts`.
+
+---
+
+## 6. U1b — remaining consumer surfaces rebuilt to the U1 catalog
+
+Binding-proof record for SPEC U1b (`feat/u1b-milk-consumer-ui`). Appended per
+U1b's rule; earlier sections are U1's record and are not rewritten.
+
+### 6.0 Prompt-to-repo substitutions (recorded, not silently applied)
+
+| Prompt says | Repo reality | Substitution used |
+| --- | --- | --- |
+| "extend `verify-u1.mjs` to new routes" | The script was home-only (hard-coded `category-bar` ready-selector and home DOM floors) | Extended with a `SURFACES` table (home / results / search), per-surface ready selectors + render floors; home keeps its U1 file names, new surfaces prefix theirs (`live-results-*`, `live-search-*`). |
+| "copy `capture-u1.mjs`" for group screenshots | `capture-u1.mjs` is the home-vs-reference matrix and uses `networkidle` (the documented never-settles trap) | New `scripts/capture-u1b.mjs` — copies verify-u1's HARDENED patterns verbatim (caps reset before every load, domcontentloaded + ready selector, per-shot context, silent-SSO 204, rendered-DOM assertion after the shot), parameterised by group. |
+| Mutation checks "through the same owner/admin APIs" | The dockerised API on :8000 has no `OTP_TEST_PEEK` routes (the e2e-only harness has them) | Owner/staff sessions minted through the real OTP flow, reading the mock-SMS code from the API container log (the documented dev path); the 5/day phone throttle was cleared via its redis keys. |
+| "after the ISR window" for page assertions | Results page is `revalidate = 300` | Same honest method as U1 §5e: mutate, wait out one full window, assert on a single plain reload of the canonical URL. |
+
+### 6.1 Group A — results surfaces (`/{city}/{pincode}` · search)
+
+What changed, structurally:
+
+- **One vendor-card binding.** The card binding that lived inside the home's
+  `VendorGrid` is now `components/organisms/MilkVendorCard.tsx`, and every
+  vendor grid renders it: the home grid, the results grids (inside the D24.D
+  map↔list island, which now only owns selection state), and the M3.C
+  Recommended rail. The results page's own pre-U1 `vendor-card.tsx` and
+  `type-filter-row.tsx` one-offs are deleted. The catalog `VendorCard` shell
+  gained an optional `body` slot and optional `actions` (a search hit is the
+  same shell, link-wrapped, action-less) — kitchen sink shows the new shape.
+- **Shared data paths, not forks.** The results page now renders D18 rating
+  aggregates through the SAME `fetchReviewSignals()` path the home uses
+  (extracted from `fetchHomeData`, one code path, deduped per business);
+  sponsored listings stay `fetchSponsoredListings()` → `injectSponsored()` at
+  the render layer, now with the localised badge label and the 2px
+  `--ad-border` golden border on every surface (results, category view,
+  search — previously home-only). §5c chips are the shared `MilkTypeChips`
+  organism (new `active` prop for the results page; the D23 schema-driven
+  filter SET is untouched), §5b is the shared `PriceTicker` marquee.
+- **Localisation.** Every piece of results/search chrome moved into the
+  catalogs (`ui.results.*`, `ui.notify.*`, `categoryBrowse.rowLabel` — en/ta/
+  hi). EN copy is byte-identical to the pre-U1b strings the e2e suite
+  asserts. The `· என் தேவை` accent on the post-need CTA renders on /en only.
+- **e2e assertions moved, none deleted.** `milk-home.spec.ts` now asserts the
+  §5b `price-ticker` (the dashed `price-banner` box no longer exists). All
+  other testids (`scope-*`, `type-filter-row`, `vendor-card-*`, `map-toggle`,
+  `vendor-results`, `notify-me`/`notify-done`, `category-*`) are preserved.
+
+### 6.2 Binding proof — Group A
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| `/{city}/{pincode}` covered view | `fetchMilkHome()` (D23 blend over `covers()`) + `fetchReviewSignals()` (D18 `/reviews/summary` per card) + `fetchMilkTypes()` (D17 `option_meta` labels) + `fetchSponsoredListings()` (M3.B) — the same four paths the home renders from | **Price:** owner `PATCH /catalog/products/{id}` `₹55/L → ₹61/L` → after one window the page shows `₹61/L` (rail + grid), zero `₹55/L`; restored after. **Suspend:** `POST /admin/directory/businesses/{id}/suspend` → after one window the canonical URL renders 0 `vendor-card-e2e-milk-vendor` while 19 other cards stay; `reinstate` → card returns with the restored `₹55/L`. |
+| `/{city}/{pincode}` sponsored positions | M3 engine (`SPONSORED_POSITIONS`, caps) — render-layer injection only | 2 sponsored cards at the engine's positions with the golden border; badge localises (`★ Sponsored` / `★ விளம்பரம்` measured on the live page). Organic arrays and the JSON-LD ItemList untouched (M3 organic-order unit test green; ItemList spec unchanged). |
+| Search | `GET /search` (D19 Meili) via the page's server fetch, `no-store`; geo-boost from the visitor's `agri_loc` pincode | **khoa:** created `Fresh Khoa` (spec `category: khoa` — a D17-only schema value) on the fixture vendor via owner API, staff-approved it → `/search?q=khoa` page renders it (with the pre-existing `Dairy Mart Khoa`) with ZERO code change; archived after the check. |
+| Search sponsored slot + listings | M2 `milk_search_inline` slot + M3.B injection | Badge label now localised on the injected cards; slot behaviour unchanged (collapses when dark). |
+
+### 6.3 Group A verification record (2026-08-11)
+
+- Workspace gates: `@agri/ui` lint + typecheck + 79 tests · `@agri/web-milk`
+  lint + typecheck + 15 tests · `@agri/web-agri` lint + typecheck ·
+  `check:hex` clean. The M3 organic-order test
+  (`sponsored.test.ts`) and the i18n locale-completeness test (new keys in
+  all three catalogs) are inside those suites.
+- Backend: `pytest -k "m3 or ads or delivery or leads"` — **260 passed** (no
+  backend code changed in Group A).
+- Locale probe (`verify-u1.mjs`, extended): untranslated chrome **0 on /ta
+  and /hi for all three surfaces** (home / results / search); NN5 category
+  bar `wrapsAt: []` across 320–1920 unchanged.
+- Screenshots: `docs/design-reference/u1b/{results,search}-en-{360,768,1024,
+  1440}.png` + ta/hi at 360/1440 + full-page records, captured with caps
+  reset between loads (`capture-u1b.mjs`).
+- Caps observed: sweep screenshots taken with `--reset-caps` between loads;
+  the 2-cards-per-page sponsored cap and positions are the engine's.
+
+Notes / observations, recorded rather than hidden:
+
+1. **Transient review-signal degradation under load.** During heavy sweep
+   loads on this dev box, a results render occasionally lost its rating rows
+   (a `/reviews/summary` fetch failing silently → `getJson` null → the
+   designed degradation). DOM-verified correct on every quiet load; two
+   early screenshot sets caught the degraded state and were re-taken with a
+   per-shot DOM assertion (`stars: true` logged for all four locale shots).
+   This is the same fail-soft contract the home has carried since U1.
+2. **A dev-only hydration warning** ("tree hydrated but some attributes…")
+   fires intermittently on home and search sweeps under load, including on
+   the UNCHANGED home surface, and does not reproduce on quiet loads of any
+   route. Pre-existing dev-mode noise, not introduced by this pass; the
+   production-build e2e/a11y suites are the arbiter.
+3. **Search page width** stays a 720px reading column (the reference has no
+   /search screen; U1's recorded position). The 720px FOOTER remnant is
+   Group C's job, per the U1b spec.
+
+---
+
+## 7. U1b Group B — discovery surfaces (brand · category)
+
+### 7.0 Decision record + substitutions
+
+| Item | Decision / substitution |
+| --- | --- |
+| Business-category taxonomy scope | `directory.categories` has NO site/vertical dimension, so "which categories belong on milk.in" could not be schema-derived. **Owner chose the data-driven scope** (AskUserQuestion, this session): the taxonomy = categories with ≥1 ACTIVE assigned business, served by a new public read. Consequence accepted: `dairy` (121) and `shop` (10) now appear as browse categories beside the D27 four. |
+| New public accessor | `GET /directory/categories/active` — the U1b-permitted shape (read-only, owning module, `paginate()` keyset, no PII; declared in `public_routes.txt`, pinned by `test_active_categories_public_counts_only_active` + the exact-registry test). Suspended/soft-deleted businesses never count; a category whose only carrier is suspended does not exist publicly. |
+| `dairy`/`shop` row names | Were en-only; ta/hi names backfilled by DATA (dev DB update). **OWNER ACTION for prod:** run the same two-row name backfill at deploy (category names are directory data, not message strings). |
+| Brand page locale probe | NOT probed by `verify-u1.mjs` — the page is DB text end to end (about, addresses, product names) and the probe's exclusion list cannot express that. Recorded as screenshots (`u1b/brand-*`); the localized chrome was grepped directly on the live /ta page instead (all six keys present). |
+| Dev-cache trap (recorded for Group C) | A killed `pnpm dev` leaves the node child holding :3000 — a poll that races the kill gets the ORPHAN's stale data cache and reads like a broken binding. Kill the netstat LISTEN pid, then restart. |
+
+### 7.1 What changed
+
+- **Taxonomy is data, everywhere.** `lib/categories.ts`'s hardcoded
+  `DAIRY_CATEGORIES` (mirroring alembic 0026) is gone. `fetchBusinessCategories()`
+  (public taxonomy read, revalidate 3600, [] on backend-down) now drives: the
+  results-page category chips, the home §8g service tiles, the `?category=`
+  browse view + its metadata, the `/c/{category}` landing pages
+  (`generateStaticParams` + `dynamicParams`, same M1 NN1 shape as `/p`), the
+  brand-page category chips (all now link their /c landing), the footer's /c
+  column, and the sitemap's /c entries. Labels are the category rows' own
+  localized names; `CATEGORY_MESSAGE_KEY` survives only as copy enrichment
+  (curated /c descriptions for the D27 four, generic localized line otherwise)
+  and the icon map falls back to 🥛 — both presentation-only, never taxonomy.
+- **Brand surface on the catalog.** Product cards render the catalog
+  `VendorCard` shell; every literal localized (`brandPage.vendorProducts` /
+  `deliveryArea` / `branches` / `typeVendor` / `typeShop` / `morePincodes`,
+  badge via `ui.badges.verified`); milk-type meta uses the D17 localized
+  labels; category chips got real 44px tap boxes.
+- **/p/{category}** localized (`productPage.nearYou` + description template;
+  the house fallback reads `results.postNeed` with the en-only vern accent).
+
+### 7.2 Binding proof — Group B
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| Category chips · §8g tiles · `/c/{slug}` · `?category=` view · footer /c col · sitemap | `GET /directory/categories/active` (categories × active businesses) + `covers()` for the browse view | **Demonstrated end to end:** inserted category row `milk-testing-lab` (en/ta/hi names) + ONE assignment (e2e-milk-vendor) → with zero code change the results page grew a `category-chip-milk-testing-lab`, the home grew `service-milk-testing-lab`, `/c/milk-testing-lab` rendered (a page never coded or built, generic localized description, Tamil name on /ta), and `?category=milk-testing-lab` listed the assigned business. Rows deleted → endpoint drops it (count-scoped: a category with no active carrier does not exist). |
+| Brand page (D24 variant) | `fetchBusiness` + `fetchProducts` + `fetchReviews` + D17 type labels; JSON-LD `["Organization","Brand"]` unchanged | Sections collapse rather than render empty: at 636810 (covered, 1 vendor, 0 brands) the brands section is ABSENT from the page; on the brand page About/branches/coverage/products render only with data. NearbyShops' zero-state is the localized `brandPage.empty` message line (no box); no seeded brand has zero branches, so that state is pinned by the component contract rather than reproduced live — recorded, not claimed. |
+| `/p/{category}` | M1 schema (`fetchProductCategories`, dynamicParams) — already zero-enumeration; U1's khoa check pins it | Localized this pass; taxonomy binding unchanged. |
+
+### 7.3 Verification record
+
+- Workspace gates: web-milk + @agri/ui lint/typecheck/tests green (locale-
+  completeness covers the new keys) · `check:hex` clean.
+- Backend: directory suite 22/22 + main 4/4 + the
+  `m3 or ads or delivery or leads or directory` slice **387 passed**; mypy
+  clean on the module; `ruff format` applied to the touched router.
+- Locale sweep (`verify-u1.mjs`, now 4 surfaces): untranslated chrome **0 on
+  /ta and /hi for home, results, search AND category**; NN5 `wrapsAt: []`.
+  The known intermittent dev-only hydration warning appears ≤1× per surface
+  (unchanged from Group A's record).
+- Screenshots: `u1b/{category,category-p,brand}-*` (en 4 widths + ta/hi +
+  full-page) and the Group A sets re-captured with the data-driven chip row.
+
+---
+
+## 8. U1b Group C — need flow + shell
+
+### 8.1 What changed
+
+- **post-need on the catalog + catalogs.** The three selectable tile rows
+  render the catalog `TypeFilter` composite (the §5c chip — icon + label +
+  vernacular + aria-pressed) instead of a page-local tile button; every
+  string on the page/form/voice-recorder reads from the new `ui.needs.*`
+  namespace (50 keys × en/ta/hi). The designed Tamil accents (`· என் தேவை`
+  and friends) render on /en only, per the results-CTA policy. The
+  draft-then-OTP flow, enums, caps and testids are untouched.
+- **my-needs localized end to end** — status chips, summaries (schedule/time
+  labels from `ui.needs`, milk type carried by its icon), actions, empty and
+  login states; dates format with the visitor's locale. Same wire shapes,
+  same `GET /leads/needs/mine`, same testids.
+- **Footer**: already the U1 5-col grid mounted in the shared layout on every
+  consumer route (no 720px shell remnant survives — the 720px columns that
+  remain are deliberate reading-width mains, recorded in §6.3). Its /c
+  column reads the Group B taxonomy; its /p column the D17 schema.
+- Harness: `verify-u1.mjs` sweeps 6 surfaces; `capture-u1b.mjs groupC` adds
+  the post-need + my-needs sets.
+
+### 8.2 Binding proof — Group C
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| post-need → §2b strip → my-needs | D25 `/leads/needs` (post, BFF) · `GET /leads/needs/mine` (BOTH the §2b strip — server-side bearer — and the my-needs page read this one endpoint, so they cannot disagree) | **Demonstrated twice.** (a) Real browser, real login dance (fresh phone, OTP from the mock-SMS log, progressive-account steps): form posted → `need-posted` card → home renders `my-need-strip` ("Your need: 1L · Cow · daily — no vendors have replied yet") → `/my-needs` shows the same need → Mark fulfilled → status chip flips to Fulfilled → home reload: **strip gone**. (b) API-level: posted need `open` in `needs/mine`; `fulfill` → `fulfilled`; the signed-in home HTML tracks both states. |
+| Guest never triggers the request | `MyNeedStrip` returns null before any fetch when there is no token; `MyNeedsClient` fetches only on `status === "authenticated"` | Guest home HTML carries no `my-need-strip` (asserted); guest /my-needs renders the localized login card with no `needs/mine` call (by construction — the effect gates on the auth state). |
+| Footer categories | Group B's `/directory/categories/active` + D17 product schema | The Group B name backfill IS the live mutation: the footer's /c column reads "Dairies · Milk Shops · Veterinarians" (and their Tamil names on /ta) straight from the directory rows — no literal array anywhere in the footer. |
+
+### 8.3 Verification record (2026-08-12)
+
+- Workspace gates: web-milk lint/typecheck/tests 15/15 · @agri/ui 79/79
+  (locale-completeness covers the 3×50 new keys) · `check:hex` clean.
+- Locale sweep (`verify-u1.mjs`, 6 surfaces × 3 locales): untranslated
+  chrome **0 on /ta and /hi for every surface** (home, results, search,
+  category, post-need, my-needs); NN5 `wrapsAt: []` across 320–1920.
+- Screenshots: `u1b/{post-need,my-needs}-*` (en 4 widths + ta/hi 360/1440 +
+  full-page). my-needs is captured in its guest state; the signed-in list is
+  exercised by the browser proof above and `post-need.spec.ts`.
+- The intermittent dev-only hydration warning stays ≤1× per surface
+  (unchanged since the Group A record; absent on quiet loads).
+- Full backend suite before the PR: **1593 passed** (a first attempt reported
+  1 failed / 1156 skipped — Docker had stopped with the machine session and
+  every DB-backed test skipped on "postgres unreachable"; rerun green with
+  the stack up, no code change).
+- `node scripts/lhci-affected.mjs` attempted: builds + audits run, then dies
+  in the documented Windows chrome-launcher EPERM deleting its temp profile
+  (`lhci: FAILED` after "Generating results...") — the same local gap U1
+  recorded in §2/§4c. The PR's lighthouse CI job is the arbiter, and these
+  routes carry no carve-out: the 0.90 perf / 0.95 a11y / 0.95 seo floors
+  apply (issue #59's 0.80 exception is scoped to `/` only).
+
+### 8.4 The pincode-landing perf gate (2026-08-12, PR #60 CI)
+
+The PR's lighthouse job failed on exactly one assertion:
+`/coimbatore/641001` performance median **0.88** (0.86/0.83/0.88) vs 0.90;
+every other URL and every a11y/SEO assertion passed. Diagnosis from the two
+runs' artifacts (PR #58 vs #60, same URL, same gate):
+
+- The pre-U1b page measured **0.94/0.83/0.89** — the 0.90 floor was only
+  ever cleared here by run-to-run variance, never held with headroom.
+- The U1b delta is +1KB JS transfer / +10 DOM nodes / same script count;
+  per-run bootup variance inside one build (671–1412ms) exceeds the
+  before/after gap.
+- The dominant cost is ~85% LCP render delay on the `<h1>` (2.7–2.9s at 4×
+  throttle) — the shared shell's font/hydration pipeline, the same
+  structural cost issue #59 tracks on the home.
+
+**Owner decision (ratified in-session): re-baseline this route to 0.85**,
+tied to issue #59 exactly like the home's 0.80 carve-out — restoring 0.90
+gates the Milk.in launch, not this PR. a11y/SEO stay at the full floor. The
+rejected alternatives (retry-until-green; pulling #59's perf sprint into
+U1b) and the reasoning live in the lighthouserc.cjs comment.
+
+### 8.5 The e2e-matrix timeout (2026-08-12, PR #60 CI)
+
+`e2e-matrix` hit its 35-minute ceiling twice. Evidence from both cancelled
+logs vs PR #58's passing one (same 88 tests, 1 worker): the Meilisearch
+ConnectErrors in the harness are pre-existing background noise (40 of them
+in the PASSING run too — the job has no Meili service and /search degrades
+by design); the real signature is a UNIFORM ~2.2× stretch of the whole
+timeline — search-page visits every ~2.8min vs ~1.3min — starting exactly
+when tests start (server boot ran at normal speed), identical across both
+attempts. No single spec stalls; 18.2m × 2.2 ≈ 40m > 35m.
+
+Root cause: the §5b Marquee is an infinite CSS animation and U1b put it on
+the results pages most specs sit on; CI browsers have no GPU, so the
+compositor burns a core continuously — a time-proportional cost (U1's own
+13m→20m job growth coincided with the marquee arriving on the home).
+Fix: the suite now runs under `reducedMotion: "reduce"`
+(e2e/playwright.config.ts) — the marquee's own first-class degradation path
+(static strip, `motion-reduce:[animation:none]`), asserted by nothing that
+wants motion, already the ads-surfaces spec's per-test practice. The job
+ceiling moves 35→45 so any future regression completes with a reporter
+summary naming the slow specs instead of an opaque cancellation.

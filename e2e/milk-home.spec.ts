@@ -10,7 +10,9 @@ test.describe("D23 milk pincode home — three empty-state branches", () => {
     await waitForHeaderSettled(page);
     await expect(page.getByTestId("scope-covered")).toBeVisible();
     await expect(page.getByTestId("type-filter-row")).toBeVisible();
-    await expect(page.getByTestId("price-banner")).toBeVisible();
+    // U1b: the results page renders the §5b PriceTicker marquee (the same
+    // catalog composite as the home) in place of the old dashed price box.
+    await expect(page.getByTestId("price-ticker")).toBeVisible();
     await expect(page.getByRole("heading", { name: /Local vendors/i })).toBeVisible();
   });
 

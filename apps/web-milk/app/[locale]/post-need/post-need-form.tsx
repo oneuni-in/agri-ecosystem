@@ -1,7 +1,8 @@
 "use client";
 
-import { Button, Card, cn, LOC_COOKIE, parseLocCookie } from "@agri/ui";
+import { Button, Card, cn, LOC_COOKIE, parseLocCookie, TypeFilter } from "@agri/ui";
 import { useAgriUser } from "@agri/auth-client/react";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Link } from "@/i18n/navigation";
@@ -18,23 +19,27 @@ const DRAFT_KEY = "post-need-draft";
 const FIELD =
   "mt-1 block min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-[13px] text-ink";
 
-const MILK_TYPES: { value: MilkType; icon: string; label: string; vern: string }[] = [
-  { value: "cow", icon: "🐄", label: "Cow", vern: "பசு" },
-  { value: "buffalo", icon: "🐃", label: "Buffalo", vern: "எருமை" },
-  { value: "goat", icon: "🐐", label: "Goat", vern: "ஆடு" },
-  { value: "mixed", icon: "🥛", label: "Mixed", vern: "கலப்பு" },
+/** The D25 need enums, with their icons and the reference's designed Tamil
+ * accents (shown on /en only — ta/hi labels come fully translated from the
+ * ui.needs catalog). The value sets are the FORM's own fixed enums, so their
+ * labels are i18n content (allowed), not taxonomy. */
+const MILK_TYPES: { value: MilkType; icon: string; vern: string }[] = [
+  { value: "cow", icon: "🐄", vern: "பசு" },
+  { value: "buffalo", icon: "🐃", vern: "எருமை" },
+  { value: "goat", icon: "🐐", vern: "ஆடு" },
+  { value: "mixed", icon: "🥛", vern: "கலப்பு" },
 ];
 
-const SCHEDULES: { value: Schedule; icon: string; label: string; vern: string }[] = [
-  { value: "daily", icon: "📅", label: "Daily", vern: "தினமும்" },
-  { value: "alternate_days", icon: "📆", label: "Alternate days", vern: "மாற்று நாள்" },
-  { value: "weekly", icon: "🗓", label: "Weekly", vern: "வாரம்" },
+const SCHEDULES: { value: Schedule; key: string; icon: string; vern: string }[] = [
+  { value: "daily", key: "daily", icon: "📅", vern: "தினமும்" },
+  { value: "alternate_days", key: "alternateDays", icon: "📆", vern: "மாற்று நாள்" },
+  { value: "weekly", key: "weekly", icon: "🗓", vern: "வாரம்" },
 ];
 
-const TIMES: { value: DeliveryTime; icon: string; label: string; vern: string }[] = [
-  { value: "morning", icon: "🌅", label: "Morning", vern: "காலை" },
-  { value: "evening", icon: "🌇", label: "Evening", vern: "மாலை" },
-  { value: "any", icon: "🕐", label: "Any time", vern: "எப்போதும்" },
+const TIMES: { value: DeliveryTime; icon: string; vern: string }[] = [
+  { value: "morning", icon: "🌅", vern: "காலை" },
+  { value: "evening", icon: "🌇", vern: "மாலை" },
+  { value: "any", icon: "🕐", vern: "எப்போதும்" },
 ];
 
 interface Draft {
@@ -62,54 +67,20 @@ function AlertNotice({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Icon-first selectable tile row (design laws 1 + 7: icon + English +
- * mother-tongue on every choice, ≥44px targets, aria-pressed state). */
-function TileRow<T extends string>({
-  options,
-  value,
-  onChange,
-  testPrefix,
-}: {
-  options: { value: T; icon: string; label: string; vern: string }[];
-  value: T;
-  onChange: (next: T) => void;
-  testPrefix: string;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          data-testid={`${testPrefix}-${option.value.replaceAll("_", "-")}`}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "min-h-[56px] min-w-[84px] rounded-card border px-3 py-2 text-center",
-            value === option.value
-              ? "border-brand bg-brand-soft font-bold text-ink"
-              : "border-line bg-card text-ink",
-          )}
-        >
-          <span className="block text-[20px]" aria-hidden>
-            {option.icon}
-          </span>
-          <span className="block text-[12px]">{option.label}</span>
-          <span className="vern block text-[11px] text-sub">{option.vern}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /**
  * D25 "post my need": guest-friendly via draft-then-OTP — the filled form is
  * saved to sessionStorage, the user completes phone+OTP at web-id (which
  * creates the progressive account, D07/D11), and the draft is restored on
  * return. Inline status only (no ToastProvider on web-milk, LeadForm idiom).
+ *
+ * U1b: the selectable tile rows render the catalog `TypeFilter` composite
+ * (the §5c chip — icon + label + vernacular + aria-pressed), and every label
+ * reads from the ui.needs catalog.
  */
 export function PostNeedForm() {
   const { status } = useAgriUser({ autoSilentSso: false });
+  const t = useTranslations("ui.needs");
+  const locale = useLocale();
   const [milkType, setMilkType] = useState<MilkType>("cow");
   const [qty, setQty] = useState("1");
   const [schedule, setSchedule] = useState<Schedule>("daily");
@@ -122,6 +93,9 @@ export function PostNeedForm() {
   const [routedCount, setRoutedCount] = useState(0);
   const [voiceFailed, setVoiceFailed] = useState(false);
   const [interestSent, setInterestSent] = useState(false);
+
+  // The reference's designed Tamil accents render on /en only.
+  const vern = (text: string): string | undefined => (locale === "en" ? text : undefined);
 
   useEffect(() => {
     // draft (set before an OTP login round-trip) wins over the location cookie
@@ -204,15 +178,15 @@ export function PostNeedForm() {
         return;
       }
       if (res.status === 429) {
-        setErrorText("Daily limit reached — please try again tomorrow.");
+        setErrorText(t("errorLimit"));
       } else if (body?.detail === "invalid_payload") {
-        setErrorText("Please check the details you entered.");
+        setErrorText(t("errorInvalid"));
       } else {
-        setErrorText("Could not post — please try again.");
+        setErrorText(t("errorGeneric"));
       }
       setPhase("form");
     } catch {
-      setErrorText("Could not post — please try again.");
+      setErrorText(t("errorGeneric"));
       setPhase("form");
     }
   };
@@ -234,22 +208,21 @@ export function PostNeedForm() {
     return (
       <Card className="space-y-2 p-4" data-testid="need-posted">
         <h2 className="font-display text-[18px] font-extrabold text-ink">
-          🎉 Sent to {routedCount} vendor{routedCount === 1 ? "" : "s"} near you
+          {t("doneTitle", { count: routedCount })}
         </h2>
-        <p className="vern text-[13px] text-sub">
-          {routedCount} விற்பனையாளர்களுக்கு அனுப்பப்பட்டது
-        </p>
-        {voiceFailed ? (
-          <p className="text-[13px] text-sub">
-            (Your voice note could not be attached — the need itself was sent.)
+        {locale === "en" ? (
+          <p className="vern text-[13px] text-sub">
+            {routedCount} விற்பனையாளர்களுக்கு அனுப்பப்பட்டது
           </p>
         ) : null}
-        <p className="text-[13px] text-sub">They will reply here — track everything in one place.</p>
+        {voiceFailed ? <p className="text-[13px] text-sub">{t("doneVoiceFailed")}</p> : null}
+        <p className="text-[13px] text-sub">{t("doneTrack")}</p>
         <Link
           href="/my-needs"
           className="inline-block min-h-[44px] rounded-btn bg-brand px-4 py-3 text-[13px] font-bold text-white no-underline"
         >
-          See my needs · என் தேவைகள்
+          {t("seeMyNeeds")}
+          {locale === "en" ? <span className="vern font-normal"> · என் தேவைகள்</span> : null}
         </Link>
       </Card>
     );
@@ -259,15 +232,12 @@ export function PostNeedForm() {
     return (
       <Card className="space-y-2 p-4" data-testid="need-no-coverage">
         <h2 className="font-display text-[16px] font-extrabold text-ink">
-          No vendors here yet — we&apos;ll tell them you&apos;re waiting
+          {t("noCoverageTitle")}
         </h2>
-        <p className="text-[13px] text-sub">
-          No milk vendor covers {pincode} on Milk.in yet. We record the demand and prioritise
-          onboarding vendors where people are waiting.
-        </p>
+        <p className="text-[13px] text-sub">{t("noCoverageBody", { pincode })}</p>
         {interestSent ? (
           <p className="text-[13px] font-semibold text-ink" data-testid="notify-done">
-            🎉 Noted — we&apos;ll be in touch as vendors join.
+            {t("noCoverageNoted")}
           </p>
         ) : (
           <Button
@@ -276,7 +246,7 @@ export function PostNeedForm() {
             className="max-w-[240px]"
             onClick={() => void sendInterest()}
           >
-            Tell me when vendors join
+            {t("noCoverageNotify")}
           </Button>
         )}
         <Button
@@ -285,7 +255,7 @@ export function PostNeedForm() {
           className="max-w-[200px]"
           onClick={() => setPhase("form")}
         >
-          ← Change pincode
+          {t("changePincode")}
         </Button>
       </Card>
     );
@@ -303,26 +273,35 @@ export function PostNeedForm() {
       >
         <fieldset className="space-y-2">
           <legend className="text-[13px] font-semibold text-ink">
-            Milk type <span className="vern font-normal">· பால் வகை</span>
+            {t("milkTypeLegend")}
+            {locale === "en" ? <span className="vern font-normal"> · பால் வகை</span> : null}
           </legend>
-          <TileRow
-            options={MILK_TYPES}
-            value={milkType}
-            onChange={setMilkType}
-            testPrefix="milk-type"
-          />
+          <div className="flex flex-wrap gap-2">
+            {MILK_TYPES.map((option) => (
+              <TypeFilter
+                key={option.value}
+                icon={option.icon}
+                label={t(`types.${option.value}`)}
+                vernacular={vern(option.vern)}
+                active={milkType === option.value}
+                data-testid={`milk-type-${option.value}`}
+                onClick={() => setMilkType(option.value)}
+              />
+            ))}
+          </div>
         </fieldset>
 
         <div className="space-y-1">
           <label htmlFor="need-qty" className="block text-[13px] font-semibold text-ink">
-            Litres per delivery <span className="vern font-normal">· லிட்டர்</span>
+            {t("qtyLabel")}
+            {locale === "en" ? <span className="vern font-normal"> · லிட்டர்</span> : null}
           </label>
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="ghost"
               className="max-w-[56px] text-[18px]"
-              aria-label="Less milk"
+              aria-label={t("less")}
               onClick={() => stepQty(-0.5)}
             >
               −
@@ -344,7 +323,7 @@ export function PostNeedForm() {
               type="button"
               variant="ghost"
               className="max-w-[56px] text-[18px]"
-              aria-label="More milk"
+              aria-label={t("more")}
               onClick={() => stepQty(0.5)}
             >
               +
@@ -354,25 +333,47 @@ export function PostNeedForm() {
 
         <fieldset className="space-y-2">
           <legend className="text-[13px] font-semibold text-ink">
-            How often <span className="vern font-normal">· எத்தனை முறை</span>
+            {t("scheduleLegend")}
+            {locale === "en" ? <span className="vern font-normal"> · எத்தனை முறை</span> : null}
           </legend>
-          <TileRow
-            options={SCHEDULES}
-            value={schedule}
-            onChange={setSchedule}
-            testPrefix="schedule"
-          />
+          <div className="flex flex-wrap gap-2">
+            {SCHEDULES.map((option) => (
+              <TypeFilter
+                key={option.value}
+                icon={option.icon}
+                label={t(`schedules.${option.key}`)}
+                vernacular={vern(option.vern)}
+                active={schedule === option.value}
+                data-testid={`schedule-${option.value.replaceAll("_", "-")}`}
+                onClick={() => setSchedule(option.value)}
+              />
+            ))}
+          </div>
         </fieldset>
 
         <fieldset className="space-y-2">
           <legend className="text-[13px] font-semibold text-ink">
-            Delivery time <span className="vern font-normal">· நேரம்</span>
+            {t("timeLegend")}
+            {locale === "en" ? <span className="vern font-normal"> · நேரம்</span> : null}
           </legend>
-          <TileRow options={TIMES} value={deliveryTime} onChange={setDeliveryTime} testPrefix="time" />
+          <div className="flex flex-wrap gap-2">
+            {TIMES.map((option) => (
+              <TypeFilter
+                key={option.value}
+                icon={option.icon}
+                label={t(`times.${option.value}`)}
+                vernacular={vern(option.vern)}
+                active={deliveryTime === option.value}
+                data-testid={`time-${option.value}`}
+                onClick={() => setDeliveryTime(option.value)}
+              />
+            ))}
+          </div>
         </fieldset>
 
         <label className="block text-[13px] font-semibold text-ink">
-          Pincode <span className="vern font-normal">· அஞ்சல் குறியீடு</span>
+          {t("pincodeLabel")}
+          {locale === "en" ? <span className="vern font-normal"> · அஞ்சல் குறியீடு</span> : null}
           <input
             required
             inputMode="numeric"
@@ -386,7 +387,7 @@ export function PostNeedForm() {
         </label>
 
         <label className="block text-[13px] font-semibold text-ink">
-          Anything else? <span className="font-normal text-sub">(optional)</span>
+          {t("noteLabel")} <span className="font-normal text-sub">{t("optional")}</span>
           <textarea
             maxLength={500}
             rows={2}
@@ -402,7 +403,7 @@ export function PostNeedForm() {
 
         {status === "loading" ? (
           <Button type="button" variant="ghost" className="max-w-[260px]" disabled>
-            Loading...
+            {t("loading")}
           </Button>
         ) : (
           <Button
@@ -412,17 +413,20 @@ export function PostNeedForm() {
             className="max-w-[300px]"
             data-testid={authed ? "post-need-submit" : "post-need-login"}
           >
-            {submitting
-              ? "Sending..."
-              : authed
-                ? "Post my need · அனுப்பு"
-                : "📱 Continue with phone · OTP"}
+            {submitting ? (
+              t("sending")
+            ) : authed ? (
+              <>
+                {t("submit")}
+                {locale === "en" ? <span className="vern"> · அனுப்பு</span> : null}
+              </>
+            ) : (
+              t("continueOtp")
+            )}
           </Button>
         )}
         {!authed && status !== "loading" ? (
-          <p className="text-[12px] text-sub">
-            Your details stay filled in — verify your phone with a one-time code and we post it.
-          </p>
+          <p className="text-[12px] text-sub">{t("draftKept")}</p>
         ) : null}
       </form>
     </Card>

@@ -3,7 +3,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { CATEGORY_MESSAGE_KEY, DAIRY_CATEGORIES, isDairyCategory } from "@/lib/categories";
+import {
+  CATEGORY_MESSAGE_KEY,
+  categoryIcon,
+  categoryLabel,
+  fetchBusinessCategories,
+} from "@/lib/categories";
 import { routing } from "@/i18n/routing";
 
 import { CategoryPincodeFinder } from "./category-pincode-finder";
@@ -12,24 +17,46 @@ const SITE = "https://milk.in";
 
 export const revalidate = 3600;
 
-export function generateStaticParams() {
+/**
+ * `true` on purpose (same M1 NON-NEGOTIABLE 1 shape as /p/{category}): a
+ * category that becomes active AFTER this deploy still renders, on demand,
+ * with no rebuild. Unknown slugs 404 below, so this is not an open door.
+ */
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  // Backend down (CI builds) ⇒ [] — every page then renders on demand.
+  const categories = await fetchBusinessCategories();
   return routing.locales.flatMap((locale) =>
-    DAIRY_CATEGORIES.map((category) => ({ locale, category })),
+    categories.map((category) => ({ locale, category: category.slug })),
   );
 }
 
 type Params = Promise<{ locale: string; category: string }>;
 
+/** Hand-written copy where it exists (the D27 four via ui.dairyCategories),
+ * the generic localized line otherwise — copy enrichment only; the taxonomy
+ * itself is the public `/directory/categories/active` read. */
+async function describeCategory(
+  locale: string,
+  slug: string,
+  label: string,
+): Promise<string> {
+  const t = await getTranslations({ locale, namespace: "ui" });
+  const msgKey = CATEGORY_MESSAGE_KEY[slug];
+  return msgKey
+    ? t(`dairyCategories.${msgKey}.description`)
+    : t("categoryBrowse.genericDescription", { name: label });
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale, category } = await params;
-  if (!isDairyCategory(category)) return { title: "Milk.in" };
-  const t = await getTranslations({
-    locale,
-    namespace: `ui.dairyCategories.${CATEGORY_MESSAGE_KEY[category]}`,
-  });
+  const match = (await fetchBusinessCategories()).find((c) => c.slug === category);
+  if (!match) return { title: "Milk.in" };
+  const label = categoryLabel(match, locale);
   return buildMetadata({
-    title: `${t("name")} — Milk.in`,
-    description: t("description"),
+    title: `${label} — Milk.in`,
+    description: await describeCategory(locale, category, label),
     canonical: canonicalUrl(SITE, `/c/${category}`),
     siteName: "Milk.in",
   });
@@ -53,20 +80,24 @@ function collectionJsonLd(name: string, description: string, canonical: string):
 
 export default async function CategoryLandingPage({ params }: { params: Params }) {
   const { locale, category } = await params;
-  if (!isDairyCategory(category)) notFound();
+  const match = (await fetchBusinessCategories()).find((c) => c.slug === category);
+  if (!match) notFound();
   setRequestLocale(locale);
-  const t = await getTranslations(`ui.dairyCategories.${CATEGORY_MESSAGE_KEY[category]}`);
+  const label = categoryLabel(match, locale);
+  const description = await describeCategory(locale, category, label);
   const canonical = canonicalUrl(SITE, `/c/${category}`);
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: collectionJsonLd(t("name"), t("description"), canonical),
+          __html: collectionJsonLd(label, description, canonical),
         }}
       />
-      <h1 className="font-display text-[22px] font-extrabold text-ink">{t("name")}</h1>
-      <p className="text-[15px] text-sub">{t("description")}</p>
+      <h1 className="font-display text-[22px] font-extrabold text-ink">
+        <span aria-hidden="true">{categoryIcon(category)}</span> {label}
+      </h1>
+      <p className="text-[15px] text-sub">{description}</p>
       <CategoryPincodeFinder category={category} />
     </main>
   );

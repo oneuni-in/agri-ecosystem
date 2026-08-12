@@ -8,6 +8,16 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3003",
     trace: "retain-on-failure",
+    // The U1 §5b Marquee is an infinite CSS animation, and U1b put it on the
+    // results pages most specs visit. CI browsers render WITHOUT a GPU, so a
+    // permanently-animating page burns a core for the whole run: e2e-matrix
+    // stretched uniformly ~2.2x (18m -> past its 35m ceiling, two identical
+    // timelines on PR #60) with no per-spec stall — a time-proportional cost.
+    // Reduced motion is the component's own first-class path (the strip
+    // degrades to a static row by design, motion-reduce:[animation:none]), so
+    // the suite exercises that real product path instead of paying the
+    // software-compositor tax. No spec asserts motion.
+    reducedMotion: "reduce",
   },
   // D29 device matrix. All three projects share the one `webServer` list below
   // - Playwright boots those once for the whole run, not per project.

@@ -1,4 +1,11 @@
-import { AdSlot, Card, EmptyState, injectSponsored, SponsoredListingCard } from "@agri/ui";
+import {
+  AdSlot,
+  Badge,
+  EmptyState,
+  injectSponsored,
+  SponsoredListingCard,
+  VendorCard as VendorCardShell,
+} from "@agri/ui";
 import { LOC_COOKIE, parseLocCookie } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
@@ -130,7 +137,10 @@ export default async function SearchPage({
       ? await fetchSponsoredListings({ pincode: loc?.pincode ?? null, locale })
       : [];
 
-  const t = await getTranslations("ui.search");
+  const [t, tBadges] = await Promise.all([
+    getTranslations("ui.search"),
+    getTranslations("ui.badges"),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-6">
@@ -148,48 +158,65 @@ export default async function SearchPage({
       {page.items.length === 0 ? (
         <EmptyState icon="🔍" title={t("results.empty")} />
       ) : (
-        <ul className="flex flex-col gap-3" data-testid="search-results">
+        <ul className="flex list-none flex-col gap-3 p-0" data-testid="search-results">
           {injectSponsored(page.items, sponsoredAds).map((entry) => {
             if (entry.kind === "sponsored") {
               return (
                 <li key={`s-${entry.ad.placement_id}`}>
-                  <SponsoredListingCard ad={entry.ad} />
+                  <SponsoredListingCard
+                    ad={entry.ad}
+                    sponsoredLabel={tBadges("sponsored")}
+                    className="rounded-card border-2 border-ad-border"
+                  />
                 </li>
               );
             }
             const hit = entry.item;
             const place = placeLabel(hit);
             const description = pickDescription(hit.description);
-            return (
-              <li key={`${hit.kind}-${hit.id}`}>
-                <Card className="flex flex-col gap-1.5 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-[15.5px] font-extrabold leading-[1.3] text-ink">
-                      {hit.name}
-                    </h2>
-                    <span className="shrink-0 rounded-pill bg-ghost px-[9px] py-[3px] text-[11px] font-extrabold text-sub">
+            // Where a hit can go: a business straight to its profile; a
+            // product to the business that sells it (there is no product
+            // page). A hit with no resolvable slug renders unlinked.
+            const slug = hit.kind === "product" ? hit.business_slug : hit.slug;
+            const card = (
+              <VendorCardShell
+                // The catalog shell, action-less: the whole card is the link,
+                // so a separate action row would be a nested control (D29).
+                className="h-full"
+                name={hit.name}
+                badges={
+                  <>
+                    <span className="rounded-pill bg-ghost px-[9px] py-[3px] text-[11px] font-extrabold text-sub">
                       {hit.kind === "product" ? t("results.kindProduct") : t("results.kindBusiness")}
                     </span>
-                  </div>
-
-                  {hit.kind === "product" && hit.business_name ? (
-                    <p className="text-[12.5px] text-sub">{hit.business_name}</p>
-                  ) : null}
-
-                  {description ? (
-                    <p className="line-clamp-2 text-[13px] text-sub">{description}</p>
-                  ) : null}
-
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-sub">
-                    {place ? <span>{place}</span> : null}
                     {hit.verified ? (
-                      <span className="font-bold text-verified-fg">{t("results.verified")}</span>
+                      <Badge variant="verified">{t("results.verified")}</Badge>
                     ) : null}
-                    {hit.price_display ? (
-                      <span className="font-extrabold text-ink">{hit.price_display}</span>
+                  </>
+                }
+                meta={
+                  <>
+                    {hit.kind === "product" && hit.business_name ? (
+                      <span>{hit.business_name}</span>
                     ) : null}
-                  </div>
-                </Card>
+                    {place ? <span>{place}</span> : null}
+                  </>
+                }
+                {...(description ? { body: <span className="line-clamp-2">{description}</span> } : {})}
+                {...(hit.price_display
+                  ? { prices: <b className="font-semibold">{hit.price_display}</b> }
+                  : {})}
+              />
+            );
+            return (
+              <li key={`${hit.kind}-${hit.id}`}>
+                {slug ? (
+                  <Link href={`/directory/businesses/${slug}`} className="block no-underline">
+                    {card}
+                  </Link>
+                ) : (
+                  card
+                )}
               </li>
             );
           })}

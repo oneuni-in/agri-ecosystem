@@ -1,7 +1,7 @@
 import { citySlug } from "@agri/ui/seo";
 import type { MetadataRoute } from "next";
 
-import { DAIRY_CATEGORIES } from "@/lib/categories";
+import { fetchBusinessCategories } from "@/lib/categories";
 import { fetchCoveredPincodes } from "@/lib/milk";
 import { fetchProductCategories } from "@/lib/taxonomy";
 
@@ -12,11 +12,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Backend down ⇒ [] (same fetchProductCategories contract as
   // fetchCoveredPincodes below) ⇒ this list degrades to the static entries
   // above rather than failing the build.
-  const productCategories = await fetchProductCategories("en");
+  const [productCategories, businessCategories] = await Promise.all([
+    fetchProductCategories("en"),
+    fetchBusinessCategories(),
+  ]);
   const entries: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, changeFrequency: "daily", priority: 1 },
-    ...DAIRY_CATEGORIES.map((category) => ({
-      url: `${SITE}/c/${category}`,
+    ...businessCategories.map((category) => ({
+      url: `${SITE}/c/${category.slug}`,
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),

@@ -74,20 +74,24 @@ module.exports = {
           // when the API is up (scripts/lhci-affected.mjs), which the CI
           // lighthouse job now provides.
           //
-          // The 0.80 carve-out was owner-approved 2026-07-27 (D28b) against a
-          // diagnosis of two render-blocking stylesheets (shared Tailwind +
-          // fonts/tokens CSS) costing ~1559ms of a ~3664ms LCP render delay -
-          // a cost this route couldn't shed via build-time critical-CSS
-          // inlining because it's dynamically rendered (`ƒ`, forced by its
-          // own `searchParams` read). Issue #45's fix (`experimental.inlineCss`
-          // in apps/web-milk/next.config.ts) inlines all CSS as `<style>`
-          // tags for dynamic renders too, removing that cost entirely. With
-          // the render-blocking-CSS cause gone, the landing pages bind to the
-          // Constitution's 0.90 floor like every other public page - no more
-          // carve-out. Issue #45 closes when this passes in CI.
+          // History: a 0.80 carve-out (owner-approved 2026-07-27, D28b) for
+          // two render-blocking stylesheets was removed when issue #45's
+          // `experimental.inlineCss` fix killed that cost and the route
+          // passed 0.90 in CI.
+          //
+          // TEMPORARY 0.85 re-baseline, owner-approved 2026-08-12 (U1b PR
+          // #60), expiring with issue #59 at the Milk.in launch. The U1b CI
+          // runs measured 0.86/0.83/0.88 - but the PRE-U1b page measured
+          // 0.94/0.83/0.89 on the same gate (PR #58's artifact), i.e. the
+          // 0.90 floor was only ever cleared here by run-to-run variance.
+          // The dominant cost is ~85% LCP render delay on the <h1> - the
+          // shared shell's font/hydration pipeline, the SAME structural cost
+          // issue #59 tracks on the home; the U1b delta itself is +1KB JS /
+          // +10 DOM nodes. Restoring 0.90 here rides #59's launch-gating
+          // perf work. a11y/SEO stay at the full floor.
           matchingUrlPattern: "/[a-z][a-z-]*/\\d{6}$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
+            "categories:performance": ["error", { minScore: 0.85, aggregationMethod: "median-run" }],
             "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
             "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
           },

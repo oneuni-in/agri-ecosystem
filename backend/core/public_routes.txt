@@ -6,6 +6,11 @@
 /health/deep
 /metrics
 /directory/businesses/{slug}
+# /directory/categories/active: taxonomy read (U1b) - categories with >=1
+# active assigned business, plus that count. Config-shaped data only (slug,
+# localized name, sort order); the consumer category surfaces render exactly
+# this set so no category list lives in frontend code.
+/directory/categories/active
 /directory/covers/{pincode}
 /auth/otp/request
 /auth/otp/verify

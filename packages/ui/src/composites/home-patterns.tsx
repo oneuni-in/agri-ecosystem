@@ -336,6 +336,7 @@ export function VendorCard({
   badges,
   name,
   meta,
+  body,
   prices,
   actions,
   className,
@@ -344,8 +345,13 @@ export function VendorCard({
   badges?: ReactNode;
   name: string;
   meta?: ReactNode;
+  /** Free descriptive line (e.g. a search hit's description) — clamped by the
+   * caller if needed; sits between the meta row and the price line. */
+  body?: ReactNode;
   prices?: ReactNode;
-  actions: ReactNode;
+  /** Optional: an action-less card (a search hit wrapped in its own link)
+   * simply omits the row rather than rendering an empty 44px band. */
+  actions?: ReactNode;
   className?: string;
 } & Omit<React.HTMLAttributes<HTMLDivElement>, "className">) {
   return (
@@ -361,8 +367,9 @@ export function VendorCard({
       {meta ? (
         <p className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted">{meta}</p>
       ) : null}
+      {body ? <p className="text-[13px] leading-relaxed text-sub">{body}</p> : null}
       {prices ? <p className="text-[13px] text-ink">{prices}</p> : null}
-      <div className="mt-1 flex gap-2">{actions}</div>
+      {actions ? <div className="mt-1 flex gap-2">{actions}</div> : null}
     </div>
   );
 }

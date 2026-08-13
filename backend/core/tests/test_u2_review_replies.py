@@ -8,6 +8,7 @@ review the caller's business owns.
 
 import uuid
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 import pytest
@@ -36,7 +37,7 @@ class _Principal:
 @pytest.fixture
 async def world(
     db_session: AsyncSession,
-) -> AsyncIterator[tuple[httpx.AsyncClient, dict[str, object]]]:
+) -> AsyncIterator[tuple[httpx.AsyncClient, dict[str, Any]]]:
     app = create_app()
 
     async def _session_override() -> AsyncIterator[AsyncSession]:
@@ -94,7 +95,7 @@ async def world(
 
 
 async def test_reply_is_pending_and_invisible_until_approved(
-    world: tuple[httpx.AsyncClient, dict[str, object]],
+    world: tuple[httpx.AsyncClient, dict[str, Any]],
 ) -> None:
     client, ctx = world
     review_id = ctx["review_id"]
@@ -138,7 +139,7 @@ async def test_reply_is_pending_and_invisible_until_approved(
 
 
 async def test_rejected_reply_never_appears_publicly(
-    world: tuple[httpx.AsyncClient, dict[str, object]],
+    world: tuple[httpx.AsyncClient, dict[str, Any]],
 ) -> None:
     client, ctx = world
     created = await client.post(
@@ -161,7 +162,7 @@ async def test_rejected_reply_never_appears_publicly(
 
 
 async def test_one_reply_per_review(
-    world: tuple[httpx.AsyncClient, dict[str, object]],
+    world: tuple[httpx.AsyncClient, dict[str, Any]],
 ) -> None:
     client, ctx = world
     first = await client.post(
@@ -176,7 +177,7 @@ async def test_one_reply_per_review(
 
 
 async def test_reply_soft_delete(
-    world: tuple[httpx.AsyncClient, dict[str, object]],
+    world: tuple[httpx.AsyncClient, dict[str, Any]],
     db_session: AsyncSession,
 ) -> None:
     client, ctx = world
@@ -204,7 +205,7 @@ async def test_reply_soft_delete(
 
 
 async def test_cannot_reply_to_unapproved_review(
-    world: tuple[httpx.AsyncClient, dict[str, object]],
+    world: tuple[httpx.AsyncClient, dict[str, Any]],
     db_session: AsyncSession,
 ) -> None:
     client, ctx = world

@@ -1358,6 +1358,12 @@ capability survived the re-platforming; no horizontal scroll 320–1920 (tables
 hide columns, never overflow). a11y ≥ 0.95 / perf: admin routes are auth-gated,
 so they inherit the console Lighthouse carve-out (§7.4) — asserted via the
 real-browser captures and the shared semantic primitives; an authenticated
-LHCI run is the standing named follow-up. Localisation: admin is EN-only by
+LHCI run is the standing named follow-up. The carve-out is now ENFORCED, not
+just documented: `scripts/lhci-affected.mjs` excludes `web-admin` from the
+unauthenticated LHCI set (`AUDIT_EXCLUDE`). Without it the gate failed on the
+first PR — web-admin's root layout resolves the session server-side on every
+route, so in a production `next start` with no `AUTH_SESSION_SECRET` the
+auth-client prod-secret guard 500s `/` and the app never becomes "ready".
+auth-client is consumed-not-owned, so the fix lives in the orchestrator. Localisation: admin is EN-only by
 owner rule (recorded §8.0); the enforcement-lookup keeps its existing
 `ui.admin.businesses` catalog, everything new is EN literals.

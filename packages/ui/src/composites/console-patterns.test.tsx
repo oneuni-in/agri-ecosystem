@@ -13,6 +13,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  AdminDataTable,
+  AdminShell,
+  type AdminColumn,
   ConsoleCell,
   ConsoleField,
   ConsoleHeadCell,
@@ -214,5 +217,215 @@ describe("panels, stats, notices, module card", () => {
     );
     expect(html).toContain("<h1");
     expect(html).toContain("Sakthi Dairy Farm");
+  });
+});
+
+/* ── U3 admin contracts worth pinning ─────────────────────────────────────
+ * - AdminShell: one nav landmark, wider frame than ConsoleShell, aside slot
+ *   for the signed-in-as line; role gating happens before render (the demo
+ *   and web-admin pass pre-filtered items), so there is nothing role-shaped
+ *   here to test — that check lives in the app.
+ * - AdminDataTable: typed columns render header+cell; hideBelow emits the
+ *   FULL Tailwind literal; empty state is EmptyState (success register);
+ *   error renders the alert notice; loading is a role=status skeleton; a
+ *   null cursor renders no pagination control.
+ */
+
+describe("AdminShell", () => {
+  const html = renderToStaticMarkup(
+    <AdminShell
+      navLabel="Admin console"
+      heading="Admin console"
+      nav={
+        <ConsoleNavList>
+          <ConsoleNavItem>
+            <a href="#" aria-current="page" className={consoleNavLinkClass(true)}>
+              Ops
+            </a>
+          </ConsoleNavItem>
+        </ConsoleNavList>
+      }
+      aside={<p>Signed in as chan</p>}
+    >
+      <p>content</p>
+    </AdminShell>,
+  );
+
+  it("renders one labelled nav landmark with the active link aria-current", () => {
+    expect(html.match(/<nav/g)).toHaveLength(1);
+    expect(html).toContain('aria-label="Admin console"');
+    expect(html).toContain('aria-current="page"');
+  });
+
+  it("is the wide operator frame with the sidebar aside slot", () => {
+    expect(html).toContain("max-w-7xl");
+    expect(html).toContain("sm:w-52");
+    expect(html).toContain("Signed in as chan");
+  });
+
+  it("matches snapshot", () => {
+    expect(html).toMatchSnapshot();
+  });
+});
+
+describe("AdminDataTable", () => {
+  interface Row {
+    id: string;
+    name: string;
+    pincode: string;
+    status: string;
+  }
+  const columns: readonly AdminColumn<Row>[] = [
+    { key: "name", header: "Business", cell: (row) => row.name },
+    { key: "pincode", header: "Pincode", cell: (row) => row.pincode, hideBelow: "lg" },
+    { key: "status", header: "Status", cell: (row) => <StateChip tone="ok">{row.status}</StateChip> },
+  ];
+  const rows: readonly Row[] = [
+    { id: "r1", name: "Sakthi Dairy Farm", pincode: "641001", status: "Active" },
+    { id: "r2", name: "Ponni Milk Depot", pincode: "600001", status: "Active" },
+  ];
+  const empty = {
+    icon: "✅",
+    title: "Queue clear.",
+    description: "Nothing waiting for review.",
+  };
+
+  it("renders typed columns with ARIA table roles and hideBelow literals", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+      />,
+    );
+    expect(html).toContain('role="table"');
+    expect(html).toContain('role="columnheader"');
+    expect(html).toContain("Sakthi Dairy Farm");
+    // The full Tailwind literal, on the header and on each body cell.
+    expect(html.match(/max-lg:hidden/g)!.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("renders the toolbar slot above the table", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+        toolbar={<input aria-label="Search businesses" />}
+      />,
+    );
+    expect(html).toContain('aria-label="Search businesses"');
+  });
+
+  it("empty state reads as success via EmptyState, not error", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={[]}
+        rowKey={(row: Row) => row.id}
+        empty={empty}
+      />,
+    );
+    expect(html).toContain("Queue clear.");
+    expect(html).not.toContain('role="table"');
+    expect(html).not.toContain("bg-alert-bg");
+  });
+
+  it("error renders the alert notice with the retry slot", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={[]}
+        rowKey={(row: Row) => row.id}
+        empty={empty}
+        error="Could not load businesses."
+        errorAction={<button>Retry</button>}
+      />,
+    );
+    expect(html).toContain("bg-alert-bg");
+    expect(html).toContain("Could not load businesses.");
+    expect(html).toContain("Retry");
+  });
+
+  it("loading is an sr-labelled status skeleton", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={[]}
+        rowKey={(row: Row) => row.id}
+        empty={empty}
+        loading
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Loading");
+    expect(html).not.toContain("Queue clear.");
+  });
+
+  it("a null cursor renders no pagination control", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+        nextCursor={null}
+        onLoadMore={() => {}}
+      />,
+    );
+    expect(html).not.toContain("Load more");
+  });
+
+  it("an opaque cursor renders the load-more control", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+        nextCursor="opaque-cursor"
+        onLoadMore={() => {}}
+      />,
+    );
+    expect(html).toContain("Load more");
+  });
+
+  it("row open renders a real focusable button per row with its label", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+        onRowOpen={() => {}}
+        rowOpenLabel={(row) => `Open ${row.name}`}
+      />,
+    );
+    expect(html).toContain('aria-label="Open Sakthi Dairy Farm"');
+    expect(html.match(/<button/g)!.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain("cursor-pointer");
+  });
+
+  it("matches snapshot", () => {
+    const html = renderToStaticMarkup(
+      <AdminDataTable
+        caption="Businesses"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={empty}
+      />,
+    );
+    expect(html).toMatchSnapshot();
   });
 });

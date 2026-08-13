@@ -1149,3 +1149,64 @@ above; wiring an authenticated LHCI run (a session-seeding step in the
 Lighthouse job) is a named follow-up, not a U2 blocker. a11y/SEO intent is
 unchanged — the console is built on the same tokens and semantic primitives
 that pass the floor everywhere else.
+
+
+## 8. U3 — Milk.in admin console (feat/u3-admin-console)
+
+Binding record for SPEC U3. Appended per the standing rule: §1–§7 above are
+the U1/U1b/U2 record and stay untouched. U3 proves **accountability**, not
+exclusion — admin legitimately crosses the ownership boundaries U2's IDOR
+sweep proved closed, so the two sweeps that land with Group B/C are the
+PERMISSION SWEEP (every admin action rejected at the API below its role) and
+the AUDIT SWEEP (every state change shows the row it wrote). A surface absent
+from those tables is not done.
+
+### 8.0 Prompt-to-repo substitutions (recorded, not silently applied)
+
+| Prompt says | Repo reality | Substitution used |
+| --- | --- | --- |
+| "the six surfaces … brought onto one shell" (`/ops`, `/claims`, `/reviews`, `/ads`, `/users`, `/coins`) | `apps/web-admin` already exists (port 3004, D21). `/claims` and `/reviews` are `redirect("/ops")` stubs — D21 folded claims+reviews into the unified Ops console. There is no separate milk-admin app. | U3 builds in web-admin. Group A adds the shell around ALL existing routes; Group B re-platforms each surface onto `AdminDataTable`. The `/claims` + `/reviews` redirects stay (moving their assertions, never deleting). |
+| `pnpm --filter @agri/web-admin test` | web-admin has NO `test` script (`lint` + `typecheck` only; it has no unit tests of its own — the shared primitives are tested in `@agri/ui`). | The primitive contracts are pinned in `@agri/ui` (`console-patterns.test.tsx` + the two dialog tests). `--filter @agri/web-admin test` is recorded as N/A; `@agri/ui test` is the arbiter for primitive behaviour. Recorded here per the "if a script name differs, record the substitution" rule. |
+| Role-gated nav ("a non-admin session cannot render admin nav") | The BFF (`lib/auth.ts` `requiredRoles: ["staff","super_admin"]`) never mints a web-admin session below staff at all; there is no consumer/owner session on 3004 to hide nav from. | Two layers, both proven: the BFF refuses the session (a consumer AgriID cannot hold a 3004 cookie), and `AdminChrome` filters the module catalog by the session roles server-side — a null/roleless user yields zero items, so the shell renders bare. Coins nav is `super_admin`-only (mirrors D13's `_require_role(SUPER_ADMIN)` on coins writes). |
+| `node scripts/lhci-affected.mjs` locally | `lhci autorun` cannot complete on Windows (chrome-launcher EPERM — the standing U1/U2 gap), and admin routes are auth-gated so the unauthenticated CI Lighthouse job cannot reach them either. | Same carve-out shape U2's console took (§7.4): a11y/perf floors asserted via the real-browser captures; the admin routes inherit the console Lighthouse carve-out. a11y ≥ 0.95 intent held by building only on the shared tokens/semantic primitives. Named follow-up: authenticated LHCI. |
+| Localisation (TA/HI) | web-agri/web-admin have no locale routing (the standing gap). | **Owner rule invoked (spec LOCALISATION):** admin is internal + single-language EN. New admin strings are EN literals — recorded once here, not per-file. No `ui.console.*` budget spent on admin chrome. |
+
+### 8.1 Group A — shell + primitives (binding proof)
+
+The write-side catalog `packages/ui/src/composites/console-patterns.tsx`
+gains the U3 operator primitives (`AdminShell`, `AdminDataTable`,
+`AdminColumn`), plus two new client islands — `confirm-dialog.tsx`
+(reason-capturing destructive confirm) and `detail-drawer.tsx` (controlled
+right-side sheet). All exported from `@agri/ui`, rendered by BOTH web-admin
+and `/demo` §"U3 · admin console patterns (web-admin)". Zero one-off
+components in route files for everything Group A touched.
+
+| Surface | Renders from | Check |
+| --- | --- | --- |
+| `AdminShell` (`admin-chrome.tsx` server half → `admin-nav.tsx` client half → catalog shape) | `auth.getServerUser()` roles → `navFor(roles)` filters `nav-items.ts`; `usePathname()` supplies `aria-current` | **Done, live.** Signed-out `/` (`admin-signed-out-1024.png`): NO nav landmark — `AdminChrome` returns bare children + the "Staff sign-in required" panel. Signed in as chan/super_admin (`admin-dashboard-1024.png`): `nav[aria-label="Admin console"]` with 6 role-filtered items, Dashboard `aria-current="page"`. `/ops` + `/businesses` (`admin-ops-shell-1440.png`): existing consoles render INSIDE the shell, `aria-current` tracks the route, `h1` intact — the re-platforming preserves every feature (NON-NEG 4). |
+| `AdminDataTable` (THE one table primitive) | Typed `AdminColumn<T>[]` + `rows` + opaque `Page[T].nextCursor`; owns loading / empty / error / load-more | **Done, live.** Demo island (`u3-admin-demo.tsx`): toolbar search filters rows; keyboard reaches every row's Open button (focus + Enter opened the drawer, verified via a11y tree); `hideBelow:"lg"` hides the Type column at 320/800 with `display:none` and **zero horizontal overflow** 320→1920 (`demo-admin-table-320.png` — stacked label/value cards, not an overflow box); opaque cursor renders Load-more, null cursor renders none. Empty state is `EmptyState` ("Queue clear.") — success register, never the alert notice (`demo-admin-table-states-1024.png` shows loading skeleton / error notice / empty-as-success side by side). |
+| `ConfirmDialog` (reason-in-the-confirm) | Trimmed reason state; `onConfirm(reason)` carries it to the mutation | **Done, live.** `demo-confirm-reason-required-1024.png`: the Suspend button is **disabled until a reason is typed** (audit rule 3 — justification captured inside the confirm, never a follow-up step). On confirm, the demo surfaces `Suspended … — reason recorded: "…"` proving the reason reaches the handler. Soft-delete-honest copy ("hidden from consumer results immediately. Reinstating restores it"). No red in the palette — brand-filled confirm, the web-admin convention. |
+| `DetailDrawer` (controlled sheet) | `open`/`onOpenChange` owned by the caller (opener is a table row) | **Done, live.** Opens from `AdminDataTable`'s row-open; Radix supplies focus trap + Escape + overlay dismiss; SSR of the closed drawer renders nothing (`detail-drawer.test.tsx` pins `html === ""`). |
+| Kitchen sink | The SAME `@agri/ui` exports with literal data | **Done.** `demo-admin-shell-{1024,1440}.png` — the wide `max-w-7xl` shell with the aside "Signed in as" slot, the interactive table island, and the three table states. 21 new UI unit tests pin the contracts (typed columns + ARIA roles, `hideBelow` full-literal emission, empty=EmptyState not alert, error notice, loading `role=status`, null-cursor = no control, per-row focusable Open button, `AdminShell` single labelled nav + aria-current + wide frame; `ConfirmDialog`/`DetailDrawer` closed-shape). |
+
+Screenshots: `docs/design-reference/u3/`. Login for the authed captures reads
+the dev OTP by recovering the code from `identity.otp_requests.code_hash`
+(HMAC over the `dev-only-pepper`, 6-digit space) — the mock-sms stdout log
+had rotated out, and the host-uvicorn/docker split means `/auth/otp/_peek`
+(flag-gated, absent in dev) is unavailable. Recorded as the U3 OTP-read
+substitution.
+
+Known trap avoided (logged so Group B doesn't rediscover it): `cn()` /
+tailwind-merge does NOT treat `max-lg:hidden` and the cell's own
+`max-md:flex` as conflicting (different variants), so a wide-hidden column
+would reappear as a flex row below `md`. `HIDE_BELOW.lg/.xl` therefore carry
+`max-md:hidden` alongside `max-lg/max-xl:hidden`, letting tailwind-merge drop
+the stacked-view `flex` and keep the column hidden. Verified at 320/800.
+
+Design/scope note: Group A is shell + primitives only. The read surfaces
+(pincode tiers, directory browse, payments ledger DISPLAY-ONLY, ad
+performance) and the six surfaces' re-platforming onto `AdminDataTable` land
+in Group B; the audit reader + enforcement polish in Group C. No money-path
+write, no deferred-program scaffolding (RBAC v2, CMS engines, analytics
+funnel) touched — the shared guard/permission-catalog forward-compat work is
+a Group B/C backend concern and is untouched here.

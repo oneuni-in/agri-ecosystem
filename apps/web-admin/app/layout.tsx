@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 
+import { AdminChrome } from "./admin-chrome";
 import { SiteHeader } from "./site-header";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
@@ -26,7 +27,7 @@ export default function RootLayout({
         <NextIntlClientProvider>
           <ToastProvider>
             <SiteHeader />
-            {children}
+            <AdminChrome>{children}</AdminChrome>
           </ToastProvider>
         </NextIntlClientProvider>
       </body>

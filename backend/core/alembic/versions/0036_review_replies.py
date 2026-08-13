@@ -79,16 +79,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_directory_review_replies_review_status", "review_replies", schema="directory"
-    )
+    op.drop_index("ix_directory_review_replies_review_status", "review_replies", schema="directory")
     op.drop_index(
         "ix_directory_review_replies_moderation_status_id",
         "review_replies",
         schema="directory",
     )
-    op.drop_index(
-        "ix_directory_review_replies_business_id", "review_replies", schema="directory"
-    )
+    op.drop_index("ix_directory_review_replies_business_id", "review_replies", schema="directory")
     op.drop_index("ix_directory_review_replies_review_id", "review_replies", schema="directory")
     op.drop_table("review_replies", schema="directory")

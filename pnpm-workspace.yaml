@@ -59,3 +59,18 @@ overrides:
   postcss: ">=8.5.18 <9"
   body-parser: ">=1.20.6 <2"
 
+# Audit advisories with no fix we can pull yet. Unlike the overrides above
+# (which raise to a released patch), these are ignored WITH A REASON because
+# the patched version does not exist on npm, and the code path is dev-only
+# tooling that never reaches an app runtime bundle or a user. Re-check on a
+# lockfile bump: drop the entry the moment a patched version ships.
+auditConfig:
+  ignoreGhsas:
+    # extract-zip <=2.0.1 (GHSA-jmr9-qjv8-65gv, high: unvalidated symlink path
+    # traversal on unzip) via puppeteer-core > @puppeteer/browsers under
+    # @lhci/cli - Lighthouse CI's headless-Chrome download, dev tooling only,
+    # never bundled into any app. The advisory lists a 2.0.2 patch but npm's
+    # latest published extract-zip is still 2.0.1 (no release to floor to);
+    # the fix rides a @puppeteer/browsers bump. Drop when 2.0.2 ships.
+    - GHSA-jmr9-qjv8-65gv
+

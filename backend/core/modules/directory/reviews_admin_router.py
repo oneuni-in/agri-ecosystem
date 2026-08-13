@@ -18,7 +18,14 @@ from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import reviews_service
-from modules.directory.reviews_schemas import AdminReviewPageOut, ReviewOut, review_out
+from modules.directory.reviews_schemas import (
+    AdminReplyPageOut,
+    AdminReviewPageOut,
+    ReplyOut,
+    ReviewOut,
+    reply_out,
+    review_out,
+)
 from modules.directory.schemas import RejectIn
 from shared.audit import audit
 from shared.db import get_session
@@ -142,5 +149,79 @@ async def reject_review(
         ip=request.client.host if request.client else None,
     )
     out = review_out(review)
+    await session.commit()
+    return out
+
+
+# ── review-reply moderation (U2 Group C) ─────────────────────────────────
+# Same choreography as review moderation above. A reply is a separate UGC
+# lifecycle from its review, so it has its own queue; approving a review does
+# NOT approve a reply and vice-versa.
+
+reply_admin_router = SecureRouter(prefix="/admin/review-replies", tags=["admin-review-replies"])
+
+
+@reply_admin_router.get("")
+async def list_replies_for_moderation(
+    request: Request,
+    session: SessionDep,
+    status: Literal["pending", "approved", "rejected"] = "pending",
+    cursor: str | None = None,
+    limit: LimitQuery = 20,
+) -> AdminReplyPageOut:
+    _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        page = await reviews_service.list_replies_for_moderation(
+            session, status=status, cursor=cursor, limit=limit
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return AdminReplyPageOut(items=[reply_out(r) for r in page.items], next_cursor=page.next_cursor)
+
+
+@reply_admin_router.post("/{reply_id}/approve")
+async def approve_reply(request: Request, reply_id: uuid.UUID, session: SessionDep) -> ReplyOut:
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        reply = await reviews_service.moderate_reply(session, reply_id=reply_id, approve=True)
+    except reviews_service.ReplyNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reply not found") from exc
+    except reviews_service.ReviewDecisionConflictError as exc:
+        raise HTTPException(status_code=409, detail="already_decided") from exc
+    await audit(
+        session,
+        action="reviews.reply_approved",
+        actor_user_id=admin_id,
+        target_type="review_reply",
+        target_id=str(reply.id),
+        metadata={"review_id": str(reply.review_id), "business_id": str(reply.business_id)},
+        ip=request.client.host if request.client else None,
+    )
+    out = reply_out(reply)
+    await session.commit()
+    return out
+
+
+@reply_admin_router.post("/{reply_id}/reject")
+async def reject_reply(
+    request: Request, reply_id: uuid.UUID, body: RejectIn, session: SessionDep
+) -> ReplyOut:
+    admin_id = _require_role(request, STAFF, SUPER_ADMIN)
+    try:
+        reply = await reviews_service.moderate_reply(session, reply_id=reply_id, approve=False)
+    except reviews_service.ReplyNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reply not found") from exc
+    except reviews_service.ReviewDecisionConflictError as exc:
+        raise HTTPException(status_code=409, detail="already_decided") from exc
+    await audit(
+        session,
+        action="reviews.reply_rejected",
+        actor_user_id=admin_id,
+        target_type="review_reply",
+        target_id=str(reply.id),
+        metadata={"note": body.note},
+        ip=request.client.host if request.client else None,
+    )
+    out = reply_out(reply)
     await session.commit()
     return out

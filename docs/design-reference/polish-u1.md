@@ -1102,3 +1102,50 @@ console routes — it drives web-milk (public, no auth) and the console is
 auth-gated behind the BFF dance. The equivalent proof is the three real-browser
 TA/HI captures above plus the `ui.console.*` locale-completeness test
 (`packages/ui` — all three catalogs carry every key, or the suite fails).
+
+### 7.3 Group C — leads + reputation (binding proof)
+
+Three of the four surfaces needed **no backend change** — they consume
+existing endpoints: D25 needs already route into the coverage-scoped inbox
+(`/leads/inbox`, business_id-scoped through `get_owned_business`), the D18
+review reads, and D12 `GET`/`PUT /notify/preferences`. The one new thing is
+**review replies**, an owner-decided exception approved this pass (§7.0):
+`directory.review_replies` (migration 0036 — UGCMixin + soft-delete, one
+reply per review, body Translated). Owner routes `POST /reviews/{id}/reply`,
+`GET /reviews/owner`, `DELETE /reviews/replies/{id}`; moderation via the new
+`/admin/review-replies` queue; the public `/reviews` list attaches the
+business's APPROVED reply only. Console pages: inbox rebuilt onto the catalog,
+two new modules `/business/reviews` (owner reviews + reply + trust panel) and
+`/business/notifications` (preference toggles), all localized via
+`ui.console.*`.
+
+| Surface | Renders from | Mutation check |
+| --- | --- | --- |
+| Lead inbox (needs + messages) | `GET /leads/inbox` (business_id-scoped) + `/inbox/stats` | **Live PASS** (`verify-u2-groupc.mjs`): consumer posts a milk-subscription need in the vendor's covered pincode → appears in the coverage-scoped inbox → vendor responds → the response shows on the consumer's `/leads/mine`. A vendor sees ONLY covered needs because the D25 fan-out creates child inquiries for covering businesses only. |
+| Review reply | owner `GET /reviews/owner` (own reply, any status) · public `GET /reviews` (approved reply only) | **pytest `test_u2_review_replies.py` (5 tests):** a reply lands `pending` and the public list shows `reply: null`; after a moderator approves it the public list shows the reply; a rejected reply never appears; one reply per review (409); soft-delete leaves the row under `include_deleted`. Screenshot `console-reviews-ta-1440.png` shows the owner's pending reply with its awaiting-review chip. |
+| Verification / trust display | the owner-list `verification_status` / `status` / `enforcement_reason` | **Screenshot:** the Verification & trust panel on `/business/reviews` shows the Verified badge + what it means (and the suspended/disabled bodies when enforced). |
+| Notification preferences | `GET`/`PUT /notify/preferences` (D12, sms/email/push) | **Live:** the toggles read and write the same per-user rows the D12 notification center uses — a change here is the change everywhere. Optimistic toggle, reverts on failure. |
+
+**THE IDOR SWEEP now covers Group C** (`test_u2_idor_sweep.py`, 3 new rows):
+owner-reviews list, review reply, and reply delete are each attempted as
+vendor B against vendor A's rows → **404**, with the owner positive control
+passing. Total sweep is now 23 resource rows, still exactly-404 across the
+board.
+
+Screenshots: `console-{inbox,reviews,notifications}-{en,ta,hi}-1440.png`. TA
+and HI leave zero English chrome across all three (nav now carries Reviews +
+Notifications; the reply form's en/ta/hi field labels, the trust panel, the
+preference toggles, and every status chip localize).
+
+### 7.4 The console Lighthouse carve-out (owner-ratified)
+
+NON-NEG 3 sets perf ≥ 0.90 / a11y ≥ 0.95 / SEO ≥ 0.95 on console routes, but
+CI's Lighthouse job runs unauthenticated and the console middleware now 307s
+every cookieless hit to login — the audit cannot reach `/business/*`.
+**Owner decision (this session): console routes get a documented carve-out
+from the CI Lighthouse gate this PR**, exactly like issue #59's carve-out for
+the home. The floors are asserted locally via the real-browser captures
+above; wiring an authenticated LHCI run (a session-seeding step in the
+Lighthouse job) is a named follow-up, not a U2 blocker. a11y/SEO intent is
+unchanged — the console is built on the same tokens and semantic primitives
+that pass the floor everywhere else.

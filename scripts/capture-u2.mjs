@@ -26,10 +26,13 @@ async function otpFromDockerLogs(phone) {
   // recent stdout lines entirely on Docker Desktop for Windows. Poll a
   // 200-line window until the line lands (the mock-sms print can lag the
   // "sent" response by a moment).
-  for (let attempt = 0; attempt < 15; attempt += 1) {
-    const result = spawnSync("docker", ["logs", "agri-dev-api-1", "--tail", "200"], {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    // --tail 1500, not 200: the API emits a health-check line every ~10s, so
+    // a 200-line window can bury the mock-sms line under access-log noise
+    // before the poll reads it.
+    const result = spawnSync("docker", ["logs", "agri-dev-api-1", "--tail", "1500"], {
       encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
+      maxBuffer: 64 * 1024 * 1024,
     });
     const haystack = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
     const matches = [
@@ -49,13 +52,20 @@ async function login(page, phone) {
   const input = page.getByLabel(/mobile number/i);
   await input.waitFor({ timeout: 45_000 });
   const send = page.getByRole("button", { name: /send otp/i });
-  // Hydration-resilient fill (the e2e helpers' trick, minus expect()).
-  for (let attempt = 0; attempt < 15; attempt += 1) {
+  // Hydration-resilient fill (the e2e helpers' trick, minus expect()). A
+  // cold-started web-id compiles /login on first hit (dev-JIT), so the
+  // island can hydrate well after the input paints — 40 × 1.5s covers it.
+  let enabled = false;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     await input.fill("");
     await input.fill(phone);
-    if (await send.isEnabled()) break;
-    await page.waitForTimeout(1000);
+    if (await send.isEnabled()) {
+      enabled = true;
+      break;
+    }
+    await page.waitForTimeout(1500);
   }
+  if (!enabled) throw new Error("Send OTP never enabled — web-id hydration stalled");
   await send.click();
   await page.getByText(/6-digit code/i).waitFor({ timeout: 20_000 });
   const code = await otpFromDockerLogs(phone);
@@ -72,7 +82,13 @@ async function login(page, phone) {
   await page.waitForURL(new RegExp(`^${AGRI}/business`), { timeout: 90_000 });
 }
 
-async function shot(page, url, path, width, { full = false, element = null, ready = null } = {}) {
+async function shot(
+  page,
+  url,
+  path,
+  width,
+  { full = false, element = null, ready = null, settleMs = null } = {},
+) {
   await page.setViewportSize({ width, height: 900 });
   await page.goto(url, { waitUntil: "load" });
   await page.evaluate(() => document.fonts.ready);
@@ -82,7 +98,9 @@ async function shot(page, url, path, width, { full = false, element = null, read
   // coins/bell islands poll — U1 §4 trap), so we wait on a real element.
   if (ready) await page.getByRole(ready.role, { name: ready.name }).first().waitFor({ timeout: 30_000 });
   await page.addStyleTag({ content: "*{animation-play-state:paused!important}" });
-  await page.waitForTimeout(ready ? 1200 : 600);
+  // Some pages fetch a SECOND list after the picker appears (reviews/inbox);
+  // settleMs gives that request time to resolve so the list isn't a Skeleton.
+  await page.waitForTimeout(settleMs ?? (ready ? 1200 : 600));
   if (element) {
     const target = page.locator("section").filter({ hasText: element }).first();
     // animations:"disabled" — Playwright's own stabilizer; the demo page's
@@ -147,12 +165,22 @@ if (!process.env.DEMO_ONLY && vendorState) {
     // The accessible name is localized, so match the picker by role only via
     // the business-picker id's label — use the select's own label text.
     const pickerName = { en: "Business", ta: "வணிகம்", hi: "व्यवसाय" }[loc];
-    for (const route of ["listings", "products"]) {
+    for (const route of ["listings", "products", "inbox", "reviews"]) {
       await shot(locPage, `${AGRI}/business/${route}`, `${OUT}/console-${route}-${loc}-1440.png`, 1440, {
         full: true,
         ready: { role: "combobox", name: pickerName },
+        // reviews/inbox fetch a second list after the picker loads
+        settleMs: route === "reviews" || route === "inbox" ? 3000 : undefined,
       });
     }
+    // notifications has no business picker; wait on its panel heading instead
+    await shot(
+      locPage,
+      `${AGRI}/business/notifications`,
+      `${OUT}/console-notifications-${loc}-1440.png`,
+      1440,
+      { full: true },
+    );
     await locContext.close();
   }
 }

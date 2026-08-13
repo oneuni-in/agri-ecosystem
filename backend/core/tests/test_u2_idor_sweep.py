@@ -28,7 +28,7 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.directory import catalog_router, catalog_service
+from modules.directory import catalog_router, catalog_service, reviews_service
 from modules.directory import service as directory_service
 from modules.identity.service import create_user
 from shared import storage
@@ -60,6 +60,8 @@ class World:
     product_id: uuid.UUID
     inquiry_id: uuid.UUID
     attacker_business_id: uuid.UUID
+    review_id: uuid.UUID  # approved review on the victim's business
+    reply_id: uuid.UUID  # the victim's reply to it
 
 
 @pytest.fixture
@@ -147,6 +149,24 @@ async def world(db_session: AsyncSession, object_store: dict[str, bytes]) -> Asy
         primary_pincode="641002",
         description={"en": "attacker"},
     )
+    # an approved review on the VICTIM's business + the victim's reply to it,
+    # so the Group C reply rows target real, owned rows.
+    reviewer = await create_user(db_session, "+919000000813")
+    review = await reviews_service.create_review(
+        db_session,
+        author_user_id=reviewer.id,
+        target_type="business",
+        target_id=business.id,
+        rating=5,
+        body={"en": "good"},
+    )
+    await reviews_service.moderate(db_session, review_id=review.id, approve=True)
+    reply = await reviews_service.create_reply(
+        db_session,
+        owner_user_id=victim_user.id,
+        review_id=review.id,
+        body={"en": "thanks"},
+    )
     await db_session.flush()
 
     transport = httpx.ASGITransport(app=app)
@@ -180,6 +200,8 @@ async def world(db_session: AsyncSession, object_store: dict[str, bytes]) -> Asy
             product_id=product.id,
             inquiry_id=inquiry_id,
             attacker_business_id=attacker_business.id,
+            review_id=review.id,
+            reply_id=reply.id,
         )
 
 
@@ -209,6 +231,10 @@ SWEEP: list[tuple[str, str, str, str | None]] = [
     ("inbox stats", "GET", "/leads/inbox/stats?business_id={bid}", None),
     ("lead respond", "POST", "/leads/inquiries/{iid}/responses", "response"),
     ("lead close", "POST", "/leads/inquiries/{iid}/close", None),
+    # reviews (Group C) — owner list / reply / reply delete
+    ("owner reviews", "GET", "/reviews/owner?business_id={bid}", None),
+    ("review reply", "POST", "/reviews/{rvid}/reply", "reply"),
+    ("reply delete", "DELETE", "/reviews/replies/{rpid}", None),
 ]
 
 BODIES: dict[str, dict[str, object]] = {
@@ -231,6 +257,7 @@ BODIES: dict[str, dict[str, object]] = {
     },
     "patch_product": {"price_display": "₹1/L"},
     "response": {"body": "we deliver"},
+    "reply": {"body": {"en": "pwned reply"}},
 }
 
 
@@ -242,6 +269,8 @@ async def _request(
         brid=world.branch_id,
         pid=world.product_id,
         iid=world.inquiry_id,
+        rvid=world.review_id,
+        rpid=world.reply_id,
     )
     if body_kind == "image":
         return await world.client.post(

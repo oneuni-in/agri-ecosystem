@@ -20,7 +20,7 @@ const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 async function forward(
   req: NextRequest,
   params: Promise<{ path?: string[] }>,
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
 ): Promise<NextResponse> {
   const { path = [] } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
@@ -56,4 +56,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 }
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx.params, "POST");
+}
+export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "DELETE");
 }

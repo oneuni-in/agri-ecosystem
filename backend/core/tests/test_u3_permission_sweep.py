@@ -68,6 +68,7 @@ _READ_SURFACES = [
     ("GET", "/admin/ads/performance?date_from=2026-08-01&date_to=2026-08-13"),
     ("GET", "/admin/payments/ledger"),
     ("GET", "/admin/payments/events"),
+    ("GET", "/admin/audit"),
 ]
 
 # actor label → (roles header value | None, expected status on a read surface)

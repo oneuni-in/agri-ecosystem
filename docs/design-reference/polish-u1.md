@@ -1287,3 +1287,77 @@ Both transitions sit in the append-only, hash-chained `audit.entries` (app role
 has INSERT+SELECT only — no admin action can edit or delete history). Dev state
 was restored to `active` after the check. Reason capture happens INSIDE the
 confirm (`ConfirmDialog`, audit rule 3), so no enforcement row can be blank.
+
+### 8.3 Group C — audit reader + enforcement polish (binding proof)
+
+The last group: the audit timeline reader D12's hash-chained log never had, and
+the enforcement flows tightened onto the reason-capturing confirm.
+
+**Audit reader** (`GET /admin/audit`, ops module, `audit.read` gated). Filters
+by actor / action / entity (target_type + target_id) / date range; newest
+first, keyset-paginated via `paginate(descending=True)`. Reads `AuditEntry`
+directly (the enforcement-log route's established pattern) and exposes only
+who / what / when / which-entity / why (metadata) — never the chain machinery
+(seq / prev_hash / entry_hash), which is an integrity concern, not an operator
+field.
+
+THE AUDIT RULES, held:
+- **Append-only.** The surface is a GET and nothing else — no purge, no edit,
+  no delete route, for any role or date range. `test_u3_audit_reader.py` pins
+  it: POST/PUT/DELETE/PATCH on `/admin/audit` all 405. The Mattress.in
+  blueprint's date-range purge is deliberately NOT ported (a purgeable audit
+  log is not an audit log), and the app role's INSERT+SELECT-only grant means
+  the log physically cannot be rewritten regardless.
+- **Same transaction / reason in the confirm** — already the D12 contract for
+  every writer; the reader only displays. The reason an operator typed inside
+  the `ConfirmDialog` is what shows in the "Reason / detail" column.
+
+**Enforcement polish.** `businesses-manager.tsx` (the enforcement-lookup
+console) re-platformed off its bespoke `ActionModal` onto the shared
+`ConfirmDialog` + console primitives (`ConsolePageHeader`, `ConsolePanel`,
+`StateChip`, `AdminDataTable` for the enforcement log). The tightening that
+matters: the old modal let you click confirm on a blank reason and only then
+toasted "reason required"; `ConfirmDialog` disables confirm until a reason is
+typed, so a suspend/disable/reinstate row cannot land blank (audit rule 3).
+Both enforcement surfaces — directory browse (Group B) and this lookup — now
+share the identical reason-in-confirm UX.
+
+| Surface | Renders from | Check |
+| --- | --- | --- |
+| Audit timeline (`/audit` → `GET /admin/audit`) | `paginate(AuditEntry)` + actor/action/entity/date filters | **Live.** `admin-audit-1440.png`: 100 real rows, newest first, filter form. `admin-audit-filtered-1440.png`: filtered to `directory.business_suspended` → exactly the 3 suspend rows, each carrying its confirm reason (incl. the Group B verification suspend). Append-only proven: no write route (405). |
+| Enforcement lookup (`/businesses`, re-platformed) | `/directory/businesses/{slug}` + `/enforcement-log` | **Live, no capability lost.** `admin-enforcement-lookup-1440.png`: `ConsolePanel` + `StateChip`, Suspend/Disable via `ConfirmDialog` (reason-in-confirm), enforcement log on `AdminDataTable` showing the reinstated/suspended transitions with actor. |
+
+Sweep extended: `/admin/audit` added to the permission sweep (401/403/403/200/200
+across the five actors). Audit reader filter/append-only contracts pinned in
+`test_u3_audit_reader.py` (7 tests).
+
+#### Full U3 binding + verification summary
+
+Every U3 surface, one line — the exact source it renders from, its gate, and
+where it was proven. `PS` = permission sweep row (401 signed-out / 403 below
+role / 200 staff+admin); `AS` = audit sweep (state change → its row).
+
+| Surface | Route | Gate | Proof |
+| --- | --- | --- | --- |
+| Admin shell + nav | (layout) | session roles → `navFor()` | Group A: signed-out renders no nav; chan renders 6→11 role-filtered items |
+| Dashboard | `/` | staff-up | Group A |
+| Ops (moderation/flags/tiers-dist) | existing | `require_role` (in-handler) | unchanged, in shell |
+| Pincode tiers | `GET /admin/ops/pincode-tiers` | `tiers.read` | PS ✓ · 19,238 rows |
+| Directory browse + enforce | `GET /admin/directory/businesses` + suspend/disable/reinstate | `directory.read` + `require_role` | PS ✓ · AS ✓ (suspend/reinstate w/ reason) |
+| Enforcement lookup | `/directory/businesses/{slug}` + log | `require_role` | Group C re-platform · ConfirmDialog |
+| Ads + Ad performance | existing + `GET /admin/ads/performance` | `require_role` + `ads.performance.read` | PS ✓ · CTR from 1,109 beacons |
+| Users | `/users*` | `require_role` | Group B re-platform · AdminDataTable+DetailDrawer |
+| Payments (DISPLAY ONLY) | `GET /admin/payments/{ledger,events}` | `payments.read` | PS ✓ · no write route |
+| Coins | existing | `_require_role(super_admin)` | unchanged, in shell |
+| Audit log | `GET /admin/audit` | `audit.read` | PS ✓ · append-only (405 on writes) |
+
+Non-negotiables at the close: all admin primitives live in
+`console-patterns.tsx` (+ the two dialog islands) and render in `/demo`; the
+permission + audit sweeps complete with rejections at the API; every existing
+capability survived the re-platforming; no horizontal scroll 320–1920 (tables
+hide columns, never overflow). a11y ≥ 0.95 / perf: admin routes are auth-gated,
+so they inherit the console Lighthouse carve-out (§7.4) — asserted via the
+real-browser captures and the shared semantic primitives; an authenticated
+LHCI run is the standing named follow-up. Localisation: admin is EN-only by
+owner rule (recorded §8.0); the enforcement-lookup keeps its existing
+`ui.admin.businesses` catalog, everything new is EN literals.

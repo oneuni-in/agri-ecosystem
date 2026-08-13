@@ -67,6 +67,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     roles: STAFF_UP,
   },
   {
+    href: "/audit",
+    title: "Audit log",
+    icon: "📜",
+    sub: "Append-only timeline (read-only)",
+    roles: STAFF_UP,
+  },
+  {
     href: "/coins",
     title: "Coins",
     icon: "🪙",

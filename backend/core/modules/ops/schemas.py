@@ -94,3 +94,23 @@ class TierOverrideIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tier: int = Field(ge=1, le=5)
+
+
+class AuditEntryOut(BaseModel):
+    """One row of the append-only audit log (D12). The reader exposes who /
+    what / when / which-entity / why (metadata) — never the chain machinery
+    (seq/prev_hash/entry_hash), which is an integrity concern, not an
+    operator-facing field."""
+
+    id: uuid.UUID
+    created_at: datetime
+    actor_user_id: uuid.UUID | None
+    action: str
+    target_type: str | None
+    target_id: str | None
+    metadata: dict[str, object]
+
+
+class AuditPageOut(BaseModel):
+    items: list[AuditEntryOut]
+    next_cursor: str | None = None

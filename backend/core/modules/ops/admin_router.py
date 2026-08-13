@@ -11,7 +11,7 @@ flip is a business-level act - see Task 11); pincode-tier lookup/override =
 staff|super_admin. Never log request bodies."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request
@@ -19,6 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ops.schemas import (
+    AuditEntryOut,
+    AuditPageOut,
     DecisionIn,
     FlagOut,
     FlagsOut,
@@ -34,7 +36,7 @@ from modules.ops.schemas import (
     TierOverrideIn,
     item_out,
 )
-from shared.audit import audit
+from shared.audit import AuditEntry, audit
 from shared.authz import require_permission
 from shared.db import get_session
 from shared.events import publish
@@ -309,3 +311,69 @@ async def override_pincode_tier(
     out = _pincode_tier_out(row)
     await session.commit()
     return out
+
+
+# --- audit reader (U3) -----------------------------------------------------
+#
+# The reader D12's hash-chained log never had. APPEND-ONLY, non-negotiable:
+# there is NO purge, NO edit, NO delete route here — not for any role, not for
+# any date range. The Mattress.in blueprint this console borrows from has a
+# date-range purge; it is deliberately NOT ported (a purgeable audit log is
+# not an audit log). This is a GET and nothing else; the app role has
+# INSERT+SELECT only, so the log physically cannot be rewritten either.
+
+
+@admin_router.get(
+    "/audit",
+    dependencies=[require_permission("audit.read")],
+)
+async def read_audit(
+    request: Request,
+    session: SessionDep,
+    actor: uuid.UUID | None = None,
+    action: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> AuditPageOut:
+    """Filter the audit timeline by actor / action / entity / date; newest
+    first, keyset-paginated. Every filter is an equality WHERE clause except
+    the date range (created_at bounds), so the chain order is preserved."""
+    query = select(AuditEntry)
+    if actor is not None:
+        query = query.where(AuditEntry.actor_user_id == actor)
+    if action is not None:
+        query = query.where(AuditEntry.action == action)
+    if entity_type is not None:
+        query = query.where(AuditEntry.target_type == entity_type)
+    if entity_id is not None:
+        query = query.where(AuditEntry.target_id == entity_id)
+    if date_from is not None:
+        query = query.where(
+            AuditEntry.created_at >= datetime.combine(date_from, time(0), tzinfo=UTC)
+        )
+    if date_to is not None:
+        upper = datetime.combine(date_to + timedelta(days=1), time(0), tzinfo=UTC)
+        query = query.where(AuditEntry.created_at < upper)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return AuditPageOut(
+        items=[
+            AuditEntryOut(
+                id=entry.id,
+                created_at=entry.created_at,
+                actor_user_id=entry.actor_user_id,
+                action=entry.action,
+                target_type=entry.target_type,
+                target_id=entry.target_id,
+                metadata=entry.meta,
+            )
+            for entry in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )

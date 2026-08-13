@@ -1210,3 +1210,80 @@ in Group B; the audit reader + enforcement polish in Group C. No money-path
 write, no deferred-program scaffolding (RBAC v2, CMS engines, analytics
 funnel) touched — the shared guard/permission-catalog forward-compat work is
 a Group B/C backend concern and is untouched here.
+
+### 8.2 Group B — operations + read surfaces (binding proof + THE PERMISSION SWEEP)
+
+Group B adds the RBAC forward-compat seam, four read-only surfaces, and
+re-platforms the write surfaces onto `AdminDataTable`. New Group-B
+substitutions (on top of §8.0):
+
+| Prompt says | Repo reality | Substitution used |
+| --- | --- | --- |
+| Directory browse "over the existing covers() blend" | `covers()` is the PUBLIC path — active-only, pincode-keyed, distance-ranked (raw SQL). An enforcement console must see suspended/disabled rows too, which covers() structurally excludes. | The browse reads `directory.businesses` directly via `paginate()` (all statuses; soft-deleted stay filtered), with status/type/pincode filters. The D24 brand dimension is the `type` enum (vendor/shop/lab/farm). Enforcement reuses the existing D16/M1.5 suspend/disable/reinstate routes — nothing new invented. covers() stays the consumer path. |
+| Payments ledger "signature_verified status and reconciliation state" | There is NO `signature_verified` column and NO persisted reconciliation state. The webhook verifies the HMAC inline and 400s a bad signature BEFORE any row is written; reconciliation is a nightly job that logs mismatches to a Prometheus metric, not a per-row flag. | `signature_verified` is DERIVED server-side, always `True` for a persisted `PaymentEvent` (a bad signature never persists) — surfaced with that explicit note. Reconciliation-per-row is a documented gap (nightly metric, not state); the surface shows `PaymentEvent.outcome` as the closest per-row processing state. No money-path write is added. |
+| `require_permission` as "the one shared guard" living where all admin modules can reach it | identity's `require_permission` reads the DB grant matrix and imports identity internals — import-linter forbids the other admin modules from importing it. | New `shared/authz.py` (shared → no module imports, so every admin module may import it): a `PERMISSION_CATALOG` (static role map) + `require_permission(key)` router-level dependency. Today it is a role check wearing a permission's name; RBAC v2 replaces only this function's body. Existing routes keep their D12-era `require_role`/`_require_role` in-handler gates (changing 40 tested routes' 403 detail was out of proportion); the catalog is the forward-compat vocabulary, and every NEW U3 endpoint gates through it. |
+
+**RBAC forward-compat (the spec's must-do).** `shared/authz.py` holds the ONE
+guard and the permission catalog — 23 keys covering the spec's named vocabulary
+(`reviews.moderate`, `products.approve`, `brands.verify`, `reports.handle`,
+`ads.creatives.approve`, `ads.slots.config`, `coins.adjust`, `audit.read`) plus
+this pass's read keys. `require_permission(key)` is a router-level dependency
+(`dependencies=[require_permission(...)]`) so a new endpoint cannot ship
+gate-less; it validates the key against the catalog at decoration time (a typo
+fails at import, never silently open). No `rank` column, no grants table, no
+tiers — vocabulary + one checkpoint, exactly the scope line.
+
+**Binding table.** New endpoints on the left; every surface records what it
+renders from and its read/mutation check.
+
+| Surface | Renders from | Check |
+| --- | --- | --- |
+| Pincode tiers (`/tiers` → `GET /admin/ops/pincode-tiers`, `tiers.read`) | `paginate(select(PincodeTier))` — M4's stored `tier` with its census inputs (`population`, `population_grade`, `user_count`, `method`) | **Live.** `admin-tiers-1440.png` as chan: 19,238 real rows, tier chips T1–T5, population + verified-user counts from `geo.pincode_tiers`. The tier is read, never computed in the UI; the single-pincode override stays on its POST route. |
+| Directory browse (`/directory` → `GET /admin/directory/businesses`, `directory.read`) | `paginate(select(Business))`, all statuses, status/type/pincode filters | **Live + enforced.** `admin-directory-1440.png` (210 businesses) + `admin-directory-drawer-1440.png` (row-open → `DetailDrawer` with fields + Suspend/Disable/Reinstate). Mutation sweep proven end-to-end (below). |
+| Payments ledger (`/payments` → `GET /admin/payments/{ledger,events}`, `payments.read`) | `paginate(BillingLedgerEntry)` + `paginate(PaymentEvent)`, DISPLAY ONLY | **Live.** `admin-payments-1440.png`: 4 real ledger charges, amounts preformatted server-side (`amount_display` — zero UI money arithmetic). Both tables append-only by grant; the router has no POST/PUT/DELETE, so no admin action can alter a row even in principle. |
+| Ad performance (`/ad-performance` → `GET /admin/ads/performance`, `ads.performance.read`) | Bounded raw-SQL `GROUP BY slot_key` / `creative_id` over `ads.impressions` + `ads.clicks` (M2/M3 beacons); CTR computed server-side | **Live.** `admin-ad-performance-1440.png`: 7 slots + creatives with impressions/clicks/CTR from 1,109 real beacon rows. Slot/creative counters only — NOT the A6 analytics funnel (no reveal/lead/conversion chain). |
+| Users (re-platformed, existing endpoints) | `/users` search + `/users/{agriId}` detail | **Live, no capability lost.** `admin-users-replatformed-1440.png`: search → `AdminDataTable`, row-open → `DetailDrawer` (status, completion, location, language, interests, role add/remove, suspend/reactivate). Phone still last-4 only. |
+| Ops / Ads / Coins / Enforcement-lookup | Unchanged endpoints, already inside the Group-A shell | **Live.** Every existing capability survives the re-platforming (Group A screenshots; these keep their D21/D13 managers this pass — their card-lists remain the honest shape for media-rich moderation, and are shared components, not one-offs). |
+
+Screenshots: `docs/design-reference/u3/`.
+
+#### THE PERMISSION SWEEP (automated — `tests/test_u3_permission_sweep.py`)
+
+U2 proved exclusion; U3 proves **accountability**. For every read surface this
+pass adds, the endpoint is attempted as each of the five actor contexts. The
+rejection is AT THE API (not hidden in the UI), and generic (`missing_permission`
+— the catalog layout is not a surface). 25 parametrized combinations, all green,
+plus 3 catalog-contract tests.
+
+| Surface (permission) | signed-out | consumer | business_owner | staff | admin |
+| --- | --- | --- | --- | --- | --- |
+| `GET /admin/ops/pincode-tiers` (`tiers.read`) | 401 | 403 | 403 | 200 | 200 |
+| `GET /admin/directory/businesses` (`directory.read`) | 401 | 403 | 403 | 200 | 200 |
+| `GET /admin/ads/performance` (`ads.performance.read`) | 401 | 403 | 403 | 200 | 200 |
+| `GET /admin/payments/ledger` (`payments.read`) | 401 | 403 | 403 | 200 | 200 |
+| `GET /admin/payments/events` (`payments.read`) | 401 | 403 | 403 | 200 | 200 |
+
+401 = auth fires first (no principal); 403 = below the required role. The
+catalog contract is pinned separately: the spec vocabulary is registered,
+`coins.adjust`/`coins.rules.manage` resolve to `{super_admin}` only (D13
+invariant), and an unregistered key raises at decoration time. Existing write
+actions (moderate, suspend, coins-adjust, creative-approve) keep their D12-era
+role gates, already covered by the module suites (`test_directory_admin.py`,
+`test_coins_admin_router.py`, `test_ads_admin.py`, `test_admin_router.py`).
+
+#### THE AUDIT SWEEP (state changes prove their row)
+
+The four read surfaces write NOTHING — no audit rows, correctly. The one
+state-changing path Group B exercises is directory enforcement (reusing the
+existing audited routes). Proven end-to-end against the live dev stack via the
+console UI:
+
+| Action | Result | Audit row |
+| --- | --- | --- |
+| Suspend `sri-balaji-dairy-farm` (reason typed in the confirm) | status → `suspended`, gone from consumer results (non-active ⇒ covers/search tombstone) | `directory.business_suspended`, actor set, `metadata.reason` = the exact confirm text |
+| Reinstate (note typed in the confirm) | status → `active` | `directory.business_reinstated`, actor set, `metadata.note` = the confirm text |
+
+Both transitions sit in the append-only, hash-chained `audit.entries` (app role
+has INSERT+SELECT only — no admin action can edit or delete history). Dev state
+was restored to `active` after the check. Reason capture happens INSIDE the
+confirm (`ConfirmDialog`, audit rule 3), so no enforcement row can be blank.

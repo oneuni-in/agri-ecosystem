@@ -205,6 +205,24 @@ class StatsOut(BaseModel):
     rows: list[StatRowOut]
 
 
+class PerfRowOut(BaseModel):
+    """Impressions, clicks and CTR for one slot or one creative (U3 read
+    surface). `ctr` is the plain ratio clicks/impressions (0.0 when no
+    impressions) — a display metric, never a money figure."""
+
+    key: str
+    impressions: int
+    clicks: int
+    ctr: float
+
+
+class PerfOut(BaseModel):
+    """Ad performance from the M2/M3 beacons, broken down two ways."""
+
+    by_slot: list[PerfRowOut]
+    by_creative: list[PerfRowOut]
+
+
 class RateCardIn(BaseModel):
     """M5 Task 3: Ops-submitted rate card config. Shape is validated by
     pricing.validate_rate_card, not here - config is an opaque dict at the

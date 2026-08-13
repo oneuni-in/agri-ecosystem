@@ -28,12 +28,14 @@ from modules.ops.schemas import (
     ModQueuePageOut,
     ModRejectIn,
     PincodeTierOut,
+    PincodeTierPageOut,
     TierBucketOut,
     TierDistributionOut,
     TierOverrideIn,
     item_out,
 )
 from shared.audit import audit
+from shared.authz import require_permission
 from shared.db import get_session
 from shared.events import publish
 from shared.flags import FeatureFlag, reset_flag_cache
@@ -53,7 +55,7 @@ from shared.moderation import (
     get_source,
     iter_sources,
 )
-from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
+from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, paginate
 from shared.security import SecureRouter, require_role
 from shared.telemetry import get_logger
 
@@ -216,6 +218,7 @@ def _pincode_tier_out(row: PincodeTier) -> PincodeTierOut:
         pincode=row.pincode,
         tier=row.tier,
         population=row.population,
+        population_grade=row.population_grade,
         user_count=row.user_count,
         method=row.method,
         computed_at=row.computed_at,
@@ -237,6 +240,34 @@ async def pincode_tier_distribution(request: Request, session: SessionDep) -> Ti
     require_role(request, STAFF, SUPER_ADMIN)
     dist = await tier_distribution(session)
     return _distribution_out(dist)
+
+
+@admin_router.get(
+    "/ops/pincode-tiers",
+    dependencies=[require_permission("tiers.read")],
+)
+async def list_pincode_tiers(
+    request: Request,
+    session: SessionDep,
+    tier: Annotated[int | None, Query(ge=1, le=5)] = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> PincodeTierPageOut:
+    """Browse the computed T1–T5 rows with their census inputs (population,
+    grade, user_count) so an operator can sanity-check the classification
+    before KYC. Read-only — the single-pincode override stays on its own
+    POST route."""
+    query = select(PincodeTier)
+    if tier is not None:
+        query = query.where(PincodeTier.tier == tier)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return PincodeTierPageOut(
+        items=[_pincode_tier_out(row) for row in page.items],
+        next_cursor=page.next_cursor,
+    )
 
 
 @admin_router.get("/ops/pincode-tiers/{pincode}")

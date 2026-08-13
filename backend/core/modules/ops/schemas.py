@@ -64,10 +64,18 @@ class PincodeTierOut(BaseModel):
     pincode: str
     tier: int
     population: int
+    # census input (town / village / district_apportioned) — surfaced so the
+    # computed tier can be sanity-checked before KYC (U3 read surface).
+    population_grade: str
     user_count: int
     method: str
     computed_at: datetime | None
     tier_changed_at: datetime | None
+
+
+class PincodeTierPageOut(BaseModel):
+    items: list[PincodeTierOut]
+    next_cursor: str | None = None
 
 
 class TierBucketOut(BaseModel):

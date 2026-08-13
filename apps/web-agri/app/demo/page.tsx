@@ -1,5 +1,7 @@
 import type { SiteTheme } from "@agri/types";
 import {
+  AdminDataTable,
+  AdminShell,
   Avatar,
   Badge,
   BigCtaGrid,
@@ -83,6 +85,7 @@ import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
 import { U1BandsDemo } from "./u1-bands-demo";
 import { U2ConfirmDemo } from "./u2-confirm-demo";
+import { U3AdminDemo } from "./u3-admin-demo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Design system demo — D02",
@@ -904,6 +907,103 @@ export default async function DemoPage({
 
           <Label>Destructive confirm — two-step, names the consequence, soft-delete honest copy</Label>
           <U2ConfirmDemo />
+        </Section>
+
+        {/* ═══ U3 admin console patterns ═══
+            The operator-side additions to console-patterns.tsx. Same rule as
+            U2: web-admin renders these SAME components — the wide shell, THE
+            one data table, the reason-capturing confirm, the detail drawer —
+            never a copy of their markup. Role gating happens app-side before
+            render, so the demo simply passes a pre-filtered item list. */}
+        <Section title="U3 · admin console patterns (web-admin)">
+          <Label>
+            Admin shell — max-w-7xl operator frame, aria-current on the active link, sidebar
+            aside slot; the app passes only the items the session&apos;s roles allow
+          </Label>
+          <div className="overflow-hidden rounded-card border border-line bg-page-bg">
+            <AdminShell
+              navLabel="Admin console (demo)"
+              heading="Admin console"
+              nav={
+                <ConsoleNavList>
+                  {[
+                    { title: "Dashboard", active: false },
+                    { title: "Ops", active: true },
+                    { title: "Businesses", active: false },
+                    { title: "Ads", active: false },
+                    { title: "Users", active: false },
+                    { title: "Coins", active: false },
+                  ].map((entry) => (
+                    <ConsoleNavItem key={entry.title}>
+                      <a
+                        href="#"
+                        className={consoleNavLinkClass(entry.active)}
+                        {...(entry.active ? { "aria-current": "page" as const } : {})}
+                      >
+                        {entry.title}
+                      </a>
+                    </ConsoleNavItem>
+                  ))}
+                </ConsoleNavList>
+              }
+              aside={<p className="text-[11.5px] text-muted">Signed in as chan · super_admin</p>}
+            >
+              <ConsolePageHeader
+                title="Ops"
+                sub="Moderation queues · flags · pincode tiers"
+              />
+              <ConsolePanel>
+                <p className="text-[13px] text-sub">
+                  Group B mounts every admin surface here, on the one table primitive below.
+                </p>
+              </ConsolePanel>
+            </AdminShell>
+          </div>
+
+          <Label>
+            Admin data table — typed columns (Type hides below lg), toolbar slot, keyboard
+            row-open → detail drawer, reason-capturing confirm, opaque-cursor load-more
+          </Label>
+          <ConsolePanel>
+            <U3AdminDemo />
+          </ConsolePanel>
+
+          <Label>Table states — loading skeleton, request failure, empty queue AS SUCCESS</Label>
+          <div className="grid gap-2.5 lg:grid-cols-3">
+            <ConsolePanel title="Loading">
+              <AdminDataTable
+                caption="Reviews queue (loading demo)"
+                columns={[]}
+                rows={[]}
+                rowKey={() => ""}
+                loading
+                empty={{ icon: "✅", title: "Queue clear." }}
+              />
+            </ConsolePanel>
+            <ConsolePanel title="Error">
+              <AdminDataTable
+                caption="Reviews queue (error demo)"
+                columns={[]}
+                rows={[]}
+                rowKey={() => ""}
+                error="Could not load the queue."
+                empty={{ icon: "✅", title: "Queue clear." }}
+              />
+            </ConsolePanel>
+            <ConsolePanel title="Empty = success">
+              <AdminDataTable
+                caption="Reviews queue (empty demo)"
+                columns={[]}
+                rows={[]}
+                rowKey={() => ""}
+                empty={{
+                  icon: "✅",
+                  title: "Queue clear.",
+                  description: "Every review has been moderated. Nothing waiting.",
+                }}
+              />
+            </ConsolePanel>
+          </div>
         </Section>
 
         {/* ═══ locale matrix — icon + EN + vernacular in all 3 locales ═══ */}

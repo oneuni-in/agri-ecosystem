@@ -88,6 +88,8 @@ export {
 // U2 console patterns — the write-side sibling catalog. Same rule: the
 // kitchen sink and the console render the same components, never copies.
 export {
+  AdminDataTable,
+  AdminShell,
   ConsoleCell,
   ConsoleField,
   ConsoleHeadCell,
@@ -106,8 +108,10 @@ export {
   consoleNavLinkClass,
   StateChip,
 } from "./composites/console-patterns";
-export type { ConsoleStateTone } from "./composites/console-patterns";
+export type { AdminColumn, ConsoleStateTone } from "./composites/console-patterns";
 export { ConfirmAction } from "./composites/confirm-action";
+export { ConfirmDialog } from "./composites/confirm-dialog";
+export { DetailDrawer } from "./composites/detail-drawer";
 export { HelplineBand } from "./composites/helpline-band";
 export { NotificationsPanel } from "./composites/notifications-panel";
 export type {

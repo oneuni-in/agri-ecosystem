@@ -31,6 +31,8 @@ from modules.ads.schemas import (
     CreativeIn,
     CreativeOut,
     CreativePageOut,
+    PerfOut,
+    PerfRowOut,
     PlacementIn,
     PlacementOut,
     PlacementPageOut,
@@ -45,6 +47,7 @@ from modules.ads.schemas import (
 from modules.ads.service import SLOT_KEYS
 from shared import storage
 from shared.audit import audit
+from shared.authz import require_permission
 from shared.db import get_session
 from shared.lookups import resolve_business
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, paginate
@@ -336,6 +339,65 @@ async def placement_stats(
             StatRowOut(day=d, impressions=v["impressions"], clicks=v["clicks"])
             for d, v in sorted(rows.items())
         ]
+    )
+
+
+def _ctr(impressions: int, clicks: int) -> float:
+    return round(clicks / impressions, 4) if impressions else 0.0
+
+
+@admin_router.get(
+    "/performance",
+    dependencies=[require_permission("ads.performance.read")],
+)
+async def ad_performance(
+    request: Request,
+    session: SessionDep,
+    date_from: date,
+    date_to: date,
+) -> PerfOut:
+    """Impressions, clicks and CTR by slot AND by creative over a date range,
+    straight from the M2/M3 beacon tables (ads.impressions / ads.clicks).
+    Read-only aggregate — the beacon rows are append-only and never paginated
+    (the model comment: 'stats aggregate them instead'), so this bounds the
+    range to 90 days like /stats. NOT the unified analytics funnel (A6): slot
+    and creative counters only, no reveal/lead/conversion chain."""
+    if date_to < date_from or (date_to - date_from).days > 90:
+        raise HTTPException(status_code=422, detail="bad_range")
+    bounds = {
+        "lo": datetime.combine(date_from, time(0), tzinfo=UTC),
+        "hi": datetime.combine(date_to + timedelta(days=1), time(0), tzinfo=UTC),
+    }
+
+    async def _grouped(column: str) -> dict[str, dict[str, int]]:
+        acc: dict[str, dict[str, int]] = {}
+        for name, table in (("impressions", "ads.impressions"), ("clicks", "ads.clicks")):
+            result = await session.execute(
+                text(
+                    f"SELECT {column} AS k, count(*) AS n FROM {table} "
+                    f"WHERE occurred_at >= :lo AND occurred_at < :hi GROUP BY {column}"
+                ),
+                bounds,
+            )
+            for key, n in result:
+                acc.setdefault(str(key), {"impressions": 0, "clicks": 0})[name] = int(n)
+        return acc
+
+    def _rows(acc: dict[str, dict[str, int]]) -> list[PerfRowOut]:
+        return [
+            PerfRowOut(
+                key=key,
+                impressions=v["impressions"],
+                clicks=v["clicks"],
+                ctr=_ctr(v["impressions"], v["clicks"]),
+            )
+            # busiest first — the row an operator reads top-down
+            for key, v in sorted(acc.items(), key=lambda kv: kv[1]["impressions"], reverse=True)
+        ]
+
+    return PerfOut(
+        by_slot=_rows(await _grouped("slot_key")),
+        by_creative=_rows(await _grouped("creative_id")),
     )
 
 

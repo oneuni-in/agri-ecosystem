@@ -11,7 +11,7 @@ flip is a business-level act - see Task 11); pincode-tier lookup/override =
 staff|super_admin. Never log request bodies."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Request
@@ -19,6 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.ops.schemas import (
+    AuditEntryOut,
+    AuditPageOut,
     DecisionIn,
     FlagOut,
     FlagsOut,
@@ -28,12 +30,14 @@ from modules.ops.schemas import (
     ModQueuePageOut,
     ModRejectIn,
     PincodeTierOut,
+    PincodeTierPageOut,
     TierBucketOut,
     TierDistributionOut,
     TierOverrideIn,
     item_out,
 )
-from shared.audit import audit
+from shared.audit import AuditEntry, audit
+from shared.authz import require_permission
 from shared.db import get_session
 from shared.events import publish
 from shared.flags import FeatureFlag, reset_flag_cache
@@ -53,7 +57,7 @@ from shared.moderation import (
     get_source,
     iter_sources,
 )
-from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
+from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError, paginate
 from shared.security import SecureRouter, require_role
 from shared.telemetry import get_logger
 
@@ -216,6 +220,7 @@ def _pincode_tier_out(row: PincodeTier) -> PincodeTierOut:
         pincode=row.pincode,
         tier=row.tier,
         population=row.population,
+        population_grade=row.population_grade,
         user_count=row.user_count,
         method=row.method,
         computed_at=row.computed_at,
@@ -237,6 +242,34 @@ async def pincode_tier_distribution(request: Request, session: SessionDep) -> Ti
     require_role(request, STAFF, SUPER_ADMIN)
     dist = await tier_distribution(session)
     return _distribution_out(dist)
+
+
+@admin_router.get(
+    "/ops/pincode-tiers",
+    dependencies=[require_permission("tiers.read")],
+)
+async def list_pincode_tiers(
+    request: Request,
+    session: SessionDep,
+    tier: Annotated[int | None, Query(ge=1, le=5)] = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> PincodeTierPageOut:
+    """Browse the computed T1–T5 rows with their census inputs (population,
+    grade, user_count) so an operator can sanity-check the classification
+    before KYC. Read-only — the single-pincode override stays on its own
+    POST route."""
+    query = select(PincodeTier)
+    if tier is not None:
+        query = query.where(PincodeTier.tier == tier)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return PincodeTierPageOut(
+        items=[_pincode_tier_out(row) for row in page.items],
+        next_cursor=page.next_cursor,
+    )
 
 
 @admin_router.get("/ops/pincode-tiers/{pincode}")
@@ -278,3 +311,69 @@ async def override_pincode_tier(
     out = _pincode_tier_out(row)
     await session.commit()
     return out
+
+
+# --- audit reader (U3) -----------------------------------------------------
+#
+# The reader D12's hash-chained log never had. APPEND-ONLY, non-negotiable:
+# there is NO purge, NO edit, NO delete route here — not for any role, not for
+# any date range. The Mattress.in blueprint this console borrows from has a
+# date-range purge; it is deliberately NOT ported (a purgeable audit log is
+# not an audit log). This is a GET and nothing else; the app role has
+# INSERT+SELECT only, so the log physically cannot be rewritten either.
+
+
+@admin_router.get(
+    "/audit",
+    dependencies=[require_permission("audit.read")],
+)
+async def read_audit(
+    request: Request,
+    session: SessionDep,
+    actor: uuid.UUID | None = None,
+    action: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> AuditPageOut:
+    """Filter the audit timeline by actor / action / entity / date; newest
+    first, keyset-paginated. Every filter is an equality WHERE clause except
+    the date range (created_at bounds), so the chain order is preserved."""
+    query = select(AuditEntry)
+    if actor is not None:
+        query = query.where(AuditEntry.actor_user_id == actor)
+    if action is not None:
+        query = query.where(AuditEntry.action == action)
+    if entity_type is not None:
+        query = query.where(AuditEntry.target_type == entity_type)
+    if entity_id is not None:
+        query = query.where(AuditEntry.target_id == entity_id)
+    if date_from is not None:
+        query = query.where(
+            AuditEntry.created_at >= datetime.combine(date_from, time(0), tzinfo=UTC)
+        )
+    if date_to is not None:
+        upper = datetime.combine(date_to + timedelta(days=1), time(0), tzinfo=UTC)
+        query = query.where(AuditEntry.created_at < upper)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return AuditPageOut(
+        items=[
+            AuditEntryOut(
+                id=entry.id,
+                created_at=entry.created_at,
+                actor_user_id=entry.actor_user_id,
+                action=entry.action,
+                target_type=entry.target_type,
+                target_id=entry.target_id,
+                metadata=entry.meta,
+            )
+            for entry in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )

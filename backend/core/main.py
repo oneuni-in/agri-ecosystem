@@ -18,6 +18,7 @@ from modules.ads.service import campaign_billing_ref, pause_active_campaigns
 from modules.ai.router import router as ai_router
 from modules.billing.ad_orders import campaign_charged_paise
 from modules.billing.admin_router import admin_router as billing_admin_router
+from modules.billing.payments_admin_router import admin_router as payments_admin_router
 from modules.billing.router import router as billing_router
 from modules.coins.admin_router import admin_router as coins_admin_router
 from modules.coins.router import router as coins_router
@@ -82,6 +83,7 @@ MODULE_ROUTERS = [
     ai_router,
     billing_router,
     billing_admin_router,
+    payments_admin_router,
     catalog_router,
     catalog_admin_router,
     coins_admin_router,

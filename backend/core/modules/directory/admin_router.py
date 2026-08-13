@@ -27,6 +27,7 @@ from modules.directory.schemas import (
     AdminVerificationOut,
     AdminVerificationPageOut,
     BusinessOut,
+    BusinessPageOut,
     DecisionIn,
     EnforceIn,
     EnforcementLogEntryOut,
@@ -36,6 +37,7 @@ from modules.directory.schemas import (
 )
 from shared import storage
 from shared.audit import AuditEntry, audit
+from shared.authz import require_permission
 from shared.db import get_session
 from shared.events import publish
 from shared.lookups import pause_campaigns_for_business
@@ -515,6 +517,47 @@ async def reinstate_business(
         admin_id=admin_id,
         metadata={"note": body.note, "prior_status": prior, "restored_status": restored},
         ip=request.client.host if request.client else None,
+    )
+
+
+_BUSINESS_STATUS = Literal["active", "suspended", "disabled"]
+_BUSINESS_TYPE = Literal["vendor", "shop", "lab", "farm"]
+
+
+@admin_router.get(
+    "/businesses",
+    dependencies=[require_permission("directory.read")],
+)
+async def admin_browse_businesses(
+    request: Request,
+    session: SessionDep,
+    status: _BUSINESS_STATUS | None = None,
+    type: _BUSINESS_TYPE | None = None,
+    pincode: str | None = None,
+    cursor: str | None = None,
+    limit: LimitQuery = DEFAULT_PAGE_SIZE,
+) -> BusinessPageOut:
+    """Admin directory browse (U3, read-only). The PUBLIC path is covers()
+    (active-only, pincode-keyed, distance-ranked); an enforcement console must
+    also see suspended/disabled rows, so this reads directory.businesses
+    directly via paginate() (soft-deleted rows stay excluded by the global
+    filter). Enforcement (suspend/disable/reinstate) reuses the existing
+    routes above — nothing new is invented here. `type` is the D24 brand
+    dimension (vendor/shop/lab/farm)."""
+    query = select(Business)
+    if status is not None:
+        query = query.where(Business.status == status)
+    if type is not None:
+        query = query.where(Business.type == type)
+    if pincode is not None:
+        query = query.where(Business.primary_pincode == pincode)
+    try:
+        page = await paginate(session, query, cursor=cursor, limit=limit)
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    return BusinessPageOut(
+        items=[_admin_business_out(b) for b in page.items],
+        next_cursor=page.next_cursor,
     )
 
 

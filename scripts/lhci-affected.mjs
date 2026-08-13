@@ -22,6 +22,18 @@ const APPS = {
 const ALWAYS = "web-agri";
 const READY_TIMEOUT_MS = 120_000;
 
+// web-admin (3004) is the internal, auth-gated admin console (U3) — not a
+// public SEO surface. Its root layout resolves the session server-side on
+// every route (AdminChrome -> auth.getServerUser()), which in a production
+// `next start` with no AUTH_SESSION_SECRET fails the auth-client prod-secret
+// guard on the first request, so `/` 500s and never becomes "ready" — an
+// unauthenticated LHCI run cannot meaningfully audit it and would only ever
+// fail the gate for the wrong reason. The admin routes get the documented
+// Lighthouse carve-out (polish-u1 §7.4/§8; an authenticated admin LHCI run is
+// the standing follow-up). auth-client is consumed, not owned, so the fix is
+// here — never audit web-admin in this unauthenticated gate.
+const AUDIT_EXCLUDE = new Set(["web-admin"]);
+
 // Non-home routes that must also hold the floor. The D28 pincode landing is
 // milk.in's actual SEO surface (home is a pincode box; these pages are what
 // Google indexes), so it cannot be left ungated. It is dynamic SSR reading
@@ -85,7 +97,9 @@ function kill(child) {
   }
 }
 
-const apps = [...new Set([...affectedApps(), ALWAYS])].filter((app) => app in APPS);
+const apps = [...new Set([...affectedApps(), ALWAYS])].filter(
+  (app) => app in APPS && !AUDIT_EXCLUDE.has(app),
+);
 console.log(`lhci: auditing apps: ${apps.join(", ")}`);
 
 const filters = apps.flatMap((app) => [`--filter=@agri/${app}`]);

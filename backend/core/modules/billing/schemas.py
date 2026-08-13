@@ -118,6 +118,58 @@ def ad_order_out(order: AdOrder, invoice: Invoice | None = None) -> AdOrderOut:
     )
 
 
+# --- U3 payments read surface (DISPLAY ONLY) ------------------------------
+#
+# The admin console reads the append-only ad-revenue ledger and the raw
+# Razorpay webhook log. `amount_display` is formatted server-side so the UI
+# never does money arithmetic (U3: no computed-in-the-UI money figures). There
+# is no `signature_verified` column — a PaymentEvent only PERSISTS after the
+# webhook's HMAC check passes (a bad signature 400s before any insert), so a
+# logged event IS a signature-verified one; the flag is derived, always True.
+
+
+def format_paise(paise: int, currency: str = "INR") -> str:
+    """Signed paise → a display string (e.g. -2500 → '-₹25.00'). Formatting,
+    not computation — the stored value is shown, never re-derived."""
+    symbol = "₹" if currency == "INR" else f"{currency} "
+    sign = "-" if paise < 0 else ""
+    rupees, paise_part = divmod(abs(paise), 100)
+    return f"{sign}{symbol}{rupees:,}.{paise_part:02d}"
+
+
+class PaymentLedgerRowOut(BaseModel):
+    id: uuid.UUID
+    entry_type: str  # ad_charge | ad_refund
+    amount_display: str
+    amount_paise: int
+    currency: str
+    campaign_id: uuid.UUID | None
+    business_id: uuid.UUID
+    razorpay_payment_id: str | None
+    created_at: datetime
+
+
+class PaymentLedgerPage(BaseModel):
+    items: list[PaymentLedgerRowOut]
+    next_cursor: str | None
+
+
+class PaymentEventRowOut(BaseModel):
+    id: uuid.UUID
+    provider: str
+    event_type: str
+    provider_event_id: str
+    outcome: str
+    # Derived, always True for a persisted event (see module note above).
+    signature_verified: bool
+    created_at: datetime
+
+
+class PaymentEventPage(BaseModel):
+    items: list[PaymentEventRowOut]
+    next_cursor: str | None
+
+
 def tier_list() -> list[TierOut]:
     return [
         TierOut(

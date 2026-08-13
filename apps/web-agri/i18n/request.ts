@@ -1,4 +1,4 @@
-import { getUiMessages, isLocale } from "@agri/ui/i18n";
+import { getConsoleUiMessages, isLocale } from "@agri/ui/i18n";
 import { cookies } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
@@ -17,5 +17,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     const cookie = (await cookies()).get("NEXT_LOCALE")?.value;
     locale = isLocale(cookie) ? cookie : "en";
   }
-  return { locale, messages: getUiMessages(locale) };
+  // web-agri is the ONLY app that renders the vendor console, so it loads the
+  // full catalog incl. ui.console.*; consumer apps use the leaner getUiMessages.
+  return { locale, messages: getConsoleUiMessages(locale) };
 });

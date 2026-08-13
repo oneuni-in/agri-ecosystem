@@ -85,6 +85,29 @@ export {
   StatCell,
   VendorCard,
 } from "./composites/home-patterns";
+// U2 console patterns — the write-side sibling catalog. Same rule: the
+// kitchen sink and the console render the same components, never copies.
+export {
+  ConsoleCell,
+  ConsoleField,
+  ConsoleHeadCell,
+  ConsoleModuleCard,
+  ConsoleNavItem,
+  ConsoleNavList,
+  ConsoleNotice,
+  ConsolePageHeader,
+  ConsolePanel,
+  ConsoleRow,
+  ConsoleShell,
+  ConsoleStatRow,
+  ConsoleStatTile,
+  ConsoleTable,
+  consoleControlClass,
+  consoleNavLinkClass,
+  StateChip,
+} from "./composites/console-patterns";
+export type { ConsoleStateTone } from "./composites/console-patterns";
+export { ConfirmAction } from "./composites/confirm-action";
 export { HelplineBand } from "./composites/helpline-band";
 export { NotificationsPanel } from "./composites/notifications-panel";
 export type {

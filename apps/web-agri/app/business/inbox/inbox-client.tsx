@@ -1,6 +1,27 @@
 "use client";
 
-import { Button, buttonVariants, Card, cn, EmptyState, Skeleton } from "@agri/ui";
+/**
+ * U2 Group C: the lead inbox, rebuilt onto the shared console catalog and
+ * localized via ui.console.inbox.*. Milk-subscription NEEDS (D25) and contact
+ * messages arrive in the same inbox; a vendor sees ONLY inquiries in their
+ * coverage because the D25 fan-out creates child inquiries for covering
+ * businesses only, and the list is business_id-scoped through
+ * get_owned_business — enforced backend-side, not here. Data flow is D18's.
+ */
+
+import {
+  Button,
+  ConsoleField,
+  ConsoleNotice,
+  ConsolePanel,
+  EmptyState,
+  Skeleton,
+  StateChip,
+  buttonVariants,
+  cn,
+  consoleControlClass,
+} from "@agri/ui";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ApiError, getJson, postJson } from "@/lib/api";
@@ -30,77 +51,14 @@ interface InboxStats {
   avg_response_seconds: number | null;
 }
 
-// Copied verbatim from lead-form.tsx's field styling (D18 idiom) so this
-// page reads as one system with the rest of the site.
-const FIELD =
-  "mt-1 block min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-[13px] text-ink";
-const LABEL = "block text-[13px] font-semibold text-ink";
+const STATUS_TONE = {
+  new: "pending",
+  responded: "ok",
+  closed: "neutral",
+} as const;
 
-const STATUS_LABEL: Record<InquiryStatus, string> = {
-  new: "New",
-  responded: "Replied",
-  closed: "Closed",
-};
-const STATUS_CLASS: Record<InquiryStatus, string> = {
-  new: "bg-sponsored-bg text-sponsored-fg",
-  responded: "bg-verified-bg text-verified-fg",
-  closed: "bg-line text-sub",
-};
-
-function StatusChip({ status }: { status: InquiryStatus }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center self-start rounded-pill px-[9px] py-[3px] text-[11px] font-extrabold",
-        STATUS_CLASS[status],
-      )}
-    >
-      {STATUS_LABEL[status]}
-    </span>
-  );
-}
-
-function AlertNotice({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-card border border-alert-line bg-alert-bg p-3 text-[13px] font-semibold text-ink">
-      {children}
-    </div>
-  );
-}
-
-// Seconds -> "Xh" for >= 1h, else "Xm" (min 1m so a sub-minute reply never
-// renders "0m").
-function formatAvgResponse(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m`;
-  return `${Math.round(seconds / 3600)}h`;
-}
-
-function renderPayload(inquiry: InboxInquiry): ReactNode {
-  if (inquiry.type === "contact") {
-    const message = typeof inquiry.payload.message === "string" ? inquiry.payload.message : "";
-    return <p className="text-[13px] text-ink">{message}</p>;
-  }
-  const { qty_liters, milk_type, schedule, delivery_time, note } = inquiry.payload;
-  return (
-    <div className="space-y-1">
-      <p className="text-[13px] text-ink">
-        {String(qty_liters ?? "?")} L/day · {String(milk_type ?? "?")} · {String(schedule ?? "?")}
-      </p>
-      {typeof delivery_time === "string" && delivery_time ? (
-        <p className="text-[12px] text-sub">Preferred delivery: {delivery_time}</p>
-      ) : null}
-      {typeof note === "string" && note ? <p className="text-[12px] text-sub">"{note}"</p> : null}
-    </div>
-  );
-}
-
-/**
- * Client island for `/business/inbox`. Self-contained (no props) so D20's
- * Business Console shell can mount it directly as the inbox tab's content.
- * Guests never reach this component - the page's server gate redirects
- * before it renders.
- */
 export function InboxClient() {
+  const t = useTranslations("ui.console.inbox");
   const [businesses, setBusinesses] = useState<BusinessOut[] | null>(null);
   const [businessesError, setBusinessesError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -118,6 +76,35 @@ export function InboxClient() {
   const [replySubmitting, setReplySubmitting] = useState<Record<string, boolean>>({});
   const [replyError, setReplyError] = useState<Record<string, string | null>>({});
   const [closing, setClosing] = useState<Record<string, boolean>>({});
+
+  // Seconds → "Xh" for ≥ 1h, else "Xm" (min 1m so a sub-minute reply never
+  // renders "0m").
+  const formatAvgResponse = (seconds: number): string =>
+    seconds < 3600 ? `${Math.max(1, Math.round(seconds / 60))}m` : `${Math.round(seconds / 3600)}h`;
+
+  const renderPayload = (inquiry: InboxInquiry): ReactNode => {
+    if (inquiry.type === "contact") {
+      const message = typeof inquiry.payload.message === "string" ? inquiry.payload.message : "";
+      return <p className="text-[13px] text-ink">{message}</p>;
+    }
+    const { qty_liters, milk_type, schedule, delivery_time, note } = inquiry.payload;
+    return (
+      <div className="space-y-1">
+        <p className="text-[13px] text-ink">
+          {String(qty_liters ?? "?")} {t("perDay")} · {String(milk_type ?? "?")} ·{" "}
+          {String(schedule ?? "?")}
+        </p>
+        {typeof delivery_time === "string" && delivery_time ? (
+          <p className="text-[12px] text-sub">
+            {t("preferredDelivery", { time: delivery_time })}
+          </p>
+        ) : null}
+        {typeof note === "string" && note ? (
+          <p className="text-[12px] text-sub">&ldquo;{note}&rdquo;</p>
+        ) : null}
+      </div>
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -188,10 +175,7 @@ export function InboxClient() {
     } catch (err) {
       setReplyError((s) => ({
         ...s,
-        [id]:
-          err instanceof ApiError && err.status === 422
-            ? "Reply must be 1-2000 characters."
-            : "Could not send reply — please try again.",
+        [id]: err instanceof ApiError && err.status === 422 ? t("reply422") : t("replyFailed"),
       }));
     } finally {
       setReplySubmitting((s) => ({ ...s, [id]: false }));
@@ -210,10 +194,13 @@ export function InboxClient() {
     }
   };
 
+  const statusLabel = (status: InquiryStatus): string =>
+    status === "new" ? t("statusNew") : status === "responded" ? t("statusReplied") : t("statusClosed");
+
   if (businessesError) {
     return (
       <div className="mt-4">
-        <AlertNotice>Could not load your businesses — please try again.</AlertNotice>
+        <ConsoleNotice tone="alert">{t("loadFailed")}</ConsoleNotice>
       </div>
     );
   }
@@ -232,10 +219,10 @@ export function InboxClient() {
       <EmptyState
         className="mt-4"
         icon="🏢"
-        title="Claim your business to receive leads"
+        title={t("noBusiness")}
         action={
           <a href="/directory" className={cn(buttonVariants({ variant: "brand" }), "no-underline")}>
-            Browse directory
+            {t("browseDirectory")}
           </a>
         }
       />
@@ -244,10 +231,10 @@ export function InboxClient() {
 
   return (
     <div className="mt-4 space-y-4">
-      <label className={LABEL}>
-        Business
+      <ConsoleField id="inbox-business" label={t("businessPicker")}>
         <select
-          className={FIELD}
+          id="inbox-business"
+          className={consoleControlClass}
           value={selectedId ?? ""}
           onChange={(event) => setSelectedId(event.target.value)}
         >
@@ -257,70 +244,74 @@ export function InboxClient() {
             </option>
           ))}
         </select>
-      </label>
+      </ConsoleField>
 
-      <label className={LABEL}>
-        Show
+      <ConsoleField id="inbox-filter" label={t("show")}>
         <select
-          className={FIELD}
+          id="inbox-filter"
+          className={consoleControlClass}
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value as InquiryType | "all")}
         >
-          <option value="all">All leads</option>
-          <option value="contact">Messages</option>
-          <option value="milk_subscription">Milk subscriptions</option>
+          <option value="all">{t("showAll")}</option>
+          <option value="contact">{t("showMessages")}</option>
+          <option value="milk_subscription">{t("showSubscriptions")}</option>
         </select>
-      </label>
+      </ConsoleField>
 
       {stats ? (
         <p className="text-[13px] text-sub">
-          {stats.total} lead{stats.total === 1 ? "" : "s"} · {stats.responded} replied
+          {stats.total} {stats.total === 1 ? t("statNounOne") : t("statNounMany")} · {stats.responded}{" "}
+          {t("replied")}
           {stats.avg_response_seconds !== null
-            ? ` · Avg response: ${formatAvgResponse(stats.avg_response_seconds)}`
+            ? ` · ${t("avgResponse")}: ${formatAvgResponse(stats.avg_response_seconds)}`
             : ""}
         </p>
       ) : null}
 
       {stats && stats.avg_response_seconds !== null && stats.avg_response_seconds > 86400 ? (
-        <AlertNotice>
-          Your average reply time is {formatAvgResponse(stats.avg_response_seconds)}. Fast replies
-          win more customers — aim for under a day.
-        </AlertNotice>
+        <ConsoleNotice tone="alert">
+          {t("slowWarning", { time: formatAvgResponse(stats.avg_response_seconds) })}
+        </ConsoleNotice>
       ) : null}
 
       {itemsLoading ? (
         <Skeleton width="100%" height="120px" />
       ) : itemsError ? (
-        <AlertNotice>Could not load leads — please try again.</AlertNotice>
+        <ConsoleNotice tone="alert">{t("loadLeadsFailed")}</ConsoleNotice>
       ) : items.length === 0 ? (
-        <EmptyState icon="📭" title="No leads yet." />
+        <ConsolePanel>
+          <EmptyState icon="📭" title={t("empty")} description={t("emptyHint")} />
+        </ConsolePanel>
       ) : (
         <div className="space-y-3">
           {items.map((inquiry) => (
-            <Card key={inquiry.id} className="space-y-2 p-4">
-              <div className="flex items-center justify-between gap-2">
+            <ConsolePanel key={inquiry.id}>
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-extrabold text-ink">
-                  {inquiry.type === "contact" ? "Message" : "Milk subscription"}
+                  {inquiry.type === "contact" ? t("kindMessage") : t("kindSubscription")}
                 </span>
-                <StatusChip status={inquiry.status} />
+                <StateChip tone={STATUS_TONE[inquiry.status]}>{statusLabel(inquiry.status)}</StateChip>
               </div>
               {renderPayload(inquiry)}
-              <p className="text-[12px] text-sub">Pincode {inquiry.pincode}</p>
+              <p className="mt-1 text-[12px] text-sub">{t("pincode", { pincode: inquiry.pincode })}</p>
               {inquiry.status !== "closed" ? (
-                <div className="space-y-2">
-                  <label className={LABEL}>
-                    Reply
+                <div className="mt-2 space-y-2">
+                  <ConsoleField id={`reply-${inquiry.id}`} label={t("reply")}>
                     <textarea
+                      id={`reply-${inquiry.id}`}
                       maxLength={2000}
                       rows={2}
                       value={replyText[inquiry.id] ?? ""}
                       onChange={(event) =>
                         setReplyText((s) => ({ ...s, [inquiry.id]: event.target.value }))
                       }
-                      className={cn(FIELD, "min-h-[60px]")}
+                      className={cn(consoleControlClass, "min-h-[60px]")}
                     />
-                  </label>
-                  {replyError[inquiry.id] ? <AlertNotice>{replyError[inquiry.id]}</AlertNotice> : null}
+                  </ConsoleField>
+                  {replyError[inquiry.id] ? (
+                    <ConsoleNotice tone="alert">{replyError[inquiry.id]}</ConsoleNotice>
+                  ) : null}
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -328,7 +319,7 @@ export function InboxClient() {
                       disabled={!!replySubmitting[inquiry.id] || !replyText[inquiry.id]?.trim()}
                       onClick={() => void reply(inquiry.id)}
                     >
-                      {replySubmitting[inquiry.id] ? "Sending..." : "Reply"}
+                      {replySubmitting[inquiry.id] ? t("sending") : t("reply")}
                     </Button>
                     <Button
                       type="button"
@@ -336,12 +327,12 @@ export function InboxClient() {
                       disabled={!!closing[inquiry.id]}
                       onClick={() => void close(inquiry.id)}
                     >
-                      {closing[inquiry.id] ? "Closing..." : "Close"}
+                      {closing[inquiry.id] ? t("closing") : t("close")}
                     </Button>
                   </div>
                 </div>
               ) : null}
-            </Card>
+            </ConsolePanel>
           ))}
           {cursor ? (
             <Button
@@ -350,7 +341,7 @@ export function InboxClient() {
               disabled={loadingMore}
               onClick={() => selectedId && void loadInbox(selectedId, cursor, true)}
             >
-              {loadingMore ? "Loading..." : "Load more"}
+              {loadingMore ? t("loading") : t("loadMore")}
             </Button>
           ) : null}
         </div>

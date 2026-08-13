@@ -40,6 +40,14 @@ module.exports = {
       },
     },
     assert: {
+      // U2 console carve-out (owner-ratified 2026-08-12, docs/design-reference/
+      // polish-u1.md §7.4): the vendor console (/business/*, web-agri) is behind
+      // the auth middleware, which 307s every cookieless hit to login — CI's
+      // unauthenticated Lighthouse job cannot reach it, and scripts/
+      // lhci-affected.mjs never adds a /business/* URL (it audits app homes +
+      // /demo + the pincode landing only). The NON-NEG 3 floors for console
+      // routes are asserted locally via the U2 real-browser captures; wiring an
+      // authenticated LHCI run is a named follow-up. Nothing to assert here.
       assertMatrix: [
         {
           // App templates: the Constitution floor, non-negotiable.

@@ -54,6 +54,11 @@ test.describe("vendor dashboard (D26)", () => {
     await completeLoginResilient(page, phone);
     await page.waitForURL(new RegExp(`^${AGRI}/business/listings`), { timeout: 30_000 });
 
+    // U2 role-gated rendering: a session that owns no business (a consumer)
+    // never renders the vendor nav — the page itself stays reachable, that
+    // is the create/claim onboarding path.
+    await expect(page.getByRole("navigation", { name: "Business console" })).toHaveCount(0);
+
     // Listings: fresh vendor owns nothing yet -> the create-business form.
     await page.getByLabel("Business name").fill("E2E Dairy");
     await page.getByLabel("Primary pincode").fill("641001");
@@ -83,6 +88,10 @@ test.describe("vendor dashboard (D26)", () => {
     // subscription shows "Manage subscription", which leads to the billing
     // page's "Free plan" state.
     await page.goto(`${AGRI}/business/premium`);
+    // U2: now that the session owns a business, the console nav renders.
+    await expect(page.getByRole("navigation", { name: "Business console" })).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByRole("link", { name: "Manage subscription" }).click();
     await expect(page.getByText("Free plan")).toBeVisible({ timeout: 15_000 });
 
@@ -119,6 +128,46 @@ test.describe("vendor dashboard (D26)", () => {
       await page.getByRole("button", { name: "Add product" }).click();
       await expect(page.getByText("E2E Cow Milk 1L")).toBeVisible({ timeout: 15_000 });
     }
+  });
+
+  test("U2 Group A: /business dashboard - middleware carries next=, consumer sees onboarding without nav, vendor sees dashboard with nav", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const phone = randomPhone();
+    await resetOtpThrottle(phone);
+
+    // Signed-out hit on the console ROOT (a 404 before U2): the web-agri
+    // middleware bounces to /api/auth/login?next=/business and auth returns
+    // exactly there — the D26 fast-follow's structural gate, proven end to
+    // end on the one route the old layout-level gate got wrong.
+    await page.goto(`${AGRI}/business`);
+    await completeLoginResilient(page, phone);
+    await page.waitForURL(new RegExp(`^${AGRI}/business$`), { timeout: 30_000 });
+
+    // Consumer-role session: onboarding, and NO console nav anywhere.
+    await expect(page.getByText("Get your business on the map").first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("navigation", { name: "Business console" })).toHaveCount(0);
+
+    // Become a vendor through the console's own create flow...
+    await page.goto(`${AGRI}/business/listings`);
+    await page.getByLabel("Business name").fill("E2E Dashboard Dairy");
+    await page.getByLabel("Primary pincode").fill("641001");
+    await page.getByRole("button", { name: "Create listing" }).click();
+    await expect(page.getByRole("combobox", { name: "Business", exact: true })).toBeVisible({
+      timeout: 25_000,
+    });
+
+    // ...and the SAME URL now renders the vendor dashboard with the nav,
+    // the businesses table and the module grid.
+    await page.goto(`${AGRI}/business`);
+    await expect(page.getByRole("navigation", { name: "Business console" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByText("E2E Dashboard Dairy").first()).toBeVisible();
   });
 
   test("billing surface is live: M5 Task 17 flips billing_enabled globally for the e2e run", async () => {

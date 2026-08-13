@@ -70,3 +70,9 @@ export function patchJson(path: string, payload?: unknown): Promise<JsonBody> {
 export function deleteJson(path: string): Promise<JsonBody> {
   return request(path, { method: "DELETE" });
 }
+
+/** Multipart upload (U2 product photos). No content-type header on purpose:
+ * the browser sets it WITH the boundary; setting it manually strips that. */
+export function postForm(path: string, form: FormData): Promise<JsonBody> {
+  return request(path, { method: "POST", body: form });
+}

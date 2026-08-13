@@ -16,6 +16,22 @@ import {
   CertBar,
   CertCard,
   CoinsPill,
+  ConsoleCell,
+  ConsoleField,
+  ConsoleHeadCell,
+  ConsoleModuleCard,
+  ConsoleNavItem,
+  ConsoleNavList,
+  ConsoleNotice,
+  ConsolePageHeader,
+  ConsolePanel,
+  ConsoleRow,
+  ConsoleShell,
+  ConsoleStatRow,
+  ConsoleStatTile,
+  ConsoleTable,
+  consoleControlClass,
+  consoleNavLinkClass,
   EcoPill,
   EcoStrip,
   EmptyState,
@@ -43,6 +59,7 @@ import {
   Section,
   Skeleton,
   SponsoredBadge,
+  StateChip,
   StatBand,
   StatCell,
   TodayCard,
@@ -65,6 +82,7 @@ import type { ReactNode } from "react";
 import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
 import { U1BandsDemo } from "./u1-bands-demo";
+import { U2ConfirmDemo } from "./u2-confirm-demo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Design system demo — D02",
@@ -738,6 +756,154 @@ export default async function DemoPage({
 
           <Label>Opt-in bands — §10a price alerts, §10b app install (both dismissible)</Label>
           <U1BandsDemo />
+        </Section>
+
+        {/* ═══ U2 console patterns ═══
+            The write-side sibling catalog (console-patterns.tsx). Same rule
+            as U1: the vendor console renders these SAME components — forms,
+            tables, state chips, empty panels, destructive confirms — never a
+            copy of their markup. */}
+        <Section title="U2 · console patterns (vendor console)">
+          <Label>Shell + nav — pill row below sm, w-48 sidebar from sm (one nav, responsive classes only)</Label>
+          <div className="overflow-hidden rounded-card border border-line bg-page-bg">
+            <ConsoleShell
+              navLabel="Business console (demo)"
+              heading="Business console"
+              nav={
+                <ConsoleNavList>
+                  {[
+                    { title: "Dashboard", active: true },
+                    { title: "Lead inbox", active: false },
+                    { title: "Listings", active: false },
+                    { title: "Products", active: false },
+                  ].map((entry) => (
+                    <ConsoleNavItem key={entry.title}>
+                      <a href="#" className={consoleNavLinkClass(entry.active)}>
+                        {entry.title}
+                      </a>
+                    </ConsoleNavItem>
+                  ))}
+                </ConsoleNavList>
+              }
+            >
+              <ConsolePageHeader
+                title="Dashboard"
+                sub="Sakthi Dairy Farm · 641001"
+                action={<StateChip tone="info">Premium</StateChip>}
+              />
+              <ConsoleStatRow label="Last 30 days">
+                <ConsoleStatTile value="124" label="Profile views" hint="last 30 days" />
+                <ConsoleStatTile value="9" label="Phone reveals" hint="last 30 days" />
+                <ConsoleStatTile value="3" label="Open leads" />
+                <ConsoleStatTile value="4.6" label="Rating" hint="23 reviews" />
+              </ConsoleStatRow>
+            </ConsoleShell>
+          </div>
+
+          <Label>Module cards — dashboard entries, rendered inside the caller's link</Label>
+          <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            <a href="#" className="no-underline">
+              <ConsoleModuleCard icon="📥" title="Lead inbox" sub="2 leads waiting" />
+            </a>
+            <a href="#" className="no-underline">
+              <ConsoleModuleCard icon="🏪" title="Listings" sub="Business profile & coverage" />
+            </a>
+            <a href="#" className="no-underline">
+              <ConsoleModuleCard icon="🥛" title="Products" sub="Prices buyers see" />
+            </a>
+          </div>
+
+          <Label>State chips — every lifecycle state, token pairs only</Label>
+          <div className="flex flex-wrap gap-2">
+            <StateChip tone="ok">Active</StateChip>
+            <StateChip tone="pending">Pending review</StateChip>
+            <StateChip tone="alert">Suspended</StateChip>
+            <StateChip tone="neutral">Draft</StateChip>
+            <StateChip tone="info">Premium</StateChip>
+          </div>
+
+          <Label>Form fields — label/control/hint wiring; the error state carries id=&quot;…-error&quot;</Label>
+          <ConsolePanel className="max-w-[480px]">
+            <div className="flex flex-col gap-3">
+              <ConsoleField id="demo-biz-name" label="Business name" hint="Shown on your public page">
+                <input
+                  id="demo-biz-name"
+                  className={consoleControlClass}
+                  defaultValue="Sakthi Dairy Farm"
+                />
+              </ConsoleField>
+              <ConsoleField id="demo-pincode" label="Primary pincode" error="Enter a 6-digit pincode">
+                <input
+                  id="demo-pincode"
+                  className={consoleControlClass}
+                  defaultValue="6410"
+                  aria-invalid="true"
+                  aria-describedby="demo-pincode-error"
+                />
+              </ConsoleField>
+              <ConsoleField id="demo-type" label="Business type">
+                <select id="demo-type" className={consoleControlClass} defaultValue="vendor">
+                  <option value="vendor">Vendor</option>
+                  <option value="shop">Shop</option>
+                  <option value="farm">Farm</option>
+                </select>
+              </ConsoleField>
+            </div>
+          </ConsolePanel>
+
+          <Label>Data table — real table from md, stacked label/value cards below (never an overflow box)</Label>
+          <ConsolePanel>
+            <ConsoleTable
+              caption="Your product listings"
+              head={
+                <>
+                  <ConsoleHeadCell>Product</ConsoleHeadCell>
+                  <ConsoleHeadCell>Price</ConsoleHeadCell>
+                  <ConsoleHeadCell>Status</ConsoleHeadCell>
+                </>
+              }
+            >
+              <ConsoleRow>
+                <ConsoleCell label="Product">Cow milk</ConsoleCell>
+                <ConsoleCell label="Price">₹55/L</ConsoleCell>
+                <ConsoleCell label="Status">
+                  <StateChip tone="ok">Active</StateChip>
+                </ConsoleCell>
+              </ConsoleRow>
+              <ConsoleRow>
+                <ConsoleCell label="Product">A2 milk</ConsoleCell>
+                <ConsoleCell label="Price">₹110/L</ConsoleCell>
+                <ConsoleCell label="Status">
+                  <StateChip tone="pending">Pending review</StateChip>
+                </ConsoleCell>
+              </ConsoleRow>
+              <ConsoleRow>
+                <ConsoleCell label="Product">Paneer 200g</ConsoleCell>
+                <ConsoleCell label="Price">₹90</ConsoleCell>
+                <ConsoleCell label="Status">
+                  <StateChip tone="neutral">Draft</StateChip>
+                </ConsoleCell>
+              </ConsoleRow>
+            </ConsoleTable>
+          </ConsolePanel>
+
+          <Label>Empty panel — the existing EmptyState primitive as a panel body (no new shape)</Label>
+          <ConsolePanel title="Lead inbox" className="max-w-[480px]">
+            <EmptyState
+              icon="📥"
+              title="No leads yet."
+              description="Buyers who post a need in your coverage area appear here."
+            />
+          </ConsolePanel>
+
+          <Label>Notices — inline save outcomes (ok / alert)</Label>
+          <div className="flex max-w-[480px] flex-col gap-2">
+            <ConsoleNotice tone="ok">Coverage saved.</ConsoleNotice>
+            <ConsoleNotice tone="alert">Could not save — pincode 999999 is not serviceable.</ConsoleNotice>
+          </div>
+
+          <Label>Destructive confirm — two-step, names the consequence, soft-delete honest copy</Label>
+          <U2ConfirmDemo />
         </Section>
 
         {/* ═══ locale matrix — icon + EN + vernacular in all 3 locales ═══ */}

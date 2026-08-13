@@ -13,6 +13,7 @@ from modules.directory.catalog_models import Product, SpecSchema, Vertical
 from modules.directory.models import Business
 from modules.directory.service import BusinessNotFoundError, _slugify, get_owned_business
 from modules.directory.specs import parse_fields, validate_specs
+from shared.db import soft_delete
 from shared.pagination import DEFAULT_PAGE_SIZE, Page, paginate
 
 PRODUCT_MUTABLE_FIELDS = {"name", "specs", "price_display", "status"}
@@ -248,6 +249,19 @@ async def remove_product_image(
     updated = list(product.media_keys)
     del updated[index]
     product.media_keys = updated
+    await session.flush()
+    return product
+
+
+async def delete_product(
+    session: AsyncSession, *, owner_user_id: uuid.UUID, product_id: uuid.UUID
+) -> Product:
+    """Owner removal (U2 Group B) — a SOFT delete, never a hard DELETE. The
+    default ORM filter hides the row everywhere public immediately; support
+    can restore by clearing `deleted_at`. Funnels through get_owned_product,
+    so not-yours and missing both collapse to ProductNotFoundError → 404."""
+    product = await get_owned_product(session, owner_user_id, product_id)
+    soft_delete(product)
     await session.flush()
     return product
 

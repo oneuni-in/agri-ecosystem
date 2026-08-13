@@ -22,7 +22,7 @@ const MAX_BODY_BYTES = 30 * 1024 * 1024;
 async function forward(
   req: NextRequest,
   params: Promise<{ path: string[] }>,
-  method: "GET" | "POST" | "PATCH" | "PUT",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
 ): Promise<NextResponse> {
   const { path } = await params;
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
@@ -45,8 +45,11 @@ async function forward(
     method,
     headers,
     // Raw bytes, not formData()/text(): preserves the multipart boundary
-    // for evidence-photo uploads (claim submission) untouched.
-    ...(method !== "GET" ? { body: Buffer.from(await req.arrayBuffer()) } : {}),
+    // for evidence-photo uploads (claim submission) untouched. DELETE
+    // carries no body (U2 soft-delete routes are bodyless by design).
+    ...(method !== "GET" && method !== "DELETE"
+      ? { body: Buffer.from(await req.arrayBuffer()) }
+      : {}),
     cache: "no-store",
   });
   if (NULL_BODY_STATUSES.has(upstream.status)) {
@@ -76,4 +79,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 }
 export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx.params, "PUT");
+}
+export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx.params, "DELETE");
 }

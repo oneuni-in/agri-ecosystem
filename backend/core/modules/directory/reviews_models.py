@@ -12,7 +12,7 @@ from sqlalchemy import CheckConstraint, Index, Integer, Numeric, SmallInteger, U
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
-from shared.db import Base, TimestampMixin, UGCMixin, UUIDv7PKMixin
+from shared.db import Base, SoftDeleteMixin, TimestampMixin, UGCMixin, UUIDv7PKMixin
 from shared.i18n import Translated, TranslatedString
 
 review_target_enum = postgresql.ENUM(
@@ -54,6 +54,36 @@ class Review(UUIDv7PKMixin, TimestampMixin, UGCMixin, Base):
     target_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     body: Mapped[Translated | None] = mapped_column(TranslatedString, nullable=True)
+
+
+class ReviewReply(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, UGCMixin, Base):
+    """A business's official response to a review (U2 Group C).
+
+    UGC by the vendor that the public reads → UGCMixin: `pending` on write,
+    only `approved` replies surface in the public reviews list (D18 rule,
+    unchanged). One reply per review (a business gives one response); the
+    reply is soft-deleted, never hard-deleted. `review_id`/`business_id` are
+    plain UUIDs (no cross-FK — the repo-wide convention reviews already
+    follow); the service validates the review exists, is approved, and
+    targets a business the caller owns.
+    """
+
+    __tablename__ = "review_replies"
+    __table_args__ = (
+        UniqueConstraint("review_id", name="uq_directory_review_replies_one_per_review"),
+        Index("ix_directory_review_replies_moderation_status_id", "moderation_status", "id"),
+        Index("ix_directory_review_replies_review_status", "review_id", "moderation_status"),
+        {"schema": "directory"},
+    )
+
+    review_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=False, index=True
+    )
+    author_user_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
+    body: Mapped[Translated] = mapped_column(TranslatedString, nullable=False)
 
 
 class RatingAggregate(UUIDv7PKMixin, TimestampMixin, Base):

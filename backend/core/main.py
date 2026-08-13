@@ -31,6 +31,7 @@ from modules.directory.lookups import business_is_servable, business_ref, owned_
 from modules.directory.moderation_sources import register_directory_moderation_sources
 from modules.directory.needs_router import router as needs_router
 from modules.directory.reviews_admin_router import admin_router as reviews_admin_router
+from modules.directory.reviews_admin_router import reply_admin_router as review_replies_admin_router
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
 from modules.directory.service import BusinessDisabledError
@@ -102,6 +103,7 @@ MODULE_ROUTERS = [
     notify_router,
     ops_admin_router,
     reviews_admin_router,
+    review_replies_admin_router,
     reviews_router,
     search_router,
     identity_location_router,

@@ -15,6 +15,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory.models import Branch, Business, BusinessCategory, BusinessCoverage, Category
+from shared.db import soft_delete
 from shared.i18n import Translated
 from shared.ownership import owned_by
 from shared.pagination import DEFAULT_PAGE_SIZE, Page, paginate
@@ -127,6 +128,28 @@ async def update_business(
         business.description = Translated.from_dict(raw) if raw else None
     for field, value in patch.items():
         setattr(business, field, value)
+    await session.flush()
+    return business
+
+
+async def delete_business(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    business_id: uuid.UUID,
+) -> Business:
+    """Owner removal (U2 Group B) — a SOFT delete, never a hard DELETE.
+
+    The default ORM filter hides the row from every public read (covers,
+    slug page, owner list) the moment it flushes; branches/products stay
+    intact under it so support can restore the whole listing by clearing
+    `deleted_at`. Funnels through get_owned_business, so not-yours and
+    missing both surface as BusinessNotFoundError (the router's 404 — never
+    a 403, which would confirm the row exists) and a disabled business
+    cannot self-delete out of enforcement.
+    """
+    business = await get_owned_business(session, owner_user_id, business_id)
+    soft_delete(business)
     await session.flush()
     return business
 

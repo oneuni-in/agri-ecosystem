@@ -6,7 +6,9 @@
  * lockstep with the theme blocks in tailwind/preset.js.
  */
 export const themeColors = {
-  "theme-agri": { brand: "#2C6E35", paper: "#F7F8F3" },
+  // A-U1: agri brand re-entered from A1 FINAL v4 (--ag). paper stays the
+  // shared --paper, matching how milk kept it when its page went cream.
+  "theme-agri": { brand: "#3E7A45", paper: "#F7F8F3" },
   "theme-milk": { brand: "#2563A8", paper: "#F7F8F3" },
   "theme-organic": { brand: "#4A6B2A", paper: "#F7F8F3" },
 };

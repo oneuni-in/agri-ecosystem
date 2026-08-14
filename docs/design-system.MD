@@ -11,11 +11,24 @@
 ### 1.1 Per-site themes (switched via `data-theme` on app root)
 | Token | agri.in | milk.in | organicstore.in |
 |---|---|---|---|
-| `--brand` | #2C6E35 | #2563A8 | #4A6B2A |
-| `--brand-deep` | #1E4E26 | #174A85 | #35511C |
-| `--brand-soft` | #E8F2E6 | #E9F1FA | #EFF3E4 |
+| `--brand` | #3E7A45 | #2563A8 | #4A6B2A |
+| `--brand-deep` | #2C5A33 | #174A85 | #35511C |
+| `--brand-soft` | #EAF3E4 | #E9F1FA | #EFF3E4 |
+| `--brand-soft-2` | #BFDCBA | #B9D2EE | — (falls back to `--brand-soft`) |
 | `--accent` | #E9A61C | #E9A61C | #B5541C |
+| `--page-bg` | `var(--cream)` | `var(--cream)` | shared #E9EBE2 |
 | Header gradient | `linear-gradient(160deg, brand-deep, brand)` | same pattern | same pattern |
+
+> **A-U1:** agri's column re-entered from **A1 FINAL v4**
+> (`docs/design-reference/agri/agri_home_desktop_v1.html`), which supersedes
+> `preview_frontend.html` for agri surfaces. The reference's `--ag` family
+> maps onto the `--brand` slots (`--ag`→`--brand`, `--ag-deep`→`--brand-deep`,
+> `--ag-soft`→`--brand-soft`, `--ag-soft-2`→`--brand-soft-2`), exactly as
+> milk's `--mk` family did at U1. Agri's page surface goes cream, the same
+> scoped move milk made at U1 §13. White on `--brand` #3E7A45 = 5.15:1;
+> `--brand-soft-2` on `--brand-deep` = 5.42:1 (utility strip); note that
+> `--brand-soft-2` on `--brand` (header tagline) is 3.48:1 — same accepted
+> deviation class as milk's tagline, audited at the AG-A7/A8 rows.
 
 ### 1.2 Shared neutrals & semantics
 ```
@@ -33,6 +46,32 @@ Badge neutral:   bg #FFFFFF / fg #5A6A5D / border #E2E7DA (plain label, e.g. a
                  reads as a trust badge; not in the mockup, built from shared
                  neutral tokens per §"never invent a new visual language")
 Rating stars fg: #C77700
+```
+
+### 1.2b Shared tokens entered at A-U1 (source: A1 FINAL v4)
+```
+--up:#1E7A34   --down:#B5541C   (mandi price rise / fall — ticker, today
+               strip, mandi cards, sparkline strokes; --down doubles as the
+               deadline-bar heading. 5.40:1 / 4.95:1 on white — AA at 11px.)
+--monsoon:#4A6B8A                (weather accent · 5.57:1 on white)
+--severe-bg:#FDF1E3 --severe-border:#E8B268 --severe-ink:#7A4A0D
+               (severe-weather alert strip, §2b of A1. The reference names
+               these --alert-bg/--alert-border/--alert-ink; entered here as
+               --severe-* because --alert-bg/--alert-line already exist as
+               the generic notice style used across milk.in forms and both
+               consoles — repointing them would restyle those surfaces.
+               --severe-ink on --severe-bg = 6.71:1.)
+Gradient recipes (preset backgroundImage, app code stays hex-free):
+  band-gradient  135deg brand → brand/deep mix   (search band, Today "ask" card)
+  earn-gradient  135deg #FEF9EE → #FDF3DC        (earn-AgriCoins cards)
+  tip-gradient   120deg #FEFAF0 → #FBF3DE        (tip-of-the-day card)
+Earn/tip card text maps to --coins-fg and borders to --alert-line — the
+reference's near-identical one-off golds (#854F0B, #EAD9AC) are NOT minted
+as tokens; the coins family is the existing truth for that palette.
+Animation layer (preset keyframes; every call site carries a motion-reduce
+override whose static state keeps content fully visible): pop (tile
+stagger), glow (sponsored breath), draw (sparkline stroke-dashoffset),
+pulse2 (mandi live dot).
 ```
 
 ### 1.3 Type

@@ -12,10 +12,21 @@ import plugin from "tailwindcss/plugin";
 /** §1.1 per-site themes, switched via data-theme on each app's root element. */
 const themes = {
   "theme-agri": {
-    "--brand": "#2C6E35",
-    "--brand-deep": "#1E4E26",
-    "--brand-soft": "#E8F2E6",
+    // A-U1 — the agri vertical layer from A1 FINAL v4
+    // (docs/design-reference/agri/agri_home_desktop_v1.html :root). The
+    // reference's --ag family maps onto the --brand slots exactly as milk's
+    // --mk family did at U1: --ag → --brand, --ag-deep → --brand-deep,
+    // --ag-soft → --brand-soft, --ag-soft-2 → --brand-soft-2.
+    "--brand": "#3E7A45",
+    "--brand-deep": "#2C5A33",
+    "--brand-soft": "#EAF3E4",
+    // Agri's designed mid-tone (see theme-milk's note): utility strip,
+    // header tagline, hero body copy, footer body on brand surfaces.
+    "--brand-soft-2": "#BFDCBA",
     "--accent": "#E9A61C",
+    // A1 home sits on cream paper, the same move milk made at U1 §13.
+    // Scoped to this theme; organic is untouched.
+    "--page-bg": "var(--cream)",
   },
   "theme-milk": {
     "--brand": "#2563A8",
@@ -103,6 +114,24 @@ const shared = {
   // Ink for text on the golden --accent (money buttons, hotline chip, coins).
   // Follows the existing bg/fg pair convention (--coins-bg/--coins-fg).
   "--accent-ink": "#4A2E00",
+
+  /* ── A-U1 — NEW shared tokens from A1 FINAL v4 (enter-before-use rule).
+     --up/--down carry mandi price movement everywhere a change renders
+     (ticker, today strip, mandi cards, sparkline strokes); --down doubles as
+     the deadline-heading red-brown. On white: --up 5.40:1, --down 4.95:1 —
+     both clear the 4.5 AA floor at the 11px sizes they are used at.
+     --monsoon is the weather accent (5.57:1 on white).
+     The severe-weather strip trio is named --severe-*, NOT the reference's
+     --alert-bg/--alert-border/--alert-ink: --alert-bg/--alert-line already
+     exist as the generic notice style used across milk.in forms and both
+     consoles, and repointing them would restyle those surfaces from an agri
+     spec. --severe-ink on --severe-bg is 6.71:1. */
+  "--up": "#1E7A34",
+  "--down": "#B5541C",
+  "--monsoon": "#4A6B8A",
+  "--severe-bg": "#FDF1E3",
+  "--severe-border": "#E8B268",
+  "--severe-ink": "#7A4A0D",
 };
 
 /** Pastel icon-square tints used by CategoryTile / ListingCard / ProductCard. */
@@ -168,6 +197,12 @@ export const agriPreset = {
         rating: "var(--rating)",
         ghost: "var(--ghost)",
         glass: "var(--glass)",
+        up: "var(--up)",
+        down: "var(--down)",
+        monsoon: "var(--monsoon)",
+        "severe-bg": "var(--severe-bg)",
+        "severe-border": "var(--severe-border)",
+        "severe-ink": "var(--severe-ink)",
         "certgold-bg": "#FFFBEE",
         "certgold-line": "#CBB77A",
         tint,
@@ -205,11 +240,33 @@ export const agriPreset = {
         // web-milk would leave the same component motionless in the kitchen
         // sink, which is the demo-and-product-disagree failure U1 warns about.
         ticker: { from: { transform: "translateX(0)" }, to: { transform: "translateX(-50%)" } },
+        // A-U1 — the A1 attraction layer. Every user of these keyframes
+        // carries a motion-reduce override at the call site whose static
+        // state keeps the content fully visible (A1 FINAL v4 rule): tiles
+        // land at opacity 1, sparklines render fully drawn.
+        pop: {
+          from: { opacity: "0", transform: "translateY(12px) scale(.95)" },
+          to: { opacity: "1", transform: "none" },
+        },
+        glow: {
+          "0%, 100%": { boxShadow: "0 0 0 rgba(233,166,28,0)" },
+          "50%": { boxShadow: "0 4px 22px rgba(233,166,28,.28)" },
+        },
+        draw: { from: { strokeDashoffset: "120" }, to: { strokeDashoffset: "0" } },
+        pulse2: {
+          from: { transform: "scale(.5)", opacity: ".7" },
+          to: { transform: "scale(1.4)", opacity: "0" },
+        },
       },
       animation: {
         // Reduced motion is honoured at the call site with
         // `motion-reduce:[animation:none]`, which degrades to a static row.
         ticker: "ticker 28s linear infinite",
+        // A-U1 timings, exact from the reference.
+        pop: "pop .45s cubic-bezier(.2,.7,.3,1.1) both",
+        glow: "glow 3.5s ease-in-out infinite",
+        draw: "draw 1.1s .25s ease-out forwards",
+        pulse2: "pulse2 1.8s ease-out infinite",
       },
       backgroundImage: {
         "header-gradient": "linear-gradient(160deg, var(--brand-deep), var(--brand))",
@@ -218,6 +275,14 @@ export const agriPreset = {
         "eco-organic": "linear-gradient(140deg, #35511C, #4A6B2A)",
         "eco-coins": "linear-gradient(140deg, #8A5B00, #C98A10)",
         "gold-gradient": "linear-gradient(140deg, #8A5B00, #B5541C)",
+        // A-U1 recipes from A1 FINAL v4. band-gradient is the search band and
+        // the Today strip's "ask" card (135deg, brand into a brand/deep mix);
+        // earn/tip are the warm gold card washes of the coins family. Exact
+        // reference stops — recipes live here so app code stays hex-free.
+        "band-gradient":
+          "linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, var(--brand-deep)) 100%)",
+        "earn-gradient": "linear-gradient(135deg, #FEF9EE, #FDF3DC)",
+        "tip-gradient": "linear-gradient(120deg, #FEFAF0, #FBF3DE)",
       },
     },
   },

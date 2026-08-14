@@ -68,6 +68,37 @@ test.describe("M1 dairy taxonomy", () => {
     await expect(cta).toHaveAttribute("href", /\/business\/listings$/);
   });
 
+  /**
+   * U4 A11 regression: the §5 pinned filters (Home delivery / Organic) must be
+   * ABSENT from the DOM below 1024px, not merely `display:none` — U1's rule is
+   * "filters leave the bar on mobile/tablet", and a hidden interactive element
+   * is invisible to axe, which is exactly why the a11y gate never caught it.
+   * Assert by COUNT, never by visibility.
+   */
+  test("§5 pinned filters are absent from the DOM below 1024 and pinned right above it", async ({
+    page,
+  }) => {
+    const filters = page.getByTestId("category-bar-filters");
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto(`${MILK}/`);
+    // Header settled = hydration done, so a zero count below is the island's
+    // decision, not a page that has not hydrated yet (the SSR HTML does carry
+    // the span — hidden — until React removes it).
+    await waitForHeaderSettled(page);
+    await expect(filters).toHaveCount(0);
+    await page.setViewportSize({ width: 768, height: 900 });
+    await expect(filters).toHaveCount(0);
+    // Crossing the boundary re-mounts them live (matchMedia change event).
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await expect(filters).toBeVisible();
+    await expect(filters.locator("a")).toHaveCount(2);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(filters).toBeVisible();
+    // NN5 guard: with the filters pinned, the bar still never wraps — one row.
+    const bar = await page.getByTestId("category-bar").boundingBox();
+    expect(bar!.height).toBeLessThan(60);
+  });
+
   test("the Tamil home renders Tamil category labels", async ({ page }) => {
     await page.goto(`${MILK}/ta`);
     await waitForHeaderSettled(page);

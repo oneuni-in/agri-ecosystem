@@ -17,10 +17,10 @@
  * reference's exact fallback behaviour).
  *
  * One-off colours in the reference map to existing tokens rather than
- * minting new ones (recorded in design-system.md §1.2b): eyebrow #946B2D →
- * coins-fg · earn/tip golds → coins-fg/alert-line · deadline chip
- * #FCEBEB/#9C2B2B → severe-bg/down · crop harvest chip → sponsored badge
- * pair. The sanctioned NEW tokens (up/down/monsoon/severe-*) are §1.2b.
+ * minting new ones (recorded in design-system.md §1.2b): eyebrow amber →
+ * coins-fg · earn/tip golds → coins-fg/alert-line · deadline chip red pair
+ * → severe-bg/down · crop harvest chip → sponsored badge pair. The
+ * sanctioned NEW tokens (up/down/monsoon/severe-*) are §1.2b.
  */
 import type { ReactNode } from "react";
 

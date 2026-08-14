@@ -81,6 +81,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { AU1AgriDemo } from "./au1-agri-demo";
 import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
 import { U1BandsDemo } from "./u1-bands-demo";
@@ -759,6 +760,15 @@ export default async function DemoPage({
 
           <Label>Opt-in bands — §10a price alerts, §10b app install (both dismissible)</Label>
           <U1BandsDemo />
+        </Section>
+
+        {/* ═══ A-U1 agri home patterns ═══
+            The A1 FINAL v4 shapes (agri-home-patterns.tsx + TodayTile +
+            Reveal/CountUp). Reference sample data lives HERE and nowhere
+            else — the production home binds these same components to
+            engines and renders nothing where an engine has no data. */}
+        <Section title="A-U1 · agri home patterns (A1 FINAL v4)">
+          <AU1AgriDemo />
         </Section>
 
         {/* ═══ U2 console patterns ═══

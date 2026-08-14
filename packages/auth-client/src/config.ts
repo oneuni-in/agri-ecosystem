@@ -34,6 +34,12 @@ export interface ResolvedConfig {
   expectedIssuer: string;
   sessionCookie: string;
   txCookie: string;
+  /** Browser-READABLE companion of `sessionCookie` (value "1", no payload):
+   * the session itself is an httpOnly JWE, so without this the client's only
+   * way to learn "no session" is to probe /api/auth/me and eat a 401 console
+   * error on every guest page view (U4 A1). Set/cleared strictly alongside
+   * the session cookie by the handlers. */
+  hintCookie: string;
   secure: boolean;
 }
 
@@ -58,6 +64,10 @@ export function resolveConfig(config: AgriAuthConfig): ResolvedConfig {
     expectedIssuer: config.expectedIssuer ?? "https://id.agri.in",
     sessionCookie,
     txCookie: `${sessionCookie}_tx`,
+    // The `_session_hint` suffix is the client-side contract: react-helpers'
+    // hasSessionHint() matches it by shape, so the browser code needs no
+    // per-app config. Keep the two in sync.
+    hintCookie: `${sessionCookie}_hint`,
     secure: config.appOrigin.startsWith("https:"),
   };
 }

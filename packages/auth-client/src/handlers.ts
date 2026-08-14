@@ -123,6 +123,18 @@ function rolesAllowed(cfg: ResolvedConfig, roles: readonly string[]): boolean {
   return cfg.requiredRoles.some((role) => roles.includes(role));
 }
 
+/** The browser-readable "a session exists" flag (U4 A1). Set with every
+ * session cookie and cleared with every session clear — the pair must never
+ * diverge, or guests go back to eating /api/auth/me 401s (hint wrongly
+ * present) or logged-in headers go guest (hint wrongly absent). */
+function setHintCookie(cfg: ResolvedConfig): string {
+  return serializeCookie(cfg.hintCookie, "1", {
+    maxAge: SESSION_COOKIE_MAX_AGE,
+    secure: cfg.secure,
+    httpOnly: false,
+  });
+}
+
 /**
  * Is the identity provider answering at all?
  *
@@ -243,6 +255,7 @@ async function handleCallback(cfg: ResolvedConfig, req: Request): Promise<Respon
       maxAge: SESSION_COOKIE_MAX_AGE,
       secure: cfg.secure,
     }),
+    setHintCookie(cfg),
     clearTx,
   ]);
 }
@@ -261,11 +274,13 @@ export async function readSession(
 }
 
 async function handleMe(cfg: ResolvedConfig, req: Request): Promise<Response> {
-  const clear = clearCookie(cfg.sessionCookie, cfg.secure);
+  // Session and hint clear together — a stale hint self-heals here on its
+  // one and only 401 (e.g. after a back-channel logout in another app).
+  const clear = [clearCookie(cfg.sessionCookie, cfg.secure), clearCookie(cfg.hintCookie, cfg.secure)];
   const session = await readSession(cfg, req.headers.get("cookie"));
-  if (!session) return json({ user: null }, 401, [clear]);
+  if (!session) return json({ user: null }, 401, clear);
   if (session.accessExpiresAt - CLOCK_SKEW_SECONDS > now()) {
-    if (!rolesAllowed(cfg, session.roles)) return json({ user: null }, 403, [clear]);
+    if (!rolesAllowed(cfg, session.roles)) return json({ user: null }, 403, clear);
     return json({ user: projectUser(session) }, 200);
   }
   // Access token stale: rotate the refresh token (the ~15-minute safety net -
@@ -281,8 +296,8 @@ async function handleMe(cfg: ResolvedConfig, req: Request): Promise<Response> {
     req,
   );
   const rotated = tokens && sessionFromTokens(tokens);
-  if (!rotated) return json({ user: null }, 401, [clear]);
-  if (!rolesAllowed(cfg, rotated.roles)) return json({ user: null }, 403, [clear]);
+  if (!rotated) return json({ user: null }, 401, clear);
+  if (!rolesAllowed(cfg, rotated.roles)) return json({ user: null }, 403, clear);
   const resealed = await seal(
     { ...rotated, issuedAt: session.issuedAt } as unknown as Record<string, unknown>,
     cfg.sessionSecret,
@@ -293,6 +308,7 @@ async function handleMe(cfg: ResolvedConfig, req: Request): Promise<Response> {
       maxAge: SESSION_COOKIE_MAX_AGE,
       secure: cfg.secure,
     }),
+    setHintCookie(cfg), // keep the pair's lifetimes aligned across rotations
   ]);
 }
 
@@ -310,7 +326,10 @@ async function handleLogout(cfg: ResolvedConfig, req: Request): Promise<Response
       // revocation failure must not trap the user in a logged-in app
     }
   }
-  return json({ status: "ok" }, 200, [clearCookie(cfg.sessionCookie, cfg.secure)]);
+  return json({ status: "ok" }, 200, [
+    clearCookie(cfg.sessionCookie, cfg.secure),
+    clearCookie(cfg.hintCookie, cfg.secure),
+  ]);
 }
 
 async function handleBackchannelLogout(cfg: ResolvedConfig, req: Request): Promise<Response> {

@@ -25,7 +25,12 @@ test("login once on milk -> in on organic -> logout-everywhere kills both", asyn
   await page.getByRole("button", { name: /skip/i }).click();
   await page.getByRole("button", { name: /english/i }).click();
   await page.waitForURL(`${MILK}/**`);
-  await expect(page.getByRole("button", { name: /🪙/ })).toBeVisible();
+  // 20s like every other settle-wait in this file: since U4 A1 a GUEST page
+  // load never touches /api/auth/me or /api/coins/balance, so their dev-JIT
+  // first compile now happens right HERE, post-login, inside this expect —
+  // the 5s default flaked on exactly that cold start (balance request still
+  // in-flight in the failure trace).
+  await expect(page.getByRole("button", { name: /🪙/ })).toBeVisible({ timeout: 20_000 });
 
   // ---- NON-NEGOTIABLE 1: no tokens anywhere JS can reach
   const jsVisible = await page.evaluate(() => ({

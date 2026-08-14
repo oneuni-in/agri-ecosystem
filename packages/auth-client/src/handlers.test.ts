@@ -194,6 +194,15 @@ describe("GET /api/auth/callback", () => {
     expect(session?.agriId).toBe("green_farmer42");
     expect(session?.name).toBe("Asha");
     expect(session?.refreshToken).toBe("refresh-1");
+
+    // U4 A1: the browser-readable hint rides along — value "1" only (never a
+    // token shape), NOT HttpOnly (its whole purpose is document.cookie), so
+    // useAgriUser can know "session exists" without probing /api/auth/me.
+    const hintCookie = cookies.find((c) => c.startsWith("milk_session_hint="))!;
+    expect(hintCookie).toBeTruthy();
+    expect(hintCookie).toContain("milk_session_hint=1");
+    expect(hintCookie).not.toContain("HttpOnly");
+    expect(hintCookie).toContain("SameSite=Lax");
   });
 
   it("rejects a state mismatch (CSRF) with 400 and no session", async () => {
@@ -360,9 +369,15 @@ describe("GET /api/auth/me", () => {
     });
   });
 
-  it("no cookie -> 401", async () => {
+  it("no cookie -> 401, and a stale hint is cleared with the session (U4 A1)", async () => {
     const { GET } = createHandlers(cfg);
-    expect((await GET(new Request("http://localhost:3000/api/auth/me"))).status).toBe(401);
+    const res = await GET(new Request("http://localhost:3000/api/auth/me"));
+    expect(res.status).toBe(401);
+    // Hint and session clear TOGETHER: a hint that outlived its session would
+    // put the guest 401 loop right back (the client trusts the hint).
+    expect(
+      setCookies(res).some((c) => c.startsWith("milk_session_hint=") && c.includes("Max-Age=0")),
+    ).toBe(true);
   });
 
   it("expired access token -> refresh grant with forwarded UA, resealed cookie", async () => {
@@ -391,6 +406,8 @@ describe("GET /api/auth/me", () => {
     expect((init.body as URLSearchParams).get("grant_type")).toBe("refresh_token");
     const resealed = setCookies(res).find((c) => c.startsWith("milk_session=ey"));
     expect(resealed).toBeTruthy();
+    // the hint's lifetime tracks the resealed session's (U4 A1)
+    expect(setCookies(res).some((c) => c.startsWith("milk_session_hint=1"))).toBe(true);
     const payload = await unseal<SessionPayload>(
       resealed!.split(";")[0]!.slice("milk_session=".length),
       cfg.sessionSecret,
@@ -476,7 +493,12 @@ describe("POST /api/auth/logout", () => {
     expect(revokeUrl).toBe("http://127.0.0.1:8000/oauth/revoke");
     expect((init.body as URLSearchParams).get("token")).toBe("rt-1");
     expect((init.body as URLSearchParams).get("client_id")).toBe("web-milk");
-    expect(setCookies(res).some((c) => c.includes("Max-Age=0"))).toBe(true);
+    const cleared = setCookies(res);
+    expect(cleared.some((c) => c.startsWith("milk_session=") && c.includes("Max-Age=0"))).toBe(true);
+    // logout kills the hint too — a surviving hint would 401-probe forever (U4 A1)
+    expect(cleared.some((c) => c.startsWith("milk_session_hint=") && c.includes("Max-Age=0"))).toBe(
+      true,
+    );
   });
 
   it("revoke endpoint rejects -> still 200 and session cookie cleared: revoke failure must not trap the user", async () => {

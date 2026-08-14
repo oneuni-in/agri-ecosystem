@@ -98,6 +98,55 @@ test.describe("D28 PWA", () => {
   });
 
   /**
+   * U4 A21 — the §10a dismissal persists (its own 30-day cookie,
+   * `milk_price_alert`, distinct from §10b's `milk_a2hs`).
+   *
+   * Headless Chromium hard-reports `Notification.permission === "denied"`,
+   * which is why the card's positive path historically ran only in
+   * push-verification.spec.ts (real Chrome). Stubbing the PERMISSION READ —
+   * nothing else, no app code — lets the card reach its "idle" state here,
+   * so CI can pin the regression: dismiss → reload → still gone, and a fresh
+   * context already carrying the cookie never shows the card at all.
+   */
+  test("§10a price-alert dismissal survives reload and a fresh context with the cookie", async ({
+    browser,
+  }) => {
+    test.setTimeout(120_000);
+    const stubPermission = () => {
+      Object.defineProperty(Notification, "permission", {
+        configurable: true,
+        get: () => "default",
+      });
+    };
+    const context = await browser.newContext();
+    await context.addInitScript(stubPermission);
+    const page = await context.newPage();
+    await page.goto(`${MILK}/en`);
+    const card = page.getByTestId("price-alert-card");
+    // detectPushState awaits serviceWorker.ready — same slow-runner allowance
+    // as the offline spec's SW wait.
+    await expect(card).toBeVisible({ timeout: 45_000 });
+    await card.getByRole("button", { name: /not now/i }).click();
+    await expect(card).toHaveCount(0);
+    expect(await page.evaluate(() => document.cookie)).toContain("milk_price_alert=0");
+    await page.reload();
+    await page.waitForTimeout(2_000); // let the island's detect() settle before asserting absence
+    await expect(page.getByTestId("price-alert-card")).toHaveCount(0);
+    await context.close();
+
+    // A fresh context carrying only the cookie (same device, days later):
+    // the dismissal must hold without any component state to lean on.
+    const fresh = await browser.newContext();
+    await fresh.addInitScript(stubPermission);
+    await fresh.addCookies([{ name: "milk_price_alert", value: "0", url: MILK }]);
+    const freshPage = await fresh.newPage();
+    await freshPage.goto(`${MILK}/en`);
+    await freshPage.waitForTimeout(2_000);
+    await expect(freshPage.getByTestId("price-alert-card")).toHaveCount(0);
+    await fresh.close();
+  });
+
+  /**
    * U1 §10b — the app/PWA install band. Chromium never fires
    * `beforeinstallprompt` under automation, so the Android path cannot be
    * asserted here; the iOS path can, and it is the one with a fallback worth

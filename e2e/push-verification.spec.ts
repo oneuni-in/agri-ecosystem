@@ -94,6 +94,11 @@ test.describe("D28 push — real browser, real FCM", () => {
       await expect(alertCard).toContainText("641001"); // the visitor's own pincode, not a configured one
       await alertCard.getByRole("button", { name: /not now/i }).click();
       await expect(alertCard).toHaveCount(0); // "never nag"
+      // U4 A21: the dismissal is a 30-day cookie, not component state — it
+      // must survive a reload in the one browser that shows the real card.
+      await page.reload();
+      await page.waitForTimeout(2_000);
+      await expect(page.getByTestId("price-alert-card")).toHaveCount(0);
 
       // --- subscribe: the real browser <-> push-service handshake ---
       await page.goto(`${MILK}/notifications`);

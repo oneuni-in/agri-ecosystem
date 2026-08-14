@@ -42,6 +42,7 @@ _DEFAULT_AD_SIZE = (1200, 628)
 # ratio its reserved box actually uses.
 _SLOT_SIZES = {
     "milk_home_hero_xl": (1600, 420),  # U1 §3 full-bleed home hero
+    "agri_home_hero_xl": (1600, 420),  # A-U1 §4 agri full-bleed home hero
     "milk_global_header": (1200, 160),  # thin page-head banner
     "milk_category_banner": (1200, 160),  # U1 §5d partner banner
     "milk_search_inline": (1200, 160),

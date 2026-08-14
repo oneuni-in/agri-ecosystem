@@ -1,0 +1,377 @@
+<style>
+/* agri.in pages — MOBILE MOCKUP SET (A4 v1). 375px frames, home-mobile style.
+   Animation layer; all motion disabled under prefers-reduced-motion. */
+@keyframes ag-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ag-glow{0%,100%{box-shadow:0 0 0 rgba(233,166,28,0)}50%{box-shadow:0 3px 16px rgba(233,166,28,.35)}}
+@keyframes ag-pulse{from{transform:scale(.6);opacity:.8}to{transform:scale(1.5);opacity:0}}
+@keyframes ag-pop{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes ag-op{0%,100%{opacity:1}50%{opacity:.45}}
+.m-float{display:inline-block;animation:ag-float 4s ease-in-out infinite}
+.m-glow{animation:ag-glow 3.5s ease-in-out infinite}
+.m-live{animation:ag-op 2.2s ease-in-out infinite}
+.m-dot{width:7px;height:7px;border-radius:50%;background:#C0392B;display:inline-block;position:relative;margin-right:5px;vertical-align:middle}
+.m-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:1.5px solid #C0392B;animation:ag-pulse 1.6s ease-out infinite}
+.m-reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.m-reveal.in{opacity:1;transform:none}
+.ph-cap{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#946B2D;background:#FBF3DE;border:1px solid #EAD9AC;border-radius:99px;padding:4px 13px;display:inline-block;margin-bottom:8px}
+.phone{width:375px;background:#FDFBF6;border-radius:18px;border:.5px solid #D9E0C8;overflow:hidden;font-family:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;position:relative}
+.ph-col{display:flex;flex-direction:column;align-items:center}
+@media (prefers-reduced-motion: reduce){
+  .m-float,.m-glow,.m-live,.m-dot::after{animation:none!important}
+  .m-reveal{opacity:1;transform:none;transition:none}
+}
+</style>
+<div style="background:#F4F0E6;border-radius:12px;padding:24px;display:flex;flex-wrap:wrap;gap:26px;justify-content:center;font-family:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">A4 mobile mockups: categories, category template, product, business profile, AgriID register, business dashboard, ad campaign wizard</h2>
+
+<!-- ================== PHONE 1 · CATEGORIES ================== -->
+<div class="ph-col"><span class="ph-cap">/categories · 36 verticals</span>
+<div class="phone" id="agm">
+  <div style="background:#3E7A45;padding:10px 12px;display:flex;align-items:center;gap:7px;">
+    <span style="color:#fff;font-weight:500;font-size:15px;flex:1;">🗂️ All categories</span>
+    <span style="color:#EAF3E4;font-size:10px;">📍 641001</span>
+    <span style="background:#FEF3DC;color:#854F0B;font-size:10px;font-weight:500;border-radius:99px;padding:3px 8px;">🪙 1,240</span>
+  </div>
+  <div style="padding:9px 12px 0;">
+    <div style="font-size:9px;font-weight:600;letter-spacing:.1em;color:#946B2D;">36 VERTICALS · ONE REGISTRY</div>
+    <div style="font-size:14px;font-weight:600;color:#1D2A20;">எல்லா பிரிவுகளும் · 7 live · 29 in stages</div>
+    <div style="margin-top:7px;background:#fff;border:.5px solid #EDE6D6;border-radius:10px;padding:7px 11px;display:flex;gap:6px;">
+      <span style="font-size:10px;color:#8A8574;flex:1;">Find a category… tractor, மண் பரிசோதனை</span><span style="font-size:11px;">🔍</span>
+    </div>
+  </div>
+  <div style="padding:9px 12px 2px;"><span style="font-size:10.5px;font-weight:600;color:#1D2A20;">🟢 Farm essentials — live</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:3px 12px;">
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">📈</span><b style="font-size:8.5px;color:#1D2A20;">Mandi</b><span style="display:block;font-size:7px;color:#8A8574;">விலை</span></span>
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">🌦️</span><b style="font-size:8.5px;color:#1D2A20;">Weather</b><span style="display:block;font-size:7px;color:#8A8574;">வானிலை</span></span>
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">🏛️</span><b style="font-size:8.5px;color:#1D2A20;">Schemes</b><span style="display:block;font-size:7px;color:#8A8574;">திட்டங்கள்</span></span>
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">📰</span><b style="font-size:8.5px;color:#1D2A20;">News</b><span style="display:block;font-size:7px;color:#8A8574;">செய்திகள்</span></span>
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">📚</span><b style="font-size:8.5px;color:#1D2A20;">Knowledge</b><span style="display:block;font-size:7px;color:#8A8574;">வழிகாட்டி</span></span>
+    <span style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">📞</span><b style="font-size:8.5px;color:#1D2A20;">Helplines</b><span style="display:block;font-size:7px;color:#8A8574;">உதவி எண்</span></span>
+  </div>
+  <div style="padding:8px 12px 2px;"><span style="font-size:10.5px;font-weight:600;color:#1D2A20;">🟤 Inputs &amp; equipment · 11 · Stage B</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:3px 12px;">
+    <span style="position:relative;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;"><span style="font-size:17px;display:block;">🌱</span><b style="font-size:8.5px;color:#1D2A20;">Seeds</b><span style="display:block;font-size:7px;color:#8A8574;">விதைகள்</span></span>
+    <span style="position:relative;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;opacity:.62;"><span style="position:absolute;top:3px;right:3px;font-size:6.5px;background:#F4F0E6;color:#8A8574;border-radius:99px;padding:1px 5px;">Soon</span><span style="font-size:17px;display:block;">🚜</span><b style="font-size:8.5px;color:#1D2A20;">Tractors</b><span style="display:block;font-size:7px;color:#8A8574;">டிராக்டர்</span></span>
+    <span style="position:relative;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 2px;text-align:center;opacity:.62;"><span style="position:absolute;top:3px;right:3px;font-size:6.5px;background:#F4F0E6;color:#8A8574;border-radius:99px;padding:1px 5px;">Soon</span><span style="font-size:17px;display:block;">🧪</span><b style="font-size:8.5px;color:#1D2A20;">Fertilizers</b><span style="display:block;font-size:7px;color:#8A8574;">உரங்கள்</span></span>
+  </div>
+  <div style="margin:7px 12px 0;display:flex;gap:5px;overflow:hidden;">
+    <span style="flex-shrink:0;font-size:8.5px;color:#5A6A5D;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 9px;">🧫 Services (8) · Soon</span>
+    <span style="flex-shrink:0;font-size:8.5px;color:#5A6A5D;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 9px;">💬 Community (4)</span>
+    <span style="flex-shrink:0;font-size:8.5px;color:#5A6A5D;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 9px;">🐄 Buy·sell (6)</span>
+  </div>
+  <div style="margin:8px 12px 12px;font-size:8px;color:#8A8574;"><b style="color:#2C5A33;">Soon</b> = honest coming-soon landing (self-noindexed) + notify-me — never a dead link.</div>
+  <div style="background:#fff;border-top:.5px solid #DCE4D8;display:flex;align-items:center;padding:6px 0 8px;">
+    <div style="flex:1;text-align:center;"><span style="font-size:15px;">🏠</span><div style="font-size:7.5px;color:#5A6A5D;">Home</div></div>
+    <div style="flex:1;text-align:center;"><span style="font-size:15px;">🗂️</span><div style="font-size:7.5px;color:#3E7A45;font-weight:500;">Categories</div></div>
+    <div style="flex:1;text-align:center;margin-top:-13px;"><div style="width:36px;height:36px;margin:0 auto;border-radius:50%;background:#3E7A45;border:3px solid #FDFBF6;display:flex;align-items:center;justify-content:center;font-size:14px;">🎙️</div><div style="font-size:7.5px;color:#5A6A5D;">Ask</div></div>
+    <div style="flex:1;text-align:center;"><span style="font-size:15px;">🔔</span><div style="font-size:7.5px;color:#5A6A5D;">Alerts</div></div>
+    <div style="flex:1;text-align:center;"><span style="font-size:15px;">👤</span><div style="font-size:7.5px;color:#5A6A5D;">Profile</div></div>
+  </div>
+</div></div>
+
+<!-- ================== PHONE 2 · CATEGORY (SEEDS) ================== -->
+<div class="ph-col"><span class="ph-cap">/c/seeds · vertical-template</span>
+<div class="phone">
+  <div style="background:#3E7A45;padding:10px 12px;display:flex;align-items:center;gap:7px;">
+    <span style="color:#fff;font-size:12px;">←</span>
+    <span style="color:#fff;font-weight:500;font-size:14px;flex:1;">🌱 Seeds · Coimbatore</span>
+    <span style="color:#EAF3E4;font-size:11px;">🗺️ Map</span>
+  </div>
+  <div style="padding:8px 12px 0;font-size:9px;color:#8A8574;">128 businesses · 342 products serve 641001</div>
+  <div style="margin:7px 0 0 12px;display:flex;gap:5px;overflow:hidden;">
+    <span style="flex-shrink:0;font-size:9px;background:#EAF3E4;border:1px solid #3E7A45;color:#2C5A33;font-weight:500;border-radius:99px;padding:4px 11px;">All seeds</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#1D2A20;">Paddy · நெல்</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#1D2A20;">Vegetable</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#1D2A20;">Organic</span>
+  </div>
+  <div style="margin:6px 0 0 12px;display:flex;gap:5px;overflow:hidden;">
+    <span style="flex-shrink:0;font-size:8.5px;background:#EAF3E4;border:.5px solid #BFDCBA;color:#2C5A33;border-radius:99px;padding:3px 9px;font-weight:500;">✓ Verified only</span>
+    <span style="flex-shrink:0;font-size:8.5px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:3px 9px;color:#5A6A5D;">📍 10 km</span>
+    <span style="flex-shrink:0;font-size:8.5px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:3px 9px;color:#5A6A5D;">🕐 Open now</span>
+    <span style="flex-shrink:0;font-size:8.5px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:3px 9px;color:#5A6A5D;">Nearest ▾</span>
+  </div>
+  <div style="padding:8px 12px;display:flex;flex-direction:column;gap:7px;">
+    <div class="m-glow" style="background:#fff;border:2px solid #E9A61C;border-radius:12px;padding:9px 11px;">
+      <span style="font-size:8.5px;background:#FAEEDA;color:#854F0B;border-radius:99px;padding:2px 8px;font-weight:500;">★ Sponsored</span>
+      <div style="margin-top:4px;"><b style="font-size:12px;color:#1D2A20;">Sri Lakshmi Seeds &amp; Agro</b></div>
+      <div style="font-size:9px;color:#5A6A5D;">★ <b>4.6</b> (188) · 1.8 km · Paddy · Vegetable · Hybrid</div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <span style="flex:1;text-align:center;background:#22A34F;color:#fff;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">📞 Call</span>
+        <span style="flex:1;text-align:center;background:#E8F7EE;border:.5px solid #BFE7CE;color:#0F6E42;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">WhatsApp</span>
+        <span style="flex:1;text-align:center;background:#fff;border:.5px solid #EDE6D6;color:#2C5A33;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">Profile</span>
+      </div>
+    </div>
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:12px;padding:9px 11px;">
+      <span style="font-size:8.5px;background:#DDF2E4;color:#0F6E42;border-radius:99px;padding:2px 8px;font-weight:500;">✓ Verified business</span>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;"><b style="font-size:12px;color:#1D2A20;">AgroMart Agencies</b><span style="font-size:7.5px;background:#FAEEDA;color:#854F0B;border-radius:99px;padding:2px 6px;">Recommended</span></div>
+      <div style="font-size:9px;color:#5A6A5D;">★ <b>4.5</b> (132) · 2.4 km · home delivery 641001</div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <span style="flex:1;text-align:center;background:#22A34F;color:#fff;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">📞 Call</span>
+        <span style="flex:1;text-align:center;background:#E8F7EE;border:.5px solid #BFE7CE;color:#0F6E42;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">WhatsApp</span>
+        <span style="flex:1;text-align:center;background:#fff;border:.5px solid #EDE6D6;color:#2C5A33;font-size:10px;font-weight:500;border-radius:8px;padding:6px 0;">Profile</span>
+      </div>
+    </div>
+    <div style="background:#FEFAF0;border:1px dashed #E9A61C;border-radius:11px;padding:8px 11px;display:flex;gap:8px;align-items:center;">
+      <span style="font-size:8px;background:#fff;color:#854F0B;border-radius:5px;padding:1px 6px;font-weight:500;">Ad</span>
+      <span style="font-size:9.5px;color:#1D2A20;flex:1;"><b>GreenGrow paddy combo ₹499</b><div style="font-size:7.5px;color:#8A8574;">organic results never reordered</div></span>
+      <span style="background:#E9A61C;color:#4A2E00;font-size:8.5px;font-weight:500;border-radius:99px;padding:4px 9px;">View</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
+      <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;overflow:hidden;"><div style="height:40px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:19px;">🌾</div><div style="padding:6px 8px;"><b style="font-size:9.5px;color:#1D2A20;">CO-51 Paddy</b><div style="font-size:7.5px;color:#8A8574;">TNAU · 110 days</div><b style="font-size:10.5px;color:#1D2A20;">₹52/kg</b></div></div>
+      <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;overflow:hidden;"><div style="height:40px;background:#FBEAF0;display:flex;align-items:center;justify-content:center;font-size:19px;">🍅</div><div style="padding:6px 8px;"><b style="font-size:9.5px;color:#1D2A20;">Tomato Shivam F1</b><div style="font-size:7.5px;color:#8A8574;">wilt-tolerant · 10g</div><b style="font-size:10.5px;color:#1D2A20;">₹185</b></div></div>
+    </div>
+    <span style="text-align:center;background:#fff;border:.5px solid #EDE6D6;border-radius:9px;padding:7px 0;font-size:10px;font-weight:500;color:#2C5A33;">Load 122 more businesses</span>
+  </div>
+</div></div>
+
+<!-- ================== PHONE 3 · PRODUCT ================== -->
+<div class="ph-col"><span class="ph-cap">/p/bharath-475-di · e2 catalog</span>
+<div class="phone">
+  <div style="background:#3E7A45;padding:10px 12px;display:flex;align-items:center;gap:7px;">
+    <span style="color:#fff;font-size:12px;">←</span>
+    <span style="color:#fff;font-weight:500;font-size:14px;flex:1;">Tractors</span>
+    <span style="color:#EAF3E4;font-size:11px;">↗ Share</span>
+  </div>
+  <div style="margin:10px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:13px;padding:10px;">
+    <div style="height:110px;border-radius:10px;background:#EAF3E4;display:flex;align-items:center;justify-content:center;"><span class="m-float" style="font-size:52px;">🚜</span></div>
+    <div style="display:flex;gap:5px;margin-top:6px;">
+      <span style="flex:1;height:26px;border-radius:7px;background:#EAF3E4;border:1px solid #3E7A45;display:flex;align-items:center;justify-content:center;font-size:12px;">🚜</span>
+      <span style="flex:1;height:26px;border-radius:7px;background:#F4F0E6;border:.5px solid #EDE6D6;display:flex;align-items:center;justify-content:center;font-size:12px;">📐</span>
+      <span style="flex:1;height:26px;border-radius:7px;background:#F4F0E6;border:.5px solid #EDE6D6;display:flex;align-items:center;justify-content:center;font-size:12px;">🛞</span>
+      <span style="flex:1;height:26px;border-radius:7px;background:#F4F0E6;border:.5px solid #EDE6D6;display:flex;align-items:center;justify-content:center;font-size:12px;">🎥</span>
+    </div>
+  </div>
+  <div style="padding:9px 12px 0;">
+    <div style="font-size:8px;font-weight:600;letter-spacing:.1em;color:#946B2D;">E2 CATALOG · SPEC SCHEMA V3</div>
+    <b style="font-size:14.5px;color:#1D2A20;">Bharath 475 DI (42 HP)</b>
+    <div style="font-size:9px;color:#5A6A5D;">2WD utility · ★ 4.4 (89) · #2 in 40–45 HP</div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+    <span><b style="font-size:15px;color:#1D2A20;">₹6.4–6.9 L</b><div style="font-size:7.5px;color:#8A8574;">on-road, Coimbatore</div></span>
+    <span style="font-size:9px;color:#2C5A33;background:#EAF3E4;border-radius:99px;padding:4px 9px;">EMI ₹11,900/mo</span>
+    <span style="background:#E9A61C;color:#4A2E00;font-size:9px;font-weight:500;border-radius:99px;padding:5px 10px;margin-left:auto;">Compare · 3 rivals</span>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;overflow:hidden;">
+    <div style="padding:7px 11px;font-size:10px;font-weight:600;color:#1D2A20;border-bottom:.5px solid #EDE6D6;">Key specs <span style="font-weight:400;font-size:7.5px;color:#8A8574;">· schema-rendered</span></div>
+    <div style="display:flex;font-size:9px;border-bottom:.5px solid #EDE6D6;"><span style="flex:1;padding:6px 11px;color:#8A8574;">Engine</span><b style="flex:1.2;padding:6px 11px;color:#1D2A20;border-left:.5px solid #EDE6D6;">2,979 cc · 3-cyl · 42 HP</b></div>
+    <div style="display:flex;font-size:9px;border-bottom:.5px solid #EDE6D6;"><span style="flex:1;padding:6px 11px;color:#8A8574;">Lift</span><b style="flex:1.2;padding:6px 11px;color:#1D2A20;border-left:.5px solid #EDE6D6;">1,800 kg</b></div>
+    <div style="display:flex;font-size:9px;"><span style="flex:1;padding:6px 11px;color:#8A8574;">Warranty</span><b style="flex:1.2;padding:6px 11px;color:#1D2A20;border-left:.5px solid #EDE6D6;">5 yr / 5,000 hrs</b></div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 11px;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:16px;">🏪</span>
+    <span style="flex:1;"><b style="font-size:10px;color:#1D2A20;">Annai Tractors &amp; Spares</b><div style="font-size:7.5px;color:#8A8574;">3.6 km · ✓ Verified · exchange OK</div></span>
+    <span style="background:#22A34F;color:#fff;font-size:9px;font-weight:500;border-radius:8px;padding:5px 9px;">📞</span>
+    <span style="background:#3E7A45;color:#fff;font-size:9px;font-weight:500;border-radius:8px;padding:5px 9px;">Test drive</span>
+  </div>
+  <div style="margin:8px 12px 12px;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 11px;">
+    <span style="color:#E9A61C;font-size:9px;letter-spacing:2px;">★★★★★</span>
+    <div style="font-size:9px;color:#1D2A20;margin:3px 0;">"1,100 hours in — pulls a 9-tyne cultivator without strain."</div>
+    <span style="font-size:8px;color:#8A8574;">Senthil K. · verified owner</span>
+  </div>
+</div></div>
+
+<!-- ================== PHONE 4 · BUSINESS PROFILE ================== -->
+<div class="ph-col"><span class="ph-cap">/b/agromart · e1 profile</span>
+<div class="phone">
+  <div style="background:#3E7A45;padding:10px 12px;display:flex;align-items:center;gap:7px;">
+    <span style="color:#fff;font-size:12px;">←</span>
+    <span style="color:#fff;font-weight:500;font-size:14px;flex:1;">Business profile</span>
+    <span style="color:#EAF3E4;font-size:11px;">🚩</span>
+  </div>
+  <div style="margin:10px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:13px;padding:11px 12px;">
+    <div style="display:flex;gap:10px;">
+      <span style="width:46px;height:46px;border-radius:12px;background:#EAF3E4;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏪</span>
+      <span style="flex:1;"><b style="font-size:13.5px;color:#1D2A20;">AgroMart Agencies</b> <span style="font-size:8px;background:#DDF2E4;color:#0F6E42;border-radius:99px;padding:1px 7px;font-weight:500;">✓ Verified</span>
+      <div style="font-size:9px;color:#5A6A5D;">★ <b>4.5</b> (132) · Seeds · Fertilizers · RS Puram</div>
+      <div style="font-size:8px;color:#8A8574;">🕐 Open till 8 PM · On agri.in since Mar 2026</div></span>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <span style="flex:1.4;text-align:center;background:#22A34F;color:#fff;font-size:10.5px;font-weight:500;border-radius:9px;padding:7px 0;">📞 Call — no commission</span>
+      <span style="flex:1;text-align:center;background:#E8F7EE;border:.5px solid #BFE7CE;color:#0F6E42;font-size:10.5px;font-weight:500;border-radius:9px;padding:7px 0;">WhatsApp</span>
+    </div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;">
+    <b style="font-size:10px;color:#1D2A20;">About · எங்களை பற்றி</b>
+    <div style="font-size:9px;color:#5A6A5D;margin-top:3px;line-height:1.55;">Serving Coimbatore farmers since 1998. TNAU varieties each season. தமிழில் பேசலாம் — வாட்ஸ்அப்பில் விலை சொல்கிறோம்.</div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;">
+    <b style="font-size:10px;color:#1D2A20;">Delivery coverage · 8 pincodes</b>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
+      <span style="font-size:8px;background:#EAF3E4;color:#2C5A33;border-radius:99px;padding:2px 7px;font-weight:500;">641001</span>
+      <span style="font-size:8px;background:#EAF3E4;color:#2C5A33;border-radius:99px;padding:2px 7px;font-weight:500;">641002</span>
+      <span style="font-size:8px;background:#EAF3E4;color:#2C5A33;border-radius:99px;padding:2px 7px;font-weight:500;">641004</span>
+      <span style="font-size:8px;background:#EAF3E4;color:#2C5A33;border-radius:99px;padding:2px 7px;font-weight:500;">641012</span>
+      <span style="font-size:8px;background:#EAF3E4;color:#2C5A33;border-radius:99px;padding:2px 7px;font-weight:500;">+4 more</span>
+    </div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;">
+    <b style="font-size:10px;color:#1D2A20;">Reviews · 132</b>
+    <div style="margin-top:4px;"><span style="color:#E9A61C;font-size:9px;letter-spacing:2px;">★★★★★</span>
+    <div style="font-size:9px;color:#1D2A20;margin:2px 0;">"Original seeds, correct bill. Delivered 10 bags same evening."</div>
+    <span style="font-size:8px;color:#8A8574;">Palanisamy · 641114 · 2 wk ago</span></div>
+    <span style="display:inline-block;margin-top:6px;font-size:9px;color:#2C5A33;background:#F4F0E6;border-radius:99px;padding:4px 10px;font-weight:500;">Write a review · earn 5 🪙</span>
+  </div>
+  <div class="m-glow" style="margin:8px 12px 12px;background:#FEFAF0;border:1px solid #E9A61C;border-radius:11px;padding:8px 11px;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:14px;">🏪</span>
+    <span style="font-size:9px;color:#1D2A20;flex:1;"><b>Is this your business?</b> Claim free — OTP verify.</span>
+    <span style="background:#E9A61C;color:#4A2E00;font-size:8.5px;font-weight:500;border-radius:99px;padding:4px 9px;">Claim</span>
+  </div>
+</div></div>
+
+<!-- ================== PHONE 5 · AGRIID REGISTER ================== -->
+<div class="ph-col"><span class="ph-cap">id.agri.in · consumed, not owned</span>
+<div class="phone">
+  <div style="padding:22px 20px 8px;text-align:center;">
+    <span class="m-float" style="width:44px;height:44px;margin:0 auto;border-radius:12px;background:#3E7A45;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">🌾</span>
+    <b style="font-size:14px;color:#1D2A20;display:block;margin-top:7px;">One AgriID for everything</b>
+    <div style="font-size:8.5px;color:#8A8574;">agri.in · milk.in · theorganic.in — ஒரே கணக்கு</div>
+  </div>
+  <div style="display:flex;gap:4px;margin:10px 20px;">
+    <span style="flex:1;height:3px;border-radius:99px;background:#3E7A45;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#F4F0E6;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#F4F0E6;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#F4F0E6;"></span>
+  </div>
+  <div style="margin:0 16px;background:#fff;border:.5px solid #EDE6D6;border-radius:13px;padding:13px 14px;">
+    <b style="font-size:12.5px;color:#1D2A20;">Login or create account</b>
+    <div style="font-size:9px;color:#8A8574;margin:2px 0 8px;">Mobile only — no password, no email. எண்ணை உள்ளிடுங்கள்.</div>
+    <div style="display:flex;gap:6px;">
+      <span style="width:44px;text-align:center;border:1px solid #EDE6D6;border-radius:9px;padding:8px 0;font-size:11px;color:#1D2A20;background:#FDFBF6;">+91</span>
+      <span style="flex:1;border:1px solid #EDE6D6;border-radius:9px;padding:8px 10px;font-size:10px;color:#8A8574;background:#FDFBF6;">10-digit mobile number</span>
+    </div>
+    <div style="font-size:8.5px;color:#8A8574;margin:9px 0 4px;">Enter the 6-digit OTP sent by SMS</div>
+    <div style="display:flex;gap:5px;">
+      <span style="flex:1;aspect-ratio:1;border:1px solid #3E7A45;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#1D2A20;background:#FDFBF6;">4</span>
+      <span style="flex:1;aspect-ratio:1;border:1px solid #3E7A45;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#1D2A20;background:#FDFBF6;">7</span>
+      <span style="flex:1;aspect-ratio:1;border:1px solid #EDE6D6;border-radius:9px;background:#FDFBF6;"></span>
+      <span style="flex:1;aspect-ratio:1;border:1px solid #EDE6D6;border-radius:9px;background:#FDFBF6;"></span>
+      <span style="flex:1;aspect-ratio:1;border:1px solid #EDE6D6;border-radius:9px;background:#FDFBF6;"></span>
+      <span style="flex:1;aspect-ratio:1;border:1px solid #EDE6D6;border-radius:9px;background:#FDFBF6;"></span>
+    </div>
+    <div style="font-size:8.5px;color:#8A8574;margin-top:7px;">Resend in <b style="color:#2C5A33;">00:24</b> · try voice OTP</div>
+    <span style="display:block;text-align:center;background:#3E7A45;color:#fff;font-size:11px;font-weight:500;border-radius:10px;padding:9px 0;margin-top:10px;">Verify &amp; continue</span>
+    <div style="font-size:7.5px;color:#8A8574;margin-top:8px;line-height:1.5;">By continuing you agree to the <span style="color:#3E7A45;">Terms</span> &amp; <span style="color:#3E7A45;">Privacy</span> (DPDP 2023). OTP limits per number / IP / device.</div>
+  </div>
+  <div style="margin:9px 16px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:13px;padding:11px 14px;opacity:.75;">
+    <b style="font-size:10.5px;color:#1D2A20;">Next: what brings you here?</b>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px;">
+      <span style="border:1px solid #3E7A45;background:#EAF3E4;border-radius:9px;padding:6px 8px;"><span style="font-size:12px;">🧑‍🌾</span><b style="font-size:8.5px;color:#1D2A20;display:block;">Farmer</b></span>
+      <span style="border:.5px solid #EDE6D6;border-radius:9px;padding:6px 8px;"><span style="font-size:12px;">🏪</span><b style="font-size:8.5px;color:#1D2A20;display:block;">Agri business</b></span>
+      <span style="border:.5px solid #EDE6D6;border-radius:9px;padding:6px 8px;"><span style="font-size:12px;">📣</span><b style="font-size:8.5px;color:#1D2A20;display:block;">Advertiser</b></span>
+      <span style="border:.5px solid #EDE6D6;border-radius:9px;padding:6px 8px;"><span style="font-size:12px;">👀</span><b style="font-size:8.5px;color:#1D2A20;display:block;">Exploring</b></span>
+    </div>
+  </div>
+  <div style="margin:9px 16px 14px;text-align:center;font-size:7.5px;color:#8A8574;background:#F4F0E6;border-radius:9px;padding:7px 10px;">🔐 id.agri.in · OAuth2 + PKCE · one logout ends every session</div>
+</div></div>
+
+<!-- ================== PHONE 6 · DASHBOARD ================== -->
+<div class="ph-col"><span class="ph-cap">console /dashboard</span>
+<div class="phone">
+  <div style="background:#2C5A33;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+    <span style="width:26px;height:26px;border-radius:8px;background:#EAF3E4;display:flex;align-items:center;justify-content:center;font-size:13px;">🏪</span>
+    <span style="flex:1;"><b style="color:#fff;font-size:12px;">AgroMart Agencies</b><div style="color:#BFDCBA;font-size:8px;">✓ Verified · Business console</div></span>
+    <span style="background:#E9A61C;color:#4A2E00;font-size:9px;font-weight:500;border-radius:99px;padding:4px 9px;">📣 Promote</span>
+  </div>
+  <div style="display:flex;gap:5px;padding:8px 12px 0;overflow:hidden;">
+    <span style="flex-shrink:0;font-size:9px;background:#EAF3E4;color:#2C5A33;font-weight:500;border-radius:99px;padding:4px 11px;">📊 Overview</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#5A6A5D;">📥 Leads <b style="background:#E9A61C;color:#4A2E00;border-radius:99px;padding:0 5px;font-size:7.5px;">4</b></span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#5A6A5D;">🌱 Products</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 11px;color:#5A6A5D;">⭐ Reviews</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:9px 12px 0;">
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 10px;"><div style="font-size:7px;font-weight:600;letter-spacing:.06em;color:#8A8574;">PROFILE VIEWS</div><b style="font-size:15px;color:#1D2A20;">1,284</b> <span style="font-size:8px;color:#1E7A34;font-weight:500;">▲18%</span>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:16px;margin-top:4px;"><i style="flex:1;background:#BFDCBA;height:35%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:48%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:42%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:58%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:74%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#3E7A45;height:100%;border-radius:2px 2px 0 0;"></i></div></div>
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 10px;"><div style="font-size:7px;font-weight:600;letter-spacing:.06em;color:#8A8574;">CALLS</div><b style="font-size:15px;color:#1D2A20;">96</b> <span style="font-size:8px;color:#1E7A34;font-weight:500;">▲11%</span>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:16px;margin-top:4px;"><i style="flex:1;background:#BFDCBA;height:40%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:52%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:66%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:58%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#BFDCBA;height:70%;border-radius:2px 2px 0 0;"></i><i style="flex:1;background:#3E7A45;height:88%;border-radius:2px 2px 0 0;"></i></div></div>
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 10px;"><div style="font-size:7px;font-weight:600;letter-spacing:.06em;color:#8A8574;">WHATSAPP</div><b style="font-size:15px;color:#1D2A20;">153</b> <span style="font-size:8px;color:#1E7A34;font-weight:500;">▲24%</span></div>
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 10px;"><div style="font-size:7px;font-weight:600;letter-spacing:.06em;color:#8A8574;">NEW LEADS</div><b style="font-size:15px;color:#1D2A20;">14</b> <span style="font-size:8px;color:#B5541C;font-weight:500;">▼2</span></div>
+  </div>
+  <div style="padding:9px 12px 2px;"><b style="font-size:10.5px;color:#1D2A20;">📥 Leads inbox</b> <span style="font-size:7.5px;color:#8A8574;">· DPDP-logged reveals</span></div>
+  <div style="margin:3px 12px 0;background:#FBFDF9;border:1px solid #3E7A45;border-radius:11px;padding:8px 10px;">
+    <div style="display:flex;justify-content:space-between;"><b style="font-size:10px;color:#1D2A20;">🌱 50 kg tomato seeds · hybrid</b><span class="m-live" style="font-size:7.5px;background:#DDF2E4;color:#0F6E42;border-radius:99px;padding:1px 7px;font-weight:600;">NEW</span></div>
+    <div style="font-size:8px;color:#8A8574;">641114 · 22 min ago · delivery asked</div>
+    <div style="display:flex;gap:5px;margin-top:6px;">
+      <span style="flex:1;text-align:center;background:#22A34F;color:#fff;font-size:9px;font-weight:500;border-radius:7px;padding:5px 0;">📞 Call farmer</span>
+      <span style="flex:1;text-align:center;background:#E8F7EE;border:.5px solid #BFE7CE;color:#0F6E42;font-size:9px;font-weight:500;border-radius:7px;padding:5px 0;">WhatsApp</span>
+      <span style="flex:.6;text-align:center;background:#fff;border:.5px solid #EDE6D6;color:#5A6A5D;font-size:9px;border-radius:7px;padding:5px 0;">Pass</span>
+    </div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 11px;">
+    <div style="display:flex;justify-content:space-between;"><b style="font-size:10px;color:#1D2A20;">Listing health</b><b style="font-size:10px;color:#2C5A33;">78%</b></div>
+    <div style="height:5px;border-radius:99px;background:#F4F0E6;margin:5px 0;overflow:hidden;"><i style="display:block;height:100%;width:78%;background:linear-gradient(90deg,#3E7A45,#E9A61C);border-radius:99px;"></i></div>
+    <div style="font-size:8px;color:#5A6A5D;">✅ Verified · ✅ 8 pincodes · ○ Tamil About · ○ photos</div>
+  </div>
+  <div style="margin:8px 12px 12px;background:#2C5A33;border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:8px;">
+    <span class="m-float" style="font-size:15px;">📣</span>
+    <span style="flex:1;font-size:9px;color:#fff;"><b>No active campaign.</b><div style="font-size:7.5px;color:#BFDCBA;">Sponsored in Seeds from ₹499/wk</div></span>
+    <span style="background:#E9A61C;color:#4A2E00;font-size:8.5px;font-weight:500;border-radius:99px;padding:4px 10px;">Start</span>
+  </div>
+</div></div>
+
+<!-- ================== PHONE 7 · CAMPAIGN WIZARD ================== -->
+<div class="ph-col"><span class="ph-cap">console /ads/new · m5 wizard</span>
+<div class="phone">
+  <div style="background:#2C5A33;padding:10px 12px;display:flex;align-items:center;gap:7px;">
+    <span style="color:#fff;font-size:12px;">←</span>
+    <span style="color:#fff;font-weight:500;font-size:13px;flex:1;">New campaign</span>
+    <span style="font-size:8px;background:#EFEBFB;color:#4A3A8A;border-radius:99px;padding:2px 8px;font-weight:500;">TEST mode</span>
+  </div>
+  <div style="display:flex;gap:3px;padding:9px 14px 0;">
+    <span style="flex:1;height:3px;border-radius:99px;background:#3E7A45;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#3E7A45;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#E9A61C;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#F4F0E6;"></span>
+    <span style="flex:1;height:3px;border-radius:99px;background:#F4F0E6;"></span>
+  </div>
+  <div style="padding:8px 12px 2px;"><b style="font-size:11px;color:#1D2A20;">1 · Placement</b></div>
+  <div style="padding:2px 12px;display:flex;flex-direction:column;gap:6px;">
+    <div class="m-glow" style="background:#EAF3E4;border:1.5px solid #3E7A45;border-radius:11px;padding:8px 11px;position:relative;">
+      <span style="position:absolute;top:7px;right:9px;font-size:8px;color:#854F0B;background:#FBF3DE;border-radius:99px;padding:2px 7px;font-weight:600;">from ₹499/wk</span>
+      <b style="font-size:10.5px;color:#1D2A20;">⭐ Sponsored listing</b>
+      <div style="font-size:8px;color:#5A6A5D;">Max 2/page, fixed slots, always labelled. Organic order untouched.</div>
+    </div>
+    <div style="background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:8px 11px;position:relative;">
+      <span style="position:absolute;top:7px;right:9px;font-size:8px;color:#854F0B;background:#FBF3DE;border-radius:99px;padding:2px 7px;font-weight:600;">from ₹799/wk</span>
+      <b style="font-size:10.5px;color:#1D2A20;">🖼️ Category banner</b>
+      <div style="font-size:8px;color:#5A6A5D;">agri_{category}_banner · image-only v1 · zero CLS</div>
+    </div>
+  </div>
+  <div style="padding:8px 12px 2px;"><b style="font-size:11px;color:#1D2A20;">2 · Targeting</b> <span style="font-size:7.5px;color:#8A8574;">categories × pincodes × tier</span></div>
+  <div style="margin:2px 0 0 12px;display:flex;gap:5px;overflow:hidden;">
+    <span style="flex-shrink:0;font-size:9px;background:#EAF3E4;border:1px solid #3E7A45;color:#2C5A33;font-weight:500;border-radius:99px;padding:4px 10px;">Seeds</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 10px;color:#5A6A5D;">Fertilizers</span>
+    <span style="flex-shrink:0;font-size:9px;background:#EAF3E4;border:1px solid #3E7A45;color:#2C5A33;font-weight:500;border-radius:99px;padding:4px 10px;">My 8 pincodes</span>
+    <span style="flex-shrink:0;font-size:9px;background:#fff;border:.5px solid #EDE6D6;border-radius:99px;padding:4px 10px;color:#5A6A5D;">By tier T2–T3</span>
+  </div>
+  <div style="padding:8px 12px 2px;"><b style="font-size:11px;color:#1D2A20;">4 · Budget</b></div>
+  <div style="margin:2px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;height:4px;border-radius:99px;background:#F4F0E6;position:relative;"><i style="position:absolute;left:0;top:0;bottom:0;width:34%;background:#3E7A45;border-radius:99px;"></i><i style="position:absolute;left:34%;top:-4px;width:12px;height:12px;border-radius:50%;background:#3E7A45;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);"></i></div>
+      <b style="font-size:13px;color:#1D2A20;">₹999/wk</b>
+    </div>
+    <div style="font-size:8px;color:#5A6A5D;margin-top:5px;">T3 rate ₹110/wk per pincode · <b style="color:#5A3403;">est. 9–14k impressions/wk</b></div>
+  </div>
+  <div style="margin:8px 12px 0;background:#fff;border:.5px solid #EDE6D6;border-radius:11px;padding:9px 11px;">
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:#5A6A5D;padding:2px 0;"><span>Budget · 2 wks</span><b style="color:#1D2A20;">₹1,998</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:#5A6A5D;padding:2px 0;"><span>GST 18%</span><b style="color:#1D2A20;">₹359.64</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;padding:3px 0;border-top:.5px solid #EDE6D6;margin-top:3px;"><span style="color:#1D2A20;font-weight:500;">Total</span><b style="color:#1D2A20;">₹2,357.64</b></div>
+  </div>
+  <div style="margin:8px 12px 0;font-size:7.5px;color:#8A8574;line-height:1.5;">✓ Creatives approved before serving · paid placement never changes organic ranking or the Recommended label.</div>
+  <div style="margin:8px 12px 14px;"><span style="display:block;text-align:center;background:#E9A61C;color:#4A2E00;font-size:11px;font-weight:500;border-radius:99px;padding:9px 0;">Pay ₹2,357.64 · Razorpay</span></div>
+</div></div>
+
+</div>
+<script>
+/* scroll-reveal per phone; respects prefers-reduced-motion */
+(function(){
+  var rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var phones = document.querySelectorAll('.phone');
+  phones.forEach(function(ph){ ph.classList.add('m-reveal'); });
+  var els = document.querySelectorAll('.m-reveal');
+  if (rm || !('IntersectionObserver' in window)) { els.forEach(function(e){ e.classList.add('in'); }); return; }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: .08 });
+  els.forEach(function(e){ io.observe(e); });
+})();
+</script>

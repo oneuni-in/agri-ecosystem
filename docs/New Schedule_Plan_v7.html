@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agri.in Ecosystem — Build Blueprint (v7 · 130-day master · re-sequenced)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F5EA; --card:#FBFCF5; --ink:#1C3325; --ink-soft:#51624F;
+  --leaf:#3E7A45; --leaf-deep:#2C5A33; --turmeric:#D99A1C; --soil:#6B4A2B;
+  --monsoon:#4A6B8A; --line:#D9E0C8; --line-soft:#E6EBD8;
+  --s0:#8A9B6E; --s1:#3E7A45; --s2:#D99A1C; --s3:#6B8F3D; --s4:#2C5A33;
+  --s5:#4A6B8A; --s6:#7A9E4E; --s7:#B5541C;
+  --sb:#946B2D; --sc:#4A6B8A; --sd:#5E7D46; --se:#6B4A2B;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+body{background:var(--paper);color:var(--ink);font-family:'Public Sans',system-ui,sans-serif;font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.08;letter-spacing:-.015em}
+.mono{font-family:'Spline Sans Mono',monospace}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2.5px solid var(--turmeric);outline-offset:2px;border-radius:4px}
+
+/* ── nav ── */
+nav{position:sticky;top:0;z-index:50;background:rgba(242,245,234,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:8px;height:58px;max-width:1180px;margin:0 auto;padding:0 22px;overflow-x:auto}
+.brand{font-family:'Bricolage Grotesque';font-weight:800;font-size:17px;white-space:nowrap;margin-right:10px}
+.brand em{font-style:normal;color:var(--leaf)}
+.nav-in a{font-size:13px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:7px 11px;border-radius:99px;white-space:nowrap}
+.nav-in a:hover{background:var(--line-soft);color:var(--ink)}
+
+/* ── hero ── */
+.hero{padding:72px 0 54px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.eyebrow{font-family:'Spline Sans Mono';font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soil);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:26px;height:2px;background:var(--turmeric)}
+.hero h1{font-size:clamp(38px,6.2vw,72px);font-weight:800;margin:18px 0 8px;max-width:850px}
+.hero h1 .g{color:var(--leaf)}
+.hero .script{font-family:'Bricolage Grotesque';color:var(--ink-soft);font-weight:500;font-size:clamp(16px,2vw,21px);margin-bottom:26px}
+.hero .script span{color:var(--turmeric);font-weight:700}
+.hero p.lede{max-width:640px;color:var(--ink-soft);font-size:16.5px}
+.stats{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.stat{flex:1;min-width:150px;padding:20px 22px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat b{font-family:'Bricolage Grotesque';font-size:30px;font-weight:800;display:block;color:var(--leaf-deep)}
+.stat small{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.field-bg{position:absolute;right:-40px;top:30px;opacity:.5;pointer-events:none}
+
+/* ── sections ── */
+section{padding:64px 0;border-bottom:1px solid var(--line)}
+.sec-head{margin-bottom:34px}
+.sec-head h2{font-size:clamp(26px,3.4vw,38px);font-weight:800}
+.sec-head p{color:var(--ink-soft);max-width:620px;margin-top:8px}
+.tag-line{font-family:'Spline Sans Mono';font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--soil);margin-bottom:10px}
+
+/* ── ecosystem map ── */
+.eco{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.eco-core{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.eco-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.eco-card.core{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.eco-card.core h3{color:var(--paper)}
+.eco-card.core .k{color:var(--turmeric)}
+.eco-card h3{font-size:19px;font-weight:700;margin-bottom:6px}
+.eco-card .k{font-family:'Spline Sans Mono';font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--leaf);display:block;margin-bottom:8px}
+.eco-card p{font-size:13.5px;color:var(--ink-soft)}
+.eco-card.core p{color:#C7D3C2}
+.eco-flow{grid-column:1/-1;text-align:center;font-family:'Spline Sans Mono';font-size:12px;color:var(--soil);letter-spacing:.08em;padding:2px 0}
+
+/* ── engines ── */
+.engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px}
+.eng{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;position:relative;transition:transform .15s ease, box-shadow .15s ease}
+.eng:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(28,51,37,.08)}
+.eng .num{font-family:'Spline Sans Mono';font-size:11px;font-weight:600;color:var(--turmeric);letter-spacing:.1em}
+.eng h3{font-size:17px;font-weight:700;margin:6px 0 6px}
+.eng p{font-size:13px;color:var(--ink-soft)}
+.eng .pct{position:absolute;top:18px;right:18px;font-family:'Spline Sans Mono';font-size:10.5px;color:var(--soil);background:var(--line-soft);padding:3px 8px;border-radius:99px}
+
+/* ── verticals ── */
+.vert-group{margin-bottom:26px}
+.vert-group h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.vg-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13px;font-weight:500}
+.chip.custom{border-color:var(--turmeric);background:#FBF3DE}
+.chip.custom::after{content:" ◆";color:var(--turmeric);font-size:10px}
+.legend-note{font-size:12.5px;color:var(--ink-soft);margin-top:14px}
+.legend-note b{color:var(--turmeric)}
+
+/* ── roadmap / the field ── */
+.phase-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.pf{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 15px;font-size:12.5px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;gap:8px;transition:all .12s}
+.pf .pd{width:9px;height:9px;border-radius:50%}
+.pf:hover{border-color:var(--ink-soft)}
+.pf.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.field{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative}
+.field-label{font-family:'Spline Sans Mono';font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soil);margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.rows{display:flex;flex-direction:column;gap:9px}
+.crop-row{display:flex;align-items:center;gap:9px}
+.row-tag{font-family:'Spline Sans Mono';font-size:10px;color:var(--soil);width:78px;flex-shrink:0;text-align:right;padding-right:4px}
+.seeds{display:flex;gap:6px;flex-wrap:wrap}
+.seed{width:30px;height:30px;border-radius:8px 8px 8px 3px;border:none;position:relative;transition:transform .1s;opacity:.92}
+.seed:hover{transform:scale(1.22);opacity:1;z-index:2}
+.seed.dim{opacity:.16}
+.seed.sel{outline:2.5px solid var(--ink);outline-offset:2px;opacity:1}
+.seed.milestone::after{content:"★";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+.seed .dnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono';font-size:9.5px;font-weight:600;color:rgba(255,255,255,.95)}
+/* detail panel */
+.day-panel{margin-top:22px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--leaf);border-radius:10px;padding:20px 22px;min-height:96px}
+.day-panel .dp-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.day-panel .dp-day{font-family:'Spline Sans Mono';font-size:12px;font-weight:600;color:var(--soil)}
+.day-panel .dp-phase{font-family:'Spline Sans Mono';font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:99px;color:#fff}
+.day-panel h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.day-panel ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+.day-panel li{font-size:13.5px;color:var(--ink-soft);padding-left:18px;position:relative}
+.day-panel li::before{content:"—";position:absolute;left:0;color:var(--turmeric)}
+.day-panel .gate{margin-top:10px;font-size:12.5px;font-weight:700;color:var(--soil);background:#FBF3DE;border:1px solid #EAD9AC;display:inline-block;padding:5px 12px;border-radius:8px}
+.dp-nav{display:flex;gap:8px;margin-top:14px}
+.dp-nav button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.dp-nav button:hover{border-color:var(--ink-soft);color:var(--ink)}
+/* phase summary cards */
+.phase-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:28px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;border-top:4px solid var(--leaf)}
+.pc .pc-days{font-family:'Spline Sans Mono';font-size:10.5px;color:var(--soil);letter-spacing:.08em}
+.pc h4{font-size:14.5px;font-weight:700;margin:4px 0 4px}
+.pc p{font-size:12.5px;color:var(--ink-soft)}
+
+/* ── security ── */
+.sec-stack{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.slayer{display:grid;grid-template-columns:210px 1fr;background:var(--card);border-bottom:1px solid var(--line)}
+.slayer:last-child{border-bottom:none}
+.slayer .sl-name{padding:18px 20px;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;justify-content:center;gap:2px}
+.slayer:nth-child(2) .sl-name{background:#24402C}.slayer:nth-child(3) .sl-name{background:#2C5A33}
+.slayer:nth-child(4) .sl-name{background:#3E7A45}.slayer:nth-child(5) .sl-name{background:#5E7D46}
+.slayer:nth-child(6) .sl-name{background:#946B2D}.slayer:nth-child(7) .sl-name{background:#6B4A2B}
+.slayer:nth-child(8) .sl-name{background:#4A6B8A}
+.sl-name b{font-family:'Bricolage Grotesque';font-size:15px;font-weight:700}
+.sl-name small{font-family:'Spline Sans Mono';font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+.sl-body{padding:16px 20px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.sl-body span{font-size:12px;font-weight:500;background:var(--line-soft);border:1px solid var(--line);padding:4px 11px;border-radius:99px;color:var(--ink)}
+.sec-motto{margin-top:18px;font-size:13.5px;color:var(--ink-soft)}
+.sec-motto b{color:var(--soil)}
+
+/* ── platforms ── */
+.plats{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.plat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.plat .picon{font-size:26px;margin-bottom:8px}
+.plat h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.plat ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+.plat li{font-size:13px;color:var(--ink-soft);padding-left:16px;position:relative}
+.plat li::before{content:"·";position:absolute;left:2px;color:var(--turmeric);font-weight:800}
+.plat-note{margin-top:16px;background:#FBF3DE;border:1px solid #EAD9AC;border-radius:12px;padding:14px 18px;font-size:13px;color:var(--soil)}
+
+footer{padding:44px 0 60px;color:var(--ink-soft);font-size:12.5px}
+footer .f-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+@media(max-width:720px){
+  .eco{grid-template-columns:1fr}.eco-core{grid-template-columns:1fr}
+  .slayer{grid-template-columns:1fr}
+  .sl-name{flex-direction:row!important;align-items:center;gap:10px!important}
+  .row-tag{width:52px;font-size:9px}
+  .seed{width:24px;height:24px}.seed .dnum{font-size:8px}
+  .stats{flex-direction:column}.stat{border-right:none;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <span class="brand">agri<em>.in</em> blueprint</span>
+  <a href="#ecosystem">Ecosystem</a><a href="#engines">Engines</a><a href="#verticals">Verticals</a>
+  <a href="#roadmap">125-Day Roadmap</a><a href="#security">Security</a><a href="#platforms">Platforms</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Execution blueprint · v7 master · re-sequenced 14 Aug 2026 — Milk.in LIVE</div>
+  <h1>One identity.<br>Eight engines.<br><span class="g">All of Indian agriculture.</span></h1>
+  <div class="script">किसान · உழவர் · farmer · brand · admin — <span>one platform for all of them, competitor to none.</span></div>
+  <p class="lede">Agri.in, Milk.in and TheOrganic.in built as a single interconnected ecosystem on AgriID and AgriCoins — lead-gen and discovery only. No selling, no logistics, no warehousing. Built solo, AI-accelerated, security-first.</p>
+  <div class="stats">
+    <div class="stat"><b>1 / 3</b><small>Platforms live — Milk.in D39</small></div>
+    <div class="stat"><b>8</b><small>Reusable engines</small></div>
+    <div class="stat"><b>36+</b><small>Verticals via config</small></div>
+    <div class="stat"><b>130</b><small>Days to full launch</small></div>
+    <div class="stat"><b>0</b><small>Payments handled for goods</small></div>
+  </div>
+</div></header>
+
+<section id="ecosystem"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Ecosystem</div>
+    <h2>Shared roots, three canopies</h2>
+    <p>Everything grows from two shared systems. Every platform reads the same identity, the same wallet of coins, the same location context, the same notification center.</p>
+  </div>
+  <div class="eco">
+    <div class="eco-core">
+      <div class="eco-card core"><span class="k">Shared Root · id.agri.in</span><h3>AgriID</h3><p>Universal identity. Mobile OTP first, OAuth2 + PKCE single sign-on across all domains. Internal UUID never exposed; public @handle everywhere. One profile, one location context, one session control.</p></div>
+      <div class="eco-card core"><span class="k">Shared Root · Rewards</span><h3>AgriCoins</h3><p>Closed-loop loyalty ledger — append-only, idempotent, audit-proof. Earn across any platform, see one balance everywhere. Never cash, never transferable, always accountable.</p></div>
+    </div>
+    <div class="eco-flow">▲ one identity · one wallet · one inbox · one location ▲</div>
+    <div class="eco-card"><span class="k">Hub · agri.in</span><h3>Agri.in</h3><p>The all-of-agriculture platform: 34+ verticals from seeds and tractors to schemes, land, labour, loans, mandi and weather. Discovery, leads, knowledge, community.</p></div>
+    <div class="eco-card"><span class="k">Dairy · milk.in</span><h3>Milk.in</h3><p>Pincode-first milk discovery — every brand and local vendor in your area, every milk type, subscription-intent leads routed to vendors. Platform never touches the milk money.</p></div>
+    <div class="eco-card"><span class="k">Organic · theorganic.in</span><h3>TheOrganic.in</h3><p>Organic brands, certified products and producers. B2C discovery with where-to-buy routing; B2B RFQ engine matching buyers to verified suppliers.</p></div>
+  </div>
+</div></section>
+
+<section id="engines"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Versatile Core</div>
+    <h2>8 engines, built once</h2>
+    <p>The 34 categories are not 34 features. Each is a configuration of one of eight engines — so adding a new vertical is a registry entry and a spec schema, not a rebuild.</p>
+  </div>
+  <div class="engines">
+    <div class="eng"><span class="num">E1</span><span class="pct">~60% of verticals</span><h3>Directory</h3><p>Companies, shops, labs, vets, FPOs, warehouses — profiles, branches, geo search, verification, claim flow, reviews.</p></div>
+    <div class="eng"><span class="num">E2</span><span class="pct">spec-schema driven</span><h3>Catalog</h3><p>Products with per-vertical spec sheets. Filters, comparisons and facets render automatically from admin-defined schemas.</p></div>
+    <div class="eng"><span class="num">E3</span><span class="pct">moderated</span><h3>Classifieds</h3><p>User listings with a full lifecycle — livestock, land for sale or lease. Discovery and contact only, never payments.</p></div>
+    <div class="eng"><span class="num">E4</span><span class="pct">two-sided</span><h3>Matchmaking</h3><p>Structured intents matched on category × geo × attributes: labour ↔ farms, loads ↔ transporters, trade leads.</p></div>
+    <div class="eng"><span class="num">E5</span><span class="pct">verified data</span><h3>Data / Info</h3><p>Schemes, subsidies, loan and insurance tables, helplines, mandi prices — sourced, dated, human-verified reference data.</p></div>
+    <div class="eng"><span class="num">E6</span><span class="pct">3 languages</span><h3>Content</h3><p>Blog, news, guides, webinars and events — tagged by vertical and geo so content surfaces where it's relevant.</p></div>
+    <div class="eng"><span class="num">E7</span><span class="pct">expert-flaired</span><h3>Community</h3><p>Forum with Q&amp;A mode, accepted answers, verified expert badges, coin rewards and a serious moderation queue.</p></div>
+    <div class="eng"><span class="num">E8</span><span class="pct">no payments</span><h3>Booking-Inquiry</h3><p>Soil tests, water tests, consultations, warehouse space — request, confirm, track. Providers settle directly.</p></div>
+  </div>
+</div></section>
+
+<section id="verticals"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Vertical Registry</div>
+    <h2>Every category, mapped and staged</h2>
+    <p>Grouped by launch stage. Milk.in shipped monetized at Day 39 ✓. <b>Re-sequenced:</b> the ad-rich Agri.in hub builds next (D40–57), the parked Milk.in correction batch closes right after (D58–62), then TheOrganic.in (D63–74). Fraud-sensitive classifieds still ship last.</p>
+  </div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:#2563A8"></span>🥛 Milk.in — LIVE since Day 39 ✓</h3>
+    <div class="chips"><span class="chip">Pincode-first dairy discovery</span><span class="chip">Brand + local-vendor blending</span><span class="chip">Milk-type filters</span><span class="chip">Subscription-intent leads</span><span class="chip">Vendor dashboard</span><span class="chip">Dairy directory — vets · feed · co-ops</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:#4A6B2A"></span>🌿 TheOrganic.in launch — Day 74</h3>
+    <div class="chips"><span class="chip custom">Cert verification — NPOP · PGS · USDA</span><span class="chip">Organic brand directory</span><span class="chip">Where-to-buy + store locator</span><span class="chip custom">B2B RFQ engine</span><span class="chip">Brand dashboard</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:#2C6E35"></span>🌾 Agri.in hub launch — Day 57 · builds NOW</h3>
+    <div class="chips"><span class="chip custom">Mandi prices</span><span class="chip custom">Weather</span><span class="chip">Agri news</span><span class="chip">Knowledge hub</span><span class="chip">Business directory</span><span class="chip custom">AI assistant</span><span class="chip">Helpline band + click-to-call</span><span class="chip">Advertiser self-serve</span><span class="chip custom">Sarkari status hub — PM-Kisan · Patta/Chitta · AgriStack</span><span class="chip">Farm calculators</span><span class="chip">36-tile registry grid</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sb)"></span>Stage B · Inputs &amp; Equipment — Days 75–92</h3>
+    <div class="chips"><span class="chip">Seed companies &amp; products</span><span class="chip">Fertilizers</span><span class="chip">Pesticides · bio · chemicals</span><span class="chip custom">Tractors · mini · EV</span><span class="chip">Rotavators · harvesters · weeders</span><span class="chip">Sprayers · implements · tools</span><span class="chip">Drip irrigation</span><span class="chip">Pumps · solar · solar pumps</span><span class="chip">Agri drones</span><span class="chip">Agri machinery</span><span class="chip custom">Machinery rental · CHC</span><span class="chip">Nurseries &amp; saplings</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sc)"></span>Stage C · Services &amp; Trust — Days 93–107</h3>
+    <div class="chips"><span class="chip">Soil testing</span><span class="chip">Water testing</span><span class="chip">Agritech apps directory</span><span class="chip">Agri loans</span><span class="chip">Agri consulting</span><span class="chip">Vet consulting</span><span class="chip">Insurance · crop insurance</span><span class="chip">Warehouses &amp; booking</span><span class="chip">Agri transport</span><span class="chip custom">Govt schemes &amp; subsidies</span><span class="chip">Organic certification info</span><span class="chip">Carbon credits</span><span class="chip">FPO directory</span><span class="chip">Farmer helplines</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--sd)"></span>Stage D · Community &amp; Content — Days 108–115</h3>
+    <div class="chips"><span class="chip">Discussion forum</span><span class="chip">Webinars &amp; events</span><span class="chip">Blog — all agri fields</span><span class="chip">Expert program</span><span class="chip">Seasonal content packs</span></div></div>
+  <div class="vert-group"><h3><span class="vg-dot" style="background:var(--se)"></span>Stage E · Classifieds &amp; Matchmaking — Days 116–130</h3>
+    <div class="chips"><span class="chip">Cattle · sheep · livestock listings</span><span class="chip custom">Agri land — sale &amp; lease</span><span class="chip custom">Agri labour ↔ farm matchmaking</span><span class="chip">Land ↔ lessee matching</span><span class="chip">Import / export trade leads</span><span class="chip">Local shops · repair &amp; spares</span><span class="chip">Used equipment</span></div></div>
+  <p class="legend-note"><b>◆</b> = deserves a custom-built experience beyond the engine template (comparison UX, eligibility wizard, map-first browse, low-literacy vernacular UI).</p>
+</div></section>
+
+<section id="roadmap"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">The Field · Day-by-Day Roadmap</div>
+    <h2>125 days, sowing to harvest</h2>
+    <p>Every square is one working day — one branch, one Claude Code work package, one reviewed merge. Days 1–39 are DONE (Milk.in live, monetized). <b>v7 re-sequences the rest:</b> Agri.in hub next (D40–57, per the A1 FINAL v4 reference + A-U1→A-U4 checkpoints incl. the gap-analysis additions), then the parked Milk.in correction batch closes and the checklist is SIGNED (D58–62), then TheOrganic.in (D63–74) — both later launches inherit the M6-proven ad engine as pure configuration. Stages B–E follow, ending at D130.</p>
+  </div>
+  <div class="plat-note" style="margin-bottom:22px"><b>⏳ External clock (v7):</b> DLT cleared ✓ (Milk.in live with real OTP). <b>Razorpay KYC is now the only clock</b> — advertiser billing runs TEST mode until it clears; live-mode is a flag flipped at the D62 milk sign-off (or the first launch after clearance). File/chase it now. Get TEST-mode keys regardless — D3/D5/D6 close with them at D59.</div>
+  <div class="phase-filters" id="filters" role="group" aria-label="Filter roadmap by phase"></div>
+  <div class="field">
+    <div class="field-label"><span>◦ Days 1–39 done ✓</span><span>🌾 D57 · 🥛✔ D62 · 🌿 D74</span><span>harvest — Day 130 ★</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="day-panel" id="panel" aria-live="polite">
+      <div class="dp-top"><span class="dp-day">SELECT A DAY</span></div>
+      <h3>Tap any square to see that day's work package</h3>
+      <ul><li>Each day lists its deliverables, and milestone days show their quality gate.</li></ul>
+    </div>
+  </div>
+  <div class="phase-cards" id="phaseCards"></div>
+</div></section>
+
+<section id="roadmap-backlog"><div class="wrap">  <div class="plat-note" style="margin-top:22px;background:#F3F0E6;border-color:#E4DCC2"><b>◇ Future enhancements — post-launch backlog, outside the 125 days:</b> AgriCoins expiry (12-mo FIFO + 30-day warning; ledger is timestamped so it ships later as burn entries) · events monetization (paid slots · organizer dashboard · attendee lists) · retention (newsletter + push digest + re-engagement) · event certificates &amp; recordings. Gap-analysis additions parked here too: photo crop doctor (post AI sign-off) · "my crops" stage advisory · poultry / fisheries full surfaces · dam levels · feeder schedules. These stay in the registry backlog until a launched platform’s metrics justify them.</div>
+</div></section>
+
+<section id="security"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Security Architecture</div>
+    <h2>Data protection as the first priority</h2>
+    <p>Eight defensive layers, from the network edge to the AI assistant. Every sensitive diff gets a second adversarial AI review before merge; every backup gets a tested restore drill before launch.</p>
+  </div>
+  <div class="sec-stack">
+    <div class="slayer"><div class="sl-name"><small>Layer 1</small><b>Edge</b></div><div class="sl-body"><span>Cloudflare WAF</span><span>DDoS protection</span><span>Bot fight mode</span><span>TLS 1.3 + HSTS</span><span>Rate limiting on /auth/*</span><span>Geo challenge on abuse</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 2</small><b>Identity</b></div><div class="sl-body"><span>OTP limits — number / IP / device</span><span>OAuth2 + PKCE</span><span>RS256 JWTs · 15-min expiry</span><span>Rotating refresh tokens, device-bound</span><span>JWKS key rotation</span><span>Logout-everywhere revocation</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 3</small><b>Application</b></div><div class="sl-body"><span>SecureRouter — 401 by default</span><span>public_routes.txt audited in CI</span><span>owned_by() kills IDOR structurally</span><span>Pydantic v2 validation everywhere</span><span>ORM-only — zero string SQL</span><span>Cursor pagination only — offset banned by lint</span><span>Per-route rate limits</span><span>CSP + security headers</span><span>Presigned uploads · EXIF strip</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 4</small><b>Data</b></div><div class="sl-body"><span>AES-256 encryption at rest</span><span>Field-level encryption for phone / PII</span><span>PII never in logs or URLs</span><span>Hash-chained append-only audit log</span><span>Internal UUIDs never exposed</span><span>Soft deletes + retention policy</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 5</small><b>Payments</b></div><div class="sl-body"><span>Razorpay signature verification</span><span>Idempotent webhooks</span><span>Daily reconciliation job</span><span>No card data ever stored</span><span>Coins ledger integrity checks nightly</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 6</small><b>Privacy · DPDP</b></div><div class="sl-body"><span>Consent records (DPDP Act 2023)</span><span>Purpose limitation</span><span>Data export endpoint</span><span>Right-to-delete endpoint</span><span>Data minimization by default</span><span>Contact reveal gated + logged</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 7</small><b>AI Safety</b></div><div class="sl-body"><span>Prompt-injection hardening</span><span>Read-only tool allowlist</span><span>Output filtering</span><span>Per-user rate + turn limits</span><span>Red-team script pre-launch</span><span>Human sign-off on dosage / scheme / loan content</span></div></div>
+    <div class="slayer"><div class="sl-name"><small>Layer 8</small><b>Operations</b></div><div class="sl-body"><span>Encrypted secrets (SOPS)</span><span>Least-privilege access</span><span>Two-pass adversarial AI code review</span><span>Dependency audits in CI</span><span>Encrypted nightly backups → R2</span><span>Restore drills · Days 5, 38, 68, 125</span><span>Lighthouse ≥90 throttled-3G — CI merge gate</span><span>Kill switches on every risky surface</span></div></div>
+  </div>
+  <p class="sec-motto"><b>Standing rule:</b> AI writes, human approves. AI never touches production secrets, the production database, DNS, payment dashboards or deploy keys. Auth, coins, billing and lead-routing code is read line-by-line before merge — always.</p>
+</div></section>
+
+<section id="platforms"><div class="wrap">
+  <div class="sec-head"><div class="tag-line">Every Screen</div>
+    <h2>Desktop, Android and iOS from one codebase</h2>
+    <p>Responsive web plus installable PWA — the right call for rural India: no app-store friction, tiny footprint, works on low-end devices and patchy networks.</p>
+  </div>
+  <div class="plats">
+    <div class="plat"><div class="picon">🖥️</div><h3>Desktop web</h3><ul><li>Full experience for brands, advertisers and admin consoles</li><li>Data-dense dashboards: leads, campaigns, analytics</li><li>Keyboard navigation and visible focus throughout</li><li>SEO-first rendering — ISR + structured data</li></ul></div>
+    <div class="plat"><div class="picon">🤖</div><h3>Android</h3><ul><li>Installable PWA — add to home screen, splash, app icon</li><li>Web push notifications: price alerts, leads, matches</li><li>Offline shell: helplines, cached mandi prices, saved items</li><li>Low-data mode — image quality toggle, lazy loading</li></ul></div>
+    <div class="plat"><div class="picon">🍎</div><h3>iOS</h3><ul><li>Installable PWA with iOS web push (16.4+)</li><li>Safe-area aware layouts, native-feel gestures</li><li>Same AgriID session and coins balance everywhere</li><li>Capacitor-wrapped store apps as a later option, zero rewrite</li></ul></div>
+  </div>
+  <div class="plat-note"><b>Farmer-first UX baked in:</b> location-first home (my weather · my mandi · my schemes), vernacular UI in English, Tamil and Hindi, icon-heavy low-literacy flows for labour matchmaking, voice-note job posts, and click-to-call everywhere contact matters.</div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="f-row">
+    <span>Agri.in Ecosystem Blueprint · v7 master (130-day, re-sequenced) · Block 1 → Stage E</span>
+    <span class="mono">tags · v1.0.0-milk@D39 ✓ → v1.2.0-agri@D57 → milk-signed@D62 → v1.3.0-organic@D74 → v2.0.0@D130</span>
+  </div>
+  <div class="f-row" style="margin-top:8px">
+    <span>Competitor to no one — a platform for all of them.</span>
+    <span>AgriID · AgriCoins · Agri.in · Milk.in · TheOrganic.in</span>
+  </div>
+</div></footer>
+
+<script>
+const PHASES={
+ B1:{n:"Block 1 · Foundation ✓",c:"#8A9B6E",d:"1–5",s:"DONE — monorepo, design system, SecureRouter, CI gates, observability, restore drill #1"},
+ B2:{n:"Block 2 · AgriID + AgriCoins ✓",c:"#3E7A45",d:"6–14",s:"DONE — OTP auth, OAuth2+PKCE SSO across 3 domains, RBAC, audit log, append-only coins ledger"},
+ B3:{n:"Block 3 · Shared core ✓",c:"#6B8F3D",d:"15–22",s:"DONE — directory, spec-schema catalog, reviews, leads, search, Razorpay (flagged), ads v1"},
+ B4:{n:"Block 4 · Milk.in ✓",c:"#2563A8",d:"23–30",s:"DONE — pincode-first dairy discovery, subscription-intent leads, vendor dashboard, QA + WAF"},
+ B45:{n:"Block 4.5 · Milk Monetization ✓",c:"#7B4FA0",d:"31–39",s:"DONE — Sprint 3.5 ad engine + tiers + advertiser self-serve → 🥛 Milk.in LIVE at D39"},
+ B6:{n:"Block 5 · Agri.in hub",c:"#2C6E35",d:"40–57",s:"A-U1→A-U4: hub home per A1 FINAL v4 (36 tiles, sarkari hub, calculators), mandi + weather workers, news, knowledge, AI assistant, ads by config, coins full activation → hub launch"},
+ MC:{n:"Block 5.5 · Milk.in corrections",c:"#4A6B8A",d:"58–62",s:"Parked milk batch: U4 fixes (A1/A11/A21), Razorpay D3/D5/D6 closure, Issue #59 perf floor restore, F3 logout decision, acceptance checklist SIGNED"},
+ B5:{n:"Block 6 · TheOrganic.in",c:"#4A6B2A",d:"63–74",s:"Organic directory, cert verification, B2B RFQ engine, brand dashboard + ads activation by config → monetized launch"},
+ SB:{n:"Stage B · Inputs & Equipment",c:"#946B2D",d:"75–92",s:"Schema builder, SEO factory, 8+ input/equipment verticals incl. machinery rental (CHC) + nurseries, tractor flagship UX, ads v2"},
+ SC:{n:"Stage C · Services & Trust",c:"#B5541C",d:"93–107",s:"Booking engine, labs, loans, insurance, warehouses, schemes eligibility wizard, helplines"},
+ SD:{n:"Stage D · Community & Content",c:"#5E7D46",d:"108–115",s:"Forum + Q&A, moderation, webinars, content velocity, seasonal packs"},
+ SE:{n:"Stage E · Classifieds & Match",c:"#6B4A2B",d:"116–130",s:"Classifieds + fraud core, livestock, used equipment, land map-first, labour vernacular UX, trade leads → full launch"}
+};
+const DAYS=[
+[1,"B1","Foundation scaffold",["Turborepo, 5 Next.js apps, shared packages","FastAPI skeleton + SecureRouter — 401-by-default proven by test","Compose stack, two DB roles, CLAUDE.md with Constitution + git rules, branch protections"]],
+[2,"B1","Design system",["Tokens + 18 inclusive components (CategoryTile icon+EN+vernacular, CallButton, PincodeInput, BottomNav…)","SEO primitives as typed components: JsonLd, MetaBuilder, canonical, NoIndex","a11y pass + next-intl EN / TA / HI — demo route indistinguishable from the reference mockup"]],
+[3,"B1","Database foundation",["Alembic multi-schema + migration template (UUIDv7 / UTC / soft-delete / moderation-pending)","Cursor paginate() + offset-ban, owned_by(), immutable-slug mixin + redirects + 301 middleware","JSONB TranslatedString, Redis Streams bus, feature flags; geo v1 — TN only (full-India blocks/villages/centroids load at D65)"]],
+[4,"B1","CI merge gates",["PR pipeline: lint / type / tests / build, migration up+down, import-linter, offset-ban, gitleaks, dep audit","Public-route audit gate + Lighthouse ≥90 throttled-3G merge gate","Staging deploy from dev + SOPS; Caddy security headers"]],
+[5,"B1","Observability + backups ★",["Sentry, JSON logs + PII-scrub with test, request IDs, pg_stat_statements, p95","Encrypted backups → R2 + restore drill #1 actually executed & timed + Uptime Kuma","ADRs + per-module CLAUDE.md","GATE 1: clone → running < 15 min; insecure endpoint fails CI — promote, tag v0.1.0"]],
+[6,"B2","Identity schema",["identity.* via template: users, profiles, handles+history, otp_requests, sessions_refresh, roles, permissions, addresses, preferences","@handle rules + blocklist + AG-XXXXXXX atomic fallback","Line-by-line schema review; privacy defaults"]],
+[7,"B2","OTP service",["Issue / verify, TTL, caps, backoff, per-number / IP / device limits","Mock driver primary (DLT on hold) + vendor driver behind flag; DLT template stubs + webhook","Paper red-team: enumeration / flooding / SIM-swap. ⚠ DLT reminder #1"]],
+[8,"B2","OAuth2 server",["authlib /authorize + /token, PKCE enforced, first-party client registry","RS256 keys + JWKS + rotation runbook","Full-flow line review"]],
+[9,"B2","Refresh + web-id",["Rotating device-bound refresh, revocation, logout-everywhere","web-id: OTP screens, handle picker, device manager","Replay / rotation-race review"]],
+[10,"B2","Auth client SDK",["BFF cookies, silent SSO, useAgriUser()","Wired into all 4 apps — one account all domains, one logout kills all","⚠ DLT reminder #2 — file now"]],
+[11,"B2","Profiles + RBAC",["Progressive profile API+UI + completion score","RBAC deps + 5 roles + admin user management","Playwright auth E2E"]],
+[12,"B2","Audit + notify",["Hash-chained append-only audit log","Notify module: in-app / SMS / email templates + consumers","Tamper-evidence verify"]],
+[13,"B2","AgriCoins ledger",["Append-only ledger + idempotency index + award / redeem + balances + nightly integrity","Rules engine + consumers + referrals + clustering flags","Line-by-line ledger review + concurrency property tests","Coin expiry (12-month FIFO) — deferred to future enhancement; entries carry award timestamp so it ships later as burn entries"]],
+[14,"B2","Auth + coins gate ★",["Adversarial audit of auth + coins, fixes","Coins widget / history + admin rules / abuse queue","GATE 2: SSO across 3 domains · OTP-abuse suite · 10k concurrent awards, zero drift — promote, tag v0.2.0"]],
+[15,"B3","Directory slice",["Businesses / branches / categories / claims / verifications","Vendor ↔ pincode coverage + 'who serves 641001'"]],
+[16,"B3","Claim + admin",["Claim flow + verification-lite queue","Admin business-management UI"]],
+[17,"B3","Registry + catalog",["vertical_registry + versioned JSONB spec_schemas + validate-on-write","Milk product schema + media pipeline (presign → re-encode → EXIF-strip → media domain)"]],
+[18,"B3","Reviews + leads",["Reviews (polymorphic, pending-default, ratings, coin hook)","Leads: types, pincode × category routing, inbox, response tracking — reveal caps vs scraping"]],
+[19,"B3","Search + location",["Meilisearch indexers + unified API","Location context (profile → GPS → pincode → IP) + switcher","Coimbatore vendor seed"]],
+[20,"B3","Billing (flagged)",["Razorpay subscriptions + signed idempotent webhooks + invoices + reconciliation + dunning (failed-payment retries + grace + dunning emails) — behind feature flag while KYC on hold","Business Console shell; money-path line review","⚠ Razorpay: file KYC now (D18 deadline)"]],
+[21,"B3","Ads v1 + ops",["Ads v1: campaigns / creatives / slots / geo targeting / approval / partitioned tracking","Ops Console: unified moderation queue + flags"]],
+[22,"B3","Shared-core gate ★",["Adversarial: leads IDOR, uploads, billing","k6 browse load","GATE 3: register → claim → subscribe (flagged) → receive-lead E2E — promote, tag v0.3.0"]],
+[23,"B4","Milk.in pincode home",["Pincode-first home (ISR) + GPS fallback + brand / vendor blending","Milk-type filters + price-range banner"]],
+[24,"B4","Vendor profiles + map",["Vendor profiles with LocalBusiness JSON-LD + tracked Call / WhatsApp / form","MapLibre map + list sync"]],
+[25,"B4","Post-my-need flow",["'Post my need' icon-first speakable flow","Coverage matching → vendor inbox → respond → notify"]],
+[26,"B4","Vendor dashboard",["Listing / coverage / products / leads + response stats","Premium tier (priority sort) + analytics-lite"]],
+[27,"B4","Dairy directory + seed",["Dairy directory (vets / feed / farms / co-ops via registry)","Brand pages + shops-near-you","150+ vendors seeded; TA / HI strings"]],
+[28,"B4","PWA + SEO",["PWA: manifest / SW / offline shell / push","Pincode landing ISR + noindex-until-populated + sitemaps"]],
+[29,"B4","E2E + device matrix",["E2E: discover → call, need → respond, subscribe","Device matrix + low-data + vernacular"]],
+[30,"B4","Adversarial + WAF",["Adversarial full-surface + OWASP","Cloudflare production WAF / bot / rate + k6 500/50","DLT approval must be in hand — verify real SMS today"]],
+[31,"B45","M1 · Dairy taxonomy + verified-first",["Full dairy taxonomy as D17 schema values — milk / ghee / paneer / milk powder / yogurt / lassi / curd / buttermilk / cheese / butter… (config, never code)","Home category tile row (atomic design: atoms → molecules → organisms) + auto category pages, ISR + JSON-LD","Verified-first ranking — badge only via admin D16 queue; 'List your dairy business' CTA → existing claim flow"]],
+[32,"B45","M1.5 · Trust & safety + profile polish",["User reports on brands / shops / vendors → existing Ops moderation queue only; admin-visible, reporter anonymous to vendor","Admin suspend (delisted everywhere incl. ads) / disable (dashboard locked, campaigns auto-paused) + append-only enforcement audit + reinstate","Brand About section (EN/TA/HI) on profiles + 'Member since' / 'On Milk.in since' dates"]],
+[33,"B45","M2 · Ad surfaces + global banner",["AdSlot primitive (approved creatives only, img-only v1, zero CLS) + sliding head banner on every page","Slots: home hero · per-category banners · search inline · profile footer — {vertical}_{placement} naming for reuse","House-ad creatives seeded; impression-on-visibility + click → D21 partitioned tracking"]],
+[34,"B45","M3 · Delivery blend + sponsored listings",["Global + local pincode blend per slot, per category independently (local 2× boost, frequency caps)","Sponsored listings: max 2/page, fixed positions, always 'Sponsored' badge — organic order untouched (tested)","'Recommended' = algorithmic only (verified + rating + response-time); paid can never buy the label"]],
+[35,"B45","M4 · Automatic pincode tiers",["Census-population → pincode classification T1–T5 (metro → extreme rural), zero manual intervention","Nightly user-count re-rank: promote-only with hysteresis; append-only tier history","get_tier() accessor feeds rate card + analytics; TN verified complete, pan-India dormant (Stage B)"]],
+[36,"B45","M5 · Advertiser self-serve + billing",["Campaign wizard in Business Console: categories one/many/ALL × pincodes one/many/ALL/by-tier × schedule + budget","Rate card (tier × category, versioned) · Razorpay TEST mode e2e · append-only ledger · GST invoices · dunning","Advertiser analytics: impressions / clicks / CTR / spend by pincode + category; money path line-reviewed"]],
+[37,"B45","M6 · Portability proof + freeze ★",["Portability proof: theorganic_global_header serves via config ONLY → docs/ads/vertical-onboarding.md","Delta adversarial audit — billing webhooks, creative XSS, campaign IDOR, tier gaming, label integrity + k6 with ads live","GATE 3.5: config-only reuse proven · zero Critical/High → FEATURE FREEZE"]],
+[38,"B45","Launch dry-run",["Deploy dry-run + DNS / rollback rehearsal","Legal pages live; DPDP consent / export / delete verified","Restore drill #2 + on-call + content seed"]],
+[39,"B45","🥛 Milk.in launch ★",["Merge dev → main, tag v1.0.0-milk, DNS cutover","Smoke, monitor, hotfix lane","First platform live — pincode-first dairy discovery"]],
+[40,"B6","A-U1 · Hub home + Today strip",["Home per A1 FINAL v4 — TODAY strip (agri_today flag, typed stubs), hero ad slot agri_home_hero_xl by config, search band, new tokens into design system","Composites into home-patterns/today-strip catalogs + /demo section","Binding proofs started in docs/design-reference/polish-a1.md"]],
+[41,"B6","A-U1 · 36-tile grid + sarkari hub + tools",["36-tile registry grid (5 groups, machinery-rental + farm-tools entries) + /categories + honest coming-soon landings (noindex, notify-me)","Sarkari services hub — PM-Kisan status, Patta/Chitta, PMFBY, AgriStack, SHC, eNAM — verified links only","Calculators v1 (EMI, seed rate, fertilizer dose) + WhatsApp share on price cards; agri acceptance checklist FILE started"]],
+[42,"B6","A-U2 · Weather",["Open-Meteo hyperlocal + 7-day + severe banners + caching + rainfall/monsoon departure","Pages / widgets / alert subs; spray-window advisory"]],
+[43,"B6","A-U2 · Mandi I",["Agmarknet worker + 90-day backfill + quality checks + arrival volumes","Commodity × market × state ISR + Dataset JSON-LD; source + as-of stamps everywhere"]],
+[44,"B6","A-U2 · Mandi II",["Trends + price alerts + MSP dataset + MSP overlay on cards","Multi-market compare view + commodity × state SEO pages; flip agri_today ON, delete stubs"]],
+[45,"B6","A-U3 · News + video",["RSS ingest + curation + attribution + state tags; feed UI + bookmarks","Video as first-class E6 content type (duration + language)","40 knowledge drafts (background)"]],
+[46,"B6","A-U3 · Knowledge CMS + advisories",["Knowledge CMS (Claude-assist + human gate, i18n) + guides with FAQPage JSON-LD","Pest-alert advisory content type (human-written) + livestock/poultry care pack seeds"]],
+[47,"B6","A-U3 · Directory + helplines + schemes",["Hub directory UI + sponsored pins","Helpline band + offline click-to-call page + schemes static v0 (verified sources + dates)"]],
+[48,"B6","A-U4 · AI assistant I",["pgvector RAG + read-only mandi / weather tools","Chat UI EN / TA / HI"]],
+[49,"B6","A-U4 · AI assistant hardening",["Injection defense, scope guard, output filters, tier limits, red-team run","Ask-AI entry on all sites","Personal sign-off — or flag OFF for launch"]],
+[50,"B6","A-U3 · Hub ads activation",["Agri.in ad slots + campaigns via config only — vertical-onboarding.md recipe","Cross-vertical advertiser analytics verified; hub rate card entries added"]],
+[51,"B6","A-U4 · Coins full activation",["Coins full activation (all earn + burn)","Coins center + referral share"]],
+[52,"B6","A-U4 · Notifications + search",["Unified notification center + federated search (dairy / organic cards on hub)","Switcher polish + nudges","One-identity walkthrough"]],
+[53,"B6","A-U4 · PWA + Lighthouse",["PWA parity + mandi last-prices & saved items offline cache + hub sitemaps","Lighthouse sweep ≥0.90 every route — no carve-outs (Decision 3)"]],
+[54,"B6","Full hub QA",["Full QA across the hub; agri acceptance checklist rows all attempted in live browser"]],
+[55,"B6","Adversarial hub audit",["Adversarial hub audit (assistant, ads money path) + full k6 with ads serving"]],
+[56,"B6","Launch prep + drill #3",["Launch prep + restore drill #3 + sarkari link checker green"]],
+[57,"B6","🌾 Agri.in launch ★",["Merge dev → main, tag v1.2.0-agri, DNS cutover","Smoke, monitor, hotfix lane","Hub live — 36 verticals honest (7 live · 29 Soon), one AgriID"]],
+[58,"MC","U4 fix batch",["A1: guest home zero console errors (401 noise killed)","A11: pinned filters absent from mobile DOM — node-count regression spec, not visibility","A21: price-alert dismissal persists across reload + spec"]],
+[59,"MC","Razorpay closure D3/D5/D6",["TEST-mode keys: checkout completes e2e; webhook signature suite re-verified","D5 invoice + D6 reconciliation rows closed properly — no PASS by association","Live-mode readiness note for KYC clearance day"]],
+[60,"MC","Issue #59 · perf floor",["Milk home back to Lighthouse ≥0.90 throttled-3G — carve-out expires as committed","Perf work reviewed: no feature regressions; screenshots re-archived"]],
+[61,"MC","F3 logout decision",["Owner decision recorded: single-app vs ecosystem-wide logout — implemented + ADR","Delta e2e on session revocation across all verticals"]],
+[62,"MC","🥛 Milk checklist SIGNED ★",["Re-run failed rows + D3/D5/D6 in live browser → SIGN docs/qa e2e acceptance checklist","M6 regression sweep still green; milk track formally closed"]],
+[63,"B5","Organic taxonomy",["Organic taxonomy + spec schemas + category ISR landings","Producer / FPO type + brand directory UI"]],
+[64,"B5","Cert verification",["Cert system: upload → verify → badge (NPOP / PGS / USDA) + expiry + verified filter","Cert-education bar + guides"]],
+[65,"B5","Product + where-to-buy",["Product detail with Product JSON-LD + comparison-lite","Where-to-buy + store locator"]],
+[66,"B5","RFQ I",["RFQ posting + category × geo matching","Brand RFQ inbox — cross-competitor leakage scoped & reviewed"]],
+[67,"B5","RFQ II",["Two-sided ratings + lead-credit gating","Brand dashboard (products / certs / analytics)"]],
+[68,"B5","Homepage + search",["Homepage per mockup","Search / filters + cross-site coin hooks verified"]],
+[69,"B5","PWA + markup + seed",["PWA parity","Category × geo ISR + sitemaps + Product markup","100+ brands seeded"]],
+[70,"B5","E2E + matrix",["E2E: browse → where-to-buy, RFQ round-trip, cert flow","Device + vernacular matrix"]],
+[71,"B5","Adversarial + load",["Adversarial RFQ / cert / dashboard","Load + WAF"]],
+[72,"B5","Launch prep",["Launch prep pass"]],
+[73,"B5","Ads activation + buffer",["TheOrganic.in ad slots + sponsored listings via config only (theorganic_global_header proven at M6)","Rate-card entries + house creatives; advertiser wizard verified against organic schema","Slippage buffer / catch-up"]],
+[74,"B5","🌿 TheOrganic.in launch ★",["Promote, tag v1.3.0-organic","Third platform live — certified organic discovery + B2B RFQ"]],
+[75,"SB","Schema admin builder",["Spec-schema admin builder","Schema-driven filters / facets / sheets / comparison"]],
+[76,"SB","Bulk import + Console v2",["Bulk import (validate / dedupe / stage)","Business Console v2 schema forms"]],
+[77,"SB","SEO ISR factory",["Pan-India geo backbone — blocks + villages + pincode centroids","Vertical × geo ISR factory + noindex-until-populated + auto-sitemaps"]],
+[78,"SB","Internal-link mesh",["Internal-link mesh","SEO-copy pipeline + spot-check queue (background)"]],
+[79,"SB","Seeds — VERTICAL-TEMPLATE",["SEEDS vertical end-to-end, frozen as the reusable VERTICAL-TEMPLATE","Schema / landing / filters / products / 100+ companies","Nurseries & saplings vertical seeded from same template"]],
+[80,"SB","Fertilizers",["Fertilizers vertical from template","Company + product seeding; dosage disclaimers"]],
+[81,"SB","Crop protection",["Pesticides / bio-pesticides / agri chemicals","CIB&RC field + toxicity bands — all safety copy human-written"]],
+[82,"SB","Implements + rental (CHC)",["Implements / tools vertical + harvesters / machinery comparison","Machinery-rental vertical live: CHC + rental provider directory (E1), booking-inquiry later"]],
+[83,"SB","Drip + pumps/solar",["Drip irrigation (quote form)","Pumps / solar (subsidy flags)"]],
+[84,"SB","Drones + quality sprint",["Drones (DGCA, service providers)","Quality sprint + claim campaign + coin rewards"]],
+[85,"SB","Tractor: comparison",["Tractor flagship: comparison browse + battle cards"]],
+[86,"SB","Tractor: EMI + pricing",["EMI calculator + price explorer by segment"]],
+[87,"SB","Tractor: dealers",["Dealer locator + test-drive leads"]],
+[88,"SB","Tractor: content pack",["Buying guides EN / TA / HI + SEO interlinking"]],
+[89,"SB","Ads v2",["Takeovers + sponsored products","Vertical × geo × role × language targeting"]],
+[90,"SB","Ads v2 tooling",["Advertiser analytics + rate cards + brand outreach kit"]],
+[91,"SB","Import adversarial",["Import-pipeline adversarial + index-coverage check"]],
+[92,"SB","Stage B gate ★",["9+ verticals · 500+ companies · pages indexing · tractor UX · first paid campaigns","GATE 4 — promote"]],
+[93,"SC","Booking engine",["Booking-inquiry engine (services / slots / lifecycle / notifications)"]],
+[94,"SC","Provider tooling",["Provider calendar-lite + completion reviews + reminders"]],
+[95,"SC","Soil + water labs",["Soil + water test labs: menus, pickup booking, report-to-account"]],
+[96,"SC","Agritech + FPO",["Agritech directory + FPO profiles"]],
+[97,"SC","Loans directory",["Lender directory + product tables + EMI"]],
+[98,"SC","Loan lead routing",["Eligibility-lite lead → consent-first routing","Money-copy review"]],
+[99,"SC","Consulting + vet",["Consultant + vet profiles, bookings, emergency flag"]],
+[100,"SC","Insurance",["PMFBY guides + comparisons + agent routing"]],
+[101,"SC","Insurance claims",["Claim guides + state deadline alerts + 72-hr intimation prominence"]],
+[102,"SC","Warehouses + transport",["Warehouses (WDRA, space requests)","Transport (load ↔ vehicle)"]],
+[103,"SC","Schemes dataset",["Schemes flagship: dataset + verified-sourcing + last-verified stamps"]],
+[104,"SC","Schemes wizard",["Eligibility wizard","Every scheme verified vs official source"]],
+[105,"SC","Cert + carbon",["Cert info + carbon: guides + directories + interest leads"]],
+[106,"SC","Data-engine hardening",["Data-engine hardening + Stage-C adversarial"]],
+[107,"SC","Services gate ★",["Wizard live on verified data · booking round-trips · loan / insurance routing","GATE 5 — promote"]],
+[108,"SD","Forum + Q&A I",["Forum + Q&A mode + accepted answers + coin rewards"]],
+[109,"SD","Forum + Q&A II",["Q&A depth: routing, duplicate suggestions, reputation"]],
+[110,"SD","Forum moderation",["Reports / limits / AI pre-classifier → human arbiter","Expert flair"]],
+[111,"SD","Forum SEO + digests",["Forum SEO + topic digests","Weekly Field Report digest exits Soon state here if metrics justify"]],
+[112,"SD","Webinars + events",["Webinars / events full: listings, registration, reminders, archive"]],
+[113,"SD","Content velocity I",["Editorial calendar (vertical × season) + tri-language pipeline"]],
+[114,"SD","Content velocity II",["Kharif / Rabi seasonal packs + region advisories (mostly background)"]],
+[115,"SD","Community gate ★",["Community + content systems self-sustaining","GATE 6 — promote"]],
+[116,"SE","Classifieds core I",["Classifieds engine + fraud core: phone-verified posting, image checks, dedup"]],
+[117,"SE","Classifieds core II",["Velocity, reports, interstitials, reveal caps DPDP-logged","Used-equipment category rides the same core (registry entry)"]],
+[118,"SE","Moderation console",["Unified moderation console + AI pre-pass + audit trail"]],
+[119,"SE","Livestock I",["Schemas incl. vaccination / yield, species × district"]],
+[120,"SE","Livestock II",["Safety checklists, badges, SOP, FPO-seeded","No-payment framing verified"]],
+[121,"SE","Land: map-first",["MapLibre cluster + draw-area search; list ↔ map sync"]],
+[122,"SE","Land: schema + posting",["Schema + flags + phone-verified posting"]],
+[123,"SE","Land: trust framework",["Disclaimers (platform lists, never brokers), fraud detection, takedowns"]],
+[124,"SE","Land: alerts + SEO",["Alerts + saved search + district / taluk SEO"]],
+[125,"SE","Labour: worker profiles",["Skills, day rate, availability, village; voice-note profiles"]],
+[126,"SE","Labour: job posts",["Job posts (wage mandatory) + distance match"]],
+[127,"SE","Labour: vernacular UX",["Icon-first low-literacy UX + voice-notes; Tamil / Hindi first screens"]],
+[128,"SE","Labour: match + safety",["Match loops + repeat-hire","Safety review — no exploitation-adjacent features"]],
+[129,"SE","Trade leads",["Trade leads (business-verified gate) + land ↔ lessee matching"]],
+[130,"SE","🌾 Full launch ★",["Final full-stack security audit + full k6 + restore drill #4 + runbooks","All tiles real","Promote, tag v2.0.0 — the all-of-agriculture platform is open"]]
+];
+const MILESTONES=new Set([5,14,22,37,39,57,62,74,92,107,115,130]);
+
+const rowsEl=document.getElementById('rows');
+const panel=document.getElementById('panel');
+const filtersEl=document.getElementById('filters');
+let activeFilter=null, selected=null;
+
+// build filters
+const allBtn=document.createElement('button');
+allBtn.className='pf active';allBtn.innerHTML='All 125 days';
+allBtn.onclick=()=>setFilter(null,allBtn);
+filtersEl.appendChild(allBtn);
+Object.entries(PHASES).forEach(([k,p])=>{
+  const b=document.createElement('button');b.className='pf';
+  b.innerHTML=`<span class="pd" style="background:${p.c}"></span>${p.n.split('·')[1].trim()} <span class="mono" style="font-size:10px;opacity:.7">D${p.d}</span>`;
+  b.onclick=()=>setFilter(k,b);filtersEl.appendChild(b);
+});
+function setFilter(k,btn){activeFilter=k;
+  filtersEl.querySelectorAll('.pf').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.seed').forEach(s=>{
+    s.classList.toggle('dim',k!==null&&s.dataset.ph!==k);
+  });
+}
+
+// build field rows of 20
+for(let r=0;r<7;r++){
+  const row=document.createElement('div');row.className='crop-row';
+  const tag=document.createElement('div');tag.className='row-tag';
+  tag.textContent=`D${r*20+1}–${Math.min(r*20+20,130)}`;row.appendChild(tag);
+  const seeds=document.createElement('div');seeds.className='seeds';
+  for(let i=0;i<20;i++){
+    const d=DAYS[r*20+i];if(!d)break;
+    const [day,ph]=d;
+    const s=document.createElement('button');
+    s.className='seed'+(MILESTONES.has(day)?' milestone':'');
+    s.style.background=PHASES[ph].c;s.dataset.ph=ph;s.dataset.day=day;
+    s.setAttribute('aria-label',`Day ${day}: ${d[2]}`);
+    if(!MILESTONES.has(day)){const n=document.createElement('span');n.className='dnum';n.textContent=day;s.appendChild(n);}
+    s.onclick=()=>selectDay(day);
+    seeds.appendChild(s);
+  }
+  row.appendChild(seeds);rowsEl.appendChild(row);
+}
+
+function selectDay(day){
+  selected=day;
+  document.querySelectorAll('.seed').forEach(s=>s.classList.toggle('sel',+s.dataset.day===day));
+  const d=DAYS[day-1];const p=PHASES[d[1]];
+  const gates=d[3].filter(t=>t.startsWith('GATE'));
+  const tasks=d[3].filter(t=>!t.startsWith('GATE'));
+  panel.style.borderLeftColor=p.c;
+  panel.innerHTML=`
+    <div class="dp-top"><span class="dp-day">DAY ${day} / 130</span>
+    <span class="dp-phase" style="background:${p.c}">${p.n}</span></div>
+    <h3>${d[2].replace(' ★','')}${MILESTONES.has(day)?' <span style="color:var(--turmeric)">★</span>':''}</h3>
+    <ul>${tasks.map(t=>`<li>${t}</li>`).join('')}</ul>
+    ${gates.map(g=>`<div class="gate">🏁 ${g}</div>`).join('')}
+    <div class="dp-nav">
+      <button ${day===1?'disabled':''} onclick="selectDay(${day-1})">← Day ${day-1||1}</button>
+      <button ${day===130?'disabled':''} onclick="selectDay(${Math.min(day+1,130)})">Day ${Math.min(day+1,130)} →</button>
+    </div>`;
+}
+window.selectDay=selectDay;
+selectDay(1);
+
+// phase summary cards
+const pcEl=document.getElementById('phaseCards');
+Object.entries(PHASES).forEach(([k,p])=>{
+  const c=document.createElement('div');c.className='pc';c.style.borderTopColor=p.c;
+  c.innerHTML=`<div class="pc-days">DAYS ${p.d}</div><h4>${p.n}</h4><p>${p.s}</p>`;
+  pcEl.appendChild(c);
+});
+</script>
+</body>
+</html>

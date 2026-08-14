@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agri.in — home reference (A1 FINAL v4)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   agri.in home — A1 DESIGN REFERENCE (FINAL v4)
+   Single-file sample. Same shared design system as milk.in U1 v7:
+   cream paper tokens + primitives unchanged; vertical theme tokens
+   swap blue (--mk) for agri green (--ag). New tokens marked NEW.
+   Breakpoints: mobile <768 · tablet 768–1023 · desktop >=1024
+   Location-first home per D52: TODAY strip leads, hero ad below it.
+   ============================================================ */
+:root{
+  /* agri theme tokens (vertical layer — parallel to --mk on milk.in) */
+  --ag:#3E7A45; --ag-deep:#2C5A33; --ag-soft:#EAF3E4; --ag-soft-2:#BFDCBA;
+  --ag-accent:#E9A61C; --ag-accent-ink:#4A2E00;
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --wa:#22B45A; --call:#22A34F; --wa-tint:#E8F7EE; --wa-border:#BFE7CE; --wa-ink:#0F6E42;
+  /* shared U1 tokens (already in design system) */
+  --paper:#FDFBF6; --paper-border:#EDE6D6; --paper-deep:#F4F0E6;
+  --ad-border:#E9A61C; --trust-bg:#FEFAF0;
+  /* NEW tokens introduced by A1 (enter design system before use) */
+  --up:#1E7A34;              /* mandi price rise */
+  --down:#B5541C;            /* mandi price fall */
+  --monsoon:#4A6B8A;         /* weather accent */
+  --alert-bg:#FDF1E3;        /* severe-weather strip */
+  --alert-border:#E8B268; --alert-ink:#7A4A0D;
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+h1,h2,.display{font-family:var(--font-display)}
+h2{font-size:18px;font-weight:600;margin-bottom:10px}
+:focus-visible{outline:3px solid var(--ag);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- buttons (primitives — binding, unchanged from U1) ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500;border-radius:10px;min-height:44px;padding:10px 18px;font-size:14px}
+.btn-primary{background:var(--ag);color:#fff}
+.btn-money{background:var(--ag-accent);color:var(--ag-accent-ink);border-radius:99px}
+.btn-call{background:var(--call);color:#fff}
+.btn-wa{background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink)}
+.btn-tertiary{background:var(--paper);color:var(--ag-deep)}
+.badge{font-size:11px;font-weight:500;border-radius:99px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px}
+.badge-sponsored{background:var(--ag-accent);color:var(--ag-accent-ink)}
+.badge-verified{background:#E1F5EE;color:#085041}
+.badge-reco{background:#FAEEDA;color:#854F0B}
+
+/* ---------- 1. utility strip ---------- */
+.util{background:var(--ag-deep);color:var(--ag-soft-2);font-size:12px}
+.util .wrap{display:flex;align-items:center;gap:16px;padding-top:6px;padding-bottom:6px}
+.util .spacer{flex:1}
+.util .eco a{color:var(--ag-soft);margin-right:12px}
+.util .hotline{background:var(--ag-accent);color:var(--ag-accent-ink);border-radius:5px;padding:3px 9px;font-weight:500;white-space:nowrap}
+@media(max-width:767px){.util .link,.util .eco{display:none}}
+
+/* ---------- 2. main header ---------- */
+.hdr{background:var(--ag);color:#fff}
+.hdr .wrap{display:flex;align-items:center;gap:18px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;flex-direction:column;line-height:1.05}
+.brand b{font-family:var(--font-display);font-weight:600;font-size:22px}
+.brand small{color:var(--ag-soft-2);font-size:10px}
+.hdr .loc{font-size:13px;color:var(--ag-soft);display:flex;align-items:center;gap:4px;white-space:nowrap;background:none;color:#E9F3E6}
+.hdr .spacer{flex:1}
+.hdr .lang{font-size:13px;color:var(--ag-soft)}
+.coins{background:#FEF3DC;color:#854F0B;font-weight:500;font-size:13px;border-radius:99px;padding:5px 12px;display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.bell{position:relative;font-size:18px}
+.bell i{font-style:normal}
+.bell .n{position:absolute;top:-6px;right:-9px;background:var(--ag-accent);color:var(--ag-accent-ink);font-size:9px;font-weight:500;border-radius:99px;padding:1px 5px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--ag-accent);color:var(--ag-deep);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+@media(max-width:767px){
+  .hdr .acct-label{display:none}.hdr .wrap{gap:6px}.brand small{display:none}.brand b{font-size:19px}
+  .hdr .lang{font-size:11px;white-space:nowrap}
+  .hdr .loc{font-size:11px;display:block;max-width:92px;overflow:hidden;text-overflow:ellipsis}
+  .coins{font-size:11px;padding:4px 8px}.bell{font-size:16px}.avatar{width:24px;height:24px}
+  .util .wrap>span:first-child{display:none}.util .wrap{justify-content:center}
+}
+
+/* ---------- 2b. severe-weather alert strip (renders ONLY on active IMD alert — D54) ---------- */
+.alert-strip{background:var(--alert-bg);border-bottom:1px solid var(--alert-border);font-size:12px;color:var(--alert-ink)}
+.alert-strip .wrap{display:flex;align-items:center;gap:8px;padding-top:8px;padding-bottom:8px}
+.alert-strip b{color:#5A3403}
+.alert-strip .go{margin-left:auto;color:var(--alert-ink);font-weight:500;white-space:nowrap}
+
+/* ---------- 3. TODAY strip — location-first lead (D52) ---------- */
+.today{margin-top:14px}
+.today-grid{display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 1fr;gap:10px}
+.tcard{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:13px 15px;display:flex;flex-direction:column;gap:3px;position:relative}
+.tcard .k{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tcard .big{font-family:var(--font-display);font-size:21px;font-weight:600;display:flex;align-items:center;gap:8px}
+.tcard .sub2{font-size:11.5px;color:var(--sub)}
+.tcard .go{font-size:11.5px;color:var(--ag);font-weight:500;margin-top:4px}
+.tcard.ask{background:linear-gradient(135deg,var(--ag) 0%,#33693A 100%);color:#fff;border-color:var(--ag)}
+.tcard.ask .k{color:var(--ag-soft-2)}
+.tcard.ask .sub2{color:var(--ag-soft)}
+.up{color:var(--up)}.down{color:var(--down)}
+@media(max-width:767px){.today-grid{grid-template-columns:1fr 1fr}}
+
+/* ---------- 4. hero ad (full-bleed, D21 slot agri_home_hero_xl — config-only reuse of ad engine) ---------- */
+.hero-ad{background:var(--ag-deep);color:#fff;position:relative;margin-top:16px}
+.hero-ad{background:linear-gradient(115deg,var(--ag-deep) 0%,#376B3E 55%,var(--ag) 100%)}
+.hero-ad .inner{max-width:1180px;margin:0 auto;padding:30px 64px;display:flex;align-items:center;gap:24px;min-height:250px}
+.hero-ad h1{font-size:clamp(21px,3vw,32px);font-weight:600;line-height:1.18;max-width:15em}
+.hero-ad p{color:var(--ag-soft-2);font-size:14px;margin:10px 0 18px;max-width:34em}
+.hero-ad .creatives{margin-left:auto;display:flex;gap:18px}
+.panel{width:185px;height:200px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px}
+.panel.a{background:var(--ag-soft);color:var(--ag-deep)}
+.panel.b{background:var(--ag);border:1px solid rgba(255,255,255,.22);color:var(--ag-soft-2)}
+.panel .glyph{font-size:60px;line-height:1}
+.ad-tag{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.92);color:#854F0B;font-size:11px;font-weight:500;border-radius:6px;padding:2px 9px}
+.hero-nav{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hero-nav.prev{left:14px}.hero-nav.next{right:14px}
+.dots{display:flex;justify-content:center;gap:6px;padding:10px 0 0}
+.dots span{width:8px;height:5px;border-radius:99px;background:#D8D2C2}
+.dots .on{width:22px;background:var(--ag)}
+@media(max-width:767px){
+  .hero-ad .inner{padding:20px 18px 28px;min-height:0;gap:14px}
+  .hero-ad p{font-size:11px;margin:6px 0 12px}
+  .creatives .panel.b{display:none}
+  .panel{width:96px;height:112px}.panel .glyph{font-size:34px}
+  .hero-nav{display:none}
+}
+
+/* ---------- 5. search band ---------- */
+.search-band{background:linear-gradient(135deg,var(--ag) 0%,#33693A 100%);color:#fff;border-radius:var(--radius-lg);margin:14px 0 0;padding:26px 20px 28px;text-align:center}
+.search-band h1{font-size:clamp(19px,2.4vw,27px);font-weight:600}
+.search-band .sub{color:#D8E8D4;font-size:13px;margin:6px 0 16px}
+.pin-row{max-width:620px;margin:0 auto;background:#fff;border-radius:14px;padding:6px 6px 6px 18px;display:flex;align-items:center;gap:10px}
+.pin-row input{flex:1;border:0;font-size:15px;font-weight:500;color:var(--ink);min-width:0;font-family:inherit}
+.pin-row input:focus{outline:none}
+.search-mic{font-size:17px;color:var(--ag);padding:0 4px;background:none}
+.geo{display:inline-block;margin-top:12px;font-size:12px;color:var(--ag-soft);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:5px 14px;background:none}
+
+/* ---------- 6. category grid — 34 verticals, 5 groups (D53: icon + EN + vernacular, zero hamburgers) ---------- */
+.section{margin-top:20px}
+.vgroup{margin-top:16px}
+.vgroup h3{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:9px;font-family:var(--font-display)}
+.vg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:8px}
+.tile{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 6px 10px;text-align:center;position:relative;transition:transform .15s ease,box-shadow .15s ease}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.tile .ic{font-size:24px;display:block;margin-bottom:5px}
+.tile b{font-size:11.5px;font-weight:500;display:block;color:var(--ink);line-height:1.25}
+.tile small{font-size:9.5px;color:var(--muted);display:block;margin-top:1px}
+.tile.soon{opacity:.62}
+.tile.soon::after{content:"Soon";position:absolute;top:6px;right:6px;font-size:8.5px;font-weight:500;background:var(--paper-deep);color:var(--muted);border-radius:99px;padding:1px 7px}
+.grid-note{font-size:11.5px;color:var(--muted);margin-top:10px}
+.grid-note b{color:var(--ag-deep)}
+
+/* ---------- 6b. mandi ticker (Agmarknet worker D55 — reuse of D23 ticker pattern) ---------- */
+.ticker{background:#F0F7EC;border:1px solid var(--ag-soft-2);border-radius:99px;margin-top:16px;overflow:hidden;position:relative}
+.ticker .lane{display:flex;gap:34px;padding:8px 0;white-space:nowrap;animation:tick 28s linear infinite;width:max-content}
+.ticker:hover .lane{animation-play-state:paused}
+.ticker span{font-size:12px;color:var(--ag-deep)}
+.ticker b{color:var(--ink);font-weight:500}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){.ticker .lane{animation:none}}
+
+/* ---------- 7. mandi prices ---------- */
+.row-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.row-head .see{font-size:12px;color:var(--ag)}
+.src-stamp{font-size:10.5px;color:var(--muted)}
+.mandi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.mcard{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 14px}
+.mcard .top{display:flex;align-items:center;gap:8px}
+.mcard .em{font-size:22px}
+.mcard b{font-size:13px;font-weight:500;display:block}
+.mcard .mkt{font-size:10px;color:var(--muted)}
+.mcard .price{font-family:var(--font-display);font-size:19px;font-weight:600;margin-top:6px}
+.mcard .chg{font-size:11px;font-weight:500}
+@media(max-width:767px){.mandi-grid{grid-template-columns:1fr 1fr}}
+
+/* ---------- 8. weather ---------- */
+.wx{display:grid;grid-template-columns:2fr 1.1fr;gap:10px;margin-top:8px}
+.wx-strip{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;gap:6px}
+.wx-day{flex:1;text-align:center;border-radius:10px;padding:8px 2px}
+.wx-day.today-hl{background:var(--ag-soft)}
+.wx-day small{font-size:10px;color:var(--muted);display:block}
+.wx-day .wic{font-size:20px;display:block;margin:4px 0}
+.wx-day b{font-size:11.5px;font-weight:500}
+.wx-adv{background:var(--trust-bg);border:1px solid var(--ag-accent);border-radius:var(--radius-lg);padding:14px 16px}
+.wx-adv b{font-size:13px;font-weight:500;display:block;margin-bottom:3px}
+.wx-adv p{font-size:11.5px;color:var(--sub);line-height:1.55}
+@media(max-width:767px){.wx{grid-template-columns:1fr}.wx-strip{overflow-x:auto}}
+
+/* ---------- 9. schemes spotlight (E5 verified data — human-checked, dated) ---------- */
+.scheme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.scheme{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:14px 16px}
+.scheme .tagr{display:flex;gap:6px;margin-bottom:7px}
+.scheme .gov{font-size:9.5px;font-weight:500;border-radius:99px;padding:2px 8px;background:var(--ag-soft);color:var(--ag-deep)}
+.scheme .st{font-size:9.5px;font-weight:500;border-radius:99px;padding:2px 8px;background:#FAEEDA;color:#854F0B}
+.scheme b{font-size:13.5px;font-weight:500;display:block}
+.scheme p{font-size:11.5px;color:var(--sub);margin:4px 0 8px;line-height:1.55}
+.scheme .vstamp{font-size:9.5px;color:var(--muted)}
+.scheme .go{display:inline-block;font-size:11.5px;color:var(--ag);font-weight:500;margin-top:6px}
+@media(max-width:767px){.scheme-grid{grid-template-columns:1fr}}
+
+/* ---------- 10. directory — businesses near you ---------- */
+.vendor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.card{background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.card .body{padding:10px 12px}
+.card .meta{font-size:10.5px;color:var(--muted)}
+.vendor{position:relative}
+.vendor.sponsored{border:2px solid var(--ad-border)}
+.vendor .name-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.vendor .price-line{font-size:13px;color:var(--ink);margin:4px 0 2px}
+.vendor .price-line b{font-weight:600}
+.vendor .detail{font-size:10.5px;color:var(--sub);display:flex;align-items:center;gap:5px;margin-top:3px}
+.vendor .pill{font-size:10px;font-weight:500;border-radius:99px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center;margin-bottom:6px}
+.pill-verified{background:#DDF2E4;color:#0F6E42}
+.pill-sponsored{background:#FAEEDA;color:#854F0B}
+.vendor .actions{display:flex;gap:7px;margin-top:9px}
+.vendor .actions .btn{flex:1;min-height:40px;font-size:12.5px;padding:8px 0;border-radius:10px}
+@media(max-width:767px){.vendor-grid{grid-template-columns:1fr}}
+
+/* ---------- 11. knowledge + news (E6 content engine) ---------- */
+.know{display:grid;grid-template-columns:2fr 1.2fr;gap:12px;margin-top:8px}
+.know-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.kcard{background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden}
+.kcard .media{height:74px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.kcard .body{padding:9px 11px}
+.kcard .cat{font-size:9px;font-weight:500;border-radius:99px;padding:2px 8px;background:var(--ag-soft);color:var(--ag-deep)}
+.kcard b{display:block;font-size:12px;font-weight:500;margin:5px 0 3px;line-height:1.35}
+.kcard .meta{font-size:10px;color:var(--muted)}
+.news-list{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 14px}
+.news-list h3{font-size:13px;font-weight:600;margin-bottom:8px;font-family:var(--font-display)}
+.news-item{padding:7px 0;border-top:1px solid var(--paper-border);font-size:12px;line-height:1.45}
+.news-item:first-of-type{border-top:0}
+.news-item small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+@media(max-width:1023px){.know{grid-template-columns:1fr}.know-cards{grid-template-columns:1fr 1fr}}
+@media(max-width:767px){.know-cards{grid-template-columns:1fr}}
+
+/* ---------- 12. Ask-AI band (D60–61 — read-only tools, human sign-off on dosage/scheme copy) ---------- */
+.ai-band{background:linear-gradient(120deg,var(--ag-deep),#1E4224);border-radius:var(--radius-lg);margin-top:20px;padding:22px 24px;color:#fff}
+.ai-band .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ai-band .em{font-size:30px}
+.ai-band b{font-family:var(--font-display);font-size:17px;font-weight:600;display:block}
+.ai-band p{font-size:12px;color:var(--ag-soft-2);margin-top:3px}
+.ai-row{margin-top:14px;background:#fff;border-radius:12px;padding:6px 6px 6px 16px;display:flex;align-items:center;gap:10px;max-width:640px}
+.ai-row input{flex:1;border:0;font-size:14px;color:var(--ink);min-width:0;font-family:inherit}
+.ai-row input:focus{outline:none}
+.ai-note{font-size:10.5px;color:var(--ag-soft-2);margin-top:9px}
+
+/* ---------- 13. helpline band (D59 — offline click-to-call page) ---------- */
+.help-band{background:var(--trust-bg);border:1px solid var(--ag-accent);border-radius:var(--radius-lg);margin-top:20px;padding:15px 18px}
+.help-band .hd{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.help-band h2{margin-bottom:0}
+.help-band .off{font-size:10.5px;color:var(--muted)}
+.help-chips{display:flex;flex-wrap:wrap;gap:8px}
+.help-chips a{background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:8px 14px;font-size:12px;display:inline-flex;gap:6px;align-items:center}
+.help-chips a b{color:var(--ag-deep);font-weight:600}
+.help-chips a:hover{border-color:var(--ag)}
+
+/* ---------- 14. stats band ---------- */
+.stats{background:#F3F8EF;border:1px solid #DCEAD0;border-radius:var(--radius-lg);display:flex;margin-top:20px}
+.stats>div{flex:1;text-align:center;padding:16px 8px}
+.stats>div+div{border-left:1px solid #DCEAD0}
+.stats b{font-family:var(--font-display);font-size:24px;font-weight:600;color:#3B6D11;display:block}
+.stats small{font-size:11px;color:var(--sub)}
+@media(max-width:767px){.stats{flex-wrap:wrap}.stats>div{flex:1 1 50%}.stats>div:nth-child(3){border-left:0}}
+
+/* ---------- 15. reviews (D18 engine, approved only) ---------- */
+.coins-nudge{font-size:11px;color:#854F0B;background:#FEF3DC;border-radius:99px;padding:4px 12px;display:inline-flex;gap:5px;align-items:center}
+.reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.review{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:14px}
+.review .stars{color:#E9A61C;font-size:12px;letter-spacing:2px}
+.review p{font-size:12px;color:var(--ink);margin:7px 0 9px;line-height:1.55}
+.review .who{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.review .who .av{width:24px;height:24px;border-radius:50%;background:var(--ag-soft);color:var(--ag-deep);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center}
+@media(max-width:767px){.reviews{grid-template-columns:1fr}}
+
+/* ---------- 16. popular searches (ISR SEO pages) ---------- */
+.cities{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cities a{background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:8px 15px;font-size:12px;color:var(--ink)}
+.cities a:hover{border-color:var(--ag);color:var(--ag-deep)}
+
+/* ---------- 17. big CTA tiles ---------- */
+.cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+.cta{border-radius:var(--radius-lg);padding:20px 22px;color:#fff}
+.cta.green{background:var(--ag)}.cta.deep{background:var(--ag-deep)}
+.cta .em{font-size:22px}
+.cta b{display:block;font-family:var(--font-display);font-size:17px;font-weight:600;margin:7px 0 4px}
+.cta p{font-size:12px;color:var(--ag-soft-2);margin-bottom:13px}
+@media(max-width:767px){.cta-grid{grid-template-columns:1fr}}
+
+/* ---------- 18. mandi-alert opt-in + 19. PWA band ---------- */
+.alert-card{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);margin-top:20px;padding:15px 17px;display:flex;align-items:center;gap:13px}
+.alert-card .em{font-size:24px}
+.alert-card b{font-size:13px;font-weight:500;display:block}
+.alert-card small{font-size:11px;color:var(--muted)}
+.alert-card .spacer{flex:1}
+.app-band{background:linear-gradient(120deg,var(--ag-deep),#1E4224);border-radius:var(--radius-lg);margin-top:20px;padding:22px 24px;display:flex;align-items:center;gap:18px;color:#fff}
+.app-band .em{font-size:34px}
+.app-band b{font-family:var(--font-display);font-size:17px;font-weight:600;display:block}
+.app-band p{font-size:12px;color:var(--ag-soft-2);margin-top:3px}
+.app-band .spacer{flex:1}
+@media(max-width:767px){.app-band{flex-direction:column;align-items:flex-start}.app-band .spacer{display:none}}
+
+/* ---------- 20. FAQ (SEO + JSON-LD FAQPage) ---------- */
+.faq{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.faq details{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius);padding:0 16px}
+.faq summary{list-style:none;cursor:pointer;font-size:13px;font-weight:500;padding:13px 0;display:flex;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';margin-left:auto;font-size:16px;color:var(--ag)}
+.faq details[open] summary::after{content:'–'}
+.faq .a{font-size:12px;color:var(--sub);padding:0 0 13px;line-height:1.6}
+
+/* ---------- 21. family strip ---------- */
+.family{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.family a{border-radius:var(--radius);padding:11px 16px;color:#fff}
+.family b{font-size:13px;font-weight:500}
+.family small{display:block;font-size:10px;opacity:.85}
+.family .agri{background:var(--ag)}.family .milk{background:#2563A8}.family .org{background:#3B6D11}.family .coin{background:#854F0B}
+
+/* ---------- 22. footer ---------- */
+footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:24px}
+.foot-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:20px;padding:26px 0 18px}
+.foot-grid h3{color:#fff;font-size:12px;font-weight:500;margin-bottom:8px}
+.foot-grid ul{list-style:none;font-size:11px;line-height:2.1}
+.foot-brand b{font-family:var(--font-display);color:#fff;font-size:17px;font-weight:600}
+.foot-brand p{font-size:11px;line-height:1.7;margin:6px 0 12px}
+.socials{display:flex;gap:8px}
+.socials span{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ag-soft)}
+.legal{border-top:1px solid rgba(255,255,255,.18);padding:12px 0;display:flex;align-items:center;gap:16px;font-size:10.5px}
+.legal .spacer{flex:1}
+@media(max-width:767px){
+  .foot-grid{grid-template-columns:1fr 1fr;padding:22px 0 14px}
+  .foot-grid .foot-brand{grid-column:1/-1}
+  .legal{flex-direction:column;align-items:flex-start;gap:4px}
+}
+
+/* ---------- 23. mobile bottom nav ---------- */
+.bottom-nav{display:none}
+@media(max-width:767px){
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid #DCE4D8;z-index:50;align-items:center}
+  .bottom-nav a{flex:1;text-align:center;font-size:10px;color:var(--sub)}
+  .bottom-nav a.on{color:var(--ag)}
+  .bottom-nav .ic{display:block;font-size:19px;font-style:normal}
+  .bottom-nav .mic{width:46px;height:46px;margin:-20px auto 0;border-radius:50%;background:var(--ag);border:3px solid var(--paper);display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px}
+}
+
+/* ---------- reveal + skeleton (shared U1 layer) ---------- */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
+.skeleton{background:linear-gradient(90deg,#F1EDE2 25%,#FAF7EF 50%,#F1EDE2 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.skeleton{animation:none}}
+.hdr .btn-login{background:#fff;color:var(--ag-deep);border-radius:99px;padding:7px 16px;font-size:13px;font-weight:500;min-height:0}
+
+/* ============================================================
+   A1 v2 — attraction layer (all motion killed by the global
+   prefers-reduced-motion rule at the top of this sheet)
+   ============================================================ */
+
+/* animated gradients — hero + search band slowly breathe */
+.hero-ad{background-size:180% 180%;animation:pan 14s ease-in-out infinite alternate}
+.search-band{background-size:180% 180%;animation:pan 12s ease-in-out infinite alternate}
+@keyframes pan{from{background-position:0% 30%}to{background-position:100% 70%}}
+
+/* floating creative glyphs */
+.panel .glyph{animation:float 4.5s ease-in-out infinite}
+.panel.b .glyph{animation-delay:1.4s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* bell nudge every few seconds */
+.bell i{display:inline-block;animation:ring 7s ease-in-out infinite;transform-origin:top center}
+@keyframes ring{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(12deg)}93%{transform:rotate(-10deg)}96%{transform:rotate(6deg)}98%{transform:rotate(-3deg)}}
+
+/* live pulse dot (mandi freshness) */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--up);display:inline-block;position:relative;vertical-align:middle;margin-right:5px}
+.live-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--up);opacity:.6;animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{from{transform:scale(.5);opacity:.7}to{transform:scale(1.4);opacity:0}}
+
+/* staggered tile pop-in (per group, when group reveals) */
+.vgroup.reveal .tile{opacity:0}
+.vgroup.reveal.in .tile{animation:pop .45s cubic-bezier(.2,.7,.3,1.1) both}
+@media (prefers-reduced-motion: reduce){.vgroup.reveal .tile{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+.vgroup.in .tile:nth-child(1){animation-delay:0ms}.vgroup.in .tile:nth-child(2){animation-delay:45ms}
+.vgroup.in .tile:nth-child(3){animation-delay:90ms}.vgroup.in .tile:nth-child(4){animation-delay:135ms}
+.vgroup.in .tile:nth-child(5){animation-delay:180ms}.vgroup.in .tile:nth-child(6){animation-delay:225ms}
+.vgroup.in .tile:nth-child(7){animation-delay:270ms}.vgroup.in .tile:nth-child(8){animation-delay:315ms}
+.vgroup.in .tile:nth-child(9){animation-delay:360ms}.vgroup.in .tile:nth-child(10){animation-delay:405ms}
+.tile:hover .ic{animation:bounce .5s ease}
+@keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}70%{transform:translateY(2px)}}
+
+/* sponsored card — soft golden glow breath */
+.vendor.sponsored,.eq.sponsored{animation:glow 3.5s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(233,166,28,0)}50%{box-shadow:0 4px 22px rgba(233,166,28,.28)}}
+
+/* mandi sparklines — draw on reveal */
+.spark{margin-top:7px}
+.spark polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:120;stroke-dashoffset:120}
+.reveal.in .spark polyline{animation:draw 1.1s .25s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){.spark polyline{stroke-dasharray:none;stroke-dashoffset:0}}
+.mcard .range{font-size:9.5px;color:var(--muted);margin-top:4px}
+.mandi-grid.wide{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1023px){.mandi-grid.wide{grid-template-columns:repeat(2,1fr)}}
+
+/* crop calendar (E5 seasonal data) */
+.season{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:16px 18px;margin-top:8px}
+.season .months{display:flex;gap:4px;margin-bottom:12px}
+.season .mo{flex:1;text-align:center;font-size:10.5px;color:var(--muted);padding:6px 0;border-radius:8px;position:relative}
+.season .mo.on{background:var(--ag);color:#fff;font-weight:500}
+.season .mo.kharif{box-shadow:inset 0 -3px 0 var(--ag-soft-2)}
+.season .crops{display:flex;flex-wrap:wrap;gap:8px}
+.season .crop-chip{background:var(--ag-soft);color:var(--ag-deep);border-radius:99px;padding:6px 13px;font-size:11.5px;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.season .crop-chip.hv{background:#FAEEDA;color:#854F0B}
+.season .lbl{font-size:11px;color:var(--muted);width:100%;margin-top:2px}
+
+/* equipment showcase (E2 catalog teaser) */
+.eq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.eq{background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden;position:relative;transition:transform .18s ease,box-shadow .18s ease}
+.eq:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(44,90,51,.1)}
+.eq.sponsored{border:2px solid var(--ad-border)}
+.eq .media{height:86px;display:flex;align-items:center;justify-content:center;font-size:38px}
+.eq .body{padding:10px 12px}
+.eq b{font-size:12.5px;font-weight:500;display:block}
+.eq .meta{font-size:10px;color:var(--muted);margin:2px 0 7px}
+.eq .specs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
+.eq .specs span{font-size:9px;font-weight:500;background:var(--paper-deep);border:1px solid var(--paper-border);border-radius:99px;padding:2px 8px;color:var(--sub)}
+.eq .btn{width:100%;min-height:36px;font-size:11.5px;border-radius:9px;padding:7px 0}
+.eq .sp-tag{position:absolute;top:8px;right:8px;font-size:8.5px;font-weight:500;background:#FAEEDA;color:#854F0B;border-radius:99px;padding:2px 8px}
+@media(max-width:767px){.eq-grid{grid-template-columns:1fr 1fr}}
+
+/* community Q&A preview (E7) */
+.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.qa{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 15px;transition:transform .18s ease,box-shadow .18s ease}
+.qa:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.qa .q{font-size:12.5px;font-weight:500;line-height:1.45}
+.qa .tags{display:flex;gap:5px;margin:8px 0}
+.qa .tags span{font-size:9px;font-weight:500;background:var(--ag-soft);color:var(--ag-deep);border-radius:99px;padding:2px 8px}
+.qa .meta{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:10px}
+.qa .exp{color:#0F6E42;font-weight:500}
+@media(max-width:767px){.qa-grid{grid-template-columns:1fr}}
+
+/* events & webinars (E6) */
+.ev-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.ev{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:14px;transition:transform .18s ease,box-shadow .18s ease}
+.ev:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.ev .date{width:52px;flex-shrink:0;text-align:center;background:var(--ag-soft);border-radius:10px;padding:7px 0}
+.ev .date b{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--ag-deep);display:block;line-height:1}
+.ev .date small{font-size:9px;font-weight:500;color:var(--ag);letter-spacing:.08em}
+.ev .info{flex:1;min-width:0}
+.ev .info b{font-size:13px;font-weight:500;display:block}
+.ev .info small{font-size:10.5px;color:var(--muted)}
+.ev .coins-mini{font-size:9.5px;color:#854F0B;background:#FEF3DC;border-radius:99px;padding:3px 9px;white-space:nowrap}
+.ev .btn{min-height:36px;font-size:11.5px;padding:7px 14px}
+@media(max-width:767px){.ev .coins-mini{display:none}}
+
+/* live activity feed — reverse marquee */
+.ticker.rev{background:#FEFAF0;border-color:#EAD9AC;margin-top:20px}
+.ticker.rev .lane{animation-direction:reverse;animation-duration:34s}
+.ticker.rev span{color:#7A5A18}
+.ticker.rev b{color:var(--ink)}
+
+/* tip of the day */
+.tip-card{background:linear-gradient(120deg,#FEFAF0,#FBF3DE);border:1px solid #EAD9AC;border-radius:var(--radius-lg);margin-top:12px;padding:13px 16px;display:flex;align-items:center;gap:12px}
+.tip-card .em{font-size:22px;animation:float 4s ease-in-out infinite}
+.tip-card b{font-size:12.5px;font-weight:500;display:block;color:#5A3403}
+.tip-card small{font-size:11px;color:#854F0B}
+.tip-card .refresh{margin-left:auto;font-size:11px;color:#854F0B;background:#fff;border-radius:99px;padding:5px 12px;white-space:nowrap}
+
+/* sarkari services hub (E5 verified deep links) + farm calculators (v4 final) */
+.gov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.gov{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;transition:transform .18s ease,box-shadow .18s ease}
+.gov:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.gov .gi{width:34px;height:34px;border-radius:10px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.gov b{font-size:12.5px;font-weight:500;display:block}
+.gov small{font-size:10px;color:var(--muted);display:block;margin-top:1px}
+.gov .dom{font-size:9.5px;color:var(--ag);font-weight:500;margin-top:3px;display:inline-block}
+@media(max-width:767px){.gov-grid{grid-template-columns:1fr 1fr}}
+.tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.tool{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 15px;text-align:left;transition:transform .18s ease,box-shadow .18s ease}
+.tool:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.tool .em{font-size:20px}
+.tool b{font-size:12px;font-weight:500;display:block;margin-top:6px}
+.tool small{font-size:10px;color:var(--muted);line-height:1.45;display:block;margin-top:2px}
+.tool .go{font-size:10.5px;color:var(--ag);font-weight:500;margin-top:7px;display:inline-block}
+@media(max-width:767px){.tools-grid{grid-template-columns:1fr 1fr}}
+.mcard{position:relative}
+.mcard .share{position:absolute;top:10px;right:10px;background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink);font-size:11px;border-radius:8px;padding:4px 8px;line-height:1}
+.mcard .share:hover{background:#DCF3E4}
+
+/* weather extra metrics row */
+.wx-meta{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.wx-meta span{background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:6px 13px;font-size:11px;color:var(--sub)}
+.wx-meta b{color:var(--ink);font-weight:500}
+
+/* ============================================================
+   A1 v3 — polish layer: eyebrows, chrome, trust, story, steps,
+   coins, deadlines, experts, digest. Motion obeys global rm rule.
+   ============================================================ */
+
+/* section eyebrows (matches blueprint tag-line style) */
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#946B2D;display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--ag-accent);border-radius:2px}
+
+/* scroll progress bar + back-to-top */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--ag),var(--ag-accent));z-index:90}
+.to-top{position:fixed;right:18px;bottom:84px;width:42px;height:42px;border-radius:50%;background:var(--ag);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(44,90,51,.3);opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ease;transform:translateY(8px);z-index:60}
+.to-top.show{opacity:1;pointer-events:auto;transform:none}
+@media(max-width:767px){.to-top{bottom:calc(76px + env(safe-area-inset-bottom))}}
+
+/* see-links slide on hover */
+.row-head .see{display:inline-block;transition:transform .18s ease}
+.row-head .see:hover{transform:translateX(3px)}
+
+/* hero wave divider (cream wave into page) */
+.hero-wave{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:26px;pointer-events:none}
+
+/* trust pillars */
+.pillar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.pillar{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;gap:11px;align-items:flex-start;transition:transform .18s ease,box-shadow .18s ease}
+.pillar:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.pillar .pic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.pillar b{font-size:12.5px;font-weight:500;display:block}
+.pillar small{font-size:10.5px;color:var(--muted);line-height:1.5;display:block;margin-top:2px}
+@media(max-width:767px){.pillar-grid{grid-template-columns:1fr 1fr}}
+
+/* success story spotlight */
+.story{background:linear-gradient(120deg,var(--ag-deep),#376B3E 70%,var(--ag));border-radius:var(--radius-lg);margin-top:12px;padding:24px 26px;color:#fff;display:grid;grid-template-columns:1.6fr 1fr;gap:20px;align-items:center;position:relative;overflow:hidden}
+.story::before{content:"❝";position:absolute;top:-14px;left:14px;font-size:110px;color:rgba(255,255,255,.08);font-family:var(--font-display)}
+.story .quote{font-family:var(--font-display);font-size:clamp(15px,1.8vw,19px);font-weight:500;line-height:1.5}
+.story .who{margin-top:12px;font-size:12px;color:var(--ag-soft-2);display:flex;align-items:center;gap:9px}
+.story .who .av{width:34px;height:34px;border-radius:50%;background:var(--ag-accent);color:var(--ag-deep);font-weight:600;display:flex;align-items:center;justify-content:center;font-size:14px}
+.story .nums{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.story .num{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:11px 13px;text-align:center}
+.story .num b{font-family:var(--font-display);font-size:20px;font-weight:600;display:block;color:#FEF3DC}
+.story .num small{font-size:10px;color:var(--ag-soft-2)}
+@media(max-width:767px){.story{grid-template-columns:1fr}}
+
+/* how it works steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.step{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:16px;text-align:center;position:relative}
+.step .n{width:38px;height:38px;margin:0 auto 8px;border-radius:50%;background:var(--ag-soft);color:var(--ag-deep);font-weight:600;font-family:var(--font-display);display:flex;align-items:center;justify-content:center;font-size:16px}
+.step b{font-size:13px;font-weight:500;display:block}
+.step small{font-size:11px;color:var(--muted)}
+.step::after{content:"→";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:var(--ag-soft-2);font-size:18px}
+.step:last-child::after{display:none}
+@media(max-width:767px){.steps{grid-template-columns:1fr}.step::after{display:none}}
+
+/* earn AgriCoins row */
+.earn-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.earn{background:linear-gradient(135deg,#FEF9EE,#FDF3DC);border:1px solid #EAD9AC;border-radius:14px;padding:13px 15px;display:flex;gap:10px;align-items:center}
+.earn .em{font-size:20px}
+.earn b{font-size:12px;font-weight:500;display:block;color:#5A3403}
+.earn small{font-size:10px;color:#854F0B}
+.earn .amt{margin-left:auto;font-family:var(--font-display);font-weight:600;font-size:15px;color:#854F0B;white-space:nowrap}
+@media(max-width:767px){.earn-row{grid-template-columns:1fr 1fr}}
+
+/* scheme deadlines bar */
+.deadlines{margin-top:10px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.deadlines .dl-h{font-size:12px;font-weight:600;color:var(--down);white-space:nowrap;display:flex;gap:6px;align-items:center}
+.deadlines .dl{font-size:11.5px;color:var(--sub);display:flex;gap:6px;align-items:center;white-space:nowrap}
+@media(max-width:767px){.deadlines .dl{white-space:normal}}
+.deadlines .dl b{color:var(--ink);font-weight:500}
+.deadlines .dl .d-chip{background:#FCEBEB;color:#9C2B2B;border-radius:99px;padding:2px 9px;font-size:10px;font-weight:600}
+
+/* top experts row */
+.experts-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.experts-row .lbl{font-size:11.5px;color:var(--muted)}
+.expert{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:5px 13px 5px 6px;font-size:11.5px}
+.expert .av{width:26px;height:26px;border-radius:50%;background:var(--ag-soft);color:var(--ag-deep);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.expert b{font-weight:500}
+.expert small{color:var(--muted);font-size:10px}
+
+/* video knowledge card */
+.kcard .media{position:relative}
+.kcard .play{position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(29,42,32,.75);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;padding-left:3px}
+.kcard:hover .play{background:var(--ag)}
+.kcard .dur{position:absolute;right:7px;bottom:6px;background:rgba(29,42,32,.75);color:#fff;font-size:9px;border-radius:5px;padding:1px 6px}
+
+/* browse-by-district chips (reuse .cities look) */
+
+/* weekly digest band */
+.digest{background:var(--ag-soft);border:1px solid var(--ag-soft-2);border-radius:var(--radius-lg);margin-top:20px;padding:20px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.digest .em{font-size:28px}
+.digest b{font-family:var(--font-display);font-size:16px;font-weight:600;display:block;color:var(--ag-deep)}
+.digest p{font-size:11.5px;color:var(--sub);margin-top:2px}
+.digest form{margin-left:auto;display:flex;gap:8px;background:#fff;border-radius:12px;padding:5px 5px 5px 14px;align-items:center;min-width:300px}
+.digest input{border:0;font-size:13px;font-family:inherit;color:var(--ink);flex:1;min-width:0}
+.digest input:focus{outline:none}
+@media(max-width:767px){.digest form{margin-left:0;width:100%;min-width:0}}
+
+/* QR block in app band */
+.qr{width:74px;height:74px;border-radius:10px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative}
+.qr::before{content:"";position:absolute;inset:9px;background:
+  repeating-linear-gradient(0deg,#1D2A20 0 3px,transparent 3px 6px),
+  repeating-linear-gradient(90deg,#1D2A20 0 3px,transparent 3px 6px);opacity:.85;border-radius:3px}
+.qr small{position:absolute;bottom:-16px;left:0;right:0;text-align:center;font-size:8.5px;color:var(--ag-soft-2)}
+@media(max-width:767px){.qr{display:none}}
+</style>
+</head>
+<body>
+
+<!-- v3 chrome: scroll progress + back-to-top -->
+<div class="scroll-progress" aria-hidden="true"></div>
+<a class="to-top" href="#" aria-label="Back to top">↑</a>
+
+<!-- 1 · utility strip -->
+<div class="util"><div class="wrap">
+  <span>All of Indian agriculture · உழவர் · किसान</span>
+  <span class="eco"><a href="#">🥛 milk.in</a><a href="#">🌿 theorganic.in</a></span>
+  <span class="spacer"></span>
+  <a class="link" href="#list">List your business</a>
+  <a class="link" href="#advertise">Advertise</a>
+  <span class="hotline">Kisan Call Centre: 1800-180-1551</span>
+</div></div>
+
+<!-- 2 · main header (no search bar — search lives in the search band) -->
+<header class="hdr"><div class="wrap">
+  <a class="brand" href="/"><b>agri.in</b><small>உழவர் · किसान · all of Indian agriculture</small></a>
+  <button class="loc">📍 Coimbatore · 641001 ▾</button>
+  <span class="spacer"></span>
+  <span class="lang">EN · த · हि</span>
+  <!-- GUEST STATE: when logged out, coins pill + bell + avatar are replaced by:
+       <a class="btn-login" href="/login">Login</a>
+       Contact reveal then gates with "Login to view contact" (D18 rule). -->
+  <span class="coins">🪙 1,240</span>
+  <span class="bell"><i>🔔</i><span class="n">11</span></span>
+  <span style="display:flex;align-items:center;gap:6px"><span class="avatar">A</span><span class="acct-label" style="font-size:13px;color:var(--ag-soft)">Account</span></span>
+</div></header>
+
+<!-- 2b · severe-weather alert strip — D54 IMD severe banners; renders ONLY when an alert is active for user's district -->
+<div class="alert-strip"><div class="wrap">
+  <span>⚠️</span><span><b>Heavy rain warning</b> — Coimbatore district · next 48 hrs · கனமழை எச்சரிக்கை</span>
+  <a class="go" href="#">Details →</a>
+</div></div>
+
+<div class="wrap">
+
+  <!-- 3 · TODAY strip — location-first lead (D52): my weather · my mandi · my schemes · ask -->
+  <section class="today" aria-label="Today near you">
+    <div class="today-grid">
+      <a class="tcard" href="#">
+        <span class="k">My weather · வானிலை</span>
+        <span class="big">🌦️ 29°C</span>
+        <span class="sub2">Coimbatore · light rain from Thu</span>
+        <span class="go">7-day forecast →</span>
+      </a>
+      <a class="tcard" href="#">
+        <span class="k">My mandi · சந்தை</span>
+        <span class="big">🍅 ₹28/kg <span class="chg up" style="font-size:12px">▲ ₹4</span></span>
+        <span class="sub2">Tomato · Coimbatore market · 6:00 AM</span>
+        <span class="go">All 12 commodities →</span>
+      </a>
+      <a class="tcard" href="#">
+        <span class="k">My schemes · திட்டங்கள்</span>
+        <span class="big">🏛️ PM-Kisan</span>
+        <span class="sub2">18th instalment credited for 641001 region</span>
+        <span class="go">Check your status →</span>
+      </a>
+      <a class="tcard ask" href="#">
+        <span class="k">Ask agri.in</span>
+        <span class="big">🎙️ Ask anything</span>
+        <span class="sub2">Crop, price, scheme — Tamil, English, हिन्दी</span>
+        <span class="go" style="color:#FEF3DC">Speak or type →</span>
+      </a>
+    </div>
+  </section>
+</div>
+
+<!-- 4 · hero ad — full bleed, D21 slot agri_home_hero_xl (ad engine reused via config only), approved creatives -->
+<section class="hero-ad" aria-label="Sponsored banner">
+  <span class="ad-tag">Ad</span>
+  <div class="inner">
+    <div>
+      <h1>Bharath Tractors exchange mela — this Pongal season</h1>
+      <p>0% processing fee on exchange · free soil-test coupon with every test drive · உங்கள் ஊரிலேயே டெலிவரி</p>
+      <a class="btn btn-money" href="#shops">Find dealers near you</a>
+    </div>
+    <div class="creatives">
+      <div class="panel a"><span class="glyph">🚜</span>product creative</div>
+      <div class="panel b"><span class="glyph">🧑‍🌾</span>farmer photo</div>
+    </div>
+  </div>
+  <button class="hero-nav prev" aria-label="Previous ad">‹</button>
+  <button class="hero-nav next" aria-label="Next ad">›</button>
+  <svg class="hero-wave" viewBox="0 0 1440 26" preserveAspectRatio="none" aria-hidden="true"><path d="M0,26 L0,14 C240,2 480,24 720,14 C960,4 1200,22 1440,10 L1440,26 Z" fill="#FDFBF6"/></svg>
+</section>
+<div class="dots" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span></div>
+
+<div class="wrap">
+
+  <!-- 5 · search band — hub-wide federated search (D64), not pincode-only -->
+  <section class="search-band">
+    <h1>All of agriculture — one search</h1>
+    <div class="sub">Seeds, tractors, mandi prices, schemes, experts · உங்கள் மொழியில்</div>
+    <form class="pin-row" action="#" onsubmit="return false">
+      <label for="q" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search agri.in</label>
+      <input id="q" type="search" placeholder="Try: tomato price · tractor EMI · PM-Kisan status · soil test near me">
+      <button class="search-mic" type="button" aria-label="Voice search — D25 voice pipeline">🎙️</button>
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+    <button class="geo">📍 Coimbatore · 641001 · change location</button>
+  </section>
+
+  <!-- 6 · category grid — all 34 verticals, 5 groups (D53). Tiles are registry-driven;
+       "Soon" = honest coming-soon landing, self-noindexed, with notify-me. Zero hamburgers. -->
+  <section class="section" aria-label="All categories">
+    <div class="eyebrow">ALL 36 VERTICALS · ONE REGISTRY</div>
+    <div class="row-head"><h2>Everything for the farm · பண்ணைக்கு எல்லாம்</h2><a class="see" href="#">All categories →</a></div>
+
+    <div class="vgroup reveal">
+      <h3><span class="vg-dot" style="background:#2C6E35"></span>Farm essentials — live now</h3>
+      <div class="tile-grid">
+        <a class="tile" href="#"><span class="ic">📈</span><b>Mandi prices</b><small>சந்தை விலை</small></a>
+        <a class="tile" href="#"><span class="ic">🌦️</span><b>Weather</b><small>வானிலை</small></a>
+        <a class="tile" href="#"><span class="ic">🏛️</span><b>Govt schemes</b><small>திட்டங்கள்</small></a>
+        <a class="tile" href="#"><span class="ic">📰</span><b>Agri news</b><small>செய்திகள்</small></a>
+        <a class="tile" href="#"><span class="ic">📚</span><b>Knowledge</b><small>வழிகாட்டி</small></a>
+        <a class="tile" href="#"><span class="ic">📞</span><b>Helplines</b><small>உதவி எண்</small></a>
+        <a class="tile" href="#"><span class="ic">🧮</span><b>Farm tools</b><small>கணிப்பான்கள்</small></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <h3><span class="vg-dot" style="background:#946B2D"></span>Inputs &amp; equipment</h3>
+      <div class="tile-grid">
+        <a class="tile soon" href="#"><span class="ic">🌱</span><b>Seeds</b><small>விதைகள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🧪</span><b>Fertilizers</b><small>உரங்கள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🛡️</span><b>Crop protection</b><small>பயிர் பாதுகாப்பு</small></a>
+        <a class="tile soon" href="#"><span class="ic">🚜</span><b>Tractors</b><small>டிராக்டர்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🔧</span><b>Implements</b><small>கருவிகள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🌾</span><b>Harvesters</b><small>அறுவடை</small></a>
+        <a class="tile soon" href="#"><span class="ic">💧</span><b>Drip irrigation</b><small>சொட்டு நீர்</small></a>
+        <a class="tile soon" href="#"><span class="ic">☀️</span><b>Pumps &amp; solar</b><small>மோட்டார்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🛸</span><b>Agri drones</b><small>ட்ரோன்</small></a>
+        <a class="tile soon" href="#"><span class="ic">⚙️</span><b>Machinery</b><small>இயந்திரங்கள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🛠️</span><b>Machinery rental</b><small>வாடகை · CHC</small></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <h3><span class="vg-dot" style="background:#B5541C"></span>Services &amp; trust</h3>
+      <div class="tile-grid">
+        <a class="tile soon" href="#"><span class="ic">🧫</span><b>Soil testing</b><small>மண் பரிசோதனை</small></a>
+        <a class="tile soon" href="#"><span class="ic">🚰</span><b>Water testing</b><small>நீர் பரிசோதனை</small></a>
+        <a class="tile soon" href="#"><span class="ic">🏦</span><b>Agri loans</b><small>கடன்</small></a>
+        <a class="tile soon" href="#"><span class="ic">☂️</span><b>Crop insurance</b><small>காப்பீடு</small></a>
+        <a class="tile soon" href="#"><span class="ic">🏬</span><b>Warehouses</b><small>கிடங்கு</small></a>
+        <a class="tile soon" href="#"><span class="ic">🚛</span><b>Transport</b><small>போக்குவரத்து</small></a>
+        <a class="tile soon" href="#"><span class="ic">🩺</span><b>Vets &amp; consulting</b><small>மருத்துவர்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🤝</span><b>FPOs</b><small>உழவர் நிறுவனம்</small></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <h3><span class="vg-dot" style="background:#5E7D46"></span>Community &amp; learning</h3>
+      <div class="tile-grid">
+        <a class="tile soon" href="#"><span class="ic">💬</span><b>Forum &amp; Q·A</b><small>கலந்துரையாடல்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🎪</span><b>Webinars &amp; events</b><small>நிகழ்வுகள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">✍️</span><b>Blog</b><small>வலைப்பதிவு</small></a>
+        <a class="tile soon" href="#"><span class="ic">🎓</span><b>Experts</b><small>நிபுணர்கள்</small></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <h3><span class="vg-dot" style="background:#6B4A2B"></span>Buy · sell · work</h3>
+      <div class="tile-grid">
+        <a class="tile soon" href="#"><span class="ic">🐄</span><b>Livestock</b><small>கால்நடை</small></a>
+        <a class="tile soon" href="#"><span class="ic">🗺️</span><b>Land — sale &amp; lease</b><small>நிலம்</small></a>
+        <a class="tile soon" href="#"><span class="ic">👷</span><b>Farm labour</b><small>வேலை</small></a>
+        <a class="tile soon" href="#"><span class="ic">🌐</span><b>Trade leads</b><small>வர்த்தகம்</small></a>
+        <a class="tile soon" href="#"><span class="ic">🏪</span><b>Shops &amp; repair</b><small>கடைகள்</small></a>
+        <a class="tile soon" href="#"><span class="ic">📱</span><b>Agritech apps</b><small>ஆப்ஸ்</small></a>
+      </div>
+    </div>
+    <p class="grid-note"><b>Soon</b> tiles open an honest coming-soon landing (self-noindexed) with notify-me — never a dead link. All 36 verticals are registry entries, not separate builds.</p>
+  </section>
+
+  <!-- 6b · mandi ticker — Agmarknet worker (D55), per user's market -->
+  <div class="ticker" aria-label="Today's mandi prices — Coimbatore">
+    <div class="lane">
+      <span>Coimbatore mandi · 6:00 AM</span><span>Tomato <b>₹28/kg ▲4</b></span><span>Onion <b>₹26/kg ▼2</b></span><span>Banana <b>₹32/kg ▲1</b></span><span>Coconut <b>₹38/pc —</b></span><span>Turmeric <b>₹142/kg ▲6</b></span><span>Paddy <b>₹23/kg —</b></span><span>Groundnut <b>₹68/kg ▲3</b></span><span><b>Agmarknet · 12 commodities</b> ·</span>
+      <span>Coimbatore mandi · 6:00 AM</span><span>Tomato <b>₹28/kg ▲4</b></span><span>Onion <b>₹26/kg ▼2</b></span><span>Banana <b>₹32/kg ▲1</b></span><span>Coconut <b>₹38/pc —</b></span><span>Turmeric <b>₹142/kg ▲6</b></span><span>Paddy <b>₹23/kg —</b></span><span>Groundnut <b>₹68/kg ▲3</b></span><span><b>Agmarknet · 12 commodities</b> ·</span>
+    </div>
+  </div>
+
+  <!-- 7 · mandi prices — D55/D56 commodity × market ISR pages, Dataset JSON-LD; 30-day sparklines (D56 trends) -->
+  <section class="section reveal">
+    <div class="eyebrow">MARKET DATA · AGMARKNET LIVE</div>
+    <div class="row-head"><h2>Mandi prices · சந்தை விலை</h2><span class="src-stamp"><span class="live-dot" aria-hidden="true"></span>Agmarknet · updated today 6:00 AM</span><a class="see" href="#">All commodities &amp; trends →</a></div>
+    <div class="mandi-grid wide">
+      <div class="mcard"><button class="share" aria-label="Share tomato price on WhatsApp">📤</button><div class="top"><span class="em">🍅</span><span><b>Tomato</b><span class="mkt">Coimbatore market</span></span></div><div class="price">₹28/kg <span class="chg up">▲ ₹4</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#1E7A34" points="0,20 14,18 28,21 42,16 56,17 70,12 84,13 98,8 110,5"/></svg>
+        <div class="range">30-day: ₹18–29 · modal ₹24 · arrivals 12,400 qtl</div></div>
+      <div class="mcard"><button class="share" aria-label="Share onion price on WhatsApp">📤</button><div class="top"><span class="em">🧅</span><span><b>Onion</b><span class="mkt">Coimbatore market</span></span></div><div class="price">₹26/kg <span class="chg down">▼ ₹2</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#B5541C" points="0,6 14,8 28,7 42,11 56,10 70,14 84,13 98,17 110,19"/></svg>
+        <div class="range">30-day: ₹24–34 · modal ₹29 · arrivals 8,150 qtl</div></div>
+      <div class="mcard"><div class="top"><span class="em">🌾</span><span><b>Paddy (common)</b><span class="mkt">Coimbatore market</span></span></div><div class="price">₹23/kg <span class="chg" style="color:var(--muted)">—</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#8A8574" points="0,14 14,14 28,13 42,14 56,13 70,13 84,14 98,13 110,13"/></svg>
+        <div class="range">30-day: ₹22–24 · MSP ₹24.3</div></div>
+      <div class="mcard"><div class="top"><span class="em">🟡</span><span><b>Turmeric</b><span class="mkt">Erode market</span></span></div><div class="price">₹142/kg <span class="chg up">▲ ₹6</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#1E7A34" points="0,22 14,20 28,21 42,17 56,18 70,14 84,10 98,9 110,4"/></svg>
+        <div class="range">30-day: ₹118–145 · export demand ↑</div></div>
+      <div class="mcard"><div class="top"><span class="em">🥥</span><span><b>Coconut</b><span class="mkt">Pollachi market</span></span></div><div class="price">₹38/pc <span class="chg up">▲ ₹1</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#1E7A34" points="0,18 14,17 28,18 42,15 56,16 70,13 84,14 98,12 110,11"/></svg>
+        <div class="range">30-day: ₹33–39 · copra firm</div></div>
+      <div class="mcard"><div class="top"><span class="em">🍌</span><span><b>Banana (nendran)</b><span class="mkt">Coimbatore market</span></span></div><div class="price">₹32/kg <span class="chg up">▲ ₹1</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#1E7A34" points="0,16 14,17 28,15 42,16 56,14 70,15 84,12 98,13 110,11"/></svg>
+        <div class="range">30-day: ₹27–33 · festival demand</div></div>
+      <div class="mcard"><div class="top"><span class="em">🥜</span><span><b>Groundnut</b><span class="mkt">Tiruppur market</span></span></div><div class="price">₹68/kg <span class="chg up">▲ ₹3</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#1E7A34" points="0,21 14,19 28,20 42,17 56,15 70,16 84,12 98,10 110,7"/></svg>
+        <div class="range">30-day: ₹58–69 · oil mills buying</div></div>
+      <div class="mcard"><div class="top"><span class="em">🌶️</span><span><b>Dry chilli</b><span class="mkt">Coimbatore market</span></span></div><div class="price">₹186/kg <span class="chg down">▼ ₹4</span></div>
+        <svg class="spark" width="100%" height="26" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline stroke="#B5541C" points="0,8 14,7 28,10 42,9 56,12 70,11 84,14 98,15 110,17"/></svg>
+        <div class="range">30-day: ₹180–214 · arrivals up</div></div>
+    </div>
+  </section>
+
+  <!-- 7b · crop calendar — E5 seasonal data, per region (TN west zone) -->
+  <section class="section reveal">
+    <div class="eyebrow">SEASON GUIDE · TN WEST ZONE</div>
+    <div class="row-head"><h2>Kharif calendar · பருவநிலை காலண்டர்</h2><a class="see" href="#">Full crop calendar →</a></div>
+    <div class="season">
+      <div class="months" aria-hidden="true">
+        <span class="mo">Jun</span><span class="mo kharif">Jul</span><span class="mo kharif on">Aug</span><span class="mo kharif">Sep</span><span class="mo kharif">Oct</span><span class="mo">Nov</span><span class="mo">Dec</span><span class="mo">Jan</span>
+      </div>
+      <div class="crops">
+        <span class="lbl">🌱 Sowing window open now — TN west zone:</span>
+        <span class="crop-chip">🌾 Samba paddy · till 25 Aug</span>
+        <span class="crop-chip">🌽 Maize · till 30 Aug</span>
+        <span class="crop-chip">🥜 Groundnut (rainfed) · till 20 Aug</span>
+        <span class="crop-chip">🫘 Black gram · till 5 Sep</span>
+        <span class="lbl" style="margin-top:8px">🌾 Harvesting now:</span>
+        <span class="crop-chip hv">🧅 Kharif onion · early lots</span>
+        <span class="crop-chip hv">🍌 Banana · year-round</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · weather — Open-Meteo hyperlocal (D54) + spray-window advisory -->
+  <section class="section reveal">
+    <div class="eyebrow">HYPERLOCAL FORECAST</div>
+    <div class="row-head"><h2>Weather for your farm · வானிலை</h2><a class="see" href="#">Full forecast &amp; alerts →</a></div>
+    <div class="wx">
+      <div class="wx-strip" aria-label="7-day forecast">
+        <div class="wx-day today-hl"><small>Today</small><span class="wic">🌦️</span><b>29° / 22°</b></div>
+        <div class="wx-day"><small>Sat</small><span class="wic">⛅</span><b>31° / 23°</b></div>
+        <div class="wx-day"><small>Sun</small><span class="wic">☀️</span><b>32° / 23°</b></div>
+        <div class="wx-day"><small>Mon</small><span class="wic">☀️</span><b>33° / 24°</b></div>
+        <div class="wx-day"><small>Tue</small><span class="wic">⛅</span><b>31° / 23°</b></div>
+        <div class="wx-day"><small>Wed</small><span class="wic">🌧️</span><b>28° / 22°</b></div>
+        <div class="wx-day"><small>Thu</small><span class="wic">⛈️</span><b>27° / 21°</b></div>
+      </div>
+      <div class="wx-adv">
+        <b>🚿 Spray window advisory</b>
+        <p>Good spraying conditions till Tuesday evening. Avoid Wed–Thu — rain likely to wash off application. மழை வரும் — தெளிக்க வேண்டாம்.</p>
+      </div>
+      <div class="wx-meta">
+        <span>💧 Humidity <b>78%</b></span>
+        <span>🌬️ Wind <b>12 km/h SW</b></span>
+        <span>🌧️ Rain chance Thu <b>85%</b></span>
+        <span>🌡️ Soil temp <b>26°C</b></span>
+        <span>🛰️ Source: Open-Meteo · IMD alerts</span>
+      </div>
+    </div>
+    <div class="tip-card">
+      <span class="em">💡</span>
+      <span><b>Tip of the day · இன்றைய குறிப்பு</b><small>Rain coming Thursday — postpone urea top-dressing; applying before heavy rain loses up to 40% nitrogen to runoff.</small></span>
+      <a class="refresh" href="#">More tips →</a>
+    </div>
+  </section>
+
+  <!-- 9 · schemes spotlight — E5 verified data: sourced, dated, human-verified (D98–99 wizard comes later; guides live at launch) -->
+  <section class="section reveal">
+    <div class="eyebrow">VERIFIED GOVT DATA · DATED SOURCES</div>
+    <div class="row-head"><h2>Government schemes · அரசு திட்டங்கள்</h2><a class="see" href="#">All schemes →</a></div>
+    <div class="scheme-grid">
+      <div class="scheme">
+        <div class="tagr"><span class="gov">🇮🇳 Central</span></div>
+        <b>PM-Kisan Samman Nidhi</b>
+        <p>₹6,000/year in three instalments, direct to bank. 18th instalment being credited now.</p>
+        <span class="vstamp">✓ Verified against pmkisan.gov.in · 12 Aug 2026</span><br>
+        <a class="go" href="#">Check status &amp; guide →</a>
+      </div>
+      <div class="scheme">
+        <div class="tagr"><span class="gov">🇮🇳 Central</span></div>
+        <b>PMFBY crop insurance</b>
+        <p>Kharif 2026 enrolment window open till 31 Aug. Premium: 2% for food crops.</p>
+        <span class="vstamp">✓ Verified against pmfby.gov.in · 10 Aug 2026</span><br>
+        <a class="go" href="#">Am I covered? →</a>
+      </div>
+      <div class="scheme">
+        <div class="tagr"><span class="st">TN State</span></div>
+        <b>100% drip irrigation subsidy</b>
+        <p>Small &amp; marginal farmers, per-hectare cap. Apply via block agri office.</p>
+        <span class="vstamp">✓ Verified against tnhorticulture.tn.gov.in · 8 Aug 2026</span><br>
+        <a class="go" href="#">Eligibility &amp; documents →</a>
+      </div>
+    </div>
+    <div class="deadlines">
+      <span class="dl-h">⏰ Deadlines this month</span>
+      <span class="dl"><span class="d-chip">20 AUG</span><b>KCC saturation camp</b> · block offices</span>
+      <span class="dl"><span class="d-chip">31 AUG</span><b>PMFBY Kharif enrolment</b> closes</span>
+      <span class="dl"><span class="d-chip">15 SEP</span><b>Drone subsidy</b> FPO applications</span>
+      <span class="dl"><span class="d-chip">72 HRS</span><b>PMFBY crop-loss intimation</b> · call 14447 within 72 hrs of damage</span>
+      <a class="go" href="#" style="margin-left:auto;font-size:11.5px;color:var(--ag);font-weight:500">Set reminders 🔔</a>
+    </div>
+  </section>
+
+  <!-- 9b · sarkari services hub — E5 verified deep links to OFFICIAL portals only.
+       We link, we never fetch or store records (DPDP + scope fence). Every link
+       carries the domain + last-verified stamp from data. -->
+  <section class="section reveal">
+    <div class="eyebrow">OFFICIAL PORTALS · VERIFIED LINKS · WE NEVER STORE YOUR RECORDS</div>
+    <div class="row-head"><h2>Govt services &amp; status checks · அரசு சேவைகள்</h2><a class="see" href="#">All official links →</a></div>
+    <div class="gov-grid">
+      <a class="gov" href="#"><span class="gi">🏛️</span><span><b>PM-Kisan — check status</b><small>Instalment &amp; beneficiary status by Aadhaar/mobile</small><span class="dom">pmkisan.gov.in ↗ · ✓ 12 Aug</span></span></a>
+      <a class="gov" href="#"><span class="gi">📜</span><span><b>Patta / Chitta land records</b><small>View &amp; download TN land records — நில ஆவணம்</small><span class="dom">eservices.tn.gov.in ↗ · ✓ 12 Aug</span></span></a>
+      <a class="gov" href="#"><span class="gi">☂️</span><span><b>PMFBY — policy &amp; claim status</b><small>Crop insurance status · report loss within 72 hrs: 14447</small><span class="dom">pmfby.gov.in ↗ · ✓ 10 Aug</span></span></a>
+      <a class="gov" href="#"><span class="gi">🪪</span><span><b>AgriStack farmer registry</b><small>Farmer ID registration &amp; enrolment status</small><span class="dom">agristack.gov.in ↗ · ✓ 11 Aug</span></span></a>
+      <a class="gov" href="#"><span class="gi">🧫</span><span><b>Soil Health Card</b><small>Download your SHC · feeds our fertilizer calculator</small><span class="dom">soilhealth.dac.gov.in ↗ · ✓ 9 Aug</span></span></a>
+      <a class="gov" href="#"><span class="gi">🏪</span><span><b>eNAM registration</b><small>Sell in regulated e-markets — how to enrol</small><span class="dom">enam.gov.in ↗ · ✓ 8 Aug</span></span></a>
+    </div>
+  </section>
+
+  <!-- 10 · directory — agri businesses near you; sponsored position 1 (golden border), organic order untouched -->
+  <section class="section reveal" id="shops">
+    <div class="eyebrow">DIRECTORY · VERIFIED &amp; MAPPED</div>
+    <div class="row-head"><h2>Agri businesses near you · உங்கள் அருகில்</h2><a class="see" href="#">Show map</a></div>
+    <div class="vendor-grid">
+      <div class="card vendor sponsored">
+        <div class="body" style="padding-top:12px">
+          <span class="pill pill-sponsored">★ Sponsored</span>
+          <div class="name-row"><b style="font-size:14px">AgroMart Agencies</b></div>
+          <div class="meta">★ <b>4.5</b> (132) · 2.4 km · Seeds · fertilizers · sprayers</div>
+          <div class="price-line"><b>Authorised dealer</b> — 6 brands</div>
+          <div class="detail">🕐 Open till 8 PM · home delivery in 641001</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+      <div class="card vendor">
+        <div class="body">
+          <span class="pill pill-verified">✓ Verified business</span>
+          <div class="name-row"><b style="font-size:14px">Kovai Agro Clinic</b><span class="badge badge-reco">Recommended</span></div>
+          <div class="meta">★ <b>4.8</b> (207) · 1.1 km · Vet · cattle feed · minerals</div>
+          <div class="price-line"><b>Farm visits</b> · emergency available</div>
+          <div class="detail">🕐 Mon–Sat 9–7 · covers 641001, 641002, 641004</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+      <div class="card vendor">
+        <div class="body">
+          <span class="pill pill-verified">✓ Verified business</span>
+          <div class="name-row"><b style="font-size:14px">Annai Tractors &amp; Spares</b></div>
+          <div class="meta">★ <b>4.4</b> (89) · 3.6 km · Sales · service · spares</div>
+          <div class="price-line"><b>EMI options</b> · exchange accepted</div>
+          <div class="detail">🕐 Test drive at your farm · free pickup for service</div>
+          <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="cities" style="margin-top:12px">
+      <span style="font-size:11.5px;color:var(--muted);align-self:center">Browse by district:</span>
+      <a href="#">Coimbatore</a><a href="#">Erode</a><a href="#">Tiruppur</a><a href="#">Salem</a>
+      <a href="#">Karur</a><a href="#">Namakkal</a><a href="#">The Nilgiris</a><a href="#">All Tamil Nadu →</a>
+    </div>
+  </section>
+
+  <!-- 10a2 · how agri.in works -->
+  <section class="section reveal">
+    <div class="eyebrow">SIMPLE BY DESIGN</div>
+    <h2>How agri.in works · எப்படி</h2>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><b>Set your location</b><small>Pincode or GPS — everything becomes local: prices, weather, businesses, schemes</small></div>
+      <div class="step"><span class="n">2</span><b>Search, compare, decide</b><small>Verified badges, real reviews, live data with sources — you stay in control</small></div>
+      <div class="step"><span class="n">3</span><b>Call or WhatsApp direct</b><small>Deal with the business directly. No middlemen, no commission — ever</small></div>
+    </div>
+  </section>
+
+  <!-- 10b · equipment showcase — E2 catalog teaser (spec-schema driven; full vertical ships Stage B).
+       Sponsored product max 1, fixed position, always labelled. -->
+  <section class="section reveal">
+    <div class="eyebrow">CATALOG PREVIEW · COMPARE &amp; ENQUIRE</div>
+    <div class="row-head"><h2>Popular equipment this week · விவசாய இயந்திரங்கள்</h2><a class="see" href="#">Compare all →</a></div>
+    <div class="eq-grid">
+      <div class="eq sponsored">
+        <span class="sp-tag">★ Sponsored</span>
+        <div class="media" style="background:#EAF3DE">🚜</div>
+        <div class="body"><b>Bharath 475 DI (42 HP)</b><div class="meta">₹6.4–6.9 L on-road · 4 dealers near you</div>
+          <div class="specs"><span>42 HP</span><span>2WD</span><span>1,800 kg lift</span></div>
+          <button class="btn btn-primary">View dealers 📍</button></div>
+      </div>
+      <div class="eq">
+        <div class="media" style="background:#E3F2FB">🛸</div>
+        <div class="body"><b>Drone spraying service</b><div class="meta">₹550–700/acre · 3 providers in 641xxx</div>
+          <div class="specs"><span>10L tank</span><span>DGCA reg.</span><span>Per-acre</span></div>
+          <button class="btn btn-primary">Get quotes</button></div>
+      </div>
+      <div class="eq">
+        <div class="media" style="background:#FAF3DC">💧</div>
+        <div class="body"><b>Drip kit — 1 acre banana</b><div class="meta">₹28–34k before subsidy · 100% subsidy eligible</div>
+          <div class="specs"><span>16mm lateral</span><span>ISI</span><span>Subsidy ✓</span></div>
+          <button class="btn btn-primary">Check subsidy</button></div>
+      </div>
+      <div class="eq">
+        <div class="media" style="background:#FBEAF0">⚙️</div>
+        <div class="body"><b>Power weeder (7 HP)</b><div class="meta">₹58–72k · rental from ₹900/day</div>
+          <div class="specs"><span>7 HP</span><span>Petrol</span><span>Rent or buy</span></div>
+          <button class="btn btn-primary">Buy or rent</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10c · farm calculators — client-side tools, work offline; fertilizer calc reads SHC values -->
+  <section class="section reveal">
+    <div class="eyebrow">FREE TOOLS · WORK OFFLINE</div>
+    <div class="row-head"><h2>Farm calculators · கணிப்பான்கள்</h2><a class="see" href="#">All tools →</a></div>
+    <div class="tools-grid">
+      <a class="tool" href="#"><span class="em">🌱</span><b>Seed rate</b><small>kg per acre by crop &amp; spacing — விதை அளவு</small><span class="go">Calculate →</span></a>
+      <a class="tool" href="#"><span class="em">🧪</span><b>Fertilizer dose</b><small>NPK from your Soil Health Card values</small><span class="go">Calculate →</span></a>
+      <a class="tool" href="#"><span class="em">💧</span><b>Spray dilution</b><small>ml per tank, per label dose — safe mixing</small><span class="go">Calculate →</span></a>
+      <a class="tool" href="#"><span class="em">🚜</span><b>Tractor EMI</b><small>Monthly EMI by price, down payment, tenure</small><span class="go">Calculate →</span></a>
+    </div>
+  </section>
+
+  <!-- 11 · knowledge + news — E6 content engine, tagged by vertical × geo, EN/TA/HI -->
+  <section class="section reveal">
+    <div class="eyebrow">KNOWLEDGE &amp; NEWS · EN | TA | HI</div>
+    <div class="row-head"><h2>Know more, grow more · அறிவு</h2><a class="see" href="#">Knowledge hub →</a></div>
+    <div class="know">
+      <div class="know-cards">
+        <a class="kcard" href="#"><div class="media" style="background:#EAF3DE">🌾</div><div class="body">
+          <span class="cat">Guide · Kharif</span><b>Paddy nursery in 14 days — step by step</b><div class="meta">Tamil · English · 6 min read</div></div></a>
+        <a class="kcard" href="#"><div class="media" style="background:#FAEEDA">🐛</div><div class="body">
+          <span class="cat">Advisory</span><b>Fall armyworm alert: what to check in maize this week</b><div class="meta">Human-reviewed · 4 min read</div></div></a>
+        <a class="kcard" href="#"><div class="media" style="background:#E3F2FB">💧<span class="play">▶</span><span class="dur">12:40</span></div><div class="body">
+          <span class="cat" style="background:#FCEBEB;color:#9C2B2B">▶ Video · Water</span><b>Drip vs sprinkler: cost per acre, honestly compared</b><div class="meta">Tamil narration · English subs · 12 min</div></div></a>
+      </div>
+      <div class="news-list">
+        <h3>📰 Agri news today</h3>
+        <div class="news-item">Centre raises paddy MSP by ₹117/quintal for 2026–27 season<small>PIB · 2 hrs ago</small></div>
+        <div class="news-item">TN announces additional 2% subsidy on farm mechanisation<small>The Hindu · 5 hrs ago</small></div>
+        <div class="news-item">Monsoon 4% above normal in south peninsula, says IMD<small>IMD bulletin · today</small></div>
+        <div class="news-item">Turmeric exports up 18% — Erode traders expect firm prices<small>AgriWatch · yesterday</small></div>
+        <div class="news-item">Kharif sowing crosses 90% of normal area in Tamil Nadu<small>TN Agri Dept · yesterday</small></div>
+        <div class="news-item">New drone subsidy guidelines notified for FPO custom-hiring centres<small>PIB · 2 days ago</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11b · community Q&A preview — E7 (full forum ships Stage D; teaser routes to Ask AI + notify-me now) -->
+  <section class="section reveal">
+    <div class="eyebrow">COMMUNITY · EXPERT ANSWERS</div>
+    <div class="row-head"><h2>Farmers are asking · விவசாயிகள் கேட்கிறார்கள்</h2><a class="see" href="#">Ask your question →</a></div>
+    <div class="qa-grid">
+      <a class="qa" href="#">
+        <div class="q">"Yellowing leaves on 20-day paddy — nitrogen deficiency or zinc? Photos attached."</div>
+        <div class="tags"><span>🌾 Paddy</span><span>Nutrition</span></div>
+        <div class="meta"><span>💬 6 answers</span><span class="exp">✓ Expert answered</span><span>2.1k views</span></div>
+      </a>
+      <a class="qa" href="#">
+        <div class="q">"Drip subsidy sanctioned — which company's kit lasts longest for banana? 3-acre plot."</div>
+        <div class="tags"><span>💧 Irrigation</span><span>Subsidy</span></div>
+        <div class="meta"><span>💬 9 answers</span><span>1.4k views</span></div>
+      </a>
+      <a class="qa" href="#">
+        <div class="q">"கால்நடை காப்பீடு எப்படி எடுப்பது? Two milking cows, first time insuring."</div>
+        <div class="tags"><span>🐄 Livestock</span><span>Insurance</span></div>
+        <div class="meta"><span>💬 4 answers</span><span class="exp">✓ Expert answered</span><span>860 views</span></div>
+      </a>
+    </div>
+    <div class="experts-row">
+      <span class="lbl">Top experts this week:</span>
+      <span class="expert"><span class="av">DR</span><b>Dr. Rajan V.</b><small>Agronomy · 41 answers</small></span>
+      <span class="expert"><span class="av">SK</span><b>Selvi K.</b><small>Horticulture · 33 answers</small></span>
+      <span class="expert"><span class="av">MN</span><b>Dr. Manoj N.</b><small>Veterinary · 27 answers</small></span>
+      <span class="expert"><span class="av">+</span><b>Become an expert</b><small>apply with credentials</small></span>
+    </div>
+  </section>
+
+  <!-- 11c · events & webinars — E6 events (full module Stage D; listings live at launch) -->
+  <section class="section reveal">
+    <div class="eyebrow">MEET &amp; LEARN</div>
+    <div class="row-head"><h2>Events &amp; webinars · நிகழ்வுகள்</h2><a class="see" href="#">All events →</a></div>
+    <div class="ev-list">
+      <div class="ev">
+        <div class="date"><b>18</b><small>AUG</small></div>
+        <div class="info"><b>Precision irrigation for small farms — live webinar</b><small>Online · Tamil &amp; English · TNAU guest speaker · 7:00 PM</small></div>
+        <span class="coins-mini">🪙 Attend = 10 coins</span>
+        <button class="btn btn-primary">Register free</button>
+      </div>
+      <div class="ev">
+        <div class="date"><b>22</b><small>AUG</small></div>
+        <div class="info"><b>Coimbatore agri expo — drone &amp; machinery demos</b><small>CODISSIA grounds · free entry with registration · 9 AM–6 PM</small></div>
+        <span class="coins-mini">🪙 Check-in = 15 coins</span>
+        <button class="btn btn-primary">Register free</button>
+      </div>
+      <div class="ev">
+        <div class="date"><b>29</b><small>AUG</small></div>
+        <div class="info"><b>PMFBY enrolment camp — last-week help desk</b><small>Block agri offices, Coimbatore dist · bring land records + Aadhaar</small></div>
+        <span class="coins-mini">🪙 Free help</span>
+        <button class="btn btn-primary">Find my camp</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · Ask-AI band — D60–61: pgvector RAG, read-only mandi/weather tools, injection-hardened, tiered limits -->
+  <section class="ai-band reveal" aria-label="Ask agri.in AI assistant">
+    <div class="top">
+      <span class="em">🤖</span>
+      <div><b>Ask agri.in — farming questions, answered in your language</b>
+      <p>உழவு கேள்விகளுக்கு உடனடி பதில் · answers cite sources · reads live mandi &amp; weather data</p></div>
+    </div>
+    <form class="ai-row" action="#" onsubmit="return false">
+      <label for="ai" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Ask a question</label>
+      <input id="ai" placeholder="e.g. எந்த நெல் ரகம் நல்லது? · How much urea for 1 acre paddy?">
+      <button class="search-mic" type="button" aria-label="Ask by voice">🎙️</button>
+      <button class="btn btn-money" type="submit" style="min-height:38px">Ask</button>
+    </form>
+    <div class="ai-note">Dosage, scheme and loan answers are human-reviewed before publishing · AI can make mistakes — verify critical decisions with an expert.</div>
+  </section>
+
+  <!-- 13 · helpline band — D59: offline-cached click-to-call page -->
+  <section class="help-band reveal" aria-label="Farmer helplines">
+    <div class="hd"><h2>📞 Helplines · உதவி எண்கள்</h2><span class="off">Saved for offline — works without internet</span></div>
+    <div class="help-chips">
+      <a href="tel:18001801551"><b>Kisan Call Centre</b> 1800-180-1551</a>
+      <a href="tel:18004251556"><b>TN Agri Dept</b> 1800-425-1556</a>
+      <a href="tel:1962"><b>Animal husbandry</b> 1962</a>
+      <a href="tel:18001801551"><b>PM-Kisan help</b> 155261</a>
+      <a href="#"><b>All helplines</b> →</a>
+    </div>
+  </section>
+
+  <!-- 13b · live activity feed — leads + directory + reviews events (Redis Streams), anonymised -->
+  <div class="ticker rev" aria-label="Live on agri.in">
+    <div class="lane">
+      <span>🔴 <b>Live on agri.in</b></span><span>🌱 Need posted: <b>50 kg tomato seeds · 641001</b> · 2 min ago</span><span>🏪 <b>Annur Agro Traders</b> joined · 8 min ago</span><span>⭐ New review for <b>Kovai Agro Clinic</b> · 12 min ago</span><span>🚜 Test-drive lead sent to <b>2 dealers</b> · 15 min ago</span><span>🐄 Vet visit booked in <b>641004</b> · 21 min ago</span><span>📄 RFQ: <b>200 kg turmeric, monthly</b> · 26 min ago</span><span>🔔 1,240 price alerts sent this morning ·</span>
+      <span>🔴 <b>Live on agri.in</b></span><span>🌱 Need posted: <b>50 kg tomato seeds · 641001</b> · 2 min ago</span><span>🏪 <b>Annur Agro Traders</b> joined · 8 min ago</span><span>⭐ New review for <b>Kovai Agro Clinic</b> · 12 min ago</span><span>🚜 Test-drive lead sent to <b>2 dealers</b> · 15 min ago</span><span>🐄 Vet visit booked in <b>641004</b> · 21 min ago</span><span>📄 RFQ: <b>200 kg turmeric, monthly</b> · 26 min ago</span><span>🔔 1,240 price alerts sent this morning ·</span>
+    </div>
+  </div>
+
+  <!-- 14 · live stats band — directory + engines counts -->
+  <section class="stats reveal" aria-label="Agri.in in numbers">
+    <div><b data-count="36">0</b><small>verticals, one platform</small></div>
+    <div><b data-count="1450">0</b><small>businesses listed</small></div>
+    <div><b data-count="2300">0</b><small>pincodes covered</small></div>
+    <div><b data-count="96">0</b><small>% questions answered</small></div>
+  </section>
+
+  <!-- 14b · trust pillars + success story -->
+  <section class="section reveal">
+    <div class="eyebrow">WHY FARMERS TRUST AGRI.IN</div>
+    <h2>We list, you choose — we never sell</h2>
+    <div class="pillar-grid">
+      <div class="pillar"><span class="pic" style="background:#DDF2E4">🆓</span><span><b>Free for farmers, always</b><small>Search, prices, schemes, contacts — no charge, no commission on anything</small></span></div>
+      <div class="pillar"><span class="pic" style="background:#E1F5EE">✅</span><span><b>Verification can't be bought</b><small>Documents checked by our team; paid placement is always labelled "Sponsored"</small></span></div>
+      <div class="pillar"><span class="pic" style="background:#E9F1FA">📊</span><span><b>Data with sources &amp; dates</b><small>Every price stamped Agmarknet, every scheme verified against the official site</small></span></div>
+      <div class="pillar"><span class="pic" style="background:#FBF3DE">🔒</span><span><b>Your data stays yours</b><small>DPDP-compliant: consent-first contact reveal, export &amp; delete anytime</small></span></div>
+    </div>
+    <div class="story">
+      <div>
+        <div class="quote">"Three years I sold tomato at whatever price the commission mandi agent said. Now I check agri.in before loading the tempo — last month alone the difference paid my drip loan EMI."</div>
+        <div class="who"><span class="av">M</span><span><b style="color:#fff">Murugesan P.</b> · 4-acre farmer, Annur · using agri.in since launch week</span></div>
+      </div>
+      <div class="nums">
+        <div class="num"><b>₹2,340</b><small>extra earned last month</small></div>
+        <div class="num"><b>6:15 AM</b><small>his daily price alert</small></div>
+        <div class="num"><b>3</b><small>vendors compared per sale</small></div>
+        <div class="num"><b>0</b><small>commission paid to anyone</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 · what people say — D18 reviews engine (approved reviews only) -->
+  <section class="section reveal">
+    <div class="eyebrow">REAL RESULTS</div>
+    <div class="row-head"><h2>What farmers say</h2><span class="coins-nudge">🪙 Write a review, earn 5 AgriCoins</span></div>
+    <div class="reviews">
+      <div class="review"><span class="stars">★★★★★</span><p>"Checked tomato price before going to market — sold at ₹4 more than the trader first offered. This is real money."</p><span class="who"><span class="av">P</span>Palanisamy · 641114</span></div>
+      <div class="review"><span class="stars">★★★★★</span><p>"PM-Kisan status, வானிலை, விலை — எல்லாம் ஒரே இடத்தில். தமிழில் கேட்டா தமிழில் பதில்."</p><span class="who"><span class="av">K</span>Kalaiselvi · 638051</span></div>
+      <div class="review"><span class="stars">★★★★☆</span><p>"Listed my agro shop free. Farmers from 3 nearby pincodes now call directly — no commission to anyone."</p><span class="who"><span class="av">A</span>AgroMart · business</span></div>
+    </div>
+  </section>
+
+  <!-- 15b · earn AgriCoins — D13 rules engine, cross-platform balance -->
+  <section class="section reveal">
+    <div class="eyebrow">ONE WALLET · EVERY PLATFORM</div>
+    <div class="row-head"><h2>Earn AgriCoins · 🪙</h2><a class="see" href="#">Coins center →</a></div>
+    <div class="earn-row">
+      <div class="earn"><span class="em">⭐</span><span><b>Write a review</b><small>after you contact a business</small></span><span class="amt">+5</span></div>
+      <div class="earn"><span class="em">🎪</span><span><b>Attend a webinar</b><small>check-in at live events</small></span><span class="amt">+10</span></div>
+      <div class="earn"><span class="em">🤝</span><span><b>Refer a farmer</b><small>when they verify their number</small></span><span class="amt">+25</span></div>
+      <div class="earn"><span class="em">📅</span><span><b>Daily price check</b><small>7-day streak bonus</small></span><span class="amt">+15</span></div>
+    </div>
+  </section>
+
+  <!-- 16 · popular searches — ISR vertical × geo pages (SEO) -->
+  <section class="section reveal">
+    <h2>Popular near you</h2>
+    <div class="cities">
+      <a href="#">Tomato price Coimbatore</a><a href="#">Tractor price Tamil Nadu</a><a href="#">PM-Kisan status</a>
+      <a href="#">Soil testing near me</a><a href="#">Drip subsidy TN</a><a href="#">Milk vendors 641001</a>
+      <a href="#">Organic shops Coimbatore</a><a href="#">Weather Pollachi</a><a href="#">Turmeric price Erode</a>
+      <a href="#">Drone spraying cost</a><a href="#">Coconut price Pollachi</a><a href="#">Vet near me</a>
+      <a href="#">PMFBY last date</a><a href="#">Power weeder rental</a><a href="#">All topics →</a>
+    </div>
+  </section>
+
+  <!-- 17 · big CTA tiles -->
+  <section class="cta-grid reveal">
+    <div class="cta green">
+      <span class="em">🎙️</span>
+      <b>Tell us what you need — once.</b>
+      <p>"50 kg tomato seeds, 641001" or "soil test this week" — verified businesses and experts contact YOU. Speak it or type it.</p>
+      <a class="btn btn-tertiary" href="#">Post my need · தேவையை சொல்லுங்கள்</a>
+    </div>
+    <div class="cta deep" id="list">
+      <span class="em">🏪</span>
+      <b>Agri business, brand or expert?</b>
+      <p>List free — farmers in your pincodes find you. Advertise from ₹499/week to reach more.</p>
+      <a class="btn btn-money" href="#" id="advertise">List my business</a>
+      <a class="btn btn-tertiary" href="#" style="margin-left:8px">How it works · எப்படி</a>
+    </div>
+  </section>
+
+  <!-- 18 · mandi-alert opt-in — D28/D56 push notifications; hidden when permission already granted -->
+  <section class="alert-card reveal">
+    <span class="em">🔔</span>
+    <span><b>Get mandi price alerts for Coimbatore</b><small>Your commodities, your market — free morning notification at 6:15 AM</small></span>
+    <span class="spacer"></span>
+    <button class="btn btn-primary" style="min-height:40px;font-size:12.5px">Turn on</button>
+  </section>
+
+  <!-- 19 · app / PWA install band — D28/D65 PWA parity -->
+  <section class="app-band reveal">
+    <span class="em">📱</span>
+    <div><b>Get agri.in on your phone</b><p>One tap install — helplines &amp; mandi prices cached offline, loads light on 3G, works on any phone. No app store needed.</p></div>
+    <span class="spacer"></span>
+    <div class="qr" aria-label="QR code to install"><small>Scan to install</small></div>
+    <button class="btn btn-money">Install app</button>
+  </section>
+
+  <!-- 20 · FAQ — SEO + JSON-LD FAQPage -->
+  <section class="section reveal">
+    <h2>Common questions</h2>
+    <div class="faq">
+      <details><summary>Is agri.in free for farmers?</summary><div class="a">Yes — search, prices, weather, schemes, helplines and contacting businesses are completely free. We never charge farmers, and we never add commission to any price.</div></details>
+      <details><summary>Does agri.in sell seeds, tractors or produce?</summary><div class="a">No. We list every option near you — businesses, brands, services — and you deal with them directly. We list, you choose, we never sell and never touch the money.</div></details>
+      <details><summary>Are the mandi prices and scheme details reliable?</summary><div class="a">Mandi prices come from Agmarknet and are stamped with market and time. Every scheme page shows the official source it was verified against and the date it was last checked by our team.</div></details>
+      <details><summary>What does the Verified badge mean?</summary><div class="a">Our team has checked the business's documents before the badge is shown. Verification can never be bought — and paid placements are always marked "Sponsored".</div></details>
+      <details><summary>What are AgriCoins and can I cash them out?</summary><div class="a">AgriCoins are loyalty rewards you earn across agri.in, milk.in and theorganic.in — one balance everywhere. They unlock perks on the platform but are never cash and never transferable; the full rules are in the Coins center.</div></details>
+      <details><summary>Who can see my phone number?</summary><div class="a">Nobody, until you choose. Contact reveals are consent-first and logged (DPDP Act 2023). You can export or delete your data anytime from your profile — and we never sell data to anyone.</div></details>
+    </div>
+  </section>
+
+  <!-- 20b · weekly digest — SOON state (post-launch backlog: retention/newsletter). Notify-me only,
+       no reader-count claims until it ships; same honest coming-soon rule as the vertical tiles. -->
+  <section class="digest reveal" aria-label="Weekly digest — coming soon" style="opacity:.85">
+    <span class="em">📩</span>
+    <div><b>The Weekly Field Report — free <span style="font-size:9px;font-weight:500;background:var(--paper-deep);color:var(--muted);border-radius:99px;padding:2px 9px;vertical-align:middle;margin-left:6px">Soon</span></b>
+    <p>Your mandi trends, scheme deadlines &amp; weather outlook. Every Sunday, EN / தமிழ் / हिन्दी. Launching soon — we'll tell you first.</p></div>
+    <form action="#" onsubmit="return false">
+      <label for="dig" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Email or WhatsApp number</label>
+      <input id="dig" placeholder="Email or WhatsApp number">
+      <button class="btn btn-primary" style="min-height:38px;font-size:12.5px">🔔 Notify me</button>
+    </form>
+  </section>
+
+  <!-- 21 · family strip -->
+  <section class="section reveal">
+    <h2 style="font-size:14px">Our family · one login works everywhere</h2>
+    <div class="family">
+      <a class="agri" href="#"><b>🌾 agri.in</b><small>All of agriculture — you are here</small></a>
+      <a class="milk" href="#"><b>🥛 milk.in</b><small>All milk options in your pincode</small></a>
+      <a class="org" href="#"><b>🌿 theorganic.in</b><small>Certified organic brands &amp; products</small></a>
+      <a class="coin" href="#"><b>🪙 AgriCoins</b><small>Your rewards: 1,240 coins</small></a>
+    </div>
+  </section>
+</div>
+
+<!-- 22 · footer -->
+<footer><div class="wrap">
+  <div class="foot-grid">
+    <div class="foot-brand">
+      <b>agri.in</b>
+      <p>All of Indian agriculture in one place — prices, weather, schemes, businesses, knowledge. Part of the Agri.in family. We list, you choose — we never sell.</p>
+      <div class="socials"><span>💬</span><span>▶️</span><span>📷</span></div>
+    </div>
+    <div><h3>Categories</h3><ul><li>Mandi prices · விலை</li><li>Weather · வானிலை</li><li>Schemes · Seeds · Tractors</li><li>All 36 categories</li></ul></div>
+    <div><h3>States</h3><ul><li>Tamil Nadu</li><li>Karnataka</li><li>Andhra · Telangana</li><li>All India</li></ul></div>
+    <div><h3>For business</h3><ul><li>List your business — free</li><li>Advertise from ₹499/week</li><li>Business console</li><li>How verification works</li></ul></div>
+    <div><h3>Company</h3><ul><li>About · Agri.in family</li><li>Contact us</li><li>Privacy policy</li><li>Terms of use</li></ul></div>
+  </div>
+  <div class="legal">
+    <span>© 2026 Oneuni Agri Platform Pvt Ltd · agri.in lists businesses &amp; information, we never sell or broker</span>
+    <span class="spacer"></span>
+    <span style="color:var(--ag-soft)">English · தமிழ் · हिन्दी</span>
+    <span>Data saver: OFF</span>
+  </div>
+</div></footer>
+
+<!-- 23 · mobile bottom nav (fixed; body padding clears it) -->
+<nav class="bottom-nav" aria-label="Primary">
+  <a class="on" href="#"><span class="ic">🏠</span>Home</a>
+  <a href="#"><span class="ic">📈</span>Mandi</a>
+  <a href="#"><span class="mic">🎙️</span>Ask</a>
+  <a href="#"><span class="ic">🔔</span>Alerts</a>
+  <a href="#"><span class="ic">👤</span>Profile</a>
+</nav>
+
+<script>
+/* count-up + scroll reveal — both respect prefers-reduced-motion (shared U1 script) */
+const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add('in');
+  e.target.querySelectorAll('[data-count]').forEach(el => {
+    const end = +el.dataset.count, fmt = n => n >= 1000 ? n.toLocaleString('en-IN') + '+' : n;
+    if (rm) { el.textContent = fmt(end); return; }
+    const t0 = performance.now(), dur = 900;
+    const tick = t => { const p = Math.min((t - t0) / dur, 1);
+      el.textContent = fmt(Math.round(end * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  io.unobserve(e.target);
+}), { threshold: .25 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+
+/* hero ad auto-rotate — D21 carousel behaviour (approved creatives only); paused for reduced motion */
+const SLIDES = [
+  { h1: 'Bharath Tractors exchange mela — this Pongal season',
+    p: '0% processing fee on exchange · free soil-test coupon with every test drive · உங்கள் ஊரிலேயே டெலிவரி',
+    cta: 'Find dealers near you', g: '🚜' },
+  { h1: 'Sakthi Gold drip kits — 100% subsidy assistance',
+    p: 'ISI laterals · 5-year warranty · free field survey in Coimbatore district · சொட்டு நீர் பாசனம்',
+    cta: 'Book free survey', g: '💧' },
+  { h1: 'GreenGrow bio-inputs — Kharif combo offers',
+    p: 'Neem + pseudomonas combo from ₹499 · NPOP-certified inputs · doorstep delivery in 2,300 pincodes',
+    cta: 'See combo offers', g: '🌱' },
+  { h1: 'AgriDrone services — spraying from ₹550/acre',
+    p: 'DGCA-registered pilots · book per-acre, pay the provider directly · ட்ரோன் தெளிப்பு',
+    cta: 'Get a quote', g: '🛸' },
+];
+const heroH1 = document.querySelector('.hero-ad h1'),
+      heroP = document.querySelector('.hero-ad p'),
+      heroCta = document.querySelector('.hero-ad .btn-money'),
+      heroGlyph = document.querySelector('.panel.a .glyph'),
+      dots = document.querySelectorAll('.dots span'),
+      heroInner = document.querySelector('.hero-ad .inner');
+let slide = 0, heroTimer;
+function showSlide(i){
+  slide = i % SLIDES.length;
+  const s = SLIDES[slide];
+  heroInner.style.transition = rm ? 'none' : 'opacity .35s ease';
+  heroInner.style.opacity = 0;
+  setTimeout(() => {
+    heroH1.textContent = s.h1; heroP.textContent = s.p; heroCta.textContent = s.cta; heroGlyph.textContent = s.g;
+    dots.forEach((d, k) => d.classList.toggle('on', k === slide));
+    heroInner.style.opacity = 1;
+  }, rm ? 0 : 350);
+}
+function startHero(){ if (!rm) heroTimer = setInterval(() => showSlide(slide + 1), 5000); }
+startHero();
+document.querySelector('.hero-nav.next').onclick = () => { clearInterval(heroTimer); showSlide(slide + 1); startHero(); };
+document.querySelector('.hero-nav.prev').onclick = () => { clearInterval(heroTimer); showSlide(slide + 3); startHero(); };
+
+/* rotating search placeholder — one query suggestion at a time */
+const HINTS = [
+  'Try: tomato price today · இன்றைய தக்காளி விலை',
+  'Try: tractor EMI under ₹10,000/month',
+  'Try: PM-Kisan status · பிஎம்-கிசான் நிலை',
+  'Try: soil test near me · மண் பரிசோதனை',
+  'Try: drone spraying cost per acre',
+  'Try: drip subsidy Tamil Nadu · சொட்டு நீர் மானியம்',
+];
+const qInput = document.getElementById('q');
+let hint = 0;
+setInterval(() => { if (document.activeElement !== qInput) { hint = (hint + 1) % HINTS.length; qInput.placeholder = HINTS[hint]; } }, 3200);
+
+/* scroll progress bar + back-to-top */
+const prog = document.querySelector('.scroll-progress'), toTop = document.querySelector('.to-top');
+addEventListener('scroll', () => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  prog.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%';
+  toTop.classList.toggle('show', scrollY > 900);
+}, { passive: true });
+toTop.addEventListener('click', e => { e.preventDefault(); scrollTo({ top: 0, behavior: rm ? 'auto' : 'smooth' }); });
+</script>
+</body>
+</html>

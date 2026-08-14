@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agri.in — public pages reference (A2 draft v1)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   agri.in PUBLIC PAGES — A2 DESIGN REFERENCE (draft v1)
+   One linked bundle: Categories → Category (VERTICAL-TEMPLATE) →
+   Product (E2) → Business profile (E1) → AgriID register/onboard.
+   Same token system as the A1 home reference. The slim dark bar
+   at the very top is REFERENCE CHROME ONLY — not product UI.
+   Breakpoints: mobile <768 · tablet 768–1023 · desktop >=1024
+   ============================================================ */
+:root{
+  --ag:#3E7A45; --ag-deep:#2C5A33; --ag-soft:#EAF3E4; --ag-soft-2:#BFDCBA;
+  --ag-accent:#E9A61C; --ag-accent-ink:#4A2E00;
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --wa:#22B45A; --call:#22A34F; --wa-tint:#E8F7EE; --wa-border:#BFE7CE; --wa-ink:#0F6E42;
+  --paper:#FDFBF6; --paper-border:#EDE6D6; --paper-deep:#F4F0E6;
+  --ad-border:#E9A61C; --trust-bg:#FEFAF0;
+  --up:#1E7A34; --down:#B5541C;
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+h1,h2,h3,.display{font-family:var(--font-display)}
+h2{font-size:18px;font-weight:600;margin-bottom:10px}
+:focus-visible{outline:3px solid var(--ag);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- primitives (binding — same as A1/U1) ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500;border-radius:10px;min-height:44px;padding:10px 18px;font-size:14px}
+.btn-primary{background:var(--ag);color:#fff}
+.btn-money{background:var(--ag-accent);color:var(--ag-accent-ink);border-radius:99px}
+.btn-call{background:var(--call);color:#fff}
+.btn-wa{background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink)}
+.btn-tertiary{background:var(--paper);color:var(--ag-deep);border:1px solid var(--paper-border)}
+.btn-ghost{background:#fff;color:var(--ag-deep);border:1px solid var(--paper-border)}
+.badge{font-size:11px;font-weight:500;border-radius:99px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px}
+.badge-verified{background:#E1F5EE;color:#085041}
+.badge-reco{background:#FAEEDA;color:#854F0B}
+.pill-sponsored{background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;border-radius:99px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center}
+.pill-verified{background:#DDF2E4;color:#0F6E42;font-size:10px;font-weight:500;border-radius:99px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#946B2D;display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--ag-accent);border-radius:2px}
+.section{margin-top:20px}
+.row-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.row-head .see{font-size:12px;color:var(--ag);display:inline-block;transition:transform .18s ease}
+.row-head .see:hover{transform:translateX(3px)}
+
+/* ---------- reference switcher (dev chrome, NOT product UI) ---------- */
+.ref-bar{background:#1D2A20;color:#C7D3C2;font-size:11px;position:sticky;top:0;z-index:80}
+.ref-bar .wrap{display:flex;align-items:center;gap:6px;padding:7px 20px;overflow-x:auto;scrollbar-width:none}
+.ref-bar .wrap::-webkit-scrollbar{display:none}
+.ref-bar .tag{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;color:#8A9B6E;white-space:nowrap;margin-right:6px}
+.ref-bar a{white-space:nowrap;border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:3px 11px;color:#C7D3C2}
+.ref-bar a.on{background:var(--ag);border-color:var(--ag);color:#fff}
+
+/* ---------- shared site header (compact) ---------- */
+.util{background:var(--ag-deep);color:var(--ag-soft-2);font-size:12px}
+.util .wrap{display:flex;align-items:center;gap:16px;padding-top:6px;padding-bottom:6px}
+.util .spacer{flex:1}
+.util .hotline{background:var(--ag-accent);color:var(--ag-accent-ink);border-radius:5px;padding:3px 9px;font-weight:500;white-space:nowrap}
+@media(max-width:767px){.util .link{display:none}.util .wrap>span:first-child{display:none}.util .wrap{justify-content:center}}
+.hdr{background:var(--ag);color:#fff}
+.hdr .wrap{display:flex;align-items:center;gap:18px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;flex-direction:column;line-height:1.05}
+.brand b{font-family:var(--font-display);font-weight:600;font-size:22px}
+.brand small{color:var(--ag-soft-2);font-size:10px}
+.hdr .loc{font-size:13px;color:#E9F3E6;display:flex;align-items:center;gap:4px;white-space:nowrap;background:none}
+.hdr .spacer{flex:1}
+.hdr .h-search{background:#fff;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;min-width:280px;height:38px}
+.hdr .h-search input{border:0;font-size:13px;font-family:inherit;color:var(--ink);flex:1;min-width:0}
+.hdr .h-search input:focus{outline:none}
+.hdr .lang{font-size:13px;color:var(--ag-soft)}
+.coins{background:#FEF3DC;color:#854F0B;font-weight:500;font-size:13px;border-radius:99px;padding:5px 12px;display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.bell{position:relative;font-size:18px}
+.bell i{font-style:normal;display:inline-block}
+.bell .n{position:absolute;top:-6px;right:-9px;background:var(--ag-accent);color:var(--ag-accent-ink);font-size:9px;font-weight:500;border-radius:99px;padding:1px 5px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--ag-accent);color:var(--ag-deep);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+@media(max-width:1023px){.hdr .h-search{min-width:0;flex:1}}
+@media(max-width:767px){
+  .hdr .wrap{gap:6px;flex-wrap:wrap}.brand b{font-size:19px}.brand small{display:none}
+  .hdr .loc{font-size:11px;display:block;max-width:92px;overflow:hidden;text-overflow:ellipsis}
+  .hdr .lang{font-size:11px;white-space:nowrap}
+  .coins{font-size:11px;padding:4px 8px}.bell{font-size:16px}.avatar{width:24px;height:24px}
+  .hdr .h-search{order:9;flex:1 1 100%}
+}
+
+/* ---------- breadcrumbs + page frame ---------- */
+.crumbs{font-size:11.5px;color:var(--muted);margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.crumbs a{color:var(--ag)}
+.crumbs .sep{color:var(--paper-border)}
+.page{display:none}
+.page.on{display:block;animation:pagein .35s ease}
+@keyframes pagein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-head{margin-top:8px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.page-head .pic{width:54px;height:54px;border-radius:14px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.page-head h1{font-size:clamp(20px,2.6vw,28px);font-weight:600;line-height:1.15}
+.page-head .sub{font-size:12.5px;color:var(--sub);margin-top:3px}
+.page-head .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:767px){.page-head .actions{margin-left:0;width:100%}}
+
+/* ---------- categories page ---------- */
+.cat-search{margin-top:14px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:6px 6px 6px 16px;display:flex;align-items:center;gap:10px;max-width:560px}
+.cat-search input{flex:1;border:0;font-size:14px;font-family:inherit;color:var(--ink);min-width:0}
+.cat-search input:focus{outline:none}
+.vgroup{margin-top:18px}
+.vgroup h3{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.vgroup h3 .cnt{font-size:10.5px;color:var(--muted);font-weight:400}
+.vg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:8px}
+.tile{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 6px 10px;text-align:center;position:relative;transition:transform .15s ease,box-shadow .15s ease}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.tile .ic{font-size:24px;display:block;margin-bottom:5px}
+.tile b{font-size:11.5px;font-weight:500;display:block;color:var(--ink);line-height:1.25}
+.tile small{font-size:9.5px;color:var(--muted);display:block;margin-top:1px}
+.tile.soon{opacity:.62}
+.tile.soon::after{content:"Soon";position:absolute;top:6px;right:6px;font-size:8.5px;font-weight:500;background:var(--paper-deep);color:var(--muted);border-radius:99px;padding:1px 7px}
+.tile.hidden{display:none}
+.grid-note{font-size:11.5px;color:var(--muted);margin-top:12px}
+.grid-note b{color:var(--ag-deep)}
+
+/* ---------- category page (VERTICAL-TEMPLATE, E1+E2) ---------- */
+.subcats{display:flex;gap:8px;margin-top:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.subcats::-webkit-scrollbar{display:none}
+.subcats a{flex:0 0 auto;background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:7px 15px;font-size:12px;color:var(--ink)}
+.subcats a.active{background:var(--ag-soft);border-color:var(--ag);color:var(--ag-deep);font-weight:500}
+.filter-bar{margin-top:12px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-bar .f{background:var(--paper);border:1px solid var(--paper-border);border-radius:99px;padding:6px 13px;font-size:11.5px;color:var(--sub);display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+.filter-bar .f.on{background:var(--ag-soft);border-color:var(--ag);color:var(--ag-deep);font-weight:500}
+.filter-bar .spacer{flex:1}
+.filter-bar .map-t{font-size:11.5px;color:var(--ag);font-weight:500}
+.result-meta{font-size:11.5px;color:var(--muted);margin-top:10px}
+.biz-list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+.biz{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 15px;position:relative;transition:transform .18s ease,box-shadow .18s ease}
+.biz:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.biz.sponsored{border:2px solid var(--ad-border)}
+.biz .top{display:flex;gap:11px}
+.biz .logo{width:46px;height:46px;border-radius:12px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.biz .nm{font-size:14px;font-weight:500}
+.biz .meta{font-size:10.5px;color:var(--muted);margin-top:2px}
+.biz .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.biz .tags span{font-size:9px;font-weight:500;background:var(--paper-deep);border:1px solid var(--paper-border);border-radius:99px;padding:2px 8px;color:var(--sub)}
+.biz .actions{display:flex;gap:7px;margin-top:10px}
+.biz .actions .btn{flex:1;min-height:38px;font-size:12px;padding:7px 0;border-radius:9px}
+@media(max-width:767px){.biz-list{grid-template-columns:1fr}}
+.inline-ad{margin-top:10px;background:var(--trust-bg);border:1px dashed var(--ad-border);border-radius:14px;padding:11px 15px;display:flex;align-items:center;gap:11px}
+.inline-ad .t{font-size:9.5px;font-weight:500;background:#fff;color:#854F0B;border-radius:6px;padding:2px 8px}
+.inline-ad b{font-size:12.5px;font-weight:500}
+.inline-ad small{font-size:10.5px;color:var(--muted)}
+.prod-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.pcard{background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease}
+.pcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(44,90,51,.08)}
+.pcard .media{height:78px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.pcard .body{padding:9px 11px}
+.pcard b{font-size:12px;font-weight:500;display:block;line-height:1.3}
+.pcard .meta{font-size:10px;color:var(--muted);margin:3px 0 6px}
+.pcard .pr{font-family:var(--font-display);font-size:14px;font-weight:600}
+@media(max-width:767px){.prod-strip{grid-template-columns:1fr 1fr}}
+.seo-block{margin-top:20px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:16px 18px}
+.seo-block h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.seo-block p{font-size:12px;color:var(--sub);line-height:1.65}
+.load-more{display:flex;justify-content:center;margin-top:14px}
+
+/* ---------- product page (E2 spec-schema) ---------- */
+.prod-grid2{display:grid;grid-template-columns:1.1fr 1.5fr;gap:16px;margin-top:12px}
+@media(max-width:1023px){.prod-grid2{grid-template-columns:1fr}}
+.gallery{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px}
+.gallery .main{height:240px;border-radius:12px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:96px}
+.gallery .thumbs{display:flex;gap:8px;margin-top:10px}
+.gallery .thumbs span{flex:1;height:52px;border-radius:9px;background:var(--paper-deep);border:1px solid var(--paper-border);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
+.gallery .thumbs span.on{border-color:var(--ag);background:var(--ag-soft)}
+.pd-title h1{font-size:clamp(19px,2.4vw,26px);font-weight:600;line-height:1.2}
+.pd-title .sub{font-size:12px;color:var(--sub);margin-top:4px}
+.pd-title .rate{font-size:12px;color:#854F0B;margin-top:6px}
+.price-box{margin-top:12px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 16px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.price-box .pr{font-family:var(--font-display);font-size:24px;font-weight:600}
+.price-box small{font-size:10.5px;color:var(--muted);display:block}
+.price-box .emi{font-size:12px;color:var(--ag-deep);background:var(--ag-soft);border-radius:99px;padding:6px 13px}
+.spec-table{margin-top:12px;background:#fff;border:1px solid var(--paper-border);border-radius:14px;overflow:hidden}
+.spec-table .sh{padding:11px 16px;font-size:12.5px;font-weight:600;border-bottom:1px solid var(--paper-border);display:flex;justify-content:space-between;align-items:center}
+.spec-table .sh small{font-size:10px;color:var(--muted);font-weight:400}
+.spec-row{display:grid;grid-template-columns:1fr 1fr;font-size:12px;border-bottom:1px solid var(--paper-border)}
+.spec-row:last-child{border-bottom:0}
+.spec-row span{padding:9px 16px;color:var(--muted)}
+.spec-row b{padding:9px 16px;font-weight:500;border-left:1px solid var(--paper-border)}
+.dealer{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:12px 15px;display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap}
+.dealer .nm{font-size:13px;font-weight:500}
+.dealer .meta{font-size:10.5px;color:var(--muted)}
+.dealer .actions{margin-left:auto;display:flex;gap:7px}
+.dealer .actions .btn{min-height:38px;font-size:12px;padding:7px 14px;border-radius:9px}
+@media(max-width:767px){.dealer .actions{margin-left:0;width:100%}.dealer .actions .btn{flex:1}}
+.disclaim{margin-top:14px;font-size:10.5px;color:var(--muted);background:var(--paper-deep);border-radius:10px;padding:9px 13px}
+
+/* ---------- business profile (E1) ---------- */
+.bp-head{margin-top:12px;background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:18px 20px;display:flex;gap:16px;flex-wrap:wrap}
+.bp-head .logo{width:74px;height:74px;border-radius:18px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
+.bp-head h1{font-size:clamp(19px,2.4vw,26px);font-weight:600}
+.bp-head .meta{font-size:12px;color:var(--sub);margin-top:3px}
+.bp-head .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.bp-head .chips span{font-size:10px;font-weight:500;background:var(--paper-deep);border:1px solid var(--paper-border);border-radius:99px;padding:3px 10px;color:var(--sub)}
+.bp-head .actions{margin-left:auto;display:flex;flex-direction:column;gap:7px;min-width:180px}
+.bp-head .actions .btn{min-height:40px;font-size:13px}
+.bp-head .actions .row2{display:flex;gap:7px}
+.bp-head .actions .row2 .btn{flex:1;min-height:36px;font-size:11.5px;padding:7px 0}
+@media(max-width:767px){.bp-head .actions{margin-left:0;width:100%}}
+.bp-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:1023px){.bp-grid{grid-template-columns:1fr}}
+.panel-c{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:15px 17px}
+.panel-c h3{font-size:13.5px;font-weight:600;margin-bottom:8px}
+.panel-c p{font-size:12px;color:var(--sub);line-height:1.65}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--paper-border)}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--muted)}
+.kv b{font-weight:500;text-align:right}
+.cov{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.cov span{font-size:10px;background:var(--ag-soft);color:var(--ag-deep);border-radius:99px;padding:3px 9px;font-weight:500}
+.rev{border-top:1px solid var(--paper-border);padding:10px 0}
+.rev:first-of-type{border-top:0;padding-top:0}
+.rev .stars{color:#E9A61C;font-size:11px;letter-spacing:2px}
+.rev p{font-size:12px;margin:4px 0 3px;color:var(--ink)}
+.rev small{font-size:10.5px;color:var(--muted)}
+.map-ph{height:150px;border-radius:12px;background:linear-gradient(135deg,#EAF3E4,#DCEAD0);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ag-deep);position:relative;overflow:hidden}
+.map-ph::before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(0deg,transparent 0 34px,rgba(62,122,69,.12) 34px 35px),
+  repeating-linear-gradient(90deg,transparent 0 34px,rgba(62,122,69,.12) 34px 35px)}
+.map-pin{position:absolute;font-size:26px;animation:pinb 2.2s ease-in-out infinite}
+@keyframes pinb{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.claim-bar{margin-top:12px;background:var(--trust-bg);border:1px solid var(--ag-accent);border-radius:12px;padding:11px 15px;display:flex;align-items:center;gap:10px;font-size:12px;flex-wrap:wrap}
+.claim-bar b{font-weight:500}
+.claim-bar .btn{margin-left:auto;min-height:36px;font-size:11.5px;padding:7px 14px}
+
+/* ---------- auth / AgriID (consume-not-own: these screens live on id.agri.in) ---------- */
+.auth-wrap{max-width:460px;margin:26px auto 0;padding:0 20px}
+.auth-card{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:26px 26px 24px;box-shadow:0 10px 40px rgba(44,90,51,.06)}
+.auth-brand{text-align:center;margin-bottom:18px}
+.auth-brand .lg{width:52px;height:52px;margin:0 auto 8px;border-radius:14px;background:var(--ag);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px}
+.auth-brand b{font-family:var(--font-display);font-size:18px;font-weight:600;display:block}
+.auth-brand small{font-size:11px;color:var(--muted)}
+.stepper{display:flex;gap:6px;margin:16px 0 18px}
+.stepper span{flex:1;height:4px;border-radius:99px;background:var(--paper-deep)}
+.stepper span.done{background:var(--ag)}
+.auth-step{display:none}
+.auth-step.on{display:block;animation:pagein .3s ease}
+.auth-step h2{font-size:16px;margin-bottom:4px}
+.auth-step .hint{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+.in-row{display:flex;gap:8px;margin-top:8px}
+.in{width:100%;border:1.5px solid var(--paper-border);border-radius:11px;padding:11px 14px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--paper)}
+.in:focus{outline:none;border-color:var(--ag)}
+.otp-row{display:flex;gap:8px;justify-content:space-between;margin-top:8px}
+.otp{width:100%;max-width:56px;aspect-ratio:1;text-align:center;font-size:20px;font-weight:600;border:1.5px solid var(--paper-border);border-radius:11px;font-family:var(--font-display);background:var(--paper)}
+.otp:focus{outline:none;border-color:var(--ag)}
+.auth-note{font-size:10.5px;color:var(--muted);margin-top:12px;line-height:1.6}
+.auth-note a{color:var(--ag)}
+.resend{font-size:11.5px;color:var(--muted);margin-top:10px}
+.resend b{color:var(--ag-deep)}
+.handle-sug{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.handle-sug span{font-size:11.5px;background:var(--ag-soft);color:var(--ag-deep);border-radius:99px;padding:5px 12px;cursor:pointer;font-weight:500}
+.avail{font-size:11px;margin-top:8px;font-weight:500}
+.avail.ok{color:var(--up)}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.role{border:1.5px solid var(--paper-border);border-radius:13px;padding:13px 12px;cursor:pointer;background:var(--paper);text-align:left;transition:border-color .15s ease,background .15s ease}
+.role.on{border-color:var(--ag);background:var(--ag-soft)}
+.role .em{font-size:20px;display:block;margin-bottom:5px}
+.role b{font-size:12.5px;font-weight:500;display:block}
+.role small{font-size:10px;color:var(--muted);line-height:1.4;display:block;margin-top:2px}
+.lang-row{display:flex;gap:8px;margin-top:8px}
+.lang-c{flex:1;border:1.5px solid var(--paper-border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:var(--paper)}
+.lang-c.on{border-color:var(--ag);background:var(--ag-soft)}
+.lang-c b{font-size:14px;display:block}
+.lang-c small{font-size:10px;color:var(--muted)}
+.auth-actions{display:flex;gap:8px;margin-top:18px}
+.auth-actions .btn{flex:1}
+.sso-note{margin-top:16px;text-align:center;font-size:10.5px;color:var(--muted);background:var(--paper-deep);border-radius:10px;padding:9px 13px}
+.done-anim{text-align:center;padding:10px 0}
+.done-anim .ok{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:30px;animation:popok .5s cubic-bezier(.2,.7,.3,1.4)}
+@keyframes popok{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ---------- footer (compact) + bottom nav ---------- */
+footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:32px}
+.legal{padding:14px 0;display:flex;align-items:center;gap:16px;font-size:10.5px;flex-wrap:wrap}
+.legal .spacer{flex:1}
+.bottom-nav{display:none}
+@media(max-width:767px){
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid #DCE4D8;z-index:50;align-items:center}
+  .bottom-nav a{flex:1;text-align:center;font-size:10px;color:var(--sub)}
+  .bottom-nav a.on{color:var(--ag)}
+  .bottom-nav .ic{display:block;font-size:19px;font-style:normal}
+  .bottom-nav .mic{width:46px;height:46px;margin:-20px auto 0;border-radius:50%;background:var(--ag);border:3px solid var(--paper);display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px}
+}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
+
+/* ============================================================
+   A2 v2 — animation layer (motion killed by global rm rule;
+   static fallbacks below keep everything visible without motion)
+   ============================================================ */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes ring{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(12deg)}93%{transform:rotate(-10deg)}96%{transform:rotate(6deg)}98%{transform:rotate(-3deg)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(233,166,28,0)}50%{box-shadow:0 4px 20px rgba(233,166,28,.3)}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+@keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}70%{transform:translateY(2px)}}
+
+.bell i{animation:ring 7s ease-in-out infinite;transform-origin:top center}
+.page-head .pic{animation:float 5s ease-in-out infinite}
+.auth-brand .lg{animation:float 4.5s ease-in-out infinite}
+.gallery .main{transition:transform .3s ease}
+.gallery:hover .main{transform:scale(1.04)}
+.biz.sponsored{animation:glow 3.5s ease-in-out infinite}
+.inline-ad{animation:glow 4.5s ease-in-out infinite}
+
+/* staggered tile pop-in per revealed group */
+.vgroup.reveal .tile{opacity:0}
+.vgroup.reveal.in .tile{animation:pop .45s cubic-bezier(.2,.7,.3,1.1) both}
+.vgroup.in .tile:nth-child(1){animation-delay:0ms}.vgroup.in .tile:nth-child(2){animation-delay:45ms}
+.vgroup.in .tile:nth-child(3){animation-delay:90ms}.vgroup.in .tile:nth-child(4){animation-delay:135ms}
+.vgroup.in .tile:nth-child(5){animation-delay:180ms}.vgroup.in .tile:nth-child(6){animation-delay:225ms}
+.vgroup.in .tile:nth-child(7){animation-delay:270ms}.vgroup.in .tile:nth-child(8){animation-delay:315ms}
+.vgroup.in .tile:nth-child(9){animation-delay:360ms}.vgroup.in .tile:nth-child(10){animation-delay:405ms}
+.tile:hover .ic{animation:bounce .5s ease}
+@media (prefers-reduced-motion: reduce){.vgroup.reveal .tile{opacity:1}}
+
+/* biz cards + product cards stagger inside revealed lists */
+.biz-list .biz.reveal:nth-child(2){transition-delay:.08s}
+.biz-list .biz.reveal:nth-child(3){transition-delay:.16s}
+.biz-list .biz.reveal:nth-child(4){transition-delay:.24s}
+.prod-strip .pcard{transition:transform .18s ease,box-shadow .18s ease}
+
+/* auth micro-interactions */
+.stepper span{transition:background .4s ease}
+.otp{transition:transform .12s ease,border-color .12s ease}
+.otp:focus{transform:scale(1.07)}
+.role,.lang-c,.slot{transition:transform .15s ease,border-color .15s ease,background .15s ease}
+.role:hover,.lang-c:hover{transform:translateY(-2px)}
+.done-anim .ok{/* popok already defined */}
+.ref-bar a{transition:background .2s ease,color .2s ease}
+</style>
+</head>
+<body>
+
+<!-- REFERENCE CHROME — page switcher for this bundle (not product UI) -->
+<div class="ref-bar"><div class="wrap">
+  <span class="tag">A2 REFERENCE · PUBLIC PAGES</span>
+  <a href="agri_home_desktop_v1.html" style="border-style:dashed">🏠 Home ↗</a>
+  <a href="#/categories" data-pg="categories" class="on">Categories</a>
+  <a href="#/category" data-pg="category">Category (template)</a>
+  <a href="#/product" data-pg="product">Product</a>
+  <a href="#/business" data-pg="business">Business profile</a>
+  <a href="#/auth" data-pg="auth">Register / AgriID</a>
+</div></div>
+
+<!-- shared site chrome -->
+<div class="util"><div class="wrap">
+  <span>All of Indian agriculture · உழவர் · किसान</span>
+  <span class="spacer"></span>
+  <a class="link" href="#">List your business</a>
+  <a class="link" href="#">Advertise</a>
+  <span class="hotline">Kisan Call Centre: 1800-180-1551</span>
+</div></div>
+<header class="hdr"><div class="wrap">
+  <a class="brand" href="#/categories"><b>agri.in</b><small>உழவர் · किसान · all of Indian agriculture</small></a>
+  <button class="loc">📍 Coimbatore · 641001 ▾</button>
+  <div class="h-search"><input placeholder="Search seeds, tractors, prices, schemes…"><span style="color:var(--ag);font-size:15px">🎙️</span><button class="btn btn-primary" style="min-height:30px;font-size:12px;padding:5px 14px;border-radius:8px">Search</button></div>
+  <span class="spacer"></span>
+  <span class="lang">EN · த · हि</span>
+  <span class="coins">🪙 1,240</span>
+  <span class="bell"><i>🔔</i><span class="n">11</span></span>
+  <span class="avatar">A</span>
+</div></header>
+
+<!-- ============================================================
+     PAGE 1 · /categories — all 34 verticals, searchable
+     ============================================================ -->
+<main class="page on" id="pg-categories"><div class="wrap">
+  <nav class="crumbs"><a href="#">Home</a><span class="sep">›</span><span>All categories</span></nav>
+  <div class="page-head">
+    <span class="pic">🗂️</span>
+    <div>
+      <div class="eyebrow">36 VERTICALS · ONE REGISTRY · ZERO HAMBURGERS</div>
+      <h1>All categories · எல்லா பிரிவுகளும்</h1>
+      <div class="sub">7 live now · 29 opening in stages — every tile is a registry entry, never a dead link</div>
+    </div>
+  </div>
+  <div class="cat-search">
+    <input id="catq" placeholder="Find a category… e.g. tractor, மண் பரிசோதனை, loans">
+    <span style="color:var(--muted);font-size:13px">🔍</span>
+  </div>
+
+  <div class="vgroup reveal">
+    <h3><span class="vg-dot" style="background:#2C6E35"></span>Farm essentials <span class="cnt">· 7 live</span></h3>
+    <div class="tile-grid">
+      <a class="tile" href="#/category"><span class="ic">📈</span><b>Mandi prices</b><small>சந்தை விலை</small></a>
+      <a class="tile" href="#/category"><span class="ic">🌦️</span><b>Weather</b><small>வானிலை</small></a>
+      <a class="tile" href="#/category"><span class="ic">🏛️</span><b>Govt schemes</b><small>திட்டங்கள்</small></a>
+      <a class="tile" href="#/category"><span class="ic">📰</span><b>Agri news</b><small>செய்திகள்</small></a>
+      <a class="tile" href="#/category"><span class="ic">📚</span><b>Knowledge</b><small>வழிகாட்டி</small></a>
+      <a class="tile" href="#/category"><span class="ic">📞</span><b>Helplines</b><small>உதவி எண்</small></a>
+      <a class="tile" href="#/category"><span class="ic">🧮</span><b>Farm tools</b><small>கணிப்பான்கள்</small></a>
+    </div>
+  </div>
+
+  <div class="vgroup reveal">
+    <h3><span class="vg-dot" style="background:#946B2D"></span>Inputs &amp; equipment <span class="cnt">· 11 · Stage B</span></h3>
+    <div class="tile-grid">
+      <a class="tile" href="#/category"><span class="ic">🌱</span><b>Seeds</b><small>விதைகள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🧪</span><b>Fertilizers</b><small>உரங்கள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🛡️</span><b>Crop protection</b><small>பயிர் பாதுகாப்பு</small></a>
+      <a class="tile soon" href="#/product"><span class="ic">🚜</span><b>Tractors</b><small>டிராக்டர்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🔧</span><b>Implements</b><small>கருவிகள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🌾</span><b>Harvesters</b><small>அறுவடை</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">💧</span><b>Drip irrigation</b><small>சொட்டு நீர்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">☀️</span><b>Pumps &amp; solar</b><small>மோட்டார்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🛸</span><b>Agri drones</b><small>ட்ரோன்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">⚙️</span><b>Machinery</b><small>இயந்திரங்கள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🛠️</span><b>Machinery rental</b><small>வாடகை · CHC</small></a>
+    </div>
+  </div>
+
+  <div class="vgroup reveal">
+    <h3><span class="vg-dot" style="background:#B5541C"></span>Services &amp; trust <span class="cnt">· 8 · Stage C</span></h3>
+    <div class="tile-grid">
+      <a class="tile soon" href="#/category"><span class="ic">🧫</span><b>Soil testing</b><small>மண் பரிசோதனை</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🚰</span><b>Water testing</b><small>நீர் பரிசோதனை</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🏦</span><b>Agri loans</b><small>கடன்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">☂️</span><b>Crop insurance</b><small>காப்பீடு</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🏬</span><b>Warehouses</b><small>கிடங்கு</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🚛</span><b>Transport</b><small>போக்குவரத்து</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🩺</span><b>Vets &amp; consulting</b><small>மருத்துவர்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🤝</span><b>FPOs</b><small>உழவர் நிறுவனம்</small></a>
+    </div>
+  </div>
+
+  <div class="vgroup reveal">
+    <h3><span class="vg-dot" style="background:#5E7D46"></span>Community &amp; learning <span class="cnt">· 4 · Stage D</span></h3>
+    <div class="tile-grid">
+      <a class="tile soon" href="#/category"><span class="ic">💬</span><b>Forum &amp; Q·A</b><small>கலந்துரையாடல்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🎪</span><b>Webinars &amp; events</b><small>நிகழ்வுகள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">✍️</span><b>Blog</b><small>வலைப்பதிவு</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🎓</span><b>Experts</b><small>நிபுணர்கள்</small></a>
+    </div>
+  </div>
+
+  <div class="vgroup reveal">
+    <h3><span class="vg-dot" style="background:#6B4A2B"></span>Buy · sell · work <span class="cnt">· 6 · Stage E</span></h3>
+    <div class="tile-grid">
+      <a class="tile soon" href="#/category"><span class="ic">🐄</span><b>Livestock</b><small>கால்நடை</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🗺️</span><b>Land — sale &amp; lease</b><small>நிலம்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">👷</span><b>Farm labour</b><small>வேலை</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🌐</span><b>Trade leads</b><small>வர்த்தகம்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">🏪</span><b>Shops &amp; repair</b><small>கடைகள்</small></a>
+      <a class="tile soon" href="#/category"><span class="ic">📱</span><b>Agritech apps</b><small>ஆப்ஸ்</small></a>
+    </div>
+  </div>
+  <p class="grid-note"><b>Soon</b> tiles open an honest coming-soon landing (self-noindexed) with notify-me. Tap the live <b>Seeds</b> tile to see the category template this reference demonstrates.</p>
+</div></main>
+
+<!-- ============================================================
+     PAGE 2 · /category — "Seeds · Coimbatore" (VERTICAL-TEMPLATE
+     frozen at D74; E1 directory + E2 catalog on one landing)
+     ============================================================ -->
+<main class="page" id="pg-category"><div class="wrap">
+  <nav class="crumbs"><a href="#/categories">All categories</a><span class="sep">›</span><span>Seeds</span><span class="sep">›</span><span>Coimbatore · 641001</span></nav>
+  <div class="page-head">
+    <span class="pic">🌱</span>
+    <div>
+      <div class="eyebrow">VERTICAL TEMPLATE · E1 DIRECTORY + E2 CATALOG</div>
+      <h1>Seeds in Coimbatore · விதைகள்</h1>
+      <div class="sub">128 businesses · 342 products serve 641001 · schema-driven filters below</div>
+    </div>
+    <div class="actions"><button class="btn btn-money" style="min-height:40px;font-size:12.5px">🎙️ Post seed need</button></div>
+  </div>
+
+  <div class="subcats" role="tablist" aria-label="Seed types">
+    <a class="active" href="#">All seeds</a><a href="#">Paddy · நெல்</a><a href="#">Vegetable</a><a href="#">Maize</a>
+    <a href="#">Cotton</a><a href="#">Pulses</a><a href="#">Fodder</a><a href="#">Organic · NPOP</a><a href="#">Hybrid</a>
+  </div>
+
+  <div class="filter-bar">
+    <span class="f on">✓ Verified only</span>
+    <span class="f">📍 Within 10 km</span>
+    <span class="f">🕐 Open now</span>
+    <span class="f">🚚 Delivers</span>
+    <span class="f">Sort: Nearest ▾</span>
+    <span class="spacer"></span>
+    <a class="map-t" href="#">🗺️ Map view</a>
+  </div>
+  <div class="result-meta">Showing 1–6 of 128 · sponsored results are always labelled · organic order untouched</div>
+
+  <div class="biz-list">
+    <div class="biz sponsored reveal">
+      <span class="pill-sponsored" style="margin-bottom:8px">★ Sponsored</span>
+      <div class="top"><span class="logo">🌱</span>
+        <div><div class="nm">Sri Lakshmi Seeds &amp; Agro</div>
+        <div class="meta">★ <b>4.6</b> (188) · 1.8 km · Gandhipuram · open till 8 PM</div>
+        <div class="tags"><span>Paddy</span><span>Vegetable</span><span>Hybrid</span><span>Govt-certified</span></div></div>
+      </div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button><a class="btn btn-ghost" href="#/business">Profile</a></div>
+    </div>
+    <div class="biz reveal">
+      <span class="pill-verified" style="margin-bottom:8px">✓ Verified business</span>
+      <div class="top"><span class="logo">🏪</span>
+        <div><div class="nm">AgroMart Agencies <span class="badge badge-reco">Recommended</span></div>
+        <div class="meta">★ <b>4.5</b> (132) · 2.4 km · RS Puram · home delivery 641001</div>
+        <div class="tags"><span>Seeds</span><span>Fertilizers</span><span>Sprayers</span><span>6 brands</span></div></div>
+      </div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button><a class="btn btn-ghost" href="#/business">Profile</a></div>
+    </div>
+    <div class="biz reveal">
+      <span class="pill-verified" style="margin-bottom:8px">✓ Verified business</span>
+      <div class="top"><span class="logo">🌾</span>
+        <div><div class="nm">TN Agro Seed Depot</div>
+        <div class="meta">★ <b>4.3</b> (76) · 3.1 km · Peelamedu · TNAU varieties</div>
+        <div class="tags"><span>Paddy</span><span>Pulses</span><span>Fodder</span></div></div>
+      </div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button><a class="btn btn-ghost" href="#/business">Profile</a></div>
+    </div>
+    <div class="biz reveal">
+      <span class="pill-verified" style="margin-bottom:8px">✓ Verified business</span>
+      <div class="top"><span class="logo">🧑‍🌾</span>
+        <div><div class="nm">Kovai FPO Seed Centre</div>
+        <div class="meta">★ <b>4.7</b> (54) · 4.6 km · farmer-producer org · member rates</div>
+        <div class="tags"><span>Organic</span><span>NPOP</span><span>Traditional varieties</span></div></div>
+      </div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-wa">WhatsApp</button><a class="btn btn-ghost" href="#/business">Profile</a></div>
+    </div>
+  </div>
+
+  <!-- D21 slot: {vertical}_search_inline — approved creatives only, always labelled -->
+  <div class="inline-ad reveal">
+    <span class="t">Ad</span>
+    <span style="font-size:20px">🌱</span>
+    <span><b>GreenGrow certified paddy seeds — Kharif combo from ₹499</b><br><small>Sponsored placement · organic results are never reordered</small></span>
+    <button class="btn btn-money" style="margin-left:auto;min-height:36px;font-size:11.5px">View offer</button>
+  </div>
+
+  <div class="section reveal">
+    <div class="row-head"><h2>Popular seed products · schema-driven specs</h2><a class="see" href="#/product">Compare all →</a></div>
+    <div class="prod-strip">
+      <a class="pcard" href="#/product"><div class="media" style="background:#EAF3DE">🌾</div><div class="body"><b>CO-51 Paddy (certified)</b><div class="meta">TNAU · 110 days · short duration</div><span class="pr">₹52/kg</span></div></a>
+      <a class="pcard" href="#/product"><div class="media" style="background:#FAF3DC">🌽</div><div class="body"><b>Hybrid Maize NK-6240</b><div class="meta">High yield · 95–100 days</div><span class="pr">₹340/kg</span></div></a>
+      <a class="pcard" href="#/product"><div class="media" style="background:#FBEAF0">🍅</div><div class="body"><b>Tomato Shivam F1</b><div class="meta">Wilt-tolerant · 10g pack</div><span class="pr">₹185/10g</span></div></a>
+      <a class="pcard" href="#/product"><div class="media" style="background:#EAF3E4">🥜</div><div class="body"><b>Groundnut TMV-13</b><div class="meta">Rainfed · 105 days</div><span class="pr">₹95/kg</span></div></a>
+    </div>
+  </div>
+
+  <div class="load-more"><button class="btn btn-ghost">Load 122 more businesses</button></div>
+
+  <div class="seo-block reveal">
+    <h3>Buying seeds in Coimbatore — what to check</h3>
+    <p>Always buy certified seed with a valid lot number and germination percentage on the label. Blue tag = certified, green tag = truthfully labelled. For Kharif paddy in the Coimbatore belt, sowing windows close by late August — see the crop calendar for your block. Prices shown are indicative from listed businesses; agri.in lists sellers and never sells or adds commission.</p>
+  </div>
+</div></main>
+
+<!-- ============================================================
+     PAGE 3 · /product — E2 catalog detail (spec-schema rendered)
+     ============================================================ -->
+<main class="page" id="pg-product"><div class="wrap">
+  <nav class="crumbs"><a href="#/categories">All categories</a><span class="sep">›</span><a href="#/category">Tractors</a><span class="sep">›</span><span>Bharath 475 DI</span></nav>
+  <div class="prod-grid2">
+    <div>
+      <div class="gallery reveal">
+        <div class="main">🚜</div>
+        <div class="thumbs"><span class="on">🚜</span><span>📐</span><span>🛞</span><span>🎥</span></div>
+      </div>
+      <div class="disclaim">agri.in lists products and dealers — we never sell. Prices are dealer-indicative on-road figures for Coimbatore district; confirm with the dealer.</div>
+    </div>
+    <div>
+      <div class="pd-title">
+        <div class="eyebrow">E2 CATALOG · SPEC SCHEMA v3 · TRACTOR FLAGSHIP UX</div>
+        <h1>Bharath 475 DI (42 HP)</h1>
+        <div class="sub">2WD utility tractor · Bharath Tractors · launched 2025</div>
+        <div class="rate">★ 4.4 (89 ratings) · #2 in 40–45 HP segment this month</div>
+      </div>
+      <div class="price-box">
+        <div><span class="pr">₹6.4–6.9 L</span><small>on-road, Coimbatore dist.</small></div>
+        <span class="emi">EMI from ₹11,900/mo · 60 mo</span>
+        <button class="btn btn-money" style="min-height:40px">Compare with 3 rivals</button>
+      </div>
+      <div class="spec-table reveal">
+        <div class="sh">Key specifications <small>rendered from admin spec-schema — no hardcoded fields</small></div>
+        <div class="spec-row"><span>Engine</span><b>2,979 cc · 3-cyl · 42 HP</b></div>
+        <div class="spec-row"><span>PTO power</span><b>36 HP @ 540 rpm</b></div>
+        <div class="spec-row"><span>Lift capacity</span><b>1,800 kg</b></div>
+        <div class="spec-row"><span>Gearbox</span><b>8 fwd + 2 rev</b></div>
+        <div class="spec-row"><span>Brakes</span><b>Oil-immersed disc</b></div>
+        <div class="spec-row"><span>Fuel tank</span><b>60 L</b></div>
+        <div class="spec-row"><span>Warranty</span><b>5 years / 5,000 hrs</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section reveal">
+    <div class="row-head"><h2>Dealers near 641001</h2><span class="src-stamp" style="font-size:10.5px;color:var(--muted)">test-drive leads are tracked · D24</span></div>
+    <div class="dealer">
+      <span style="font-size:22px">🏪</span>
+      <div><div class="nm">Annai Tractors &amp; Spares <span class="pill-verified">✓ Verified</span></div><div class="meta">3.6 km · Avinashi Rd · ★ 4.4 · exchange accepted</div></div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-primary">Book test drive</button></div>
+    </div>
+    <div class="dealer">
+      <span style="font-size:22px">🏪</span>
+      <div><div class="nm">Sakthi Agri Machinery <span class="pill-verified">✓ Verified</span></div><div class="meta">7.2 km · Mettupalayam Rd · ★ 4.2 · service centre on-site</div></div>
+      <div class="actions"><button class="btn btn-call">📞 Call</button><button class="btn btn-primary">Book test drive</button></div>
+    </div>
+  </div>
+
+  <div class="section reveal">
+    <div class="row-head"><h2>Owner reviews</h2><span class="coins-nudge" style="font-size:11px;color:#854F0B;background:#FEF3DC;border-radius:99px;padding:4px 12px">🪙 Review after purchase = 5 coins</span></div>
+    <div class="panel-c">
+      <div class="rev"><span class="stars">★★★★★</span><p>"1,100 hours in — pulls a 9-tyne cultivator in our black soil without strain. Diesel around 4.5 L/hr on rotavator work."</p><small>Senthil K. · Annur · verified owner</small></div>
+      <div class="rev"><span class="stars">★★★★☆</span><p>"Good lift for the price. Seat could be better for long days. Service network is the reason I chose it."</p><small>Raman P. · Pollachi · verified owner</small></div>
+    </div>
+  </div>
+</div></main>
+
+<!-- ============================================================
+     PAGE 4 · /business — E1 directory profile (claimed, verified)
+     ============================================================ -->
+<main class="page" id="pg-business"><div class="wrap">
+  <nav class="crumbs"><a href="#/categories">All categories</a><span class="sep">›</span><a href="#/category">Seeds</a><span class="sep">›</span><span>AgroMart Agencies</span></nav>
+
+  <div class="bp-head reveal">
+    <span class="logo">🏪</span>
+    <div style="flex:1;min-width:220px">
+      <h1>AgroMart Agencies <span class="pill-verified" style="vertical-align:middle">✓ Verified</span></h1>
+      <div class="meta">★ <b>4.5</b> (132 reviews) · Seeds · Fertilizers · Sprayers · RS Puram, Coimbatore</div>
+      <div class="meta">🕐 Open now · till 8:00 PM · On agri.in since Mar 2026</div>
+      <div class="chips"><span>Authorised dealer — 6 brands</span><span>Home delivery</span><span>GST billed</span><span>Bulk orders</span></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-call">📞 Call — free, no commission</button>
+      <button class="btn btn-wa">WhatsApp</button>
+      <div class="row2"><button class="btn btn-ghost">↗ Share</button><button class="btn btn-ghost">🚩 Report</button></div>
+    </div>
+  </div>
+
+  <div class="bp-grid">
+    <div>
+      <div class="panel-c reveal">
+        <h3>About · எங்களை பற்றி</h3>
+        <p>Serving Coimbatore farmers since 1998. Certified seeds (paddy, vegetable, maize), fertilizers and knapsack/battery sprayers. TNAU-recommended varieties stocked each season. தமிழில் பேசலாம் — வாட்ஸ்அப்பில் புகைப்படம் அனுப்பினால் விலை சொல்கிறோம்.</p>
+      </div>
+      <div class="panel-c reveal" style="margin-top:12px">
+        <h3>Products &amp; services</h3>
+        <div class="prod-strip" style="grid-template-columns:repeat(3,1fr)">
+          <a class="pcard" href="#/product"><div class="media" style="background:#EAF3DE">🌾</div><div class="body"><b>CO-51 Paddy</b><div class="meta">certified · blue tag</div><span class="pr">₹52/kg</span></div></a>
+          <a class="pcard" href="#/product"><div class="media" style="background:#FAF3DC">🧪</div><div class="body"><b>DAP 50 kg</b><div class="meta">subsidised MRP</div><span class="pr">₹1,350</span></div></a>
+          <a class="pcard" href="#/product"><div class="media" style="background:#E3F2FB">🔫</div><div class="body"><b>Battery sprayer 16L</b><div class="meta">1-yr warranty</div><span class="pr">₹2,890</span></div></a>
+        </div>
+      </div>
+      <div class="panel-c reveal" style="margin-top:12px">
+        <h3>Reviews · 132 <span style="font-weight:400;font-size:10.5px;color:var(--muted)">— approved by moderation (D18), owner replies shown</span></h3>
+        <div class="rev"><span class="stars">★★★★★</span><p>"Original seeds, correct bill. Delivered 10 bags to my village the same evening."</p><small>Palanisamy · 641114 · 2 weeks ago</small></div>
+        <div class="rev"><span class="stars">★★★★☆</span><p>"Prices okay, sometimes stock-out on hybrid tomato in peak season. Call before going."</p><small>Kalaiselvi · 641045 · 1 month ago</small></div>
+        <button class="btn btn-ghost" style="margin-top:10px;min-height:38px;font-size:12px">Write a review · earn 5 🪙</button>
+      </div>
+    </div>
+    <div>
+      <div class="panel-c reveal">
+        <h3>At a glance</h3>
+        <div class="kv"><span>Category</span><b>Seeds · Inputs</b></div>
+        <div class="kv"><span>Established</span><b>1998</b></div>
+        <div class="kv"><span>Response time</span><b>Usually &lt; 1 hour</b></div>
+        <div class="kv"><span>Languages</span><b>தமிழ் · English</b></div>
+        <div class="kv"><span>Payment</span><b>UPI · Cash · Credit terms</b></div>
+      </div>
+      <div class="panel-c reveal" style="margin-top:12px">
+        <h3>Delivery coverage · 8 pincodes</h3>
+        <div class="cov"><span>641001</span><span>641002</span><span>641004</span><span>641012</span><span>641025</span><span>641035</span><span>641045</span><span>641114</span></div>
+      </div>
+      <div class="panel-c reveal" style="margin-top:12px">
+        <h3>Location</h3>
+        <div class="map-ph"><span class="map-pin">📍</span>MapLibre · list ↔ map sync</div>
+        <p style="margin-top:8px;font-size:11.5px">42 DB Road, RS Puram, Coimbatore 641002 · <a href="#" style="color:var(--ag)">Directions →</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="claim-bar reveal">
+    <span style="font-size:18px">🏪</span>
+    <span><b>Is this your business?</b> Claim it free — verify with OTP, manage your listing, products and leads.</span>
+    <a class="btn btn-money" href="#/auth">Claim this business</a>
+  </div>
+
+  <div class="section reveal">
+    <div class="row-head"><h2>Similar nearby</h2><a class="see" href="#/category">All seed sellers →</a></div>
+    <div class="biz-list">
+      <div class="biz"><div class="top"><span class="logo">🌱</span><div><div class="nm">Sri Lakshmi Seeds &amp; Agro</div><div class="meta">★ 4.6 · 1.8 km</div></div></div></div>
+      <div class="biz"><div class="top"><span class="logo">🌾</span><div><div class="nm">TN Agro Seed Depot</div><div class="meta">★ 4.3 · 3.1 km</div></div></div></div>
+    </div>
+  </div>
+</div></main>
+
+<!-- ============================================================
+     PAGE 5 · /auth — AgriID register/onboard (CONSUMED, NOT OWNED:
+     these screens live on id.agri.in — D9 web-id; shown here for
+     flow completeness. OTP via DLT SMS; mock driver in dev.)
+     ============================================================ -->
+<main class="page" id="pg-auth">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="lg">🌾</span>
+        <b>One AgriID for everything</b>
+        <small>agri.in · milk.in · theorganic.in — ஒரே கணக்கு</small>
+      </div>
+      <div class="stepper" aria-hidden="true"><span class="done" data-st="1"></span><span data-st="2"></span><span data-st="3"></span><span data-st="4"></span></div>
+
+      <!-- step 1 · mobile + OTP -->
+      <div class="auth-step on" data-step="1">
+        <h2>Login or create account</h2>
+        <div class="hint">Mobile number only — no password, no email needed. எண்ணை உள்ளிடுங்கள்.</div>
+        <div class="in-row">
+          <input class="in" style="max-width:74px;text-align:center" value="+91" aria-label="Country code">
+          <input class="in" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" aria-label="Mobile number">
+        </div>
+        <div style="margin-top:14px">
+          <div class="hint" style="margin-bottom:6px">Enter the 6-digit OTP sent by SMS</div>
+          <div class="otp-row">
+            <input class="otp" maxlength="1" inputmode="numeric"><input class="otp" maxlength="1" inputmode="numeric"><input class="otp" maxlength="1" inputmode="numeric"><input class="otp" maxlength="1" inputmode="numeric"><input class="otp" maxlength="1" inputmode="numeric"><input class="otp" maxlength="1" inputmode="numeric">
+          </div>
+          <div class="resend">Resend in <b id="rs">00:24</b> · didn't get it? Check DND or try voice OTP</div>
+        </div>
+        <div class="auth-actions"><button class="btn btn-primary" data-next="2">Verify &amp; continue</button></div>
+        <div class="auth-note">By continuing you agree to the <a href="#">Terms</a> and <a href="#">Privacy policy</a> (DPDP 2023). OTP limits per number / IP / device apply.</div>
+      </div>
+
+      <!-- step 2 · handle -->
+      <div class="auth-step" data-step="2">
+        <h2>Pick your @handle</h2>
+        <div class="hint">Public name across all platforms — your number stays private. Internal ID is never exposed.</div>
+        <input class="in" id="hin" placeholder="@yourname" value="@murugesan">
+        <div class="avail ok" id="hav">✓ @murugesan is available</div>
+        <div class="handle-sug"><span>@murugesan_annur</span><span>@murugesan1975</span><span>@annur_farmer</span></div>
+        <div class="auth-actions"><button class="btn btn-tertiary" data-next="1">← Back</button><button class="btn btn-primary" data-next="3">Continue</button></div>
+      </div>
+
+      <!-- step 3 · role -->
+      <div class="auth-step" data-step="3">
+        <h2>What brings you here?</h2>
+        <div class="hint">Sets your default home — you can do everything from any account.</div>
+        <div class="role-grid">
+          <button class="role on"><span class="em">🧑‍🌾</span><b>I'm a farmer</b><small>prices, weather, schemes, buying inputs</small></button>
+          <button class="role"><span class="em">🏪</span><b>I run an agri business</b><small>list free, get leads, advertise</small></button>
+          <button class="role"><span class="em">📣</span><b>I'm an advertiser / brand</b><small>campaigns across pincodes</small></button>
+          <button class="role"><span class="em">👀</span><b>Just exploring</b><small>browse everything freely</small></button>
+        </div>
+        <div class="auth-actions"><button class="btn btn-tertiary" data-next="2">← Back</button><button class="btn btn-primary" data-next="4">Continue</button></div>
+      </div>
+
+      <!-- step 4 · location + language → done -->
+      <div class="auth-step" data-step="4">
+        <h2>Your place &amp; language</h2>
+        <div class="hint">Everything becomes local — prices, weather, businesses, schemes.</div>
+        <div class="in-row">
+          <input class="in" inputmode="numeric" maxlength="6" value="641001" aria-label="Pincode">
+          <button class="btn btn-ghost" style="white-space:nowrap;min-height:46px">📍 Use GPS</button>
+        </div>
+        <div class="lang-row">
+          <button class="lang-c"><b>English</b><small>default</small></button>
+          <button class="lang-c on"><b>தமிழ்</b><small>Tamil</small></button>
+          <button class="lang-c"><b>हिन्दी</b><small>Hindi</small></button>
+        </div>
+        <div class="auth-actions"><button class="btn btn-tertiary" data-next="3">← Back</button><button class="btn btn-primary" data-next="5">Finish →</button></div>
+      </div>
+
+      <!-- step 5 · done -->
+      <div class="auth-step" data-step="5">
+        <div class="done-anim">
+          <span class="ok">✅</span>
+          <h2>வணக்கம், @murugesan!</h2>
+          <div class="hint" style="margin-top:6px">Your AgriID works on agri.in, milk.in and theorganic.in.<br>+25 🪙 welcome coins added.</div>
+          <div class="auth-actions" style="justify-content:center"><a class="btn btn-primary" href="#/categories" style="flex:0 1 auto;padding:10px 26px">Go to agri.in →</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="sso-note">🔐 id.agri.in · OAuth2 + PKCE · RS256 · one logout ends every session — these screens are CONSUMED from AgriID, not rebuilt per site</div>
+  </div>
+</main>
+
+
+<footer><div class="wrap">
+  <div class="legal">
+    <span>© 2026 Oneuni Agri Platform Pvt Ltd · agri.in lists businesses &amp; information, we never sell or broker</span>
+    <span class="spacer"></span>
+    <span style="color:var(--ag-soft)">English · தமிழ் · हिन्दी</span>
+  </div>
+</div></footer>
+
+<nav class="bottom-nav" aria-label="Primary">
+  <a href="#/categories" class="on"><span class="ic">🗂️</span>Categories</a>
+  <a href="#/category"><span class="ic">📈</span>Mandi</a>
+  <a href="#"><span class="mic">🎙️</span>Ask</a>
+  <a href="#"><span class="ic">🔔</span>Alerts</a>
+  <a href="#/auth"><span class="ic">👤</span>Profile</a>
+</nav>
+
+<script>
+/* ---- reference router (hash) ---- */
+const PAGES = ['categories','category','product','business','auth'];
+function route(){
+  const h = (location.hash.replace('#/','') || 'categories');
+  const pg = PAGES.includes(h) ? h : 'categories';
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'pg-' + pg));
+  document.querySelectorAll('.ref-bar a').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
+  scrollTo({ top: 0 });
+  document.querySelectorAll('.page.on .reveal').forEach(el => io.observe(el));
+}
+const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; e.target.classList.add('in'); io.unobserve(e.target);
+}), { threshold: .2 });
+addEventListener('hashchange', route);
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+
+/* ---- categories live filter ---- */
+const catq = document.getElementById('catq');
+catq && catq.addEventListener('input', () => {
+  const v = catq.value.trim().toLowerCase();
+  document.querySelectorAll('#pg-categories .tile').forEach(t => {
+    t.classList.toggle('hidden', v && !t.textContent.toLowerCase().includes(v));
+  });
+});
+
+/* ---- AgriID stepper ---- */
+function goStep(n){
+  document.querySelectorAll('.auth-step').forEach(s => s.classList.toggle('on', +s.dataset.step === n));
+  document.querySelectorAll('.stepper span').forEach(sp => sp.classList.toggle('done', +sp.dataset.st <= Math.min(n, 4)));
+}
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.next)));
+
+/* OTP auto-advance */
+const otps = [...document.querySelectorAll('.otp')];
+otps.forEach((o, i) => o.addEventListener('input', () => { if (o.value && otps[i+1]) otps[i+1].focus(); }));
+
+/* resend countdown (loops for demo) */
+let rsec = 24; const rsEl = document.getElementById('rs');
+setInterval(() => { rsec = rsec > 0 ? rsec - 1 : 24; if (rsEl) rsEl.textContent = '00:' + String(rsec).padStart(2, '0'); }, 1000);
+
+/* role + language single-select */
+document.querySelectorAll('.role-grid').forEach(g => g.addEventListener('click', e => {
+  const r = e.target.closest('.role'); if (!r) return;
+  g.querySelectorAll('.role').forEach(x => x.classList.remove('on')); r.classList.add('on');
+}));
+document.querySelectorAll('.lang-row').forEach(g => g.addEventListener('click', e => {
+  const r = e.target.closest('.lang-c'); if (!r) return;
+  g.querySelectorAll('.lang-c').forEach(x => x.classList.remove('on')); r.classList.add('on');
+}));
+
+/* handle availability mock */
+const hin = document.getElementById('hin'), hav = document.getElementById('hav');
+hin && hin.addEventListener('input', () => {
+  const v = hin.value.replace(/^@/, '');
+  hav.textContent = v.length < 3 ? '· at least 3 characters' : '✓ @' + v + ' is available';
+  hav.className = 'avail' + (v.length < 3 ? '' : ' ok');
+});
+
+/* handle suggestions click-to-fill */
+document.querySelectorAll('.handle-sug span').forEach(s => s.addEventListener('click', () => {
+  hin.value = s.textContent; hin.dispatchEvent(new Event('input'));
+}));
+
+/* thumbs + subcats + filter toggles (visual only) */
+document.querySelectorAll('.gallery .thumbs').forEach(g => g.addEventListener('click', e => {
+  const t = e.target.closest('span'); if (!t) return;
+  g.querySelectorAll('span').forEach(x => x.classList.remove('on')); t.classList.add('on');
+  g.parentElement.querySelector('.main').textContent = t.textContent;
+}));
+document.querySelectorAll('.subcats').forEach(g => g.addEventListener('click', e => {
+  const a = e.target.closest('a'); if (!a) return; e.preventDefault();
+  g.querySelectorAll('a').forEach(x => x.classList.remove('active')); a.classList.add('active');
+}));
+document.querySelectorAll('.filter-bar .f').forEach(f => f.addEventListener('click', () => f.classList.toggle('on')));
+route();
+</script>
+</body>
+</html>

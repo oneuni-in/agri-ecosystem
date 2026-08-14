@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agri.in — business console reference (A3 FINAL v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   agri.in BUSINESS CONSOLE — A3 DESIGN REFERENCE (FINAL v2)
+   Linked bundle: Dashboard → Campaigns → New campaign (M5 wizard)
+   → Advertiser registration. Console shapes belong to the
+   console-patterns.tsx catalog (sibling of home-patterns — U2 rule).
+   Money-path rules on every ad surface: approved creatives only,
+   "Sponsored" always labelled, paid can never buy ranking.
+   ============================================================ */
+:root{
+  --ag:#3E7A45; --ag-deep:#2C5A33; --ag-soft:#EAF3E4; --ag-soft-2:#BFDCBA;
+  --ag-accent:#E9A61C; --ag-accent-ink:#4A2E00;
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --call:#22A34F; --wa-tint:#E8F7EE; --wa-border:#BFE7CE; --wa-ink:#0F6E42;
+  --paper:#FDFBF6; --paper-border:#EDE6D6; --paper-deep:#F4F0E6;
+  --ad-border:#E9A61C; --trust-bg:#FEFAF0;
+  --up:#1E7A34; --down:#B5541C;
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+h1,h2,h3{font-family:var(--font-display)}
+:focus-visible{outline:3px solid var(--ag);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500;border-radius:10px;min-height:42px;padding:9px 17px;font-size:13.5px}
+.btn-primary{background:var(--ag);color:#fff}
+.btn-money{background:var(--ag-accent);color:var(--ag-accent-ink);border-radius:99px}
+.btn-ghost{background:#fff;color:var(--ag-deep);border:1px solid var(--paper-border)}
+.chip{font-size:10.5px;font-weight:500;border-radius:99px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center}
+.chip-live{background:#DDF2E4;color:#0F6E42}
+.chip-pause{background:var(--paper-deep);color:var(--muted)}
+.chip-review{background:#FBF3DE;color:#854F0B}
+.chip-test{background:#EFEBFB;color:#4A3A8A}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#946B2D;display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--ag-accent);border-radius:2px}
+
+/* ref chrome */
+.ref-bar{background:#1D2A20;color:#C7D3C2;font-size:11px;position:sticky;top:0;z-index:80}
+.ref-bar .in2{display:flex;align-items:center;gap:6px;padding:7px 16px;overflow-x:auto;scrollbar-width:none}
+.ref-bar .in2::-webkit-scrollbar{display:none}
+.ref-bar .tag{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;color:#8A9B6E;white-space:nowrap;margin-right:6px}
+.ref-bar a{white-space:nowrap;border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:3px 11px}
+.ref-bar a.on{background:var(--ag);border-color:var(--ag);color:#fff}
+
+/* console shell */
+.shell{display:grid;grid-template-columns:218px 1fr;min-height:calc(100vh - 34px)}
+.side{background:#fff;border-right:1px solid var(--paper-border);padding:16px 12px;position:sticky;top:34px;align-self:start;height:calc(100vh - 34px);overflow:auto}
+.side .biz-sw{display:flex;align-items:center;gap:9px;background:var(--paper);border:1px solid var(--paper-border);border-radius:12px;padding:9px 11px;margin-bottom:14px}
+.side .biz-sw .lg{width:30px;height:30px;border-radius:9px;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:15px}
+.side .biz-sw b{font-size:12px;font-weight:500;display:block;line-height:1.2}
+.side .biz-sw small{font-size:9.5px;color:var(--muted)}
+.side nav a{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--sub);border-radius:10px;padding:9px 11px;margin-bottom:2px}
+.side nav a:hover{background:var(--paper)}
+.side nav a.on{background:var(--ag-soft);color:var(--ag-deep);font-weight:500}
+.side nav a .ic{font-size:15px;width:20px;text-align:center}
+.side nav a .n{margin-left:auto;background:var(--ag-accent);color:var(--ag-accent-ink);font-size:9px;font-weight:600;border-radius:99px;padding:1px 7px}
+.side .foot-sw{margin-top:14px;border-top:1px solid var(--paper-border);padding-top:12px;font-size:10.5px;color:var(--muted)}
+.main{padding:20px 24px 40px;min-width:0}
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.topbar h1{font-size:20px;font-weight:600}
+.topbar .sub{font-size:11.5px;color:var(--muted)}
+.topbar .spacer{flex:1}
+@media(max-width:1023px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--paper-border);display:flex;gap:6px;overflow-x:auto;padding:10px 14px}
+  .side .biz-sw{margin-bottom:0;flex-shrink:0}
+  .side nav{display:flex;gap:4px}
+  .side nav a{white-space:nowrap;margin-bottom:0}
+  .side .foot-sw{display:none}
+  .main{padding:16px 14px 40px}
+}
+
+/* pages */
+.page{display:none}
+.page.on{display:block;animation:pagein .3s ease}
+@keyframes pagein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:13px 15px}
+.kpi small{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--font-display);font-size:24px;font-weight:600;margin-top:2px}
+.kpi .d{font-size:10.5px;font-weight:500;margin-top:2px}
+.kpi .d.up{color:var(--up)}.kpi .d.down{color:var(--down)}
+.kpi .bar{margin-top:9px;display:flex;align-items:flex-end;gap:3px;height:26px}
+.kpi .bar i{flex:1;background:var(--ag-soft-2);border-radius:3px 3px 0 0;display:block}
+.kpi .bar i.hi{background:var(--ag)}
+@media(max-width:767px){.kpis{grid-template-columns:1fr 1fr}}
+
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:1023px){.grid2{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--paper-border);border-radius:14px;padding:15px 17px}
+.panel h3{font-size:13.5px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.panel h3 .see{margin-left:auto;font-size:11px;color:var(--ag);font-weight:400}
+
+/* leads */
+.lead{border:1px solid var(--paper-border);border-radius:12px;padding:11px 13px;margin-bottom:8px;display:flex;gap:11px;align-items:flex-start;flex-wrap:wrap}
+.lead.new{border-color:var(--ag);background:#FBFDF9}
+.lead .em{font-size:18px}
+.lead .t{flex:1;min-width:200px}
+.lead b{font-size:12.5px;font-weight:500}
+.lead .meta{font-size:10.5px;color:var(--muted);margin-top:1px}
+.lead .chip{margin-left:auto}
+.lead .acts{display:flex;gap:6px;width:100%;margin-top:8px}
+.lead .acts .btn{flex:1;min-height:34px;font-size:11.5px;padding:6px 0;border-radius:8px}
+.lead .acts .btn-call2{background:var(--call);color:#fff}
+.lead .acts .btn-wa2{background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink)}
+
+/* checklist + misc */
+.check{display:flex;gap:9px;font-size:12px;padding:7px 0;border-bottom:1px solid var(--paper-border);align-items:center}
+.check:last-child{border-bottom:0}
+.check .ok{color:var(--up)}
+.check .todo{color:var(--muted)}
+.check a{margin-left:auto;font-size:10.5px;color:var(--ag);font-weight:500;white-space:nowrap}
+.prog{height:7px;border-radius:99px;background:var(--paper-deep);overflow:hidden;margin:8px 0 4px}
+.prog i{display:block;height:100%;width:78%;background:linear-gradient(90deg,var(--ag),var(--ag-accent));border-radius:99px}
+.mini-note{font-size:10.5px;color:var(--muted)}
+
+/* campaigns table */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:640px}
+.tbl th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--paper-border)}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--paper-border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td b{font-weight:500}
+.tbl .num{font-family:var(--font-display);font-weight:600}
+.tbl-wrap{overflow-x:auto}
+.wallet{background:linear-gradient(120deg,var(--ag-deep),#376B3E);border-radius:14px;padding:15px 17px;color:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.wallet .v{font-family:var(--font-display);font-size:22px;font-weight:600}
+.wallet small{font-size:10.5px;color:var(--ag-soft-2);display:block}
+.wallet .spacer{flex:1}
+
+/* wizard */
+.wiz-steps{display:flex;gap:0;margin:4px 0 18px;overflow-x:auto}
+.wstep{flex:1;min-width:110px;text-align:center;position:relative;padding-top:26px;font-size:10.5px;color:var(--muted)}
+.wstep::before{content:attr(data-n);position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;background:var(--paper-deep);color:var(--muted);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.wstep::after{content:"";position:absolute;top:11px;left:calc(50% + 14px);right:calc(-50% + 14px);height:2px;background:var(--paper-deep)}
+.wstep:last-child::after{display:none}
+.wstep.done{color:var(--ag-deep)}
+.wstep.done::before{background:var(--ag);color:#fff}
+.wstep.done::after{background:var(--ag-soft-2)}
+.wstep.cur{color:var(--ink);font-weight:500}
+.wstep.cur::before{background:var(--ag-accent);color:var(--ag-accent-ink)}
+.slot-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:767px){.slot-grid{grid-template-columns:1fr}}
+.slot{border:1.5px solid var(--paper-border);border-radius:14px;padding:14px 16px;cursor:pointer;background:#fff;text-align:left;transition:border-color .15s,background .15s;position:relative}
+.slot.on{border-color:var(--ag);background:var(--ag-soft)}
+.slot .em{font-size:20px}
+.slot b{font-size:13px;font-weight:500;display:block;margin-top:6px}
+.slot small{font-size:10.5px;color:var(--muted);line-height:1.5;display:block;margin-top:2px}
+.slot .pr{position:absolute;top:12px;right:14px;font-size:10.5px;font-weight:600;color:#854F0B;background:#FBF3DE;border-radius:99px;padding:3px 10px}
+.tag-pick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag-pick span{font-size:11px;border:1.5px solid var(--paper-border);border-radius:99px;padding:5px 13px;cursor:pointer;background:#fff}
+.tag-pick span.on{background:var(--ag-soft);border-color:var(--ag);color:var(--ag-deep);font-weight:500}
+.rate-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px}
+.rate-tbl th{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:7px 10px;border-bottom:1px solid var(--paper-border)}
+.rate-tbl td{padding:8px 10px;border-bottom:1px solid var(--paper-border)}
+.rate-tbl tr:last-child td{border-bottom:0}
+.rate-tbl .sel td{background:var(--ag-soft)}
+.budget-row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.budget-row input[type=range]{flex:1;accent-color:var(--ag);min-width:160px}
+.budget-out{font-family:var(--font-display);font-size:20px;font-weight:600;white-space:nowrap}
+.est{margin-top:10px;background:var(--trust-bg);border:1px solid #EAD9AC;border-radius:12px;padding:11px 14px;font-size:11.5px;color:#5A3403;display:flex;gap:16px;flex-wrap:wrap}
+.est b{font-family:var(--font-display);font-weight:600}
+.upload{border:2px dashed var(--ag-soft-2);border-radius:14px;padding:26px;text-align:center;color:var(--muted);font-size:12px;background:var(--paper)}
+.upload .em{font-size:28px;display:block;margin-bottom:6px}
+.policy{margin-top:10px;font-size:10.5px;color:var(--muted);background:var(--paper-deep);border-radius:10px;padding:9px 13px;line-height:1.6}
+.sum-row{display:flex;justify-content:space-between;font-size:12px;padding:8px 0;border-bottom:1px solid var(--paper-border)}
+.sum-row:last-child{border-bottom:0}
+.sum-row span{color:var(--muted)}
+.sum-row b{font-weight:500;text-align:right}
+.wiz-actions{display:flex;gap:8px;margin-top:16px}
+.wiz-actions .spacer{flex:1}
+.in{width:100%;border:1.5px solid var(--paper-border);border-radius:11px;padding:11px 14px;font-size:13.5px;font-family:inherit;color:var(--ink);background:var(--paper)}
+.in:focus{outline:none;border-color:var(--ag)}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:767px){.f-row{grid-template-columns:1fr}}
+.lbl{font-size:11px;font-weight:500;color:var(--sub);display:block;margin-bottom:4px}
+.agree{display:flex;gap:9px;font-size:11.5px;color:var(--sub);margin-top:12px;align-items:flex-start;line-height:1.55}
+.agree input{margin-top:3px;accent-color:var(--ag)}
+.reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
+
+/* ============================================================
+   A3 v2 — animation layer (motion killed by global rm rule)
+   ============================================================ */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes pan{from{background-position:0% 40%}to{background-position:100% 60%}}
+@keyframes pulse-op{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes leadglow{0%,100%{box-shadow:0 0 0 rgba(62,122,69,0)}50%{box-shadow:0 3px 16px rgba(62,122,69,.18)}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+
+/* KPI cards: staggered pop + bars grow up */
+.kpis .kpi.reveal:nth-child(2){transition-delay:.07s}
+.kpis .kpi.reveal:nth-child(3){transition-delay:.14s}
+.kpis .kpi.reveal:nth-child(4){transition-delay:.21s}
+.kpi .bar i{transform:scaleY(0);transform-origin:bottom;transition:transform .7s cubic-bezier(.2,.7,.3,1.1)}
+.kpi.in .bar i{transform:none}
+.kpi.in .bar i:nth-child(1){transition-delay:.15s}.kpi.in .bar i:nth-child(2){transition-delay:.22s}
+.kpi.in .bar i:nth-child(3){transition-delay:.29s}.kpi.in .bar i:nth-child(4){transition-delay:.36s}
+.kpi.in .bar i:nth-child(5){transition-delay:.43s}.kpi.in .bar i:nth-child(6){transition-delay:.5s}
+.kpi.in .bar i:nth-child(7){transition-delay:.57s}
+@media (prefers-reduced-motion: reduce){.kpi .bar i{transform:none}}
+
+/* listing-health progress sweeps in on reveal */
+.panel .prog i{width:0;transition:width 1.1s ease .25s}
+.panel.in .prog i{width:78%}
+@media (prefers-reduced-motion: reduce){.panel .prog i{width:78%}}
+
+/* live chip pulses; new leads breathe */
+.chip-live{position:relative}
+.chip-live{animation:pulse-op 2.2s ease-in-out infinite}
+.lead.new{animation:leadglow 3.2s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.chip-live,.lead.new{animation:none}}
+
+/* wallet gradient pan + floating icons */
+.wallet{background-size:200% 200%;animation:pan 10s ease-in-out infinite alternate}
+.wallet>span:first-child{animation:float 4.5s ease-in-out infinite}
+.upload .em{display:inline-block;animation:float 4s ease-in-out infinite}
+
+/* slot picker stagger + hover lift */
+.slot{transition:transform .15s ease,border-color .15s ease,background .15s ease,box-shadow .15s ease}
+.slot:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(44,90,51,.08)}
+.panel.in .slot{animation:pop .4s cubic-bezier(.2,.7,.3,1.1) both}
+.panel.in .slot:nth-child(2){animation-delay:60ms}.panel.in .slot:nth-child(3){animation-delay:120ms}
+.panel.in .slot:nth-child(4){animation-delay:180ms}
+@media (prefers-reduced-motion: reduce){.panel.in .slot{animation:none}}
+
+/* table rows + nav feedback */
+.tbl tbody tr{transition:background .15s ease}
+.tbl tbody tr:hover{background:var(--paper)}
+.side nav a{transition:background .15s ease,color .15s ease}
+.budget-out{transition:transform .12s ease}
+.budget-out.tick{transform:scale(1.12)}
+.wstep::before{transition:background .3s ease,color .3s ease}
+.ref-bar a{transition:background .2s ease,color .2s ease}
+</style>
+</head>
+<body>
+
+<div class="ref-bar"><div class="in2">
+  <span class="tag">A3 REFERENCE · BUSINESS CONSOLE</span>
+  <a href="agri_home_desktop_v1.html" style="border-style:dashed">🏠 Home ↗</a>
+  <a href="agri_pages_public_v1.html" style="border-style:dashed">🌐 Public pages ↗</a>
+  <a href="#/dashboard" data-pg="dashboard" class="on">Dashboard</a>
+  <a href="#/ads" data-pg="ads">Campaigns</a>
+  <a href="#/ads-new" data-pg="ads-new">New campaign</a>
+  <a href="#/ads-register" data-pg="ads-register">Advertiser registration</a>
+</div></div>
+
+<div class="shell">
+  <aside class="side">
+    <div class="biz-sw"><span class="lg">🏪</span><span><b>AgroMart Agencies</b><small>✓ Verified · switch ▾</small></span></div>
+    <nav>
+      <a href="#/dashboard" class="on"><span class="ic">📊</span>Overview</a>
+      <a href="#/dashboard"><span class="ic">📥</span>Leads <span class="n">4</span></a>
+      <a href="#/dashboard"><span class="ic">🌱</span>Products</a>
+      <a href="#/dashboard"><span class="ic">📍</span>Coverage</a>
+      <a href="#/dashboard"><span class="ic">⭐</span>Reviews <span class="n">2</span></a>
+      <a href="#/ads"><span class="ic">📣</span>Advertise</a>
+      <a href="#/ads"><span class="ic">🧾</span>Billing</a>
+      <a href="#/dashboard"><span class="ic">⚙️</span>Settings</a>
+    </nav>
+    <div class="foot-sw">One AgriID — this console is the same engine on milk.in &amp; theorganic.in, themed by config.</div>
+  </aside>
+
+  <div class="main">
+
+    <!-- ================= DASHBOARD ================= -->
+    <section class="page on" id="pg-dashboard">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">BUSINESS CONSOLE · OWNERSHIP-ENFORCED (owned_by)</div>
+          <h1>Good morning, AgroMart 🌤️</h1>
+          <div class="sub">Friday 14 Aug · your listing served <b>641001 + 7 pincodes</b> this week</div>
+        </div>
+        <span class="spacer"></span>
+        <a class="btn btn-ghost" href="agri_pages_public_v1.html#/business">👁 View public profile</a>
+        <a class="btn btn-money" href="#/ads-new">📣 Promote</a>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi reveal"><small>Profile views</small><div class="v" data-count="1284">0</div><div class="d up">▲ 18% vs last wk</div>
+          <div class="bar"><i style="height:35%"></i><i style="height:48%"></i><i style="height:42%"></i><i style="height:58%"></i><i style="height:52%"></i><i style="height:74%"></i><i class="hi" style="height:100%"></i></div></div>
+        <div class="kpi reveal"><small>Calls</small><div class="v" data-count="96">0</div><div class="d up">▲ 11%</div>
+          <div class="bar"><i style="height:40%"></i><i style="height:52%"></i><i style="height:38%"></i><i style="height:66%"></i><i style="height:58%"></i><i style="height:70%"></i><i class="hi" style="height:88%"></i></div></div>
+        <div class="kpi reveal"><small>WhatsApp clicks</small><div class="v" data-count="153">0</div><div class="d up">▲ 24%</div>
+          <div class="bar"><i style="height:30%"></i><i style="height:44%"></i><i style="height:50%"></i><i style="height:47%"></i><i style="height:62%"></i><i style="height:80%"></i><i class="hi" style="height:100%"></i></div></div>
+        <div class="kpi reveal"><small>New leads</small><div class="v" data-count="14">0</div><div class="d down">▼ 2 vs last wk</div>
+          <div class="bar"><i style="height:55%"></i><i style="height:70%"></i><i style="height:45%"></i><i style="height:62%"></i><i style="height:38%"></i><i style="height:58%"></i><i class="hi" style="height:52%"></i></div></div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="panel reveal">
+            <h3>📥 Leads inbox <span style="font-weight:400;font-size:10px;color:var(--muted)">— reveal caps &amp; DPDP logging apply</span><a class="see" href="#">All leads →</a></h3>
+            <div class="lead new">
+              <span class="em">🌱</span>
+              <div class="t"><b>50 kg tomato seeds · hybrid preferred</b><div class="meta">641114 · posted 22 min ago · farmer asked for delivery</div></div>
+              <span class="chip chip-live">NEW</span>
+              <div class="acts"><button class="btn btn-call2">📞 Call farmer</button><button class="btn btn-wa2">WhatsApp</button><button class="btn btn-ghost">Pass</button></div>
+            </div>
+            <div class="lead new">
+              <span class="em">🧪</span>
+              <div class="t"><b>DAP + urea for 3 acres, this week</b><div class="meta">641045 · 1 hr ago · price quote requested</div></div>
+              <span class="chip chip-live">NEW</span>
+              <div class="acts"><button class="btn btn-call2">📞 Call farmer</button><button class="btn btn-wa2">WhatsApp</button><button class="btn btn-ghost">Pass</button></div>
+            </div>
+            <div class="lead">
+              <span class="em">🔫</span>
+              <div class="t"><b>Battery sprayer 16L — best price?</b><div class="meta">641001 · yesterday · you replied in 40 min ✓</div></div>
+              <span class="chip chip-pause">RESPONDED</span>
+            </div>
+            <div class="mini-note" style="margin-top:6px">Fast responses boost your "Recommended" ranking — algorithmic only, never purchasable.</div>
+          </div>
+
+          <div class="panel reveal" style="margin-top:12px">
+            <h3>⭐ Reviews needing a reply<a class="see" href="#">All reviews →</a></h3>
+            <div class="lead">
+              <span class="em">⭐</span>
+              <div class="t"><b>★★★★☆ "Prices okay, sometimes stock-out on hybrid tomato…"</b><div class="meta">Kalaiselvi · 641045 · 1 month ago</div></div>
+              <div class="acts"><button class="btn btn-primary" style="flex:0 1 auto;padding:6px 16px">Reply publicly</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel reveal">
+            <h3>Listing health · 78%</h3>
+            <div class="prog"><i></i></div>
+            <div class="check"><span class="ok">✅</span>Verified badge active<a href="#">renews Mar 2027</a></div>
+            <div class="check"><span class="ok">✅</span>8 pincodes covered</div>
+            <div class="check"><span class="ok">✅</span>3 products listed</div>
+            <div class="check"><span class="todo">○</span>Add Tamil "About" section<a href="#">+ do it</a></div>
+            <div class="check"><span class="todo">○</span>Add shop photos (min 3)<a href="#">+ upload</a></div>
+            <div class="mini-note" style="margin-top:8px">Complete listings get ~2.3× more calls.</div>
+          </div>
+          <div class="panel reveal" style="margin-top:12px">
+            <h3>📣 Your promotion</h3>
+            <p style="font-size:12px;color:var(--sub);line-height:1.6">No active campaign. Sponsored placement in <b>Seeds · 641001–641114</b> starts at <b>₹499/week</b>.</p>
+            <a class="btn btn-money" href="#/ads-new" style="width:100%;margin-top:10px">Start advertising</a>
+          </div>
+          <div class="panel reveal" style="margin-top:12px">
+            <h3>🪙 Coins &amp; referrals</h3>
+            <div class="check"><span>🪙</span>Balance<b style="margin-left:auto;font-family:var(--font-display)">1,240</b></div>
+            <div class="check"><span>🤝</span>Refer a business<b style="margin-left:auto;color:#854F0B">+50</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CAMPAIGNS LIST ================= -->
+    <section class="page" id="pg-ads">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">AD ENGINE · SHARED MODULE, CONFIG PER VERTICAL (M6-PROVEN)</div>
+          <h1>Advertise · Campaigns</h1>
+          <div class="sub">Sponsored is always labelled · organic ranking is never for sale · creatives need approval before serving</div>
+        </div>
+        <span class="spacer"></span>
+        <a class="btn btn-money" href="#/ads-new">+ New campaign</a>
+      </div>
+
+      <div class="wallet reveal">
+        <span style="font-size:24px">💳</span>
+        <div><div class="v" data-count="2150" data-prefix="₹">₹0</div><small>Ad balance · auto-invoiced with GST</small></div>
+        <span class="spacer"></span>
+        <span class="chip chip-test">Razorpay TEST mode — live billing after KYC (D30 gate)</span>
+        <button class="btn btn-money" style="min-height:38px">Add funds</button>
+      </div>
+
+      <div class="panel reveal" style="margin-top:12px">
+        <h3>Your campaigns · 3</h3>
+        <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Campaign</th><th>Status</th><th>Placement</th><th>Targeting</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Spend</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>Kharif seeds push</b><br><small style="color:var(--muted)">12 Aug – 26 Aug</small></td>
+              <td><span class="chip chip-live">● Live</span></td>
+              <td>Sponsored listing · Seeds</td>
+              <td>8 pincodes (T3)</td>
+              <td class="num">12,480</td><td class="num">312</td><td class="num">2.5%</td><td class="num">₹840</td>
+              <td><button class="btn btn-ghost" style="min-height:32px;font-size:11px;padding:5px 12px">Pause</button></td>
+            </tr>
+            <tr>
+              <td><b>Sprayer festival offer</b><br><small style="color:var(--muted)">starts 18 Aug</small></td>
+              <td><span class="chip chip-review">⏳ Creative in review</span></td>
+              <td>Category banner · Implements</td>
+              <td>Coimbatore dist (T2–T4)</td>
+              <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">₹0</td>
+              <td><button class="btn btn-ghost" style="min-height:32px;font-size:11px;padding:5px 12px">Edit</button></td>
+            </tr>
+            <tr>
+              <td><b>Monsoon DAP combo</b><br><small style="color:var(--muted)">ended 4 Aug</small></td>
+              <td><span class="chip chip-pause">Ended</span></td>
+              <td>Search inline · Fertilizers</td>
+              <td>641001 + 3 (T3)</td>
+              <td class="num">31,200</td><td class="num">690</td><td class="num">2.2%</td><td class="num">₹1,310</td>
+              <td><button class="btn btn-ghost" style="min-height:32px;font-size:11px;padding:5px 12px">Re-run</button></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="mini-note" style="margin-top:8px">Analytics by pincode &amp; category in each campaign → detail. Frequency caps: 3/day per viewer per placement.</div>
+      </div>
+    </section>
+
+    <!-- ================= NEW CAMPAIGN WIZARD ================= -->
+    <section class="page" id="pg-ads-new">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">M5 · ADVERTISER SELF-SERVE · CAMPAIGN WIZARD</div>
+          <h1>New campaign</h1>
+          <div class="sub">Categories × pincodes × schedule · versioned rate card (tier × category) · pay per week</div>
+        </div>
+      </div>
+
+      <div class="wiz-steps">
+        <span class="wstep done cur" data-n="1">Placement</span>
+        <span class="wstep" data-n="2">Targeting</span>
+        <span class="wstep" data-n="3">Creative</span>
+        <span class="wstep" data-n="4">Budget</span>
+        <span class="wstep" data-n="5">Review &amp; pay</span>
+      </div>
+
+      <div class="panel reveal">
+        <h3>1 · Where should your ad appear?</h3>
+        <div class="slot-grid">
+          <button class="slot on"><span class="pr">from ₹499/wk</span><span class="em">⭐</span><b>Sponsored listing</b><small>Golden-border card, max 2 per page, fixed positions, always labelled "Sponsored". Organic order untouched.</small></button>
+          <button class="slot"><span class="pr">from ₹799/wk</span><span class="em">🖼️</span><b>Category banner</b><small>Banner on your category's pages — agri_{category}_banner slot, image-only v1, zero CLS.</small></button>
+          <button class="slot"><span class="pr">from ₹699/wk</span><span class="em">🔍</span><b>Search inline</b><small>One card inside search results, clearly marked "Ad".</small></button>
+          <button class="slot"><span class="pr">by quote</span><span class="em">🏠</span><b>Home hero</b><small>agri_home_hero_xl carousel — premium, limited rotation, manual approval.</small></button>
+        </div>
+      </div>
+
+      <div class="panel reveal" style="margin-top:12px">
+        <h3>2 · Targeting — categories × pincodes <span style="font-weight:400;font-size:10px;color:var(--muted)">one / many / ALL / by tier</span></h3>
+        <span class="lbl">Categories</span>
+        <div class="tag-pick" data-multi>
+          <span class="on">Seeds</span><span>Fertilizers</span><span>Implements</span><span>Crop protection</span><span>ALL my categories</span>
+        </div>
+        <span class="lbl" style="margin-top:12px">Pincodes · tiers are automatic (M4 census + user-count, promote-only)</span>
+        <div class="tag-pick" data-multi>
+          <span class="on">My 8 coverage pincodes</span><span>Coimbatore district</span><span>By tier: T2–T3</span><span>All Tamil Nadu</span>
+        </div>
+      </div>
+
+      <div class="panel reveal" style="margin-top:12px">
+        <h3>3 · Creative <span style="font-weight:400;font-size:10px;color:var(--muted)">image only v1 · human approval before serving · EXIF stripped</span></h3>
+        <div class="upload"><span class="em">🖼️</span><b>Drop image or tap to upload</b><br>1200×628 or 1080×1080 · JPG/PNG · max 500 KB<br><span style="font-size:10.5px">No misleading claims · no price-guarantee wording · Tamil/English both welcome</span></div>
+        <div class="policy">Ad policy: creatives are reviewed (usually &lt; 4 working hours). Ads can never buy the "Recommended" label or organic position — advertising sells placement, never ranking.</div>
+      </div>
+
+      <div class="panel reveal" style="margin-top:12px">
+        <h3>4 · Schedule &amp; budget</h3>
+        <div class="f-row">
+          <div><span class="lbl">Start</span><input class="in" value="18 Aug 2026"></div>
+          <div><span class="lbl">Duration</span><input class="in" value="2 weeks"></div>
+        </div>
+        <span class="lbl" style="margin-top:12px">Weekly budget</span>
+        <div class="budget-row">
+          <input type="range" min="499" max="4999" step="100" value="999" id="bud">
+          <span class="budget-out" id="budv">₹999/wk</span>
+        </div>
+        <table class="rate-tbl">
+          <thead><tr><th>Tier</th><th>Your pincodes</th><th>Sponsored listing</th><th>Category banner</th></tr></thead>
+          <tbody>
+            <tr><td>T2 · city</td><td>641001, 641002</td><td>₹180/wk each</td><td>₹260/wk each</td></tr>
+            <tr class="sel"><td>T3 · semi-urban</td><td>641004 +3 more</td><td>₹110/wk each</td><td>₹150/wk each</td></tr>
+            <tr><td>T4 · rural</td><td>641114</td><td>₹60/wk each</td><td>₹90/wk each</td></tr>
+          </tbody>
+        </table>
+        <div class="est">📈 Estimated: <span><b>9,000–14,000</b> impressions/wk</span><span><b>200–340</b> clicks/wk</span><span>based on last 30 days in your pincodes</span></div>
+      </div>
+
+      <div class="panel reveal" style="margin-top:12px">
+        <h3>5 · Review &amp; pay</h3>
+        <div class="sum-row"><span>Placement</span><b>Sponsored listing · Seeds</b></div>
+        <div class="sum-row"><span>Targeting</span><b>8 pincodes (T2×2 · T3×5 · T4×1)</b></div>
+        <div class="sum-row"><span>Schedule</span><b>18 Aug – 1 Sep · 2 weeks</b></div>
+        <div class="sum-row"><span>Budget</span><b>₹999 × 2 = ₹1,998</b></div>
+        <div class="sum-row"><span>GST 18%</span><b>₹359.64</b></div>
+        <div class="sum-row"><span>Total</span><b style="font-family:var(--font-display);font-size:16px">₹2,357.64</b></div>
+        <div class="agree"><input type="checkbox" checked><span>I agree to the ad policy. I understand creatives serve only after approval, and paid placement never changes organic ranking or the Recommended label.</span></div>
+        <div class="wiz-actions">
+          <button class="btn btn-ghost">← Back</button>
+          <span class="spacer"></span>
+          <span class="chip chip-test" style="align-self:center">TEST mode</span>
+          <button class="btn btn-money">Pay ₹2,357.64 · Razorpay</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ADVERTISER REGISTRATION ================= -->
+    <section class="page" id="pg-ads-register">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">ADVERTISER ONBOARDING · ONE AGRIID · GST INVOICING</div>
+          <h1>Register to advertise</h1>
+          <div class="sub">Any verified business can advertise · brands without a listing register here first</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel reveal">
+          <h3>Business &amp; billing details</h3>
+          <div class="f-row">
+            <div><span class="lbl">Legal / trade name</span><input class="in" value="AgroMart Agencies"></div>
+            <div><span class="lbl">Business type</span><input class="in" value="Retailer — inputs ▾"></div>
+          </div>
+          <div class="f-row">
+            <div><span class="lbl">GSTIN <span style="color:var(--muted);font-weight:400">(optional — needed for GST invoice)</span></span><input class="in" placeholder="33ABCDE1234F1Z5"></div>
+            <div><span class="lbl">PAN</span><input class="in" placeholder="ABCDE1234F"></div>
+          </div>
+          <div class="f-row">
+            <div><span class="lbl">Billing contact</span><input class="in" value="+91 98xxxxxx21 · verified via AgriID ✓"></div>
+            <div><span class="lbl">Billing email</span><input class="in" placeholder="accounts@yourbusiness.in"></div>
+          </div>
+          <div class="agree"><input type="checkbox" checked><span>I accept the <b>advertising terms</b>: approved creatives only · "Sponsored" always displayed · no tobacco/liquor/financial-guarantee ads · platform may pause campaigns that break policy (append-only audit of every enforcement action).</span></div>
+          <div class="agree"><input type="checkbox"><span>Send me the weekly advertiser performance digest.</span></div>
+          <div class="wiz-actions">
+            <span class="chip chip-test" style="align-self:center">Billing runs in Razorpay TEST mode until KYC clears — campaigns work end-to-end</span>
+            <span class="spacer"></span>
+            <a class="btn btn-primary" href="#/ads-new">Save &amp; create first campaign →</a>
+          </div>
+        </div>
+        <div>
+          <div class="panel reveal">
+            <h3>What you get</h3>
+            <div class="check"><span>⭐</span>Sponsored placement from ₹499/week</div>
+            <div class="check"><span>🎯</span>Target by category × pincode × tier</div>
+            <div class="check"><span>📊</span>Impressions, clicks, CTR, spend — by pincode</div>
+            <div class="check"><span>🧾</span>Automatic GST invoices &amp; ledger</div>
+            <div class="check"><span>🛡️</span>Fraud-filtered, frequency-capped delivery</div>
+          </div>
+          <div class="panel reveal" style="margin-top:12px">
+            <h3>The two promises we keep</h3>
+            <p style="font-size:12px;color:var(--sub);line-height:1.65">1 · Farmers always see "Sponsored" on paid placement.<br>2 · Money never moves organic ranking — the Recommended label is algorithmic only. This is why farmer trust (and your CTR) stays high.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const PAGES = ['dashboard','ads','ads-new','ads-register'];
+const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; e.target.classList.add('in');
+  e.target.querySelectorAll('[data-count]').forEach(el => {
+    if (el.dataset.done) return; el.dataset.done = 1;
+    const end = +el.dataset.count, pre = el.dataset.prefix || '';
+    const fmt = n => pre + n.toLocaleString('en-IN');
+    if (rm) { el.textContent = fmt(end); return; }
+    const t0 = performance.now(), dur = 800;
+    const tick = t => { const p = Math.min((t - t0) / dur, 1);
+      el.textContent = fmt(Math.round(end * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  io.unobserve(e.target);
+}), { threshold: .15 });
+function route(){
+  const h = (location.hash.replace('#/','') || 'dashboard');
+  const pg = PAGES.includes(h) ? h : 'dashboard';
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'pg-' + pg));
+  document.querySelectorAll('.ref-bar a[data-pg]').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
+  scrollTo({ top: 0 });
+  document.querySelectorAll('.page.on .reveal').forEach(el => io.observe(el));
+}
+addEventListener('hashchange', route);
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+
+/* budget slider */
+const bud = document.getElementById('bud'), budv = document.getElementById('budv');
+bud && bud.addEventListener('input', () => {
+  budv.textContent = '₹' + (+bud.value).toLocaleString('en-IN') + '/wk';
+  budv.classList.add('tick'); setTimeout(() => budv.classList.remove('tick'), 130);
+});
+
+/* pickers (visual only) */
+document.querySelectorAll('.slot-grid').forEach(g => g.addEventListener('click', e => {
+  const s = e.target.closest('.slot'); if (!s) return;
+  g.querySelectorAll('.slot').forEach(x => x.classList.remove('on')); s.classList.add('on');
+}));
+document.querySelectorAll('.tag-pick').forEach(g => g.addEventListener('click', e => {
+  const t = e.target.closest('span'); if (!t) return; t.classList.toggle('on');
+}));
+route();
+</script>
+</body>
+</html>

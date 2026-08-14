@@ -253,6 +253,10 @@ export const agriPreset = {
           "50%": { boxShadow: "0 4px 22px rgba(233,166,28,.28)" },
         },
         draw: { from: { strokeDashoffset: "120" }, to: { strokeDashoffset: "0" } },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
         pulse2: {
           from: { transform: "scale(.5)", opacity: ".7" },
           to: { transform: "scale(1.4)", opacity: "0" },
@@ -266,6 +270,7 @@ export const agriPreset = {
         pop: "pop .45s cubic-bezier(.2,.7,.3,1.1) both",
         glow: "glow 3.5s ease-in-out infinite",
         draw: "draw 1.1s .25s ease-out forwards",
+        float: "float 4.5s ease-in-out infinite",
         pulse2: "pulse2 1.8s ease-out infinite",
       },
       backgroundImage: {

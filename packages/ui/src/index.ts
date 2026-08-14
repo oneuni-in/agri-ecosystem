@@ -85,6 +85,30 @@ export {
   StatCell,
   VendorCard,
 } from "./composites/home-patterns";
+// A-U1 agri home patterns — the A1 FINAL v4 shapes. Same kitchen-sink rule
+// as the milk U1 set above.
+export {
+  CropChip,
+  DeadlineItem,
+  DeadlinesBar,
+  EarnCard,
+  Eyebrow,
+  LiveDot,
+  MandiCard,
+  SeasonCalendar,
+  SeasonNote,
+  SevereAlertStrip,
+  ShareChip,
+  Spark,
+  sparkPoints,
+  StoryCard,
+  TipCard,
+  TrustPillar,
+  WaveDivider,
+} from "./composites/agri-home-patterns";
+export type { PriceTone, SeasonMonth } from "./composites/agri-home-patterns";
+export { CountUp, formatCount } from "./composites/count-up";
+export { Reveal } from "./composites/reveal";
 // U2 console patterns — the write-side sibling catalog. Same rule: the
 // kitchen sink and the console render the same components, never copies.
 export {
@@ -124,6 +148,6 @@ export { ProductCard, ProductGrid } from "./composites/product-card";
 export { CardsRow, Section, Wrap } from "./composites/section";
 export { SponsoredAd } from "./composites/sponsored-ad";
 export { SponsoredListingCard } from "./composites/sponsored-listing-card";
-export { TodayCard, TodayStrip } from "./composites/today-strip";
+export { TodayCard, TodayStrip, TodayTile } from "./composites/today-strip";
 export { TypeFilter, TypeFilterRow } from "./composites/type-filter-row";
 export { UtilityLink, UtilityStrip } from "./composites/utility-strip";

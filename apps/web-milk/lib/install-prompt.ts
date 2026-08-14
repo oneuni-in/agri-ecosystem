@@ -15,6 +15,8 @@
  * is unaffected because Safari never fires it at all.
  */
 
+import { INSTALL_DISMISS_COOKIE, dismissalCookie, isDismissedIn } from "./dismissal";
+
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
 }
@@ -27,11 +29,6 @@ export interface InstallSnapshot {
   /** Already installed, or dismissed inside the last 30 days. */
   hidden: boolean;
 }
-
-/** Cookie, not localStorage — U1's DO-NOT list bans localStorage, and this is
- * the same flag the fixed banner has always used. */
-const DISMISS_COOKIE = "milk_a2hs";
-const DISMISS_MAX_AGE = 60 * 60 * 24 * 30;
 
 let snapshot: InstallSnapshot = { event: null, ios: false, hidden: false };
 let started = false;
@@ -50,7 +47,9 @@ function isStandalone(): boolean {
 }
 
 function isDismissed(): boolean {
-  return document.cookie.split("; ").includes(`${DISMISS_COOKIE}=0`);
+  // lib/dismissal.ts — U1 bans localStorage; `milk_a2hs` is the same flag the
+  // fixed banner has always used, shared across every install surface.
+  return isDismissedIn(document.cookie, INSTALL_DISMISS_COOKIE);
 }
 
 /**
@@ -113,6 +112,6 @@ export async function promptInstall(): Promise<void> {
 
 /** "Dismissed stays dismissed" for 30 days, across every install surface. */
 export function dismissInstall(): void {
-  document.cookie = `${DISMISS_COOKIE}=0; path=/; max-age=${DISMISS_MAX_AGE}; samesite=lax`;
+  document.cookie = dismissalCookie(INSTALL_DISMISS_COOKIE);
   emit({ event: null, ios: false, hidden: true });
 }

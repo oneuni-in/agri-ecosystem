@@ -1,4 +1,4 @@
-import { AuthCluster, NotificationBellIsland } from "@agri/auth-client/react";
+import { AuthCluster, NotificationBellIsland, SignedIn } from "@agri/auth-client/react";
 import { CoinsBalancePill, HeaderStack, UtilityLink, UtilityStrip } from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -89,7 +89,14 @@ export async function SiteHeader({ locale }: { locale: string }) {
             <Suspense fallback={null}>
               <LocaleSwitcher />
             </Suspense>
-            <CoinsBalancePill endpoint="/api/coins/balance" />
+            {/* U4 A1: the pill polls an authenticated endpoint, so a guest
+                mounting it ungated logs a 401 console error on every page
+                view. SignedIn keeps the fetch from ever firing without a
+                session hint; the pill still renders nothing until the first
+                successful balance load, exactly as before. */}
+            <SignedIn>
+              <CoinsBalancePill endpoint="/api/coins/balance" />
+            </SignedIn>
             <NotificationBellIsland basePath="/api/notify" href="/notifications" label="Notifications" />
             <AuthCluster loginLabel={t("auth.login")} />
           </>

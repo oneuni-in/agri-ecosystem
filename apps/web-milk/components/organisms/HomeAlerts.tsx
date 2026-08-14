@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import {
+  PRICE_ALERT_DISMISS_COOKIE,
+  dismissalCookie,
+  isDismissedIn,
+} from "@/lib/dismissal";
+import {
   dismissInstall,
   type InstallSnapshot,
   promptInstall,
@@ -21,8 +26,10 @@ import { detectPushState, type PushState, subscribePush } from "@/lib/push";
  *
  * "Never nag" per U1 item 33: the card hides itself once permission is granted
  * (state `subscribed`), when the browser cannot do push at all, and when the
- * visitor dismisses it — the dismissal is a 30-day cookie, not localStorage
- * (which U1's DO-NOT list bans).
+ * visitor dismisses it — the dismissal is a 30-day cookie (`lib/dismissal.ts`,
+ * the same mechanism §10b's install band uses; U4 A21), not localStorage
+ * (which U1's DO-NOT list bans). Its OWN cookie, not §10b's `milk_a2hs`:
+ * waving away "install the app" must not also silence the price-alert ask.
  *
  * Renders nothing on the server: a card whose whole purpose is a permission
  * prompt has nothing to say until the browser has been asked what it supports,
@@ -35,6 +42,12 @@ export function PriceAlertCard({ pincode }: { pincode: string }) {
   const [gone, setGone] = useState(false);
 
   useEffect(() => {
+    // Dismissed inside the 30-day window → never even ask the browser what it
+    // supports; the card was told "not now" and stays gone across reloads.
+    if (isDismissedIn(document.cookie, PRICE_ALERT_DISMISS_COOKIE)) {
+      setGone(true);
+      return;
+    }
     let live = true;
     void detectPushState().then((next) => {
       if (live) setState(next);
@@ -58,7 +71,10 @@ export function PriceAlertCard({ pincode }: { pincode: string }) {
       title={t("title", { pincode })}
       sub={t("sub")}
       dismissLabel={t("dismiss")}
-      onDismiss={() => setGone(true)}
+      onDismiss={() => {
+        document.cookie = dismissalCookie(PRICE_ALERT_DISMISS_COOKIE);
+        setGone(true);
+      }}
       action={
         <button
           type="button"

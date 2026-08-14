@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 
+import { CategoryBarFilters } from "./category-bar-filters";
+
 /**
  * Category bar (U1 §5): the white text-nav bar under the search band.
  *
@@ -91,14 +93,3 @@ export function CategoryBarLink({
   );
 }
 
-/**
- * The two attribute filters pinned right on desktop (§5). Below 1024px they
- * are not rendered in the bar — `display:none` also removes them from the
- * accessibility tree, so on mobile/tablet the bar exposes exactly the schema
- * categories and nothing else, which is the rule's intent. Conditioning on
- * the real viewport instead would require a client island, and this page's
- * CLS contract (see `site-footer.tsx`) forbids adding one above the fold.
- */
-function CategoryBarFilters({ children }: { children: ReactNode }) {
-  return <span className="flex flex-none gap-[18px] pl-[22px] max-lg:hidden">{children}</span>;
-}

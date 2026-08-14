@@ -43,15 +43,17 @@ export async function unseal<T>(token: string | null, secret: string): Promise<T
 export function serializeCookie(
   name: string,
   value: string,
-  { maxAge, secure }: { maxAge: number; secure: boolean },
+  {
+    maxAge,
+    secure,
+    // Opt-OUT only for the session-hint cookie: its whole purpose is to be
+    // readable by useAgriUser, and its value carries nothing but "1".
+    httpOnly = true,
+  }: { maxAge: number; secure: boolean; httpOnly?: boolean },
 ): string {
-  const parts = [
-    `${name}=${value}`,
-    `Max-Age=${maxAge}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-  ];
+  const parts = [`${name}=${value}`, `Max-Age=${maxAge}`, "Path=/"];
+  if (httpOnly) parts.push("HttpOnly");
+  parts.push("SameSite=Lax");
   if (secure) parts.push("Secure");
   return parts.join("; ");
 }

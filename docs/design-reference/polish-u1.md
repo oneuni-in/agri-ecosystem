@@ -1367,3 +1367,148 @@ auth-client prod-secret guard 500s `/` and the app never becomes "ready".
 auth-client is consumed-not-owned, so the fix lives in the orchestrator. Localisation: admin is EN-only by
 owner rule (recorded §8.0); the enforcement-lookup keeps its existing
 `ui.admin.businesses` catalog, everything new is EN literals.
+
+---
+
+## 9. U4 — acceptance fix batch (feat/u4-acceptance-fixes)
+
+The e2e acceptance run (docs/qa/milk_e2e_acceptance_checklist.md) returned NOT
+SIGNED with three non-blocker rows genuinely failing: A11, A1, A21. This pass
+fixes exactly those three. Each row failed a HUMAN pass that CI was green for,
+so each fix lands with a regression spec that would have caught it.
+
+### 9.1 A11 — pinned filters absent from the DOM below 1024
+
+`CategoryBarFilters` carried `max-lg:hidden`; U1 §5 requires the filters are
+NOT RENDERED below 1024 ("filters leave the bar on mobile/tablet"), and axe
+skips hidden nodes, so the a11y gate could never catch the difference.
+
+Mechanism — no new pattern invented, two existing ones composed
+(`packages/ui/src/composites/category-bar-filters.tsx`):
+
+* **matchMedia-conditional markup** — the same decision `install-prompt.ts`
+  makes on `(display-mode: standalone)` (D28), here on `(min-width: 1024px)`;
+* **`useSyncExternalStore` with a fixed SSR snapshot** — the same shape as
+  `low-data.tsx` (SSR snapshot `false` there, `true` here).
+
+The SSR snapshot is TRUE and `max-lg:hidden` STAYS: on desktop the server HTML
+already contains the filters so hydration changes nothing; below 1024 the span
+is in the server HTML but never painted, and hydration removes it without a
+visual change. That is what keeps this island out of the CLS budget the old
+comment protected (a client island whose hydration cannot move a pixel). The
+viewport is not knowable server-side (per-request home, §4a; UA sniffing
+banned), so SSR-true + CSS is the no-shift resolution of that tension.
+
+**Regression spec** (`e2e/taxonomy.spec.ts`): node COUNT is 0 at 360 and 768
+(after `waitForHeaderSettled` proves hydration), the filters render with both
+links at 1024/1440 including across a live resize, and the bar still holds one
+row (NN5 guard).
+
+### 9.2 A1 — guest home logs zero console errors
+
+A signed-out `/` logged 4 errors: three `useAgriUser` mounts (AuthCluster,
+HeaderLocation, bell) each probing `/api/auth/me`, plus `CoinsBalancePill`
+probing `/coins/balance`. The session is an httpOnly JWE, so the client had no
+way to know "guest" except by eating the 401.
+
+Fix — do not make the calls, do not muffle them:
+
+* The BFF handlers now set a browser-readable **session-hint cookie**
+  (`<app>_session_hint=1`, value only, never a token shape) beside every
+  session cookie and clear it wherever the session clears (me-401/403, logout,
+  refresh-rotation re-set). `packages/auth-client`: config/cookies/handlers.
+* `useAgriUser` treats a missing hint as the known 401 it is: no `/me` fetch,
+  straight to the silent-SSO decision. **Silent SSO semantics are unchanged**
+  — a cross-app session (signed in on agri.in, first visit to milk.in) has no
+  local cookie either, and the probe→navigate dance (D10, §4c) still runs for
+  it; its requests are all 2xx/302. A stale hint self-heals: its one 401 also
+  clears both cookies server-side.
+* `SignedIn` (new, `@agri/auth-client/react`) gates widgets that fetch authed
+  endpoints but don't need the user object — milk's header wraps
+  `CoinsBalancePill` in it (the pill lives in `@agri/ui`, which cannot depend
+  on auth-client).
+
+Known edge, accepted and recorded: sessions created BEFORE this deploy carry
+no hint, so their headers render guest until the next login (pre-launch, test
+sessions only). On localhost, apps share the port-blind cookie jar, so another
+app's hint can cost one dev-only `/me` 401 — which was today's every-load
+behavior anyway; prod domains are distinct.
+
+**Regression spec** (`e2e/milk-home.spec.ts`): a guest sweep over `/`, results,
+category and search asserts zero console errors, zero 401 responses, and —
+stronger — zero REQUESTS to `/api/auth/me`, `/api/coins/balance`,
+`/api/notify/*`. Unit side: `handlers.test.ts` pins hint set/clear at every
+session transition; `react-helpers.test.ts` pins the hint matcher.
+
+### 9.3 A21 — price-alert dismissal persists
+
+§10a's "Not now" was `useState` only; §10b already did it right (30-day
+cookie). Both now share one mechanism, `lib/dismissal.ts` — pure string
+helpers (unit-testable without a DOM) that `install-prompt.ts` and
+`PriceAlertCard` both call.
+
+**Two named cookies, not one**: `milk_a2hs` (install surfaces — §10b band +
+fixed banner, one ask) and `milk_price_alert` (§10a). Different asks with
+different lifetimes; waving away "install the app" must not also silence
+"want price alerts?", and vice versa.
+
+**Regression specs**: `lib/dismissal.test.ts` (30-day contract, surface
+independence); `e2e/pwa.spec.ts` — headless Chromium hard-reports permission
+"denied", so the spec stubs ONLY the `Notification.permission` read to reach
+"idle", then asserts dismiss → cookie → reload → gone, and a fresh context
+carrying the cookie never shows the card; `push-verification.spec.ts` (real
+Chrome, owner-run) gained the reload assertion on the true positive path. The
+existing blocked-notifications assertion is untouched.
+
+### 9.4 Findings posted, not fixed (scope discipline)
+
+1. The other three headers (web-agri, web-organic, web-admin) mount
+   `CoinsBalancePill` ungated — same one-line `SignedIn` wrap when wanted;
+   their guest consoles are outside the milk checklist.
+2. The guest sweep covers home/results/category/search; the brand surface has
+   no stable seeded slug to assert against — it shares the same header
+   islands, so the fix applies identically.
+3. **The manual run mutates e2e fixture state.** The acceptance C8 step
+   ("coverage pincode added") left `e2e-milk-vendor` covering 641015 instead
+   of the seeded 641001, which silently broke `fixtureSlug()`-dependent specs
+   (post-need, a11y contact-CTA) — and `seed_e2e_milk.py`'s idempotency check
+   sees the business and does NOT repair drifted rows. Restored by hand this
+   pass. Worth a runbook line for future re-runs: after a manual acceptance
+   pass, verify/restore the fixture (or teach the seeder to reconcile).
+4. **AdUnit hydration mismatch** (found BY the new A1 spec, pre-existing):
+   `ad-slot.tsx` decides `target`/`rel` via `typeof window !== "undefined"` +
+   `sameOrigin()`, so for any creative with a cross-origin `target_url` (every
+   house ad pointing at the console) the server renders
+   `rel="nofollow sponsored"` with no `target` while the client renders
+   `target="_blank" rel="noopener nofollow sponsored"`. React's attribute
+   comparison is dev-only, so `next dev` logs ~2 warnings per ad unit per page
+   (95 across a four-page sweep) while production hydration silently keeps the
+   SERVER attributes — meaning external ads today open in the SAME tab and
+   WITHOUT `noopener`. Fix direction when picked up: compute externality from
+   the app origin passed as a prop (or compare against the creative's own
+   URL), never from `window`. The A1 guest spec excludes exactly this one
+   dev-only message, with a comment pointing here.
+
+### 9.5 Verification record (2026-08-14, local)
+
+- Workspace lint · typecheck · tests: all green (110 UI / 65 auth-client /
+  19 milk, including the new hint, dismissal and SSR-shape tests) ·
+  `check:hex` clean · backend pytest **1687 passed**.
+- e2e desktop: taxonomy (incl. new A11 spec) · milk-home (incl. new A1 guest
+  sweep: zero console errors, zero 401s, zero authed probes) · pwa (incl. new
+  A21 dismissal-persistence spec, permission-read stubbed) · auth · sso ·
+  a11y · post-need — green. sso gained a 20s settle-wait at the post-login
+  pill assertion: A1 moved the dev-JIT first compile of /api/auth/me and
+  /api/coins/balance to the post-login moment, which the old 5s default
+  flaked on.
+- e2e mobile-chrome + mobile-safari (@matrix): green.
+- push-verification.spec.ts (real Chrome, owner-run `PUSH_VERIFY=1`): gained
+  the A21 reload assertion; not runnable in this environment.
+- **Lighthouse: not run locally this pass.** The owner's dev stack held ports
+  3000–3004 throughout (manual acceptance checking in progress), and a prod
+  `next start` cannot share an app dir with a running `next dev` (the
+  build-vs-dev `.next` trap, §7). The CI lighthouse job on the eventual PR is
+  the arbiter — as it has been for every pass on this box. Exposure is low by
+  construction: a guest home now makes strictly FEWER requests (three /me
+  probes and the coins fetch gone), and the A11 island's hydration is
+  paint-identical by design.

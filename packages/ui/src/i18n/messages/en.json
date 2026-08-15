@@ -1,5 +1,191 @@
 {
   "ui": {
+    "agriHome": {
+      "reviewNote": "TODO review: Tamil beyond the A1 reference and all Hindi below are machine-assisted — needs native review",
+      "brandTagline": "உழவர் · किसान · all of Indian agriculture",
+      "notificationsLabel": "Notifications",
+      "soon": "Soon",
+      "utility": {
+        "tagline": "All of Indian agriculture · உழவர் · किसान",
+        "hotline": "Kisan Call Centre: {number}",
+        "navLabel": "Platform shortcuts"
+      },
+      "hero": {
+        "houseTitle": "Agri business, brand or expert? List free on agri.in",
+        "houseCta": "List my business"
+      },
+      "search": {
+        "title": "All of agriculture — one search",
+        "sub": "Seeds, tractors, mandi prices, schemes, experts · உங்கள் மொழியில்",
+        "placeholder": "Try: tomato price · tractor EMI · PM-Kisan status · soil test near me",
+        "cta": "Search",
+        "inputLabel": "Search agri.in"
+      },
+      "categories": {
+        "eyebrow": "All 36 verticals · one registry",
+        "title": "Everything for the farm · பண்ணைக்கு எல்லாம்",
+        "note": "tiles open an honest coming-soon landing with notify-me — never a dead link. Every vertical is a registry entry, not a separate build.",
+        "groups": {
+          "essentials": "Farm essentials — live now",
+          "inputs": "Inputs & equipment",
+          "services": "Services & trust",
+          "community": "Community & learning",
+          "buySell": "Buy · sell · work"
+        }
+      },
+      "directory": {
+        "eyebrow": "Directory · verified & mapped",
+        "title": "Agri businesses near you · உங்கள் அருகில்",
+        "emptyTitle": "No agri businesses listed in {pincode} yet",
+        "emptyBody": "New businesses join every week — check back, or list yours free."
+      },
+      "how": {
+        "title": "How agri.in works · எப்படி",
+        "s1": {
+          "t": "Set your location",
+          "d": "Pincode or GPS — everything becomes local: prices, weather, businesses, schemes"
+        },
+        "s2": {
+          "t": "Search, compare, decide",
+          "d": "Verified badges, real reviews, live data with sources — you stay in control"
+        },
+        "s3": {
+          "t": "Call or WhatsApp direct",
+          "d": "Deal with the business directly. No middlemen, no commission — ever"
+        }
+      },
+      "community": {
+        "title": "Community & events · சமூகம்",
+        "qaTitle": "Farmer forum & Q·A",
+        "qaSub": "Ask crop, price and scheme questions, answered by experts — opening soon",
+        "eventsTitle": "Webinars & events",
+        "eventsSub": "Field days, expos and live webinars near you — opening soon"
+      },
+      "ask": {
+        "title": "Ask agri.in — farming questions, answered in your language",
+        "sub": "உழவு கேள்விகளுக்கு உடனடி பதில் · answers cite sources · reads live mandi & weather data",
+        "cta": "Coming soon — notify me",
+        "note": "Dosage, scheme and loan answers are human-reviewed before publishing · AI can make mistakes — verify critical decisions with an expert."
+      },
+      "helplines": {
+        "title": "Helplines · உதவி எண்கள்",
+        "offline": "Saved for offline — works without internet",
+        "kcc": "Kisan Call Centre",
+        "tnAgri": "TN Agri Dept",
+        "animalHusbandry": "Animal husbandry",
+        "pmKisan": "PM-Kisan help",
+        "verifiedStamp": "✓ Numbers verified against {sources} · {date}"
+      },
+      "stats": {
+        "label": "Agri.in in numbers",
+        "verticals": "verticals, one platform",
+        "reviews": "reviews written"
+      },
+      "pillars": {
+        "eyebrow": "Why farmers trust agri.in",
+        "title": "We list, you choose — we never sell",
+        "p1t": "Free for farmers, always",
+        "p1d": "Search, prices, schemes, contacts — no charge, no commission on anything",
+        "p2t": "Verification can't be bought",
+        "p2d": "Documents checked by our team; paid placement is always labelled Sponsored",
+        "p3t": "Data with sources & dates",
+        "p3d": "Every price stamped with its source, every scheme verified against the official site",
+        "p4t": "Your data stays yours",
+        "p4d": "DPDP-compliant: consent-first contact reveal, export & delete anytime"
+      },
+      "story": {
+        "quote": "“Three years I sold tomato at whatever price the commission agent said. Now I check agri.in before loading the tempo.” — illustrative example, not a real testimonial",
+        "initial": "M",
+        "name": "Murugesan P.",
+        "context": "4-acre farmer, Annur · illustrative example"
+      },
+      "reviews": {
+        "title": "What farmers say"
+      },
+      "earn": {
+        "eyebrow": "One wallet · every platform",
+        "title": "Earn AgriCoins · 🪙",
+        "e1t": "Write a review",
+        "e1d": "after you contact a business",
+        "e2t": "Attend a webinar",
+        "e2d": "check-in at live events",
+        "e3t": "Refer a farmer",
+        "e3d": "when they verify their number",
+        "e4t": "Daily price check",
+        "e4d": "streak bonus"
+      },
+      "cta": {
+        "needTitle": "Tell us what you need — once.",
+        "needSub": "Verified businesses and experts contact YOU. Track every inquiry in one place.",
+        "needCta": "My inquiries · தேவைகள்",
+        "listTitle": "Agri business, brand or expert?",
+        "listSub": "List free — farmers in your pincodes find you. Advertise to reach more.",
+        "listCta": "List my business"
+      },
+      "alert": {
+        "title": "Get mandi price alerts for {pincode}",
+        "sub": "Your commodities, your market — free morning notification",
+        "cta": "Open alerts",
+        "dismiss": "Not now"
+      },
+      "faq": {
+        "title": "Common questions",
+        "q1": "Is agri.in free for farmers?",
+        "a1": "Yes — search, prices, weather, schemes, helplines and contacting businesses are completely free. We never charge farmers, and we never add commission to any price.",
+        "q2": "Does agri.in sell seeds, tractors or produce?",
+        "a2": "No. We list every option near you — businesses, brands, services — and you deal with them directly. We list, you choose, we never sell and never touch the money.",
+        "q3": "Are the mandi prices and scheme details reliable?",
+        "a3": "Mandi prices come from Agmarknet and are stamped with market and time. Every scheme page shows the official source it was verified against and the date it was last checked by our team.",
+        "q4": "What does the Verified badge mean?",
+        "a4": "Our team has checked the business's documents before the badge is shown. Verification can never be bought — and paid placements are always marked Sponsored.",
+        "q5": "What are AgriCoins and can I cash them out?",
+        "a5": "AgriCoins are loyalty rewards you earn across agri.in, milk.in and theorganic.in — one balance everywhere. They unlock perks on the platform but are never cash and never transferable.",
+        "q6": "Who can see my phone number?",
+        "a6": "Nobody, until you choose. Contact reveals are consent-first and logged (DPDP Act 2023). You can export or delete your data anytime from your profile — and we never sell data to anyone."
+      },
+      "digest": {
+        "title": "The Weekly Field Report — free",
+        "sub": "Your mandi trends, scheme deadlines & weather outlook. Every Sunday, EN / தமிழ் / हिन्दी. Launching soon — we'll tell you first.",
+        "cta": "Notify me"
+      },
+      "family": {
+        "title": "Our family · one login works everywhere",
+        "here": "All of agriculture — you are here",
+        "milk": "All milk options in your pincode",
+        "organic": "Certified organic brands & products",
+        "coins": "Your rewards, one balance everywhere"
+      },
+      "footer": {
+        "about": "All of Indian agriculture in one place — prices, weather, schemes, businesses, knowledge. Part of the Agri.in family.",
+        "neutrality": "We list, you choose — we never sell.",
+        "categories": "Categories",
+        "states": "States",
+        "forBusiness": "For business",
+        "company": "Company",
+        "catMandi": "Mandi prices · விலை",
+        "catWeather": "Weather · வானிலை",
+        "catSchemes": "Schemes · Seeds · Tractors",
+        "catAll": "All 36 categories",
+        "stTn": "Tamil Nadu",
+        "stKa": "Karnataka",
+        "stApTg": "Andhra · Telangana",
+        "stAll": "All India",
+        "listFree": "List your business — free",
+        "advertise": "Advertise",
+        "console": "Business console",
+        "verification": "How verification works",
+        "aboutUs": "About · Agri.in family",
+        "contact": "Contact us",
+        "privacy": "Privacy policy",
+        "terms": "Terms of use",
+        "legal": "© {year} Oneuni Agri Platform Pvt Ltd · agri.in lists businesses & information, we never sell or broker",
+        "languages": "English · தமிழ் · हिन्दी"
+      },
+      "nav": {
+        "mandi": "Mandi",
+        "ask": "Ask"
+      }
+    },
     "search": {
       "placeholder": "Search anything… tractor, seeds, loan, scheme",
       "hint": "🎤 Press the mic and speak in Tamil, Hindi or English — no typing needed",

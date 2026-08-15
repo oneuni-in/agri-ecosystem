@@ -49,3 +49,4 @@ export const fontVariables = [
   tamil.variable,
   devanagari.variable,
 ].join(" ");
+

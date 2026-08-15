@@ -81,6 +81,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { AU1AgriDemo } from "./au1-agri-demo";
 import { NotificationsPanelDemo } from "./notifications-panel-demo";
 import { ToastDemo } from "./toast-demo";
 import { U1BandsDemo } from "./u1-bands-demo";
@@ -135,8 +136,12 @@ export default async function DemoPage({
         ])}
       />
 
-      {/* theme switcher — server-rendered links, keyboard operable */}
-      <div className="sticky top-0 z-[70] flex items-center gap-2 overflow-x-auto bg-ink px-3.5 py-2.5">
+      {/* theme switcher — server-rendered links, keyboard operable; a nav
+          landmark so the bar isn't content-outside-landmarks (axe region) */}
+      <nav
+        aria-label="Theme"
+        className="sticky top-0 z-[70] flex items-center gap-2 overflow-x-auto bg-ink px-3.5 py-2.5"
+      >
         <span className="mr-1 whitespace-nowrap text-[11px] font-bold uppercase tracking-[.1em] text-line">
           Theme
         </span>
@@ -153,7 +158,7 @@ export default async function DemoPage({
             {key === "agri" ? "🌾 agri.in" : key === "milk" ? "🥛 milk.in" : "🌿 organicstore.in"}
           </a>
         ))}
-      </div>
+      </nav>
 
       <main>
       {/* ═══ composite: utility-strip (U1 §1) ═══ */}
@@ -759,6 +764,15 @@ export default async function DemoPage({
 
           <Label>Opt-in bands — §10a price alerts, §10b app install (both dismissible)</Label>
           <U1BandsDemo />
+        </Section>
+
+        {/* ═══ A-U1 agri home patterns ═══
+            The A1 FINAL v4 shapes (agri-home-patterns.tsx + TodayTile +
+            Reveal/CountUp). Reference sample data lives HERE and nowhere
+            else — the production home binds these same components to
+            engines and renders nothing where an engine has no data. */}
+        <Section title="A-U1 · agri home patterns (A1 FINAL v4)">
+          <AU1AgriDemo />
         </Section>
 
         {/* ═══ U2 console patterns ═══

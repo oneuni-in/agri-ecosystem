@@ -11,6 +11,66 @@ export function TodayStrip({ children, className }: { children: ReactNode; class
   );
 }
 
+/**
+ * A-U1 — the A1 `.tcard`, agri's Today card (sibling of milk's TodayCard
+ * below; extending this file rather than forking, per the build prompt).
+ * A link card: uppercase 10px label → 21px display value → 11.5px sub →
+ * go-line. `tone="ask"` is the gradient Ask-agri.in card, with a solid
+ * brand-deep underlay beneath the gradient (the AppBand axe/tw-merge
+ * lesson: `cn()` would drop a `bg-*` color next to the gradient class, and
+ * axe cannot read contrast through a background-image).
+ */
+export function TodayTile({
+  label,
+  value,
+  sub,
+  go,
+  tone = "card",
+  href,
+  className,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  sub: ReactNode;
+  /** The "7-day forecast →" line. Plain text — the whole tile is the link. */
+  go?: ReactNode;
+  tone?: "card" | "ask";
+  href: string;
+  className?: string;
+}) {
+  const ask = tone === "ask";
+  return (
+    <a
+      href={href}
+      className={cn(
+        "relative flex flex-col gap-[3px] rounded-card border px-[15px] py-[13px] no-underline",
+        ask
+          ? "border-brand [background-color:var(--brand-deep)] bg-band-gradient text-white"
+          : "border-cream-line bg-card",
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "text-[10px] font-medium uppercase tracking-[.06em]",
+          ask ? "text-brand-soft-2" : "text-muted",
+        )}
+      >
+        {label}
+      </span>
+      <span className="flex items-center gap-2 font-display text-[21px] font-semibold">
+        {value}
+      </span>
+      <span className={cn("text-[11.5px]", ask ? "text-brand-soft" : "text-sub")}>{sub}</span>
+      {go ? (
+        <span className={cn("mt-1 text-[11.5px] font-medium", ask ? "text-coins-bg" : "text-brand")}>
+          {go}
+        </span>
+      ) : null}
+    </a>
+  );
+}
+
 /** `.md-card`: uppercase 11px/800 label row w/ emoji → 19px bold value → 12.5px sub. */
 export function TodayCard({
   label,

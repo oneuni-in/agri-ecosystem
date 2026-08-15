@@ -18,12 +18,20 @@ import { useAgriUser } from "@agri/auth-client/react";
 import { LiveLocationPill } from "@agri/ui";
 import { useTranslations } from "next-intl";
 
+import { DEFAULT_LOCATION } from "../lib/default-location";
+
 export function HeaderLocation() {
   const { status } = useAgriUser({ autoSilentSso: false });
   const t = useTranslations("ui.location");
   return (
     <LiveLocationPill
       isAuthed={status === "authenticated"}
+      // Milk's CLS lesson, verbatim: without a fallback the pill SSRs the
+      // narrow "Set location" CTA and swaps to the resolved place name on
+      // hydration — at 412px that wrapped the header row and shifted the
+      // whole <main> (0.082 CLS, AG-A8 CI evidence). The page body renders
+      // this SAME default server-side, so header and content agree.
+      fallbackLabel={`${DEFAULT_LOCATION.district} · ${DEFAULT_LOCATION.pincode}`}
       strings={{
         set: t("set"),
         title: t("title"),

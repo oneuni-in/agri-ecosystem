@@ -49,6 +49,55 @@ MILK_SLOTS = (
     "milk_profile_footer",
 )
 
+# A-U1 §4 — agri.in's hero. Same config-only recipe, its own house
+# advertiser so the "Ad" label never claims a milk business on agri.in.
+_AGRI_HOUSE_BUSINESS = "Agri.in House"
+AGRI_SLOTS = ("agri_home_hero_xl",)
+
+
+def _agri_messages(
+    agri_base_url: str, console_url: str
+) -> list[tuple[str, dict[str, dict[str, str]], str]]:
+    # Both targets are real, existing routes (honesty rule: no dead links).
+    return [
+        (
+            "list-business",
+            {
+                "en": {
+                    "title": "Agri business, brand or expert? List free",
+                    "body": "Farmers in your pincodes find you - no commission, ever.",
+                },
+                "ta": {
+                    "title": "உங்கள் அக்ரி வணிகத்தை இலவசமாக பதிவு செய்யுங்கள்",
+                    "body": "உங்கள் பகுதியில் உள்ள விவசாயிகள் உங்களை அடைவார்கள்.",
+                },
+                "hi": {
+                    "title": "कृषि व्यवसाय? मुफ़्त में जुड़ें",
+                    "body": "आपके पिनकोड के किसान आप तक पहुंचेंगे - कोई कमीशन नहीं।",
+                },
+            },
+            console_url,
+        ),
+        (
+            "advertise",
+            {
+                "en": {
+                    "title": "Advertise on agri.in from ₹499/week",
+                    "body": "Your pincodes, your categories - placement, never ranking.",
+                },
+                "ta": {
+                    "title": "agri.in-இல் விளம்பரம் - வாரம் ₹499 முதல்",
+                    "body": "உங்கள் பின்கோடு, உங்கள் பிரிவு.",
+                },
+                "hi": {
+                    "title": "agri.in पर विज्ञापन - ₹499/सप्ताह से",
+                    "body": "आपके पिनकोड, आपकी श्रेणियां।",
+                },
+            },
+            f"{agri_base_url}/business/ads",
+        ),
+    ]
+
 
 def _messages(base_url: str, console_url: str) -> list[tuple[str, dict[str, dict[str, str]], str]]:
     return [
@@ -91,18 +140,18 @@ def _messages(base_url: str, console_url: str) -> list[tuple[str, dict[str, dict
     ]
 
 
-async def _ensure_house_business(session: AsyncSession) -> uuid.UUID:
+async def _ensure_house_business(session: AsyncSession, name: str = _HOUSE_BUSINESS) -> uuid.UUID:
     """Serve-time is_servable() is fail-closed, so the house advertiser must
     be a real, active directory business. owner_user_id is NOT an FK into
     identity (module-independence contract), so a bare uuid4 owner is fine -
     same shape the ads serve tests use."""
-    existing = await session.scalar(select(Business).where(Business.name == _HOUSE_BUSINESS))
+    existing = await session.scalar(select(Business).where(Business.name == name))
     if existing is not None:
         return existing.id
     business = await directory_service.create_business(
         session,
         owner_user_id=uuid.uuid4(),
-        name=_HOUSE_BUSINESS,
+        name=name,
         type_="shop",
         primary_pincode=_PINCODE,
     )
@@ -206,6 +255,7 @@ async def _reset_caps() -> None:
 async def run(
     base_url: str,
     console_url: str,
+    agri_base_url: str,
     enable_flag: bool,
     reset_caps: bool,
     with_sponsored_listing: bool = False,
@@ -214,6 +264,17 @@ async def run(
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         advertiser_id = await _ensure_house_business(session)
+        agri_advertiser_id = await _ensure_house_business(session, _AGRI_HOUSE_BUSINESS)
+        for slot_key in AGRI_SLOTS:
+            for tag, copy, target_url in _agri_messages(agri_base_url, console_url):
+                await _ensure_house_ad(
+                    session,
+                    advertiser_id=agri_advertiser_id,
+                    slot_key=slot_key,
+                    tag=tag,
+                    copy=copy,
+                    target_url=target_url,
+                )
         for slot_key in MILK_SLOTS:
             for tag, copy, target_url in _messages(base_url, console_url):
                 await _ensure_house_ad(
@@ -251,6 +312,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:3000")
     parser.add_argument("--console-url", default="http://localhost:3002/business/listings")
+    parser.add_argument("--agri-base-url", default="http://localhost:3002")
     parser.add_argument("--enable-flag", action="store_true")
     parser.add_argument("--reset-caps", action="store_true")
     parser.add_argument("--with-sponsored-listing", action="store_true")
@@ -260,6 +322,7 @@ if __name__ == "__main__":
         run(
             args.base_url,
             args.console_url,
+            args.agri_base_url,
             args.enable_flag,
             args.reset_caps,
             args.with_sponsored_listing,

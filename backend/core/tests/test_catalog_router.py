@@ -289,11 +289,12 @@ async def test_patch_specs_without_schema_409(
     same as create_product does - not fall through to an unhandled 500."""
     client, session = api
     business = await _business(session, USER_A, "Seed Farm")
-    session.add(Vertical(slug="seeds", name={"en": "Seeds"}, status="active"))
+    # Own throwaway slug: "seeds" is a real registry row since 0037.
+    session.add(Vertical(slug="seeds-nospec", name={"en": "Seeds"}, status="active"))
     await session.flush()
     product = Product(
         business_id=business.id,
-        vertical_slug="seeds",
+        vertical_slug="seeds-nospec",
         schema_version=1,
         name="Tomato Seeds",
         slug="tomato-seeds",

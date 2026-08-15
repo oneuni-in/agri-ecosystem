@@ -527,6 +527,7 @@ async def test_milk_slot_keys_are_registered(
         "milk_search_inline",
         "milk_profile_footer",
         "milk_sponsored_listing",  # M3.B listing-injection inventory
+        "agri_home_hero_xl",  # A-U1 §4 agri full-bleed home hero (config-only)
     ):
         await _seed_ad(session, geo_target={}, slot_key=slot)
         r = await client.get("/ads/serve", params={"slot": slot, "pincode": COIMBATORE_PINCODE})

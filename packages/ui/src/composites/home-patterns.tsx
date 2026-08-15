@@ -96,7 +96,8 @@ export function StatCell({
   label,
   first = false,
 }: {
-  value: string;
+  /** A string for a static band; agri's A-U1 band passes a `<CountUp>`. */
+  value: ReactNode;
   label: string;
   /** Suppresses the divider. The caller knows the index; the cell does not. */
   first?: boolean;

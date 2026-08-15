@@ -37,6 +37,11 @@ SLOT_KEYS: frozenset[str] = frozenset(
         # layer (positions 1+6, max 2/page - enforced client-side; the engine
         # just serves count<=MAX_SERVE_COUNT like any slot).
         "milk_sponsored_listing",
+        # A-U1 §4: agri.in's full-bleed home hero carousel. Same inventory
+        # shape as milk_home_hero_xl (1600x420 / 750x360); the M6 proof —
+        # onboarding a vertical is pure config, the serving engine is
+        # untouched.
+        "agri_home_hero_xl",
     }
 )
 MAX_TARGET_URL = 2048

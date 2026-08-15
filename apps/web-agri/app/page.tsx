@@ -148,18 +148,23 @@ export default async function HomePage() {
   const locale = await getLocale();
   const pincode = resolveHomePincode((await cookies()).get(LOC_COOKIE)?.value);
 
-  const [today, verticals, directory, heroAds, t] = await Promise.all([
+  // §10 rating meta + §15 strip come from the SAME D18 signals seam milk
+  // proved (approved-only is the engine's own guarantee). The signals chain
+  // starts the moment the directory read resolves and rides the SAME
+  // Promise.all — a serial await here added its whole latency to first byte
+  // (AG-A8 TTFB evidence).
+  const directoryPromise = fetchDirectoryRow(pincode);
+  const signalsPromise = directoryPromise.then((d) => fetchReviewSignals(d, 2));
+  const [today, verticals, directory, heroAds, t, { ratings, reviews }] = await Promise.all([
     fetchToday(pincode),
     fetchVerticals(),
-    fetchDirectoryRow(pincode),
+    directoryPromise,
     // Served on the SERVER: the hero is the LCP element, and a client fetch
     // delays its image until after hydration (milk's measured 2372ms lesson).
     serveAds(HOME_HERO_SLOT, { pincode, locale }, 5),
     getTranslations("ui"),
+    signalsPromise,
   ]);
-  // §10 rating meta + §15 strip come from the SAME D18 signals seam milk
-  // proved (approved-only is the engine's own guarantee).
-  const { ratings, reviews } = await fetchReviewSignals(directory, 2);
 
   const faq = (["1", "2", "3", "4", "5", "6"] as const).map((n) => ({
     q: t(`agriHome.faq.q${n}`),
@@ -277,7 +282,12 @@ export default async function HomePage() {
               href="/business"
               className="flex h-full w-full flex-col items-center justify-center gap-2 [background-color:var(--brand-deep)] bg-cta-gradient text-white no-underline"
             >
-              <b className="font-display text-xl font-semibold">{t("agriHome.hero.houseTitle")}</b>
+              {/* A1 `.hero-ad h1` scale (clamp 21–32px): the house door is a real
+                  hero banner, not a caption — and the page's largest text
+                  block belongs at the top of the stream, not mid-page. */}
+              <b className="max-w-[15em] px-5 text-center font-display text-[length:clamp(21px,3vw,32px)] font-semibold leading-[1.18]">
+                {t("agriHome.hero.houseTitle")}
+              </b>
               <span className="rounded-pill bg-accent px-4 py-2 text-[13px] font-bold text-accent-ink">
                 {t("agriHome.hero.houseCta")}
               </span>

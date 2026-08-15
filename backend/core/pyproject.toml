@@ -76,6 +76,7 @@ known-first-party = ["modules", "shared", "settings", "main"]
 "tests/test_profile_views.py" = ["F811"]
 "tests/test_tier_selection.py" = ["F811"]
 "tests/test_vertical_schema_route.py" = ["F811"]
+"tests/test_market_today.py" = ["F811"]
 
 [tool.mypy]
 python_version = "3.12"

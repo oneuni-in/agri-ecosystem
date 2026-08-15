@@ -67,7 +67,12 @@ export async function SiteHeader() {
         tagline={t("agriHome.brandTagline")}
         location={<HeaderLocation />}
         right={
-          <>
+          // min-h-11 reserves the AuthCluster pill's 44px BEFORE hydration:
+          // the cluster is client-only, and its pill mounting grew the header
+          // 55→60px and shifted the whole <main> (0.082 CLS, AG-A8 CI
+          // evidence). With the height held, hydration changes width only —
+          // ml-auto absorbs that without moving anything below.
+          <span className="flex min-h-11 items-center gap-2">
             {/* A1 §2 `.lang` — one tap, visible at every width, never a
                 hamburger. */}
             <AgriLocaleSwitcher />
@@ -91,7 +96,7 @@ export async function SiteHeader() {
             <span className="contents [&_[data-testid=auth-login]]:!min-h-[44px] [&_[data-testid=auth-login]]:!flex-none [&_[data-testid=auth-login]]:!rounded-pill [&_[data-testid=auth-login]]:!bg-card [&_[data-testid=auth-login]]:!px-4 [&_[data-testid=auth-login]]:!text-[13px] [&_[data-testid=auth-login]]:!text-brand-deep">
               <AuthCluster loginLabel={t("auth.login")} />
             </span>
-          </>
+          </span>
         }
       />
     </>

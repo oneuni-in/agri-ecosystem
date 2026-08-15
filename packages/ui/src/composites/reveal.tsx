@@ -36,7 +36,13 @@ export function Reveal({
     if (!el) return;
     if (
       matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      typeof IntersectionObserver === "undefined"
+      typeof IntersectionObserver === "undefined" ||
+      // Already in (or partly in) the first viewport: keep the SSR paint.
+      // Hiding here would repaint the largest above-fold text AFTER
+      // hydration, which on a throttled CPU pushed LCP from 2.4s to 4.1s
+      // (AG-A8 CI evidence) — the reveal animation is for content the user
+      // scrolls to, never for what they landed on.
+      el.getBoundingClientRect().top < window.innerHeight
     ) {
       setState("in");
       return;

@@ -65,6 +65,7 @@ EXPECTED_PUBLIC_ROUTES = [
     "/auth/login",
     "/leads/inquiries",
     "/leads/pincode-interest",
+    "/market/today/{pincode}",  # A-U1 stub-until-A-U2, agri_today-gated
     "/reviews",
     "/reviews/summary",
     "/search",

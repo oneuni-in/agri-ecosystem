@@ -66,3 +66,8 @@
 # (D27.B) - branch addresses are already public on the business page; no
 # contact fields in the response; bounded LIMIT 10, no cursor to walk.
 /directory/businesses/{slug}/nearby-branches
+# /market/today/{pincode}: A-U1 read-only Today payload (weather+mandi+
+# schemes+calendar). STUB-UNTIL-A-U2 behind the agri_today flag (404 when
+# off). Reference-data class like /catalog/verticals: no user data, no
+# mutation, strict 6-digit path validation, deterministic fixtures.
+/market/today/{pincode}

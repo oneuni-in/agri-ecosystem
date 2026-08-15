@@ -1,0 +1,61 @@
+# A1 — agri.in home: binding proofs & gap ledger (A-U1)
+
+Sibling of `polish-u1.md` (milk's). Truth: `agri/agri_home_desktop_v1.html`
+(A1 FINAL v4). "Wired" is DEMONSTRATED here — every bound section gets a
+proof row (binding chain now; screenshots land with the CP3 capture set
+under `docs/design-reference/a1/`). Sections whose engines have no data
+render their empty state or not at all; reference sample data lives only on
+`/demo`.
+
+## 0. Prompt-to-repo substitutions
+
+| Prompt says | Repo reality | Substitution used |
+|---|---|---|
+| Ads config per `docs/ads/vertical-onboarding.md` | That doc does not exist (no `docs/ads/`) | The proven M6/U1 config-only recipe from `polish-u1.md` §binding: SLOT_KEYS entry (`backend/core/modules/ads/service.py`), house seed (`scripts/seed_house_ads.py` — own `Agri.in House` advertiser), slot size (`scripts/seed_sample_media.py`), slot-keys serve test extended. Engine untouched. |
+| NEW shared tokens `--alert-bg/--alert-border/--alert-ink` | `--alert-bg`/`--alert-line` already exist as the generic notice style across milk.in forms + both consoles | Entered as `--severe-bg/--severe-border/--severe-ink` (design-system.md §1.2b) |
+| "grid renders 36 from data" | Registry held exactly 1 row (`milk`) | Migration `0037_agri_verticals.py` seeds all 36 with grid metadata in `nav_placement.agri_home {group, order, icon, soon}` — no schema change |
+| `agri_today` flag read by the frontend | No frontend flag reader / public flags endpoint exists | Flag is consumed at the API boundary: flag OFF → today endpoint absent/404 → `fetchToday()` null → sections ABSENT from DOM. Flag row exists in `public.feature_flags` (0037), OFF. |
+| Section 13b live activity feed | No feed endpoint exists | `agri_live_feed` flag seeded OFF; section absent — no fabricated events |
+| §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3 |
+| §10b equipment via `/catalog` products | No agri vertical has a spec schema yet (products 404) | Section absent from DOM until Stage B |
+| Branch `feat/agri-u1-home` | Session instruction | `feat/agri-d40-home-today-strip` |
+
+## 1. Binding proofs (§ = A1 reference section)
+
+> Chains recorded at CP2 (flag off); the full locale/breakpoint capture set
+> lands at CP3. CP2 guest-home proofs: `a1/home-cp2-1280.png` +
+> `a1/home-cp2-360.png` (dev backend, zero console errors; hero serving the
+> seeded house campaign — live serve response:
+> `GET /ads/serve?slot=agri_home_hero_xl&pincode=641001` → 200 with the
+> `Agri.in House` creatives). Rows marked *absent* are the honesty rule
+> working as designed.
+
+| § | Section | Binding chain | Verdict |
+|---|---|---|---|
+| 1 | Utility strip + eco links | static i18n + eco links → https://milk.in / https://theorganic.in | Bound (CP2) |
+| 2 | Header guest/signed state | `useAgriUser` (BFF `/api/auth/*` → id.agri.in) · coins `/api/coins/balance` · bell `/api/notify` — coins/bell/avatar inside `SignedIn`, guest gets Login pill; no secret → guest, never 500 | Bound (CP2) |
+| 2b | Severe alert strip | `agri_today` OFF → ABSENT (0 nodes) | Absent by flag |
+| 3 | TODAY strip | `agri_today` OFF → ABSENT | Absent by flag |
+| 4 | Hero ad `agri_home_hero_xl` | AdCarousel → `serveAds()` → `GET {API}/ads/serve?slot=agri_home_hero_xl&pincode=…` → ads engine (config-only slot; house creatives seeded) | Bound (CP2) |
+| 5 | Search band | form GET `action="/categories"` + `name="q"` (no `/search` route exists in web-agri; the CP3 categories screen's client filter reads `q` — the federated `/search` facade re-points this at A-U4/D52) · mic = labelled entry stub · location chip → `/api/identity/location` → `POST /identity/location` | Bound (CP2) |
+| 6 | Category grid ×36 | `fetchVerticals()` → `GET {API}/catalog/verticals?limit=50` → `directory.vertical_registry` (36 rows, groups/order/icon/soon from `nav_placement.agri_home`); zero hardcoded lists | Bound (CP2) |
+| 6b/7/7b/8/9 | Ticker · mandi cards · calendar · weather · schemes | `agri_today` OFF → ABSENT | Absent by flag |
+| 9b | Sarkari services hub | E5 verified-links dataset + link checker | CP3 |
+| 10 | Directory row | `fetchDirectoryRow` → `GET {API}/directory/covers/{pincode}?limit=3` (the public nearby read; `/directory/businesses` is the private "my businesses" route) + review signals (`/reviews/summary`, `/reviews?limit=2`) → up to 3 organic VendorCards; NO sponsored card this pass (no listing-injection campaign exists for agri — organic only, honesty rule) | Bound (CP2) |
+| 10a2 | How agri.in works | static i18n | Bound (CP2) |
+| 10b | Equipment showcase | no products for pincode → ABSENT | Absent (honesty) |
+| 11 | Knowledge + news | content module empty → ABSENT | Absent (honesty) |
+| 11b/11c | Q&A / events | honest Soon cards → Soon landings (CP3 route) | Bound (CP2, Soon state) |
+| 12 | Ask-AI band | entry surface + disclaimer only; assistant is A-U4 | Bound (CP2, entry only) |
+| 13 | Helpline band | `apps/web-agri/data/helplines.ts` — human-verified numbers with source + verified_on rendered from data | Bound (CP2, dataset seed) |
+| 13b | Live activity feed | `agri_live_feed` OFF, no endpoint → ABSENT | Absent by flag |
+| 14 | Stats band | CountUp over fetched values only: verticals = `fetchVerticals().length` (36, registry) · reviews = Σ `rating_count` from `/reviews/summary`. "Businesses listed"/"pincodes covered" cells OMITTED — `covers()` returns no total and no agri coverage feed exists; no literals, no fake cells | Bound (CP2) |
+| 14b | Pillars + story | static i18n; story marked illustrative, number chips omitted in prod | Bound (CP2) |
+| 15/15b | Reviews + earn row | approved reviews via `/reviews` (engine serves approved only); earn row WITHOUT coin amounts — no public coins-rules endpoint exists, and invented numbers would violate the honesty rule (amounts return when the rules read lands) | Bound (CP2) |
+| 16 | Popular searches | OMITTED — no route accepts a search query today; phrase chips pointing at category landings would mislabel. Returns with the search facade | Absent (honesty) |
+| 17 | CTA tiles | "Post my need" → `/account/inquiries` (no post-need route yet) · "List my business" → `/business` console | Bound (CP2) |
+| 18 | Mandi-alert opt-in | AlertCard client island, CTA → `/notifications` (real notify surface); session-only dismiss | Bound (CP2) |
+| 19 | PWA install band | OMITTED — web-agri has no manifest/service worker yet; an install band would be a lie. Returns at A-U4/D53 PWA parity | Absent (honesty) |
+| 20 | FAQ | 6 Q&As i18n + `FAQPage` (+WebSite/Organization) JSON-LD for https://agri.in | Bound (CP2) |
+| 20b | Weekly digest | Soon state, notify-me wiring at CP3 | Soon (CP2) |
+| 21–23 | Family · footer · bottom nav | static + eco; bottom nav Home · Mandi · Ask · Alerts · Profile | Bound (CP2) |

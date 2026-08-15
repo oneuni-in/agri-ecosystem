@@ -4,3 +4,14 @@
 
 /* D02 layers the design-system tokens (docs/design-system.md §1) onto the
    [data-theme] selectors set in layout.tsx. No raw hex belongs in app code. */
+
+/* AG-A8 — system Indic fonts (see @agri/ui fonts.ts, fontVariablesSystemIndic):
+   web-agri downloads no Tamil/Devanagari webfonts. These vars MUST be defined
+   here because the preset's font-family chain references them — an undefined
+   var() would invalidate the whole declaration. The named families resolve to
+   the OS-shipped fonts where present (Android/ChromeOS ship exactly these);
+   elsewhere per-glyph fallback picks the platform's Indic face. */
+:root {
+  --font-tamil: "Noto Sans Tamil";
+  --font-devanagari: "Noto Sans Devanagari";
+}

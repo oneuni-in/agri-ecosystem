@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./fonts": "./src/fonts.ts",
+    "./fonts-latin": "./src/fonts-latin.ts",
     "./seo": "./src/seo/index.ts",
     "./i18n": "./src/i18n/index.ts"
   },

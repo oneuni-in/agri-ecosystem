@@ -37,14 +37,15 @@ export function Reveal({
     if (
       matchMedia("(prefers-reduced-motion: reduce)").matches ||
       typeof IntersectionObserver === "undefined" ||
-      // Already in (or partly in) the first viewport: keep the SSR paint.
-      // Hiding here would repaint the largest above-fold text AFTER
-      // hydration, which on a throttled CPU pushed LCP from 2.4s to 4.1s
-      // (AG-A8 CI evidence) — the reveal animation is for content the user
-      // scrolls to, never for what they landed on.
+      // Already in (or partly in) the first viewport: stay in "ssr" and do
+      // NOTHING — not even a state flip. Two rounds of AG-A8 CI evidence:
+      // hiding here repainted the largest above-fold text (LCP 2.4s→4.1s),
+      // and even flipping straight to "in" re-rendered the wrapper with
+      // transition/transform classes, layer-izing and repainting the whole
+      // subtree at hydration time (LCP 4.4s). The reveal animation is for
+      // content the user scrolls to, never for what they landed on.
       el.getBoundingClientRect().top < window.innerHeight
     ) {
-      setState("in");
       return;
     }
     const io = new IntersectionObserver(

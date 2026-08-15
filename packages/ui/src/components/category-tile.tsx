@@ -56,6 +56,8 @@ export function CategoryTile({
   href,
   onClick,
   selected = false,
+  soon = false,
+  soonLabel = "Soon",
   className,
 }: {
   icon: ReactNode;
@@ -65,18 +67,35 @@ export function CategoryTile({
   href?: string;
   onClick?: () => void;
   selected?: boolean;
+  /** A-U1 `.tile.soon`: the vertical exists in the registry but its surface
+   * has not shipped — the tile dims and carries a corner "Soon" chip. The
+   * tile STAYS the link (to its honest coming-soon landing); the chip is
+   * decorative (`aria-hidden`), the landing page says the same thing in
+   * accessible text. */
+  soon?: boolean;
+  /** Translated chip text — the caller passes its locale's "Soon". */
+  soonLabel?: ReactNode;
   className?: string;
 }) {
   const classes = cn(
-    "flex min-h-[104px] flex-col items-center justify-start gap-1.5 rounded-card border-[1.5px] border-line bg-card px-1.5 pb-2.5 pt-3 text-center text-ink no-underline",
+    "relative flex min-h-[104px] flex-col items-center justify-start gap-1.5 rounded-card border-[1.5px] border-line bg-card px-1.5 pb-2.5 pt-3 text-center text-ink no-underline",
     "transition-[transform,box-shadow,border-color] duration-100 hover:-translate-y-0.5 hover:border-brand hover:shadow-lift",
     "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
     "max-sm:min-h-[98px] max-sm:px-1 max-sm:pb-2 max-sm:pt-2.5",
     selected && "border-brand ring-[3px] ring-accent",
+    soon && "opacity-[.62]",
     className,
   );
   const body = (
     <>
+      {soon ? (
+        <span
+          aria-hidden="true"
+          className="absolute right-1.5 top-1.5 rounded-pill bg-cream-deep px-[7px] py-px text-[8.5px] font-medium text-muted"
+        >
+          {soonLabel}
+        </span>
+      ) : null}
       <span
         aria-hidden="true"
         className={cn(

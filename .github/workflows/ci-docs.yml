@@ -29,52 +29,52 @@ permissions:
 
 jobs:
   web:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — web checks skipped"
   design-tokens:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — design-tokens check skipped"
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — backend checks skipped"
   backend-storm:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — backend-storm check skipped"
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — docker-build check skipped"
   public-routes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — public-routes check skipped"
   security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — security checks skipped"
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — lighthouse check skipped"
   e2e-auth:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — e2e-auth check skipped"
   e2e-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 2
     steps:
       - run: echo "docs-only change — e2e-matrix check skipped"
@@ -82,7 +82,7 @@ jobs:
   # dev, and the title check is ~1 min. Logic mirrors ci.yml (D24 lesson:
   # fetch the CURRENT title so re-run-after-fix works).
   conventional-commits:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read

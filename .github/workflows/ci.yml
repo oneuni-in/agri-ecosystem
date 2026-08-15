@@ -31,7 +31,7 @@ env:
 jobs:
   # A: pnpm lint + typecheck + vitest + build, turbo-cached (<10 min warm rule)
   web:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
 
   # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
   design-tokens:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
   # live in the test suite) + alembic up/down/up vs a real Postgres
   # (non-negotiable 3: irreversible migration fails CI)
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     defaults:
       run:
@@ -138,7 +138,7 @@ jobs:
   # backend job's <10-min budget; it's a separate required check so a slow
   # storm run never trips the backend job's timeout.
   backend-storm:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     defaults:
       run:
@@ -184,7 +184,7 @@ jobs:
   # Dockerfile or a docker-compose.dev.yml drifted out of sync with
   # pyproject.toml is invisible here until someone hits it in dev or staging.
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -197,7 +197,7 @@ jobs:
   # factory and diffs the live SecureRouter registry against the committed
   # backend/core/public_routes.txt.
   public-routes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     defaults:
       run:
@@ -214,7 +214,7 @@ jobs:
 
   # A: gitleaks (full history, redacted output) + dependency audits (fail high)
   security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     env:
       GITLEAKS_VERSION: "8.24.2"
@@ -256,7 +256,7 @@ jobs:
   # pincode box — and they are dynamic SSR reading covers(), so without a
   # backend they render notFound() and cannot be gated at all.
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     services:
       postgres:
@@ -349,13 +349,13 @@ jobs:
   # (uvicorn + migrated Postgres + Redis) behind web-id's rewrites, driven by
   # Playwright. OTP codes come from the flag-gated mock peek route.
   e2e-auth:
-    runs-on: ubuntu-latest
     # Scoped to its NAME: `pnpm run e2e` had silently become the whole
     # desktop suite (92 tests after U1) and this job burnt its entire
     # ceiling every PR push — 35 minutes of private-repo Actions time per
     # round, twice over with the docs twin. The auth surface (auth + sso +
     # bff-path-traversal, 10 tests) is what D09/D10/D30 gate here; every
     # other spec keeps its CI coverage in e2e-matrix's device projects.
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     services:
       postgres:
@@ -411,6 +411,7 @@ jobs:
       # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
       - name: start MinIO (claim evidence + product media)
         run: |
+          docker rm -f minio 2>/dev/null || true
           docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
           for i in $(seq 1 30); do
             if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
@@ -430,7 +431,6 @@ jobs:
   # e2e-auth rather than lengthening it so runtime stays bounded and a failure
   # names the device instead of hiding in one long serial run.
   e2e-matrix:
-    runs-on: ubuntu-latest
     # 45, raised from 35 (which was raised from 20): the suite itself is
     # ~9min locally, CI adds browser installs + migrations + the seed, and
     # the suite has grown with every UI pass (U1 took the job from ~13min to
@@ -440,6 +440,7 @@ jobs:
     # keeps headroom so a regression yields a COMPLETED run whose reporter
     # names the slow specs, not an opaque cancellation. A successful run
     # bills actual minutes, not the ceiling.
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     services:
       postgres:
@@ -496,6 +497,7 @@ jobs:
       # Credentials/bucket match settings.py defaults and docker-compose.dev.yml.
       - name: start MinIO (claim evidence + product media)
         run: |
+          docker rm -f minio 2>/dev/null || true
           docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
           for i in $(seq 1 30); do
             if curl -sf http://localhost:9000/minio/health/live >/dev/null; then break; fi
@@ -513,7 +515,7 @@ jobs:
   # G: conventional commits enforced on the PR title and every branch commit
   conventional-commits:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read

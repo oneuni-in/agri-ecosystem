@@ -27,8 +27,11 @@ export async function SiteHeader() {
       {/* §1 — utility strip. Static server markup only (milk's CLS lesson:
           nothing above the header may hydrate). Eco links to the sibling
           platforms are part of the tagline slot and hide below 768px, exactly
-          like A1's `.util .eco`; the hotline chip stays at every width. */}
-      <UtilityStrip
+          like A1's `.util .eco`; the hotline chip stays at every width.
+          Wrapped in a labelled nav so the strip lives inside a landmark
+          (axe `region`). */}
+      <nav aria-label={t("agriHome.utility.navLabel")}>
+        <UtilityStrip
         tagline={
           <>
             {t("agriHome.utility.tagline")}
@@ -55,7 +58,8 @@ export async function SiteHeader() {
             </a>
           ) : null
         }
-      />
+        />
+      </nav>
       <HeaderStack
         flat
         nowrap

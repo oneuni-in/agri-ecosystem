@@ -136,8 +136,12 @@ export default async function DemoPage({
         ])}
       />
 
-      {/* theme switcher — server-rendered links, keyboard operable */}
-      <div className="sticky top-0 z-[70] flex items-center gap-2 overflow-x-auto bg-ink px-3.5 py-2.5">
+      {/* theme switcher — server-rendered links, keyboard operable; a nav
+          landmark so the bar isn't content-outside-landmarks (axe region) */}
+      <nav
+        aria-label="Theme"
+        className="sticky top-0 z-[70] flex items-center gap-2 overflow-x-auto bg-ink px-3.5 py-2.5"
+      >
         <span className="mr-1 whitespace-nowrap text-[11px] font-bold uppercase tracking-[.1em] text-line">
           Theme
         </span>
@@ -154,7 +158,7 @@ export default async function DemoPage({
             {key === "agri" ? "🌾 agri.in" : key === "milk" ? "🥛 milk.in" : "🌿 organicstore.in"}
           </a>
         ))}
-      </div>
+      </nav>
 
       <main>
       {/* ═══ composite: utility-strip (U1 §1) ═══ */}

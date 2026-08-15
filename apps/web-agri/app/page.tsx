@@ -399,7 +399,7 @@ export default async function HomePage() {
                 <Card hover className="relative flex items-start gap-3 p-4">
                   <span
                     aria-hidden="true"
-                    className="absolute right-2 top-2 rounded-pill bg-cream-deep px-2 py-0.5 text-[9px] font-medium text-muted"
+                    className="absolute right-2 top-2 rounded-pill bg-cream-deep px-2 py-0.5 text-[9px] font-medium text-sub"
                   >
                     {t("agriHome.soon")}
                   </span>
@@ -677,7 +677,7 @@ export default async function HomePage() {
           <div className="min-w-0 flex-1">
             <b className="block font-display text-base font-semibold text-brand-deep">
               {t("agriHome.digest.title")}{" "}
-              <span className="ml-1 rounded-pill bg-cream-deep px-2 py-0.5 align-middle text-[9px] font-medium text-muted">
+              <span className="ml-1 rounded-pill bg-cream-deep px-2 py-0.5 align-middle text-[9px] font-medium text-sub">
                 {t("agriHome.soon")}
               </span>
             </b>

@@ -83,15 +83,16 @@ export function CategoryTile({
     "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
     "max-sm:min-h-[98px] max-sm:px-1 max-sm:pb-2 max-sm:pt-2.5",
     selected && "border-brand ring-[3px] ring-accent",
-    soon && "opacity-[.62]",
     className,
   );
   const body = (
     <>
       {soon ? (
+        // text-sub, not text-muted: 8.5px on cream-deep needs the darker
+        // grey to clear AA (muted measures 4.47:1 here — axe).
         <span
           aria-hidden="true"
-          className="absolute right-1.5 top-1.5 rounded-pill bg-cream-deep px-[7px] py-px text-[8.5px] font-medium text-muted"
+          className="absolute right-1.5 top-1.5 rounded-pill bg-cream-deep px-[7px] py-px text-[8.5px] font-medium text-sub"
         >
           {soonLabel}
         </span>
@@ -101,12 +102,17 @@ export function CategoryTile({
         className={cn(
           "flex h-[52px] w-[52px] items-center justify-center rounded-icon text-[30px] leading-none",
           "max-sm:h-[46px] max-sm:w-[46px] max-sm:text-[26px]",
+          // The reference dims the WHOLE soon tile to .62, but blended text
+          // fails AA (label lands at 4.4:1 — axe, AG-A9/A7 gates). Dim only
+          // the decorative icon; the label keeps full opacity in the muted
+          // ramp below. Recorded as an a11y-driven deviation in polish-a1.
+          soon && "opacity-[.62]",
           tintClass[tint],
         )}
       >
         {icon}
       </span>
-      <b className="text-xs font-bold leading-[1.25]">
+      <b className={cn("text-xs font-bold leading-[1.25]", soon && "text-sub")}>
         {label}
         <span className="vern text-[10.5px]">{vernacular}</span>
       </b>

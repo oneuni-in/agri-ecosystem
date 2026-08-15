@@ -27,6 +27,13 @@ const themes = {
     // A1 home sits on cream paper, the same move milk made at U1 §13.
     // Scoped to this theme; organic is untouched.
     "--page-bg": "var(--cream)",
+    // Glass pills sit on --brand, and agri's #3E7A45 is light enough that
+    // the shared white-alpha glass blends to ~3.8:1 under white 13px text
+    // (axe, AG-A7 sweep). Agri's glass is ink-alpha instead: blended on
+    // --brand it reads ~6.8:1 and matches A1's outline-on-brand chip look.
+    // Scoped here so milk's white glass (which passes on its darker blue)
+    // is untouched.
+    "--glass": "rgba(29,42,32,.26)",
   },
   "theme-milk": {
     "--brand": "#2563A8",

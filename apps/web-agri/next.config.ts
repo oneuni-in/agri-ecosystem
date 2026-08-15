@@ -34,6 +34,30 @@ const nextConfig: NextConfig = {
   // renders). Rewrites barrel imports to direct module imports at build time.
   experimental: {
     optimizePackageImports: ["@agri/ui"],
+    // Issue #45's proven lever, opted into deliberately for agri (the milk
+    // note says other apps should not inherit it by default): the home is
+    // dynamically rendered (force-dynamic), so build-time critical-CSS can
+    // never help it; inlineCss removes both render-blocking stylesheet
+    // requests on the CI mobile/3G profile. Same size trade-off as milk
+    // (~8 KB inline per document) — accepted for the 0.90 floor (Decision
+    // 3: agri holds it from PR one).
+    inlineCss: true,
+  },
+  // Same page-level hardening milk ships (M2 creative threat model): agri's
+  // home now renders ad creatives too. Safe subset only; the full img-src
+  // allowlist CSP remains the tracked fast-follow.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+          },
+        ],
+      },
+    ];
   },
   eslint: {
     // Linting is its own turbo task (`pnpm lint`, --max-warnings 0). Running

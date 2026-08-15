@@ -376,7 +376,9 @@ export function DeadlineItem({
         className,
       )}
     >
-      <span className="rounded-pill bg-severe-bg px-[9px] py-0.5 text-[10px] font-semibold text-down">
+      {/* severe-ink, not --down: the down-orange measures 4.43:1 on
+          severe-bg at this 10px size — just under the AA floor (axe). */}
+      <span className="rounded-pill bg-severe-bg px-[9px] py-0.5 text-[10px] font-semibold text-severe-ink">
         {chip}
       </span>
       {children}

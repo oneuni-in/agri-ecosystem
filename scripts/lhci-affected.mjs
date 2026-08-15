@@ -140,8 +140,13 @@ let exitCode = 1;
 try {
   await Promise.all(apps.map((app) => waitForReady(`http://localhost:${APPS[app]}/`)));
   // warm every audited URL (not just home pages): the first SSR render pays
-  // one-off costs that would otherwise land inside the first lighthouse run
-  await Promise.all(urls.map((url) => fetch(url).catch(() => {})));
+  // one-off costs that would otherwise land inside the first lighthouse run.
+  // Three passes, not one - a single request primes the route module but
+  // leaves JIT/render caches cold (A-U1 evidence: first-sample outliers
+  // survived the single-pass warm-up).
+  for (let pass = 0; pass < 3; pass += 1) {
+    await Promise.all(urls.map((url) => fetch(url).catch(() => {})));
+  }
   run("pnpm", ["exec", "lhci", "autorun", "--config=lighthouserc.cjs"], {
     stdio: "inherit",
     env: { ...process.env, LHCI_URLS: urls.join(",") },

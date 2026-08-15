@@ -64,7 +64,8 @@ async def test_create_schema_version_unknown_vertical(db_session: AsyncSession) 
     with pytest.raises(catalog_service.VerticalNotFoundError):
         await catalog_service.create_schema_version(
             db_session,
-            vertical_slug="tractors",
+            # A slug 0037's agri seed can never claim ("tractors" now exists)
+            vertical_slug="no-such-vertical",
             fields_raw=[{"key": "hp", "label": {"en": "HP"}, "type": "number"}],
         )
 
@@ -72,8 +73,14 @@ async def test_create_schema_version_unknown_vertical(db_session: AsyncSession) 
 async def test_list_verticals_hides_hidden(db_session: AsyncSession) -> None:
     db_session.add(Vertical(slug="hidden-v", name={"en": "Hidden"}, status="hidden"))
     await db_session.flush()
-    page = await catalog_service.list_verticals(db_session)
-    assert [v.slug for v in page.items] == ["milk"]
+    # Membership, not the exact list: 0037 seeded the 36 agri verticals, so
+    # the registry is no longer just ["milk"]. What this test protects is
+    # unchanged — hidden rows never surface.
+    page = await catalog_service.list_verticals(db_session, limit=100)
+    slugs = [v.slug for v in page.items]
+    assert "milk" in slugs
+    assert "hidden-v" not in slugs
+    assert all(v.status == "active" for v in page.items)
 
 
 async def test_create_product_pins_active_version(db_session: AsyncSession) -> None:
@@ -224,7 +231,8 @@ async def test_public_reads_hide_pending_archived_and_suspended(db_session: Asyn
 
 
 async def test_no_schema_no_products(db_session: AsyncSession) -> None:
-    db_session.add(Vertical(slug="seeds", name={"en": "Seeds"}, status="active"))
+    # Own throwaway slug: "seeds" is a real registry row since 0037.
+    db_session.add(Vertical(slug="seeds-nospec", name={"en": "Seeds"}, status="active"))
     await db_session.flush()
     owner = uuid.uuid4()
     business = await _business(db_session, owner)
@@ -233,7 +241,7 @@ async def test_no_schema_no_products(db_session: AsyncSession) -> None:
             db_session,
             owner_user_id=owner,
             business_id=business.id,
-            vertical_slug="seeds",
+            vertical_slug="seeds-nospec",
             name="Tomato Seeds",
             specs={},
         )

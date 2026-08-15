@@ -18,6 +18,18 @@ best-effort — flagged for review in the A-U1 PR.
 Flags (D3 mechanism, fail-closed): agri_today and agri_live_feed enter OFF.
 """
 
+# -- THREAT/NOTES:
+# - Data-only migration: 36 INSERTs into directory.vertical_registry and 2
+#   into public.feature_flags, both ON CONFLICT DO NOTHING (idempotent,
+#   re-runnable, no clobbering of rows an admin may have edited).
+# - No DDL, no grants touched: vertical_registry rows are public read via
+#   the existing GET /catalog/verticals; names/icons are first-party
+#   editorial content, not UGC — no moderation surface needed.
+# - Both flags enter enabled=false (fail-closed D3): nothing user-visible
+#   flips on by migrating. Flipping is a super_admin act via /ops/flags.
+# - nav_placement carries only presentation metadata (group/order/icon/soon)
+#   — no secrets, no PII, no executable content.
+
 from __future__ import annotations
 
 import json

@@ -150,7 +150,11 @@ test.describe("M5 advertiser self-serve (Task 17, NN1/NN2)", () => {
     await page.getByRole("radio", { name: /specific pincodes/i }).click();
     await page.getByPlaceholder("6-digit pincode").fill(PINCODE);
     await page.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(page.getByText(PINCODE)).toBeVisible();
+    // Scoped to <main>: since A-U1 the site header's location pill also
+    // says "Coimbatore · 641001", so a page-wide text match is ambiguous.
+    // The assertion is unchanged — the added pincode chip is visible in the
+    // wizard.
+    await expect(page.locator("main").getByText(PINCODE)).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 4: Schedule & budget - today..+14, 10k views. "Save & continue"
@@ -405,7 +409,11 @@ test.describe("M5 advertiser self-serve (Task 17, NN1/NN2)", () => {
     const addButton = page.getByRole("button", { name: "Add", exact: true });
     await assertTappable(addButton);
     await addButton.click();
-    await expect(page.getByText(PINCODE)).toBeVisible();
+    // Scoped to <main>: since A-U1 the site header's location pill also
+    // says "Coimbatore · 641001", so a page-wide text match is ambiguous.
+    // The assertion is unchanged — the added pincode chip is visible in the
+    // wizard.
+    await expect(page.locator("main").getByText(PINCODE)).toBeVisible();
     await assertNoHorizontalOverflow();
   });
 });

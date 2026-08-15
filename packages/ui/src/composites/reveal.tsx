@@ -36,28 +36,42 @@ export function Reveal({
     if (!el) return;
     if (
       matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      typeof IntersectionObserver === "undefined" ||
-      // Already in (or partly in) the first viewport: stay in "ssr" and do
-      // NOTHING — not even a state flip. Two rounds of AG-A8 CI evidence:
-      // hiding here repainted the largest above-fold text (LCP 2.4s→4.1s),
-      // and even flipping straight to "in" re-rendered the wrapper with
-      // transition/transform classes, layer-izing and repainting the whole
-      // subtree at hydration time (LCP 4.4s). The reveal animation is for
-      // content the user scrolls to, never for what they landed on.
-      el.getBoundingClientRect().top < window.innerHeight
+      typeof IntersectionObserver === "undefined"
     ) {
-      return;
+      return; // stay "ssr": content painted, no motion
     }
+    // Three rounds of AG-A8 CI evidence shaped this effect:
+    // 1. Content in the first viewport must stay in "ssr" — not even a
+    //    state flip. Hiding it repainted the largest above-fold text after
+    //    hydration (LCP 2.4s→4.1s), and flipping straight to "in" re-
+    //    rendered with transition/transform classes, layer-izing and
+    //    repainting the subtree (LCP 4.4s).
+    // 2. The visibility check must come from the observer's FIRST callback,
+    //    not getBoundingClientRect(): a dozen instances interleaving rect
+    //    reads with setState writes forced a layout each (~1s of observed
+    //    Style & Layout that lantern simulated into ~2s of LCP delay). The
+    //    observer delivers geometry async with zero forced layouts, and
+    //    React batches every same-tick "pending" flip into one commit.
+    let sawInitial = false;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setState("in");
-          io.disconnect();
+        for (const e of entries) {
+          if (!sawInitial) {
+            sawInitial = true;
+            const viewportBottom = e.rootBounds ? e.rootBounds.bottom : window.innerHeight;
+            if (e.isIntersecting || e.boundingClientRect.top < viewportBottom) {
+              io.disconnect(); // landed-on content never animates
+              return;
+            }
+            setState("pending");
+          } else if (e.isIntersecting) {
+            io.disconnect();
+            setState("in");
+          }
         }
       },
       { threshold: 0.25 },
     );
-    setState("pending");
     io.observe(el);
     return () => io.disconnect();
   }, []);

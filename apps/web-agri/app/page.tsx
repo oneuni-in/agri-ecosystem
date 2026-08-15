@@ -298,7 +298,7 @@ export default async function HomePage() {
             real campaign can serve (honesty rule). Call/WhatsApp are doors to
             the profile page, where D18's capped, fail-closed contact-reveal
             flow lives — numbers are never in list payloads. */}
-        <Section title={t("agriHome.directory.title")} className="pb-0" >
+        <Section title={t("agriHome.directory.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <Eyebrow className="-mt-3">{t("agriHome.directory.eyebrow")}</Eyebrow>
           {directory.length === 0 ? (
             <EmptyState
@@ -361,7 +361,7 @@ export default async function HomePage() {
         </Section>
 
         {/* §10a2 — how agri.in works (static i18n). */}
-        <Section title={t("agriHome.how.title")}>
+        <Section title={t("agriHome.how.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <div className="grid gap-3 md:grid-cols-3">
             {(["s1", "s2", "s3"] as const).map((step, index) => (
               <div key={step} className="rounded-card border border-cream-line bg-card p-4 text-center">
@@ -387,7 +387,7 @@ export default async function HomePage() {
 
         {/* §11b/§11c — Q&A + events are Stage D surfaces: honest Soon cards
             (door to the /c/ landing), never fake threads or events. */}
-        <Section title={t("agriHome.community.title")}>
+        <Section title={t("agriHome.community.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <div className="grid gap-2.5 md:grid-cols-2">
             {(
               [
@@ -509,7 +509,7 @@ export default async function HomePage() {
         {/* §14b — trust pillars (static i18n) + the success story, which is
             marked ILLUSTRATIVE in copy and carries NO number chips in prod
             (nums omitted until a real consented story replaces it). */}
-        <Section title={t("agriHome.pillars.title")} className="pb-0">
+        <Section title={t("agriHome.pillars.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <Eyebrow className="-mt-3">{t("agriHome.pillars.eyebrow")}</Eyebrow>
           <Reveal className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             <TrustPillar
@@ -560,7 +560,7 @@ export default async function HomePage() {
         {/* §15 — reviews strip: approved-only D18 rows composed from the
             businesses on this page; zero reviews → section ABSENT. */}
         {reviews.length > 0 ? (
-          <Section title={t("agriHome.reviews.title")}>
+          <Section title={t("agriHome.reviews.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
             <div className="grid gap-2.5 md:grid-cols-3">
               {reviews.slice(0, 3).map((review) => {
                 const body = review.body[locale] ?? Object.values(review.body)[0] ?? "";
@@ -590,7 +590,7 @@ export default async function HomePage() {
             referral-code), so the cards carry i18n copy WITHOUT amounts —
             the coin glyph fills EarnCard's amount slot; real numbers arrive
             when a rules read exists. Never invent amounts. */}
-        <Section title={t("agriHome.earn.title")} className="pb-0">
+        <Section title={t("agriHome.earn.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <Eyebrow className="-mt-3">{t("agriHome.earn.eyebrow")}</Eyebrow>
           <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             {(
@@ -651,7 +651,7 @@ export default async function HomePage() {
             arrives with agri's PWA pass. */}
 
         {/* §20 — FAQ; the same strings are emitted as FAQPage JSON-LD above. */}
-        <Section title={t("agriHome.faq.title")}>
+        <Section title={t("agriHome.faq.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <div className="flex flex-col gap-2">
             {faq.map((item) => (
               <details key={item.q} className="rounded-btn border border-cream-line bg-card px-4">
@@ -696,7 +696,7 @@ export default async function HomePage() {
         {/* §21 — family strip: agri (you are here, not a link) · milk ·
             organic · coins (→ /notifications, the coins surface milk also
             uses until a coins center exists). */}
-        <Section title={t("agriHome.family.title")} className="pb-0">
+        <Section title={t("agriHome.family.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <EcoStrip>
             <span className="min-w-[210px] shrink-0 rounded-card bg-brand px-[18px] py-3.5 text-white">
               <b className="block font-display text-[17px] font-extrabold">🌾 agri.in</b>

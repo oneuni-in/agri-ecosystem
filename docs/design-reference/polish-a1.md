@@ -34,13 +34,13 @@ render their empty state or not at all; reference sample data lives only on
 |---|---|---|---|
 | 1 | Utility strip + eco links | static i18n + eco links → https://milk.in / https://theorganic.in | Bound (CP2) |
 | 2 | Header guest/signed state | `useAgriUser` (BFF `/api/auth/*` → id.agri.in) · coins `/api/coins/balance` · bell `/api/notify` — coins/bell/avatar inside `SignedIn`, guest gets Login pill; no secret → guest, never 500 | Bound (CP2) |
-| 2b | Severe alert strip | `agri_today` OFF → ABSENT (0 nodes) | Absent by flag |
-| 3 | TODAY strip | `agri_today` OFF → ABSENT | Absent by flag |
+| 2b | Severe alert strip | CP3: `fetchToday()` → `GET /market/today/{pincode}` (STUB-until-A-U2, agri_today-gated) → renders ONLY when `severe_alert` non-null; flag OFF → ABSENT (0 nodes) | Bound (CP3, stub) |
+| 3 | TODAY strip | CP3: TodayStrip/TodayTile from the payload (weather/mandi/schemes tiles + ask); above-fold, no reveal; flag OFF → ABSENT | Bound (CP3, stub) |
 | 4 | Hero ad `agri_home_hero_xl` | AdCarousel → `serveAds()` → `GET {API}/ads/serve?slot=agri_home_hero_xl&pincode=…` → ads engine (config-only slot; house creatives seeded) | Bound (CP2) |
 | 5 | Search band | form GET `action="/categories"` + `name="q"` (no `/search` route exists in web-agri; the CP3 categories screen's client filter reads `q` — the federated `/search` facade re-points this at A-U4/D52) · mic = labelled entry stub · location chip → `/api/identity/location` → `POST /identity/location` | Bound (CP2) |
 | 6 | Category grid ×36 | `fetchVerticals()` → `GET {API}/catalog/verticals?limit=50` → `directory.vertical_registry` (36 rows, groups/order/icon/soon from `nav_placement.agri_home`); zero hardcoded lists | Bound (CP2) |
-| 6b/7/7b/8/9 | Ticker · mandi cards · calendar · weather · schemes | `agri_today` OFF → ABSENT | Absent by flag |
-| 9b | Sarkari services hub | E5 verified-links dataset + link checker | CP3 |
+| 6b/7/7b/8/9 | Ticker · mandi cards · calendar · weather · schemes | CP3: all render FROM the TodayPayload (frozen in @agri/types): Marquee items, 8 MandiCards (spark=series_30d, wa.me share built server-side), SeasonCalendar, wx strip + advisory + tip, scheme cards with `verified_against`/`verified_on` stamps + DeadlinesBar (72 HRS/14447) — every source/as-of stamp is data; flag OFF → ABSENT | Bound (CP3, stub) |
+| 9b | Sarkari services hub | `data/sarkari.{json,ts}` (6 official portals, https + domain + `verified_on` rendered from data; links only — no record storage, DPDP) + `scripts/check-sarkari-links.mjs` (gov.in/nic.in allowlist, host-matches-domain, liveness; run 2026-08-15: 6/6 OK) | Bound (CP3, real) |
 | 10 | Directory row | `fetchDirectoryRow` → `GET {API}/directory/covers/{pincode}?limit=3` (the public nearby read; `/directory/businesses` is the private "my businesses" route) + review signals (`/reviews/summary`, `/reviews?limit=2`) → up to 3 organic VendorCards; NO sponsored card this pass (no listing-injection campaign exists for agri — organic only, honesty rule) | Bound (CP2) |
 | 10a2 | How agri.in works | static i18n | Bound (CP2) |
 | 10b | Equipment showcase | no products for pincode → ABSENT | Absent (honesty) |
@@ -52,6 +52,10 @@ render their empty state or not at all; reference sample data lives only on
 | 14 | Stats band | CountUp over fetched values only: verticals = `fetchVerticals().length` (36, registry) · reviews = Σ `rating_count` from `/reviews/summary`. "Businesses listed"/"pincodes covered" cells OMITTED — `covers()` returns no total and no agri coverage feed exists; no literals, no fake cells | Bound (CP2) |
 | 14b | Pillars + story | static i18n; story marked illustrative, number chips omitted in prod | Bound (CP2) |
 | 15/15b | Reviews + earn row | approved reviews via `/reviews` (engine serves approved only); earn row WITHOUT coin amounts — no public coins-rules endpoint exists, and invented numbers would violate the honesty rule (amounts return when the rules read lands) | Bound (CP2) |
+| W2 | /categories | Registry-driven A2 screen: 36 tiles = `GET /catalog/verticals`, live/soon counts from data, client filter reads `?q=` (search band target) | Bound (CP3) |
+| W2 | /c/[slug] Soon landing | Registry lookup (unknown → 404), ALWAYS noindex; notify-me → BFF `/api/leads/pincode-interest` → `POST /leads/pincode-interest` (D23 pincode-interest module — recorded per prompt) → 201; live verticals route to real surfaces | Bound (CP3) |
+| 10c | Farm calculators /tools | Client-side only (zero network, offline-capable): EMI · seed rate (TNAU kg/ha) · fertilizer (FCO nutrient fractions) · spray dilution; maths in @agri/ui with 12 unit tests | Bound (CP3, real) |
+| W3 | Payload contract | `market_data/schemas.py` ⇄ `@agri/types` TodayPayload, field-for-field; determinism + shape + flag-off-404 covered by `tests/test_market_today.py` | Frozen (CP3) |
 | 16 | Popular searches | OMITTED — no route accepts a search query today; phrase chips pointing at category landings would mislabel. Returns with the search facade | Absent (honesty) |
 | 17 | CTA tiles | "Post my need" → `/account/inquiries` (no post-need route yet) · "List my business" → `/business` console | Bound (CP2) |
 | 18 | Mandi-alert opt-in | AlertCard client island, CTA → `/notifications` (real notify surface); session-only dismiss | Bound (CP2) |

@@ -28,13 +28,9 @@ export const metadata: Metadata = {
  * namespace? Add it to this list, or its strings render as raw keys.
  */
 const CLIENT_NAMESPACES = [
-  "console", // /business console clients
   "location",
-  "notifications",
   "localeSwitcher",
   "agriHome.alert", // MandiAlertCard island
-  "agriHome.soonPage", // /c/[slug] NotifyMeForm island
-  "tools", // /tools calculator island
 ] as const;
 
 function pickClientMessages(all: Record<string, unknown>): Record<string, unknown> {

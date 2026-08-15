@@ -1,9 +1,11 @@
+import { NextIntlClientProvider } from "next-intl";
 import { Eyebrow, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { pickUiMessages } from "@/lib/client-messages";
 import { ToolsClient } from "./tools-client";
 
 /**
@@ -54,7 +56,10 @@ export default async function ToolsPage() {
           </div>
         </div>
 
-        <ToolsClient />
+        {/* AG-A8: nested provider — this route pays for its own client catalog */}
+        <NextIntlClientProvider messages={await pickUiMessages(["tools"])}>
+          <ToolsClient />
+        </NextIntlClientProvider>
 
         <p className="mt-5 text-[10.5px] leading-relaxed text-muted">{t("disclaimer")}</p>
       </Wrap>

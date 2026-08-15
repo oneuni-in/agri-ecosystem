@@ -1,3 +1,4 @@
+import { NextIntlClientProvider } from "next-intl";
 import { Eyebrow, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
@@ -7,6 +8,7 @@ import { notFound } from "next/navigation";
 
 import { fetchVerticals, GROUP_STAGE, type VerticalItem } from "@/lib/home";
 
+import { pickUiMessages } from "@/lib/client-messages";
 import { NotifyMeForm } from "./notify-me-form";
 
 /**
@@ -132,7 +134,10 @@ export default async function VerticalLandingPage({
                 ? t("agriHome.soonPage.bodyStaged", { name, stage })
                 : t("agriHome.soonPage.body", { name })}
             </p>
-            <NotifyMeForm />
+            {/* AG-A8: nested provider — this route pays for its own client catalog */}
+            <NextIntlClientProvider messages={await pickUiMessages(["agriHome.soonPage"])}>
+              <NotifyMeForm />
+            </NextIntlClientProvider>
           </>
         ) : (
           <>

@@ -19,6 +19,7 @@ render their empty state or not at all; reference sample data lives only on
 | §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3 |
 | §10b equipment via `/catalog` products | No agri vertical has a spec schema yet (products 404) | Section absent from DOM until Stage B |
 | Branch `feat/agri-u1-home` | Session instruction | `feat/agri-d40-home-today-strip` |
+| A1 reveal/stagger/count-up motion on the home | ~15 hydration islands walking a 6000px DOM were the measured anchor under the AG-A8 0.90 floor (three CI rounds) | DEFERRED on `/` by Decision 3 (perf outranks decorative motion; the milk StatBand precedent): sections render statically visible — which IS the reference's own reduced-motion fallback. `/demo` keeps the full motion spec; a cheaper mechanism (CSS scroll-driven animations) may restore it post-launch. |
 
 ## 1. Binding proofs (§ = A1 reference section)
 

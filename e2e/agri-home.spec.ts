@@ -186,11 +186,11 @@ test.describe("A-U1 agri_today ON — payload-bound sections render", () => {
       const hiddenSparks = offsets.filter(
         (offset) => !(offset === "0px" || offset === "0" || offset === "none"),
       ).length;
-      // §6 staggered pop-in wrappers (inline animation-delay) must land at
-      // opacity 1 — never stuck at the pre-reveal opacity-0 state.
-      const tiles = Array.from(
-        document.querySelectorAll<HTMLElement>('[style*="animation-delay"]'),
-      );
+      // §6 tiles must be at opacity 1. (The stagger wrappers this selected
+      // by [style*=animation-delay] were removed with the home's deferred
+      // motion — polish-a1 §0; the guarantee is unchanged: every registry
+      // tile fully visible.)
+      const tiles = Array.from(document.querySelectorAll<HTMLElement>('a[href^="/c/"]'));
       const hiddenTiles = tiles.filter((el) => getComputedStyle(el).opacity !== "1").length;
       const lane = document.querySelector<HTMLElement>('[data-testid="mandi-ticker"] > div');
       return {

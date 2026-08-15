@@ -7,7 +7,6 @@ import {
   Card,
   CategoryGroup,
   CategoryTile,
-  CountUp,
   CropChip,
   DeadlineItem,
   DeadlinesBar,
@@ -22,7 +21,6 @@ import {
   Marquee,
   RatingStars,
   ReviewCard,
-  Reveal,
   SeasonCalendar,
   SeasonNote,
   Section,
@@ -66,6 +64,13 @@ const SITE = "https://agri.in";
 
 // Per-request: the page renders the VISITOR's pincode (their `agri_loc`
 // cookie) — same contract as milk's U1 home.
+/** The A1 stats format (thousands → Indian grouping + "+"), server-side —
+ * the CountUp island's formatCount is client-module-bound, and the band now
+ * renders static finals (motion deferred under the AG-A8 floor). */
+function statValue(n: number): string {
+  return n >= 1000 ? `${n.toLocaleString("en-IN")}+` : String(n);
+}
+
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
@@ -341,11 +346,17 @@ export default async function HomePage() {
           title={t("agriHome.categories.title")}
           className="pb-0"
         >
+          {/* A1's reveal/stagger/count-up motion is DEFERRED on the home:
+              ~15 hydration islands walking a 6000px DOM were the measured
+              anchor under the AG-A8 0.90 floor (Decision 3 outranks
+              decorative motion; the milk StatBand precedent). The static
+              state below IS the reference's reduced-motion fallback; /demo
+              keeps the full motion spec. Recorded in polish-a1.md §0. */}
           <Eyebrow className="-mt-3">{t("agriHome.categories.eyebrow")}</Eyebrow>
           {groups.map((group) => {
             const style = GROUP_STYLE[group.key];
             return (
-              <Reveal key={group.key}>
+              <div key={group.key}>
                 <CategoryGroup
                   label={
                     <>
@@ -358,7 +369,7 @@ export default async function HomePage() {
                     </>
                   }
                 >
-                  {group.items.map((vertical, index) => {
+                  {group.items.map((vertical) => {
                     const label = vertical.name[locale] ?? vertical.name["en"] ?? vertical.slug;
                     // UX law 1: EN + mother tongue on every tile. name.ta is
                     // the vernacular line; on /ta itself (where the label IS
@@ -367,15 +378,7 @@ export default async function HomePage() {
                     const vernacular =
                       locale === "ta" ? (vertical.name["en"] ?? "") : (vertical.name["ta"] ?? "");
                     return (
-                      // A1 staggered pop-in: the wrapper joins the group's
-                      // Reveal (hidden until the group intersects, pops with
-                      // i×45ms delay); under reduced motion / no JS the tile
-                      // is simply visible.
-                      <div
-                        key={vertical.slug}
-                        style={{ animationDelay: `${index * 45}ms` }}
-                        className="group-data-[in=false]/reveal:opacity-0 group-data-[in=true]/reveal:animate-pop motion-reduce:!animate-none motion-reduce:!opacity-100"
-                      >
+                      <div key={vertical.slug}>
                         <CategoryTile
                           href={`/c/${vertical.slug}`}
                           icon={vertical.icon}
@@ -389,7 +392,7 @@ export default async function HomePage() {
                     );
                   })}
                 </CategoryGroup>
-              </Reveal>
+              </div>
             );
           })}
           <p className="mt-2.5 text-[11.5px] text-muted">
@@ -447,7 +450,7 @@ export default async function HomePage() {
                 {t("agriHome.mandi.stamp", { source: today.mandi.source, asOf: today.mandi.as_of })}
               </span>
             </div>
-            <Reveal className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+            <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
               {today.mandi.commodities.slice(0, 8).map((c) => {
                 const change = priceChange(c.change);
                 const rangeParts = [
@@ -479,7 +482,7 @@ export default async function HomePage() {
                   />
                 );
               })}
-            </Reveal>
+            </div>
           </section>
         ) : null}
 
@@ -496,7 +499,7 @@ export default async function HomePage() {
             <h2 className="mb-3.5 font-display text-xl font-extrabold">
               {t("agriHome.calendar.title")}
             </h2>
-            <Reveal>
+            <div>
               <SeasonCalendar
                 months={today.calendar.months.map((m) => ({
                   label: m.label,
@@ -521,7 +524,7 @@ export default async function HomePage() {
                   </CropChip>
                 ))}
               </SeasonCalendar>
-            </Reveal>
+            </div>
           </section>
         ) : null}
 
@@ -622,7 +625,7 @@ export default async function HomePage() {
             <h2 className="mb-3.5 font-display text-xl font-extrabold">
               {t("agriHome.schemes.title")}
             </h2>
-            <Reveal className="grid gap-2.5 md:grid-cols-3">
+            <div className="grid gap-2.5 md:grid-cols-3">
               {today.schemes.items.slice(0, 3).map((scheme) => (
                 <div
                   key={scheme.url}
@@ -662,7 +665,7 @@ export default async function HomePage() {
                   </a>
                 </div>
               ))}
-            </Reveal>
+            </div>
             {today.schemes.deadlines.length > 0 ? (
               <DeadlinesBar
                 data-testid="deadlines-bar"
@@ -698,7 +701,7 @@ export default async function HomePage() {
           <h2 className="mb-3.5 font-display text-xl font-extrabold">
             {t("agriHome.sarkari.title")}
           </h2>
-          <Reveal className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-3">
+          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-3">
             {SARKARI_LINKS.map((link) => (
               <a
                 key={link.key}
@@ -727,7 +730,7 @@ export default async function HomePage() {
                 </span>
               </a>
             ))}
-          </Reveal>
+          </div>
         </section>
 
         {/* §10 — directory row: businesses covering the visitor's pincode,
@@ -978,11 +981,11 @@ export default async function HomePage() {
           <StatBand label={t("agriHome.stats.label")} data-testid="stats-band" className="mt-5">
             <StatCell
               first
-              value={<CountUp end={verticals.length} />}
+              value={statValue(verticals.length)}
               label={t("agriHome.stats.verticals")}
             />
             {reviewCount > 0 ? (
-              <StatCell value={<CountUp end={reviewCount} />} label={t("agriHome.stats.reviews")} />
+              <StatCell value={statValue(reviewCount)} label={t("agriHome.stats.reviews")} />
             ) : null}
           </StatBand>
         ) : null}
@@ -992,7 +995,7 @@ export default async function HomePage() {
             (nums omitted until a real consented story replaces it). */}
         <Section title={t("agriHome.pillars.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <Eyebrow className="-mt-3">{t("agriHome.pillars.eyebrow")}</Eyebrow>
-          <Reveal className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             <TrustPillar
               icon="🆓"
               tint="green"
@@ -1017,7 +1020,7 @@ export default async function HomePage() {
               title={t("agriHome.pillars.p4t")}
               sub={t("agriHome.pillars.p4d")}
             />
-          </Reveal>
+          </div>
           <StoryCard
             className="mt-3"
             quote={t("agriHome.story.quote")}

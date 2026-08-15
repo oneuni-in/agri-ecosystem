@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 
+import { AgriBottomNav } from "./agri-bottom-nav";
+import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
 /** Design Spec §1.1 switches brand tokens off this attribute. */
@@ -24,10 +26,16 @@ export default async function RootLayout({
   const locale = await getLocale();
   return (
     <html lang={locale} data-theme={THEME} className={fontVariables}>
-      <body>
+      {/* A1 §23: the bottom nav is `position: fixed`, so the body reserves
+          its height (plus the iOS safe-area inset) — otherwise the last
+          footer row sits underneath it. `md:pb-0` drops the reservation
+          where the bar itself is hidden (milk's §12 lesson, verbatim). */}
+      <body className="pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
         <NextIntlClientProvider>
           <SiteHeader />
           {children}
+          <SiteFooter />
+          <AgriBottomNav />
         </NextIntlClientProvider>
       </body>
     </html>

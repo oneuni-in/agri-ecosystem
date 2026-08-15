@@ -38,6 +38,19 @@ export { SearchBar } from "./components/search-bar";
 export type { SearchBarProps } from "./components/search-bar";
 export { Skeleton } from "./components/skeleton";
 export { SponsoredBadge } from "./components/sponsored-badge";
+export {
+  acresToHectares,
+  emi,
+  fertilizerPlan,
+  HA_PER_ACRE,
+  NPK_PRESETS_KG_PER_HA,
+  SEED_RATE_KG_PER_HA,
+  seedRequirementKg,
+  SPRAY_VOLUME_L_PER_ACRE,
+  sprayMlPerTank,
+  tanksPerAcre,
+} from "./lib/agri-calculators";
+export type { FertilizerPlan, NpkCrop, NpkDose, SeedCrop } from "./lib/agri-calculators";
 export { cn } from "./lib/cn";
 export { fetchCoinsBalance } from "./lib/coins-balance";
 export {

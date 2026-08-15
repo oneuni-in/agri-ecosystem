@@ -193,6 +193,7 @@ export function MandiCard({
   range,
   share,
   className,
+  ...rest
 }: {
   emoji: string;
   name: string;
@@ -209,9 +210,12 @@ export function MandiCard({
   /** A ShareChip, when the payload carries a share link. */
   share?: ReactNode;
   className?: string;
-}) {
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "className">) {
   return (
-    <div className={cn("relative rounded-card border border-cream-line bg-card px-3.5 py-3", className)}>
+    <div
+      className={cn("relative rounded-card border border-cream-line bg-card px-3.5 py-3", className)}
+      {...rest}
+    >
       {share}
       <div className="flex items-center gap-2">
         <span aria-hidden="true" className="text-[22px]">

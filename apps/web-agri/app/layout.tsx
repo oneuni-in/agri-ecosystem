@@ -33,6 +33,8 @@ const CLIENT_NAMESPACES = [
   "notifications",
   "localeSwitcher",
   "agriHome.alert", // MandiAlertCard island
+  "agriHome.soonPage", // /c/[slug] NotifyMeForm island
+  "tools", // /tools calculator island
 ] as const;
 
 function pickClientMessages(all: Record<string, unknown>): Record<string, unknown> {

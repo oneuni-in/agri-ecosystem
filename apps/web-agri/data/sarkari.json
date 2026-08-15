@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "key": "pmKisan",
+      "url": "https://pmkisan.gov.in/BeneficiaryStatus_New.aspx",
+      "domain": "pmkisan.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "🏛️"
+    },
+    {
+      "key": "patta",
+      "url": "https://eservices.tn.gov.in/eservicesnew/index.html",
+      "domain": "eservices.tn.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "📜"
+    },
+    {
+      "key": "pmfby",
+      "url": "https://pmfby.gov.in/",
+      "domain": "pmfby.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "☂️"
+    },
+    {
+      "key": "agristack",
+      "url": "https://agristack.gov.in/",
+      "domain": "agristack.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "🪪"
+    },
+    {
+      "key": "shc",
+      "url": "https://soilhealth.dac.gov.in/",
+      "domain": "soilhealth.dac.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "🧫"
+    },
+    {
+      "key": "enam",
+      "url": "https://enam.gov.in/web/",
+      "domain": "enam.gov.in",
+      "verified_on": "2026-08-15",
+      "icon": "🏪"
+    }
+  ]
+}

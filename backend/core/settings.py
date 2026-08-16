@@ -182,6 +182,24 @@ class Settings(BaseSettings):
     # Kill switch for scripts/geo_tier_nightly.py.
     geo_tier_job_enabled: bool = True
 
+    # --- A-U2 W1: weather (Open-Meteo) ----------------------------------
+    # Open-Meteo needs no API key on the free tier, but the base URL is
+    # config so tests point at a local double and a future self-hosted
+    # instance is an env change, not a deploy (spec A-U2 W1).
+    open_meteo_base_url: str = "https://api.open-meteo.com"
+    open_meteo_timeout_seconds: float = 8.0
+    # One retry only: this call sits in a public request path behind a
+    # cache; a long retry budget would turn an upstream slowdown into our
+    # own latency. A miss serves stale (honest degradation) instead.
+    open_meteo_retries: int = 1
+    # Fresh window per pincode. 30 min matches the upstream model refresh
+    # cadence; below that we would burn quota for identical numbers.
+    weather_cache_ttl_seconds: int = 1800
+    # Last-known-good retention. An upstream outage inside this window
+    # serves the previous payload with its real (stale) as-of stamp
+    # visible; past it, the weather section goes empty rather than lie.
+    weather_stale_ttl_seconds: int = 86400
+
 
 @lru_cache
 def get_settings() -> Settings:

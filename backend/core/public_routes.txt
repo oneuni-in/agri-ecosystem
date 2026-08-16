@@ -66,8 +66,11 @@
 # (D27.B) - branch addresses are already public on the business page; no
 # contact fields in the response; bounded LIMIT 10, no cursor to walk.
 /directory/businesses/{slug}/nearby-branches
-# /market/today/{pincode}: A-U1 read-only Today payload (weather+mandi+
-# schemes+calendar). STUB-UNTIL-A-U2 behind the agri_today flag (404 when
-# off). Reference-data class like /catalog/verticals: no user data, no
-# mutation, strict 6-digit path validation, deterministic fixtures.
+# /market/today/{pincode}: read-only Today payload (weather+mandi+
+# schemes+calendar) behind the agri_today flag (404 when off).
+# Reference-data class like /catalog/verticals: no user data, no
+# mutation, strict 6-digit path validation. A-U2 W1 made the weather
+# half real (Open-Meteo via a per-pincode cache); the pincode is the
+# only input and it is already public on every directory URL. Mandi,
+# calendar and schemes are A-U1 fixtures until W2/W3.
 /market/today/{pincode}

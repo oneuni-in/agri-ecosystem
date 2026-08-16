@@ -65,16 +65,11 @@ async def get_today(
     if not await flag_enabled("agri_today", session=session):
         raise HTTPException(status_code=404, detail="feature_disabled")
 
+    # Contract v2: weather is nullable, so an upstream outage with a cold
+    # cache costs the weather section and nothing else. mandi and the
+    # calendar keep serving from our own tables.
     weather = await get_weather(session, pincode)
-    if weather is None:
-        # The frozen contract makes `weather` non-nullable, so a payload
-        # without it cannot be expressed. 503 -> fetchToday() returns null
-        # -> the whole Today block is absent, which is honest but coarse:
-        # it also hides mandi, which lives in our own tables and is fine.
-        # A-U2 proposes contract v2 making `weather` and `mandi` nullable
-        # so the engines fail independently. OWNER DECISION — not taken here.
-        raise HTTPException(status_code=503, detail="weather_unavailable")
-    weather_block, severe_alert = weather
+    weather_block, severe_alert = weather if weather is not None else (None, None)
 
     # Real ingested prices for the visitor's district. None = "no market
     # data for this area yet", which the empty MandiBlock expresses

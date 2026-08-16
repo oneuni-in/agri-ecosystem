@@ -282,8 +282,11 @@ export async function fetchToday(pincode: string): Promise<TodayPayload | null> 
     });
     if (!res.ok) return null;
     const body = (await res.json()) as TodayPayload;
-    // Minimal shape guard: the two blocks every flag-on section hangs off.
-    if (typeof body !== "object" || body === null || !body.weather || !body.mandi) return null;
+    // Minimal shape guard. NOT a weather check: contract v2 makes
+    // `weather` nullable, so a payload without it is a valid payload
+    // whose weather section is simply absent — the mandi, calendar and
+    // schemes sections must still render.
+    if (typeof body !== "object" || body === null || !body.mandi) return null;
     return body;
   } catch {
     return null;

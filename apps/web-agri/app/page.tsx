@@ -210,17 +210,22 @@ export default async function HomePage() {
         <Wrap>
           <section aria-label={t("agriHome.today.label")} data-testid="today-strip" className="mt-3.5">
             <TodayStrip className="max-md:grid-cols-2 md:[grid-template-columns:1.1fr_1.1fr_1.1fr_1fr]">
-              <TodayTile
-                href="#weather"
-                label={t("agriHome.today.weather")}
-                value={
-                  <>
-                    {today.weather.condition_icon} {today.weather.temp_c}°C
-                  </>
-                }
-                sub={`${today.district ?? today.pincode} · ${pickText(locale, today.weather.condition)}`}
-                go={t("agriHome.today.weatherGo")}
-              />
+              {/* Contract v2: weather can be absent (upstream down, cold
+                  cache). The tile omits itself; the rest of the strip —
+                  mandi, schemes, ask — is unaffected. */}
+              {today.weather ? (
+                <TodayTile
+                  href="#weather"
+                  label={t("agriHome.today.weather")}
+                  value={
+                    <>
+                      {today.weather.condition_icon} {today.weather.temp_c}°C
+                    </>
+                  }
+                  sub={`${today.district ?? today.pincode} · ${pickText(locale, today.weather.condition)}`}
+                  go={t("agriHome.today.weatherGo")}
+                />
+              ) : null}
               {today.mandi.commodities[0] ? (
                 <TodayTile
                   href="#mandi"
@@ -557,8 +562,12 @@ export default async function HomePage() {
 
         {/* §8 — weather: 7-day strip (first cell = today, brand-soft
             highlight), spray advisory, meta chips and the tip — all payload,
-            incl. the source stamp. A1 grid: 2fr / 1.1fr from md. */}
-        {today ? (
+            incl. the source stamp. A1 grid: 2fr / 1.1fr from md.
+            Contract v2: `today.weather` is nullable, so an Open-Meteo
+            outage with a cold cache removes THIS section and nothing
+            else — mandi, the calendar and schemes keep rendering from
+            our own tables. */}
+        {today?.weather ? (
           <section
             id="weather"
             aria-label={t("agriHome.weather.title")}

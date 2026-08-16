@@ -133,8 +133,19 @@ class TodayPayload(BaseModel):
     pincode: str = Field(pattern=r"^\d{6}$")
     district: str | None
     generated_at: str  # ISO timestamp
-    stub: bool  # True until A-U2 replaces fixtures with workers
-    weather: WeatherBlock
+    stub: bool  # pinned False since A-U2: no fixture data is served
+    # CONTRACT v2 (A-U2, owner-approved). v1 made this non-nullable, which
+    # coupled the two engines: an Open-Meteo outage with a cold cache had
+    # to 503 the whole endpoint, taking mandi and the calendar down with
+    # it even though both were healthy and living in our own tables.
+    # Nullable weather lets them fail independently — the home renders the
+    # sections it has and omits the one it does not.
+    #
+    # `mandi` and `calendar` stay non-nullable ON PURPOSE: both already
+    # have honest empty representations (an empty commodity list, an empty
+    # month strip) that the UI renders as real empty states, so making
+    # them nullable would buy nothing and widen the change.
+    weather: WeatherBlock | None
     severe_alert: SevereAlert | None
     mandi: MandiBlock
     calendar: CalendarBlock

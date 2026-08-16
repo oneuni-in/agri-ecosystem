@@ -162,9 +162,19 @@ export interface TodayPayload {
   readonly pincode: string;
   readonly district: string | null;
   readonly generated_at: string;
-  /** True until A-U2 replaces fixtures with real workers. */
+  /** Pinned false since A-U2: no fixture data is served. */
   readonly stub: boolean;
-  readonly weather: WeatherBlock;
+  /**
+   * CONTRACT v2 (A-U2, owner-approved). v1 was non-nullable, which meant
+   * an Open-Meteo outage had to fail the WHOLE payload — hiding mandi and
+   * the calendar, which live in our own tables and were healthy. Null now
+   * means "no weather to show"; every other section still renders.
+   *
+   * `mandi` and `calendar` stay non-nullable: both already express
+   * emptiness honestly (no commodities / no months) and the UI renders
+   * those as real empty states.
+   */
+  readonly weather: WeatherBlock | null;
   readonly severe_alert: SevereAlert | null;
   readonly mandi: MandiBlock;
   readonly calendar: CalendarBlock;

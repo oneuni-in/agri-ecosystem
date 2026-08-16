@@ -11,7 +11,8 @@ What these lock down:
     week, one on an IMD heavy-rain day);
   - the spray window and tip are computed from the numbers;
   - honest degradation: upstream down + warm cache serves stale WITH a
-    visible as-of stamp; upstream down + cold cache serves nothing.
+    visible as-of stamp; upstream down + cold cache costs the weather
+    section ALONE (contract v2) — mandi and schemes keep serving.
 """
 
 from __future__ import annotations
@@ -282,7 +283,7 @@ async def test_outage_with_a_warm_cache_serves_stale_with_a_visible_stamp(
     assert "AM" in source or "PM" in source
 
 
-async def test_outage_with_a_cold_cache_shows_nothing_rather_than_lying(
+async def test_outage_with_a_cold_cache_costs_only_the_weather_section(
     api: tuple[httpx.AsyncClient, AsyncSession],
     tn_geo_sample: None,
     otp_redis: object,
@@ -296,9 +297,16 @@ async def test_outage_with_a_cold_cache_shows_nothing_rather_than_lying(
 
     monkeypatch.setattr(service, "fetch_forecast", _down)
 
+    # MOVED from a 503 (contract v2): the outage now costs the WEATHER
+    # section and nothing else. The payload still serves, so mandi, the
+    # calendar and schemes survive an Open-Meteo outage.
     response = await client.get(f"/market/today/{PINCODE}")
-    assert response.status_code == 503
-    assert response.json()["detail"] == "weather_unavailable"
+    assert response.status_code == 200
+    body = response.json()
+    assert body["weather"] is None
+    assert body["severe_alert"] is None  # derived from weather, so also absent
+    assert body["mandi"]["source"] == "Agmarknet"  # our own tables, unaffected
+    assert body["schemes"]["items"], "schemes are rows, not weather"
 
 
 async def test_pincode_outside_the_loaded_geography_has_no_weather(
@@ -308,9 +316,12 @@ async def test_pincode_outside_the_loaded_geography_has_no_weather(
 ) -> None:
     client, session = api
     await _enable(session)
-    # 110001 (Delhi) is not in the TN-only geo snapshot.
+    # 110001 (Delhi) is not in the TN-only geo snapshot, so there is no
+    # centroid to forecast against. MOVED from 503: the payload serves
+    # with weather absent rather than failing wholesale.
     response = await client.get("/market/today/110001")
-    assert response.status_code == 503
+    assert response.status_code == 200
+    assert response.json()["weather"] is None
 
 
 async def test_flag_off_is_still_a_404(

@@ -19,6 +19,27 @@ only input (`scripts/load_geo.py`); CI never touches the network.
   contains uppercase English, not Tamil script. Fill from an authoritative
   Tamil source in a later pass.
 
+### D8 update — full-India states (2026-08-16)
+
+States extended from Tamil Nadu only to all 28 states + 8 UTs, fetched from the
+same LGD resource on 2026-08-16, for the agri-colleges national corpus.
+**Districts remain Tamil Nadu only** — full-India districts/blocks/villages
+still load at D65. `institutions.district_id` is nullable for this reason.
+
+data.gov.in resource `a71e60f0-a21d-43de-a6c5-fa5d21600cdb` requires a
+registered API key (the public sample key returns `"Key not authorised"`),
+which this environment does not have. Per the documented fallback, the
+canonical directory `https://lgdirectory.gov.in/globalviewstateforcitizen.do`
+was used instead: its "LGD Codes of State/UTs" table was fetched and parsed
+directly from the page's HTML (`State LGD Code`, `State Name (In English)`,
+`State or UT` columns) — not retyped from memory. The page's own summary
+tile also states "36" entities = "28 States" + "8 Union Territories",
+matching the parsed row count. `lgd_code` 33 = Tamil Nadu, State — matches
+the existing row, confirming the same code space. English names are kept
+verbatim as LGD spells them (e.g. "Jammu And Kashmir", "The Dadra And Nagar
+Haveli And Daman And Diu"). `name_ta` stays empty for every row, same
+rationale as the TN row above.
+
 ## pincodes.csv — geonames + India Post
 
 - Base: GeoNames postal-code dataset for India (CC BY 4.0),

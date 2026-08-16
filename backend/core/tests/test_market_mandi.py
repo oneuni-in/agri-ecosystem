@@ -168,6 +168,85 @@ async def test_a_misplaced_decimal_is_quarantined(db_session: AsyncSession) -> N
     assert row.quarantine_reason == "outlier_vs_median"
 
 
+async def test_a_misplaced_decimal_the_OTHER_WAY_is_quarantined(db_session: AsyncSession) -> None:
+    """A decimal is as likely to divide by ten as to multiply by it.
+
+    Rs 2400/qtl published as Rs 240 renders a Rs 2.40/kg card where
+    Rs 24.00 belongs, and it clears every sanity check because min, modal
+    and max all shift together. A price that looks like a market collapse
+    is at least as damaging to someone deciding whether to cart a load in
+    as one that looks like a spike.
+    """
+    for day in range(1, 11):
+        await ingest_records(db_session, _records([_row(arrival_date=f"{day:02d}/08/2026")]))
+    result = await ingest_records(
+        db_session,
+        _records([_row(arrival_date="12/08/2026", min_price=239, max_price=241, modal_price=240)]),
+    )
+    assert result.quarantined == 1
+    row = (
+        await db_session.scalars(select(PriceRow).where(PriceRow.arrival_date == date(2026, 8, 12)))
+    ).one()
+    assert row.quarantine_reason == "outlier_below_median"
+
+
+async def test_a_new_markets_first_row_is_checked_against_the_commodity(
+    db_session: AsyncSession,
+) -> None:
+    """Markets are created from the feed continuously, so "no history for
+    this pair" is not a one-time day-one condition — and because the
+    source serves only the live day, a row waved through now can never be
+    revalidated later. The check widens to the commodity across all
+    markets rather than skipping."""
+    for day in range(1, 11):
+        await ingest_records(db_session, _records([_row(arrival_date=f"{day:02d}/08/2026")]))
+
+    result = await ingest_records(
+        db_session,
+        _records(
+            [
+                _row(
+                    market="Nellore APMC",  # never seen before
+                    arrival_date="12/08/2026",
+                    min_price=24000,
+                    max_price=24100,
+                    modal_price=24000,
+                )
+            ]
+        ),
+    )
+    assert result.quarantined == 1
+    row = (
+        await db_session.scalars(select(PriceRow).where(PriceRow.arrival_date == date(2026, 8, 12)))
+    ).one()
+    # The reason names the BASIS: quarantined against the commodity across
+    # markets is a weaker claim than against this market's own history, and
+    # ops must be able to tell them apart.
+    assert row.quarantine_reason == "outlier_vs_commodity_median"
+
+
+async def test_the_very_first_row_has_nothing_to_compare_against(
+    db_session: AsyncSession,
+) -> None:
+    """The accepted gap, written down rather than discovered later: with
+    no history anywhere for a commodity, no median exists and the row is
+    accepted. market.ingest_runs is what records that the day was
+    ingested at all (ADR-0012)."""
+    result = await ingest_records(db_session, _records([_row()]))
+    assert result.written == 1
+    assert result.quarantined == 0
+
+
+async def test_the_batch_reports_the_day_it_carried(db_session: AsyncSession) -> None:
+    """The run ledger records WHICH day a pull captured, so it stays
+    answerable even when every row was skipped as uncurated."""
+    result = await ingest_records(db_session, _records(LIVE_ROWS))
+    assert result.newest_arrival_date == date(2026, 8, 16)
+    # A batch with no records reports no day rather than a fabricated one.
+    empty = await ingest_records(db_session, [])
+    assert empty.newest_arrival_date is None
+
+
 # ── read path ────────────────────────────────────────────────────────
 
 

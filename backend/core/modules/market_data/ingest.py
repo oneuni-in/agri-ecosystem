@@ -7,9 +7,14 @@ Three checks stand between a government feed and a farmer's screen:
      and skipped, never auto-created.
   2. SANITY. min <= modal <= max, and no non-positive price. A row that
      fails is QUARANTINED, not dropped: ops can see what arrived.
-  3. OUTLIERS. A modal price more than `mandi_outlier_factor` times the
-     trailing median for that commodity+market is quarantined. This is
-     the defence against a misplaced decimal reaching a price card.
+  3. OUTLIERS. A modal price at or beyond `mandi_outlier_factor` times
+     the trailing median for that commodity+market — in EITHER direction
+     — is quarantined. This is the defence against a misplaced decimal
+     reaching a price card, and a decimal is as likely to divide by ten
+     as to multiply by it. Where a market has no history of its own the
+     comparison widens to the commodity across all markets rather than
+     skipping: the source serves only the live day, so a row waved
+     through now can never be revalidated later (ADR-0012).
 
 Quarantined rows keep their reason and are never returned by a read path
 that feeds the site.
@@ -46,6 +51,10 @@ class IngestResult:
     written: int = 0
     quarantined: int = 0
     skipped_uncurated: int = 0
+    # The newest arrival_date the batch carried, or None for an empty
+    # batch. Recorded on the run ledger so "did we ever hold 16 Aug?"
+    # stays answerable even when every row was skipped as uncurated.
+    newest_arrival_date: date | None = None
 
     def as_dict(self) -> dict[str, int]:
         return {
@@ -103,21 +112,29 @@ async def _market_for(session: AsyncSession, record: PriceRecord) -> Market:
 
 
 async def _trailing_median(
-    session: AsyncSession, commodity_id: uuid.UUID, market_id: uuid.UUID, before: date
+    session: AsyncSession,
+    commodity_id: uuid.UUID,
+    market_id: uuid.UUID | None,
+    before: date,
 ) -> Decimal | None:
+    """Median modal price in the trailing window, or None if no history.
+
+    `market_id=None` widens the comparison to the same commodity across
+    every market — used only when this market has no history of its own
+    (see _outlier_reason). The candidate row is never in its own
+    comparison set: the window ends strictly before its arrival date.
+    """
     settings = get_settings()
     window_start = before - timedelta(days=settings.mandi_median_window_days)
-    values = (
-        await session.scalars(
-            select(PriceRow.modal_price_qtl).where(
-                PriceRow.commodity_id == commodity_id,
-                PriceRow.market_id == market_id,
-                PriceRow.status == STATUS_ACTIVE,
-                PriceRow.arrival_date >= window_start,
-                PriceRow.arrival_date < before,
-            )
-        )
-    ).all()
+    conditions = [
+        PriceRow.commodity_id == commodity_id,
+        PriceRow.status == STATUS_ACTIVE,
+        PriceRow.arrival_date >= window_start,
+        PriceRow.arrival_date < before,
+    ]
+    if market_id is not None:
+        conditions.append(PriceRow.market_id == market_id)
+    values = (await session.scalars(select(PriceRow.modal_price_qtl).where(*conditions))).all()
     if not values:
         return None
     ordered = sorted(values)
@@ -127,10 +144,75 @@ async def _trailing_median(
     return (ordered[middle - 1] + ordered[middle]) / 2
 
 
+# Reason codes by (comparison basis, direction). Ops reads these, so the
+# basis is part of the code: "quarantined against this market's own
+# history" and "quarantined against the commodity across all markets" are
+# different levels of confidence and must not look identical.
+_OUTLIER_REASONS = {
+    ("market", "high"): "outlier_vs_median",
+    ("market", "low"): "outlier_below_median",
+    ("commodity", "high"): "outlier_vs_commodity_median",
+    ("commodity", "low"): "outlier_below_commodity_median",
+}
+
+
+async def _outlier_reason(
+    session: AsyncSession,
+    commodity_id: uuid.UUID,
+    market_id: uuid.UUID,
+    record: PriceRecord,
+) -> str | None:
+    """Quarantine reason for an implausible price, or None.
+
+    TWO-SIDED ON PURPOSE. A misplaced decimal is as likely to divide by
+    ten as to multiply by it, and Rs 2400/qtl published as Rs 240 renders
+    a Rs 2.40/kg card where Rs 24.00 belongs. That passes every sanity
+    check — min <= modal <= max still holds when all three shift together
+    — so the median comparison is the only thing standing in front of it.
+    A price that looks like a market collapse is at least as damaging to
+    someone deciding whether to cart a load in as one that looks like a
+    spike.
+
+    FIRST-ROW FALLBACK. A commodity+market pair with no history has no
+    median to compare against, and markets are created from the feed
+    continuously, so this is not a one-time day-one condition. Because
+    the source only serves the live day, an unchecked row can never be
+    revalidated later. So the check widens to the same commodity across
+    every market rather than waving the row through: mandi prices for one
+    commodity differ between markets, but not by an order of magnitude.
+    """
+    settings = get_settings()
+    factor = Decimal(str(settings.mandi_outlier_factor))
+    if factor <= 1:  # a factor of 1 or less would quarantine everything
+        return None
+
+    basis = "market"
+    median = await _trailing_median(session, commodity_id, market_id, record.arrival_date)
+    if median is None:
+        basis = "commodity"
+        median = await _trailing_median(session, commodity_id, None, record.arrival_date)
+    if median is None or median <= 0:
+        # Genuinely nothing to compare against. The row is accepted and the
+        # run ledger (market.ingest_runs) is what records that this day was
+        # ingested at all — see ADR-0012.
+        return None
+
+    # >= and <=, not > and <: the classic misplaced decimal lands EXACTLY
+    # on the factor, so strict comparisons would wave through the very
+    # error these checks exist to catch.
+    if record.modal_price_qtl >= median * factor:
+        return _OUTLIER_REASONS[(basis, "high")]
+    if record.modal_price_qtl * factor <= median:
+        return _OUTLIER_REASONS[(basis, "low")]
+    return None
+
+
 async def ingest_records(session: AsyncSession, records: list[PriceRecord]) -> IngestResult:
     """Write a fetched batch. Safe to re-run: the natural key upserts."""
-    settings = get_settings()
-    result = IngestResult(fetched=len(records))
+    result = IngestResult(
+        fetched=len(records),
+        newest_arrival_date=max((r.arrival_date for r in records), default=None),
+    )
     commodities = await _commodity_index(session)
 
     for record in records:
@@ -143,16 +225,7 @@ async def ingest_records(session: AsyncSession, records: list[PriceRecord]) -> I
 
         reason = _sanity_reason(record)
         if reason is None:
-            median = await _trailing_median(session, commodity.id, market.id, record.arrival_date)
-            if (
-                median is not None
-                and median > 0
-                # >=, not >: the classic misplaced decimal is EXACTLY ten
-                # times the median, so a strict comparison would wave
-                # through the very error this check exists to catch.
-                and record.modal_price_qtl >= median * Decimal(str(settings.mandi_outlier_factor))
-            ):
-                reason = "outlier_vs_median"
+            reason = await _outlier_reason(session, commodity.id, market.id, record)
 
         status = STATUS_QUARANTINED if reason else STATUS_ACTIVE
         if reason:

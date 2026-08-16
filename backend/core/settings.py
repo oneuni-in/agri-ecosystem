@@ -217,6 +217,18 @@ class Settings(BaseSettings):
     mandi_median_window_days: int = 30
     # Kill switch for scripts/mandi_pull.py.
     mandi_ingest_enabled: bool = True
+    # Hour (IST, 24h) the mandi-cron container wakes to pull. Evening, not
+    # morning: the resource is published progressively as each mandi
+    # reports, so a 6 AM pull captures an almost empty day (measured
+    # 2026-08-16 — 58 rows nationwide at 08:48 IST). Re-running later is
+    # free (the natural key upserts), so a late pull costs nothing and an
+    # early one costs the day.
+    mandi_pull_hour_ist: int = 19
+    # Same-day retry: an un-pulled day is permanently unrecoverable
+    # (ADR-0012), so a failed pull is retried within the day rather than
+    # waiting for tomorrow.
+    mandi_pull_retry_minutes: int = 45
+    mandi_pull_retries: int = 3
 
 
 @lru_cache

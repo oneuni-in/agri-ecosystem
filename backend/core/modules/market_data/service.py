@@ -27,7 +27,7 @@ from dataclasses import asdict
 from datetime import date, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from settings import get_settings
@@ -35,15 +35,31 @@ from shared.cache import get_redis
 from shared.geo.service import centroid_for_pincode, district_for_pincode
 from shared.telemetry import get_logger
 
-from .models import STATUS_ACTIVE, Commodity, Market, PriceRow, per_kg
+from .models import (
+    STATUS_ACTIVE,
+    Commodity,
+    CropCalendar,
+    Market,
+    Msp,
+    PriceRow,
+    Scheme,
+    SchemeDeadline,
+    per_kg,
+)
 from .open_meteo import Forecast, OpenMeteoError, fetch_forecast
 from .schemas import (
+    CalendarBlock,
+    CalendarMonth,
+    CropWindow,
     MandiBlock,
     MandiCommodity,
+    SchemeItem,
+    SchemesBlock,
     SevereAlert,
     TranslatedText,
     WeatherBlock,
 )
+from .schemas import SchemeDeadline as SchemeDeadline_
 from .weather import SOURCE, build_weather, day_stamp, derive_severe_alert, now_ist
 
 logger = get_logger(__name__)
@@ -234,6 +250,9 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         ):
             best[slug] = entries
 
+    # MSP overlay, where a verified row exists for the commodity.
+    notes = await msp_notes(session)
+
     commodities: list[MandiCommodity] = []
     latest_date: date | None = None
     market_name = ""
@@ -279,7 +298,7 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
                 # Agmarknet's daily-price resource publishes no arrivals
                 # figure, so this stays null rather than invented.
                 arrivals_qtl=None,
-                note=None,
+                note=notes.get(commodity.id),
             )
         )
 
@@ -290,3 +309,141 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         source="Agmarknet",
         commodities=commodities,
     )
+
+
+# ── schemes + calendar + MSP (W3) ────────────────────────────────────
+
+# The A1 strip shows eight months starting two before the current one, so
+# "now" sits in context rather than at the left edge.
+_STRIP_MONTHS = 8
+_STRIP_LOOKBACK = 2
+_MONTH_LABELS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+async def get_schemes(session: AsyncSession, today: date | None = None) -> SchemesBlock:
+    """Scheme cards + the deadline chips still worth showing.
+
+    A deadline whose `due_on` has passed is dropped rather than served:
+    advertising a window that closed is worse than showing nothing.
+    Rolling obligations (due_on NULL) always survive.
+    """
+    now = today or now_ist().date()
+
+    schemes = (await session.scalars(select(Scheme).order_by(Scheme.sort_order, Scheme.id))).all()
+    deadlines = (
+        await session.scalars(
+            select(SchemeDeadline)
+            .where(
+                or_(SchemeDeadline.due_on.is_(None), SchemeDeadline.due_on >= now),
+            )
+            .order_by(SchemeDeadline.sort_order, SchemeDeadline.id)
+        )
+    ).all()
+
+    return SchemesBlock(
+        items=[
+            SchemeItem(
+                level=row.level,
+                state_label=TranslatedText(**row.state_label) if row.state_label else None,
+                title=TranslatedText(**row.title),
+                body=TranslatedText(**row.body),
+                verified_against=row.verified_against,
+                verified_on=row.verified_on,
+                url=row.url,
+                link_label=TranslatedText(**row.link_label),
+            )
+            for row in schemes
+        ],
+        deadlines=[
+            SchemeDeadline_(
+                chip=row.chip,
+                title=TranslatedText(**row.title),
+                note=TranslatedText(**row.note) if row.note else None,
+            )
+            for row in deadlines
+        ],
+    )
+
+
+def _crop_windows(entries: list[dict[str, Any]]) -> list[CropWindow]:
+    return [
+        CropWindow(
+            icon=str(entry.get("icon") or ""),
+            label=TranslatedText(**entry["label"]),
+            until=TranslatedText(**entry["until"]) if entry.get("until") else None,
+        )
+        for entry in entries
+    ]
+
+
+async def get_calendar(
+    session: AsyncSession, pincode: str, today: date | None = None
+) -> CalendarBlock | None:
+    """The crop calendar for the zone covering this pincode's district.
+
+    None when no zone claims the district — an honest "we have not written
+    a calendar for your area" rather than another zone's sowing dates,
+    which would be actively harmful advice.
+    """
+    district = await district_for_pincode(session, pincode)
+    if district is None:
+        return None
+
+    zones = (await session.scalars(select(CropCalendar))).all()
+    zone = next((row for row in zones if district.name in (row.districts or [])), None)
+    if zone is None:
+        return None
+
+    now = today or now_ist().date()
+    in_season = set(zone.in_season_months or [])
+    months: list[CalendarMonth] = []
+    for offset in range(_STRIP_MONTHS):
+        index = (now.month - 1 - _STRIP_LOOKBACK + offset) % 12
+        months.append(
+            CalendarMonth(
+                label=_MONTH_LABELS[index],
+                in_season=(index + 1) in in_season,
+                current=(index + 1) == now.month,
+            )
+        )
+
+    return CalendarBlock(
+        zone=TranslatedText(**zone.name),
+        months=months,
+        sowing=_crop_windows(zone.sowing or []),
+        harvesting=_crop_windows(zone.harvesting or []),
+    )
+
+
+async def msp_notes(session: AsyncSession) -> dict[uuid.UUID, TranslatedText]:
+    """commodity_id -> the MSP note rendered on its price card.
+
+    Empty while market.msp is empty (0039 seeds no rows on purpose), so
+    the overlay simply does not appear until a human has verified the
+    numbers against CACP/PIB.
+    """
+    rows = (await session.scalars(select(Msp))).all()
+    notes: dict[uuid.UUID, TranslatedText] = {}
+    for row in rows:
+        # Shown in the same per-kg unit as the price beside it, so the two
+        # numbers are directly comparable.
+        rupees = per_kg(row.price_qtl)
+        notes[row.commodity_id] = TranslatedText(
+            en=f"MSP ₹{rupees}",
+            ta=f"MSP ₹{rupees}",
+            hi=f"MSP ₹{rupees}",
+        )
+    return notes

@@ -56,6 +56,29 @@ async function setAgriToday(enabled: boolean): Promise<void> {
   await ctx.dispose();
 }
 
+interface TodayShape {
+  stub: boolean;
+  weather: { source: string };
+  severe_alert: unknown | null;
+  mandi: { source: string; as_of: string; commodities: unknown[] };
+  schemes: {
+    items: { verified_against: string; verified_on: string }[];
+    deadlines: { chip: string }[];
+  };
+}
+
+/** The payload the page rendered from. Assertions compare the DOM against
+ * THIS rather than against literals, so the spec keeps binding as the real
+ * data underneath it changes. */
+async function fetchToday(): Promise<TodayShape> {
+  const ctx = await request.newContext();
+  const response = await ctx.get(`${API}/market/today/641001`);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as TodayShape;
+  await ctx.dispose();
+  return body;
+}
+
 // Leave the flag ON when the suite is done — dev is currently demoing flag-on.
 test.afterAll(async () => {
   await setAgriToday(true);
@@ -121,47 +144,76 @@ test.describe("A-U1 agri_today OFF — sections absent from the DOM", () => {
   });
 });
 
-test.describe("A-U1 agri_today ON — payload-bound sections render", () => {
+test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
   test.beforeAll(async () => {
+    // A-U2: the fixtures are gone, so these sections render whatever the
+    // real engines hold. scripts/e2e-api.mjs seeds their two REAL inputs
+    // (weather cache + ingested price rows) during API boot, so the run is
+    // deterministic and makes no external call.
     await setAgriToday(true);
   });
 
-  test("today strip, severe strip, ticker, 8 mandi cards, anchors present", async ({ page }) => {
+  test("today strip, ticker, mandi cards and anchors match the payload", async ({ page }) => {
+    const today = await fetchToday();
     await page.goto(`${AGRI}/`);
     await waitForHeaderSettled(page);
     await expect(page.getByTestId("today-strip")).toHaveCount(1);
-    await expect(page.getByTestId("severe-alert-strip")).toHaveCount(1);
     await expect(page.getByTestId("mandi-ticker")).toHaveCount(1);
-    await expect(page.getByTestId("mandi-card")).toHaveCount(8);
+    // MOVED from the fixture's hardcoded 8: the DOM must match the payload
+    // the API actually served, whatever the ingest currently holds.
+    expect(today.mandi.commodities.length).toBeGreaterThan(0);
+    await expect(page.getByTestId("mandi-card")).toHaveCount(
+      Math.min(today.mandi.commodities.length, 8),
+    );
+    // The severe strip is DERIVED and rare now (A-U2 W1), so its presence
+    // is bound to the payload rather than assumed.
+    await expect(page.getByTestId("severe-alert-strip")).toHaveCount(today.severe_alert ? 1 : 0);
     for (const anchor of FLAG_ANCHORS) {
       await expect(page.locator(anchor)).toHaveCount(1);
     }
-    await expect(page.getByTestId("scheme-card")).toHaveCount(3);
+    await expect(page.getByTestId("scheme-card")).toHaveCount(today.schemes.items.length);
     await expect(page.getByTestId("deadlines-bar")).toHaveCount(1);
   });
 
-  test("stamps render FROM the stub payload, never hardcoded", async ({ page }) => {
+  test("stamps render FROM the real payload, never hardcoded", async ({ page }) => {
+    const today = await fetchToday();
     await page.goto(`${AGRI}/`);
     await waitForHeaderSettled(page);
-    // §7 row stamp: source + as-of from MandiBlock. (.first(): the text
-    // engine can match an element AND its wrapping span.)
+    // §7 row stamp: source + as-of read back out of MandiBlock. (.first():
+    // the text engine can match an element AND its wrapping span.)
     await expect(
-      page.locator("#mandi").getByText("Agmarknet (stub) · updated 6:00 AM").first(),
+      page
+        .locator("#mandi")
+        .getByText(`${today.mandi.source} · updated ${today.mandi.as_of}`)
+        .first(),
     ).toBeVisible();
-    // §8 meta stamp: WeatherBlock.source verbatim.
-    await expect(
-      page.locator("#weather").getByText("Open-Meteo · IMD alerts (stub)").first(),
-    ).toBeVisible();
-    // §9 verification stamp: verified_against + verified_on from the payload.
+    // §8 meta stamp: WeatherBlock.source verbatim — "Open-Meteo", or the
+    // stale "Open-Meteo · as of …" form during an upstream outage.
+    expect(today.weather.source).toContain("Open-Meteo");
+    await expect(page.locator("#weather").getByText(today.weather.source).first()).toBeVisible();
+    // §9 verification stamp: verified_against + verified_on FROM the row.
+    const scheme = today.schemes.items[0];
     await expect(
       page
         .locator("#schemes")
-        .getByText(/Verified against pmkisan\.gov\.in · 2026-08-12/)
+        .getByText(`Verified against ${scheme.verified_against} · ${scheme.verified_on}`)
         .first(),
     ).toBeVisible();
-    // §9 deadlines: the PMFBY 72-hr intimation chip + helpline number.
+    // §9 deadlines: the PMFBY 72-hr intimation is a ROLLING obligation with
+    // no due date, so it survives every clock and must always be present.
+    expect(today.schemes.deadlines.some((d) => d.chip === "72 HRS")).toBe(true);
     await expect(page.getByTestId("deadlines-bar").getByText("72 HRS").first()).toBeVisible();
     await expect(page.getByTestId("deadlines-bar").getByText(/14447/).first()).toBeVisible();
+  });
+
+  test("nothing on the page claims to be stub data", async ({ page }) => {
+    // AG-A20: the flip deleted market_data/fixtures.py. `stub` is pinned
+    // False, and the fixtures' tell-tale "(stub)" stamps must be gone.
+    const today = await fetchToday();
+    expect(today.stub).toBe(false);
+    await page.goto(`${AGRI}/`);
+    await waitForHeaderSettled(page);
+    await expect(page.getByText(/\(stub\)/)).toHaveCount(0);
   });
 
   test("reduced motion: sparklines fully drawn, tiles opaque, marquee static", async ({
@@ -173,11 +225,17 @@ test.describe("A-U1 agri_today ON — payload-bound sections render", () => {
     // state (stroke-dashoffset 120 on all 8 sparks) — i.e. the inherited
     // emulation was not in effect when the effect sampled matchMedia. Owning
     // the context pins the emulation to this page deterministically.
+    const today = await fetchToday();
     const context = await browser.newContext({ reducedMotion: "reduce" });
     const page = await context.newPage();
     await page.goto(`${AGRI}/`);
     await waitForHeaderSettled(page);
-    await expect(page.getByTestId("mandi-card")).toHaveCount(8);
+    // MOVED from the fixture's hardcoded 8 (A-U2): the sweep must cover
+    // every sparkline the payload actually produced, not a count that only
+    // held while the cards came from fixtures.
+    const expectedCards = Math.min(today.mandi.commodities.length, 8);
+    expect(expectedCards).toBeGreaterThan(0);
+    await expect(page.getByTestId("mandi-card")).toHaveCount(expectedCards);
     const sweep = await page.evaluate(() => {
       const polylines = Array.from(
         document.querySelectorAll<SVGPolylineElement>('[data-testid="mandi-card"] svg polyline'),
@@ -202,7 +260,7 @@ test.describe("A-U1 agri_today ON — payload-bound sections render", () => {
         laneAnimation: lane ? getComputedStyle(lane).animationName : "missing",
       };
     });
-    expect(sweep.polylineCount).toBe(8);
+    expect(sweep.polylineCount).toBe(expectedCards);
     expect(
       sweep.hiddenSparks,
       `sparklines must render fully drawn under reduced motion (offsets: ${sweep.offsets.join(", ")})`,

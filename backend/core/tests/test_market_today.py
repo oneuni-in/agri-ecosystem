@@ -1,8 +1,8 @@
 """GET /market/today/{pincode}: the flag gate + the frozen contract.
 
-A-U1 wrote these against deterministic fixtures. A-U2 W1 made the
-weather half real, so the assertions MOVED rather than went away (spec
-§1 W3: "assert shape + stamp presence, not exact prices"):
+A-U1 wrote these against deterministic fixtures. A-U2 replaced every
+fixture with a real source, so the assertions MOVED rather than went away
+(spec §1 W3: "assert shape + stamp presence, not exact prices"):
 
   - flag OFF is still a 404 and still means the home renders no Today
     section at all — unchanged, this is the A-U1 contract A-U2 inherits;
@@ -12,9 +12,10 @@ weather half real, so the assertions MOVED rather than went away (spec
     assertion: `generated_at` is a real clock now, so identical bytes
     would mean a frozen clock, which is exactly what we removed.
 
-Mandi, calendar and schemes are still A-U1 fixtures here (W2/W3 replace
-them); their assertions are untouched so the swap is visible when it
-happens.
+Nothing here is a fixture any more: weather is Open-Meteo, mandi is
+ingested Agmarknet rows, and calendar/schemes are the 0039 dataset tables.
+`stub` is pinned False, which is the assertion that would fail first if
+fixture data ever came back.
 """
 
 import httpx
@@ -113,10 +114,12 @@ async def test_flag_on_serves_the_frozen_contract(
         assert {"en", "ta", "hi"} <= set(c["name"])
         assert c["price"] == 24.0  # 2400/qtl, converted once
 
-    # W3 still to land: calendar + schemes remain A-U1 fixtures, and
-    # `stub` stays True until the last one is replaced.
-    assert body["stub"] is True
+    # THE FLIP (W3): every block is real now, so `stub` is pinned False
+    # and calendar/schemes come from the 0039 dataset tables.
+    assert body["stub"] is False
     assert len(body["calendar"]["months"]) == 8
+    assert body["calendar"]["zone"]["ta"], "zone name from the dataset row"
+    assert sum(1 for m in body["calendar"]["months"] if m["current"]) == 1
     assert body["schemes"]["items"], "verified scheme entries"
     for item in body["schemes"]["items"]:
         assert item["verified_against"] and item["verified_on"]  # stamp from data

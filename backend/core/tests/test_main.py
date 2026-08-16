@@ -65,7 +65,11 @@ EXPECTED_PUBLIC_ROUTES = [
     "/auth/login",
     "/leads/inquiries",
     "/leads/pincode-interest",
-    "/market/today/{pincode}",  # A-U1 stub-until-A-U2, agri_today-gated
+    "/market/today/{pincode}",  # agri_today-gated home Today payload
+    # A-U2 W3 commodity pages. Ungated on purpose: agri_today is the
+    # HOME strip's kill switch, and these are indexed SEO pages.
+    "/market/commodities",
+    "/market/commodities/{slug}",
     "/reviews",
     "/reviews/summary",
     "/search",

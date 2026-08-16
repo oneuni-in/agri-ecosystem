@@ -362,7 +362,12 @@ export default async function HomePage() {
               decorative motion; the milk StatBand precedent). The static
               state below IS the reference's reduced-motion fallback; /demo
               keeps the full motion spec. Recorded in polish-a1.md §0. */}
-          <Eyebrow className="-mt-3">{t("agriHome.categories.eyebrow")}</Eyebrow>
+          <Eyebrow className="-mt-3">
+            {/* Count comes from the registry read, never a literal:
+                adding a vertical is a migration, and this line must
+                follow it without an app-code change. */}
+            {t("agriHome.categories.eyebrow", { count: verticals.length })}
+          </Eyebrow>
           {groups.map((group) => {
             const style = GROUP_STYLE[group.key];
             return (

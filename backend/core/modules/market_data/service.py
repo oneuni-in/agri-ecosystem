@@ -50,9 +50,12 @@ from .open_meteo import Forecast, OpenMeteoError, fetch_forecast
 from .schemas import (
     CalendarBlock,
     CalendarMonth,
+    CommodityDetail,
+    CommodityListItem,
     CropWindow,
     MandiBlock,
     MandiCommodity,
+    MarketPrice,
     SchemeItem,
     SchemesBlock,
     SevereAlert,
@@ -447,3 +450,138 @@ async def msp_notes(session: AsyncSession) -> dict[uuid.UUID, TranslatedText]:
             hi=f"MSP ₹{rupees}",
         )
     return notes
+
+
+# ── commodity pages (W3) ─────────────────────────────────────────────
+
+
+def _daily_points(rows: list[PriceRow]) -> tuple[list[date], dict[date, PriceRow]]:
+    """Collapse a market's rows to ONE observation per day.
+
+    A market can publish several varieties/grades of the same commodity on
+    the same date; the caller's ordering decides which one represents the
+    day, so the choice is deterministic rather than planner-dependent.
+    """
+    per_day: dict[date, PriceRow] = {}
+    for row in rows:
+        per_day.setdefault(row.arrival_date, row)
+    return sorted(per_day), per_day
+
+
+def _market_price(market: Market, rows: list[PriceRow]) -> MarketPrice:
+    days, per_day = _daily_points(rows)
+    series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+    newest = per_day[days[-1]]
+    previous = per_day[days[-2]] if len(days) > 1 else None
+    return MarketPrice(
+        market_slug=market.slug,
+        market=market.name,
+        district=market.district,
+        price=per_kg(newest.modal_price_qtl),
+        change=(
+            round(per_kg(newest.modal_price_qtl) - per_kg(previous.modal_price_qtl), 2)
+            if previous is not None
+            else 0.0
+        ),
+        series_30d=series,
+        range_low=min(series),
+        range_high=max(series),
+        modal=per_kg(newest.modal_price_qtl),
+        as_of=newest.arrival_date.isoformat(),
+    )
+
+
+async def list_commodities(session: AsyncSession) -> list[CommodityListItem]:
+    """Curated commodities that actually have servable prices.
+
+    Commodities with nothing ingested are omitted rather than listed as
+    empty pages: a page with no data has no business in a sitemap, and
+    the caller uses this list to build one.
+    """
+    rows = (
+        await session.execute(
+            select(
+                Commodity,
+                func.count(func.distinct(PriceRow.market_id)),
+                func.max(PriceRow.arrival_date),
+            )
+            .join(PriceRow, PriceRow.commodity_id == Commodity.id)
+            .where(PriceRow.status == STATUS_ACTIVE)
+            .group_by(Commodity.id)
+            .order_by(Commodity.slug)
+        )
+    ).all()
+    return [
+        CommodityListItem(
+            slug=commodity.slug,
+            name=TranslatedText(**commodity.name),
+            emoji=commodity.emoji,
+            unit=commodity.display_unit,
+            market_count=int(market_count),
+            as_of=newest.isoformat() if newest else "",
+        )
+        for commodity, market_count, newest in rows
+    ]
+
+
+async def get_commodity(session: AsyncSession, slug: str) -> CommodityDetail | None:
+    """One commodity across every market that reported it.
+
+    This single payload backs the whole page: the trend line (each
+    market's own series), the multi-market compare table, and the Dataset
+    JSON-LD. None when the commodity is uncurated or has no servable
+    rows — the page then 404s rather than publishing an empty shell.
+    """
+    commodity = await session.scalar(select(Commodity).where(Commodity.slug == slug))
+    if commodity is None:
+        return None
+
+    newest_day = await session.scalar(
+        select(func.max(PriceRow.arrival_date)).where(
+            PriceRow.commodity_id == commodity.id, PriceRow.status == STATUS_ACTIVE
+        )
+    )
+    if newest_day is None:
+        return None
+    window_start = newest_day - timedelta(days=SERIES_WINDOW_DAYS)
+
+    rows = (
+        await session.execute(
+            select(PriceRow, Market)
+            .join(Market, Market.id == PriceRow.market_id)
+            .where(
+                PriceRow.commodity_id == commodity.id,
+                PriceRow.status == STATUS_ACTIVE,
+                PriceRow.arrival_date > window_start,
+            )
+            .order_by(
+                Market.name,
+                PriceRow.arrival_date.desc(),
+                PriceRow.variety,
+                PriceRow.grade,
+            )
+        )
+    ).all()
+    if not rows:
+        return None
+
+    by_market: dict[uuid.UUID, tuple[Market, list[PriceRow]]] = {}
+    for price, market in rows:
+        by_market.setdefault(market.id, (market, []))[1].append(price)
+
+    markets = [_market_price(market, prices) for market, prices in by_market.values()]
+    # Freshest first, then alphabetical — the compare table reads as
+    # "who reported today" before "who reported last week".
+    markets.sort(key=lambda item: (item.as_of, item.market), reverse=True)
+
+    notes = await msp_notes(session)
+    return CommodityDetail(
+        slug=commodity.slug,
+        name=TranslatedText(**commodity.name),
+        emoji=commodity.emoji,
+        unit=commodity.display_unit,
+        source="Agmarknet",
+        as_of=newest_day.isoformat(),
+        note=notes.get(commodity.id),
+        markets=markets,
+    )

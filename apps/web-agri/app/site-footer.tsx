@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { fetchVerticals } from "@/lib/home";
+
 /**
  * A-U1 §22 — the agri.in footer per A1 FINAL v4: brand blurb with the
  * neutrality line, then Categories / States / For business / Company
@@ -14,7 +16,14 @@ import type { ReactNode } from "react";
  * later state pages).
  */
 export async function SiteFooter() {
-  const t = await getTranslations("ui.agriHome.footer");
+  // The category count is REGISTRY DATA, not a literal: A-U2 added three
+  // Soon verticals by migration alone, and a hardcoded "36" in this
+  // column would have quietly started lying the moment it landed. Next
+  // dedupes this against the home's identical registry read.
+  const [t, verticals] = await Promise.all([
+    getTranslations("ui.agriHome.footer"),
+    fetchVerticals(),
+  ]);
   return (
     <footer className="mt-6 bg-brand-deep text-brand-soft-2">
       <div className="mx-auto max-w-[1140px] px-4">
@@ -31,7 +40,7 @@ export async function SiteFooter() {
             <li>{t("catMandi")}</li>
             <li>{t("catWeather")}</li>
             <li>{t("catSchemes")}</li>
-            <li>{t("catAll")}</li>
+            <li>{t("catAll", { count: verticals.length })}</li>
           </FooterCol>
 
           <FooterCol title={t("states")}>

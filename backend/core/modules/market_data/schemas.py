@@ -139,3 +139,47 @@ class TodayPayload(BaseModel):
     mandi: MandiBlock
     calendar: CalendarBlock
     schemes: SchemesBlock
+
+
+# ── A-U2 W3: commodity pages ─────────────────────────────────────────
+# These are NOT part of the frozen Today contract. They back new public
+# surfaces (/mandi/*), so they are free to have their own shape.
+
+
+class CommodityListItem(BaseModel):
+    slug: str
+    name: TranslatedText
+    emoji: str
+    unit: str
+    market_count: int
+    as_of: str  # newest ingested day (ISO), "" when nothing is ingested
+
+
+class MarketPrice(BaseModel):
+    """One market's latest price for a commodity, plus its own series.
+
+    The series is per-MARKET on purpose: splicing markets together would
+    draw a trend no mandi ever had (the same rule the home cards follow).
+    """
+
+    market_slug: str
+    market: str
+    district: str
+    price: float
+    change: float
+    series_30d: list[float]
+    range_low: float
+    range_high: float
+    modal: float | None = None
+    as_of: str
+
+
+class CommodityDetail(BaseModel):
+    slug: str
+    name: TranslatedText
+    emoji: str
+    unit: str
+    source: str
+    as_of: str
+    note: TranslatedText | None = None  # MSP overlay, when verified
+    markets: list[MarketPrice]

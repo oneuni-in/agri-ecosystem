@@ -24,13 +24,22 @@ from shared.db import get_session
 from shared.flags import flag_enabled
 from shared.security import SecureRouter
 
-from .schemas import CalendarBlock, MandiBlock, TodayPayload, TranslatedText
+from .schemas import (
+    CalendarBlock,
+    CommodityDetail,
+    CommodityListItem,
+    MandiBlock,
+    TodayPayload,
+    TranslatedText,
+)
 from .service import (
     district_name_for,
     get_calendar,
+    get_commodity,
     get_mandi,
     get_schemes,
     get_weather,
+    list_commodities,
 )
 from .weather import now_ist
 
@@ -93,3 +102,42 @@ async def get_today(
         calendar=calendar,
         schemes=await get_schemes(session),
     )
+
+
+# public=True: the same read-only reference class as /market/today — public
+# records with no user data and no mutation. Declared in
+# backend/core/public_routes.txt in this same PR.
+#
+# NOT flag-gated, deliberately. `agri_today` gates the HOME's Today strip,
+# which was the A-U1 contract; these are their own pages and their own
+# surface. Turning the home strip off as a kill switch should not also
+# delete a set of indexed SEO pages out from under Google.
+@router.get("/commodities", public=True)
+async def get_commodities(session: SessionDep) -> list[CommodityListItem]:
+    """Curated commodities that have servable prices.
+
+    Not cursor-paginated because it cannot grow unboundedly: it returns at
+    most one row per CURATED commodity (eight today, and each one is a
+    hand-written editorial entry, not user- or feed-created). The list
+    endpoints the pagination rule exists for are the ones a feed can grow
+    without limit — market.price_rows is one, and it is never exposed
+    whole.
+    """
+    return await list_commodities(session)
+
+
+@router.get("/commodities/{slug}", public=True)
+async def get_commodity_detail(
+    session: SessionDep,
+    slug: Annotated[str, Path(min_length=1, max_length=64, pattern=r"^[a-z0-9-]+$")],
+) -> CommodityDetail:
+    """One commodity across every market that reported it in 30 days.
+
+    404 when the commodity is uncurated OR has no servable rows: a page
+    with no data must not exist rather than exist empty (the ISR page
+    self-noindexes on the same signal).
+    """
+    detail = await get_commodity(session, slug)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="commodity_not_found")
+    return detail

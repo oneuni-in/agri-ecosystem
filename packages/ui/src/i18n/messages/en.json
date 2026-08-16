@@ -22,7 +22,7 @@
         "inputLabel": "Search agri.in"
       },
       "categories": {
-        "eyebrow": "All 36 verticals · one registry",
+        "eyebrow": "All {count} verticals · one registry",
         "title": "Everything for the farm · பண்ணைக்கு எல்லாம்",
         "note": "tiles open an honest coming-soon landing with notify-me — never a dead link. Every vertical is a registry entry, not a separate build.",
         "groups": {
@@ -165,7 +165,7 @@
         "catMandi": "Mandi prices · விலை",
         "catWeather": "Weather · வானிலை",
         "catSchemes": "Schemes · Seeds · Tractors",
-        "catAll": "All 36 categories",
+        "catAll": "All {count} categories",
         "stTn": "Tamil Nadu",
         "stKa": "Karnataka",
         "stApTg": "Andhra · Telangana",

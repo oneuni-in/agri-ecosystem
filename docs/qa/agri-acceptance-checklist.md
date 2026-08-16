@@ -34,6 +34,8 @@ live browser.
 | AG-A22 | Registry Soon entries (nurseries · poultry · fisheries) appear by MIGRATION ALONE — no app-code change | 0042 inserts 3 rows, all `soon: true`; `/catalog/verticals` serves 39 agri_home verticals and the grid + footer counts follow the data (the hardcoded "All 36" strings became `{count}` in en/ta/hi — they would otherwise have started lying the moment 0042 landed) | 🟡 implemented (W3) — verified live (39 served, 39 rendered); flips ✅ on CI green |
 | AG-A23 | Commodity pages are indexable ONLY once populated, and are never advertised empty | `/mandi/[commodity]` self-noindexes below 2 reporting markets and lifts once a second reports (both states captured live); the sitemap is built from the same read that omits price-less commodities, so it cannot point at a thin page; `/mandi/tomato` (curated, no rows) 404s | 🟡 implemented (W3) — live capture; flips ✅ on CI green |
 
+| AG-A24 | A-U2's NEW Tamil/Hindi copy is read by a native speaker before launch | A-U2 authored ~57 TA + ~57 HI strings with no native review: 38 WMO weather-condition labels and weekday abbreviations (`wmo.py`), 15 spray-advisory / daily-tip / severe-alert strings (`weather.py`), 3 Soon vertical names (0042), and the mandi empty state (`ui.agriHome.mandi.empty`). These are farmer-facing and some carry ADVICE (when to spray, when to postpone urea), so a wrong nuance is worse than an awkward one. Scheme/calendar copy in 0039 is NOT in scope — it carried over from A-U1 already reviewed | ⬜ pending (owner action: native TA/HI read) |
+
 ## Verification legend
 - **e2e** — Playwright spec committed under `e2e/`, asserting DOM SHAPE
   (counts for flag-off absence, never visibility), no

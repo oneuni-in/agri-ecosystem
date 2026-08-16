@@ -12,6 +12,7 @@ from scripts.education_seed_contract import (
     load_bundle,
     validate,
 )
+from scripts.validate_education_seed import _main
 
 
 def _write(seed_dir: Path, name: str, header: str, *rows: str) -> None:
@@ -258,3 +259,141 @@ def test_every_violation_reported_in_one_pass() -> None:
         Bundle(institutions=[_institution(slug="abroad", source_url="", kind="nonsense")])
     )
     assert len(found) >= 3
+
+
+def test_rule_8_dangling_institution_slug_in_institution_programmes() -> None:
+    bundle = Bundle(
+        institutions=[_institution()],
+        programmes=[
+            {
+                "slug": "bsc-agriculture",
+                "name_en": "B.Sc (Hons) Agriculture",
+                "level": "ug",
+                "discipline": "agriculture",
+                "duration_months": "48",
+            }
+        ],
+        institution_programmes=[
+            {
+                "institution_slug": "nowhere",
+                "programme_slug": "bsc-agriculture",
+                "intake_seats": "",
+                "annual_fees_inr": "",
+                "fee_note": "",
+                "admission_route": "",
+                "source_url": "https://tnau.ac.in/admissions",
+                "last_verified_at": "2026-08-10",
+            }
+        ],
+    )
+    found = _violations(bundle)
+    assert any("rule 8" in v and "institution_slug" in v for v in found)
+
+
+def test_rule_8_dangling_programme_slug_in_institution_programmes() -> None:
+    bundle = Bundle(
+        institutions=[_institution()],
+        institution_programmes=[
+            {
+                "institution_slug": "tnau",
+                "programme_slug": "nowhere",
+                "intake_seats": "",
+                "annual_fees_inr": "",
+                "fee_note": "",
+                "admission_route": "",
+                "source_url": "https://tnau.ac.in/admissions",
+                "last_verified_at": "2026-08-10",
+            }
+        ],
+    )
+    found = _violations(bundle)
+    assert any("rule 8" in v and "programme_slug" in v for v in found)
+
+
+def test_valid_bundle_across_all_five_collections_raises_nothing() -> None:
+    # test_valid_bundle_raises_nothing only ever exercises institutions; this
+    # covers the happy path of every other loop (programmes,
+    # institution_programmes, student_resources, guides) so a regression in
+    # any of them is caught here instead of silently passing CI.
+    bundle = Bundle(
+        institutions=[_institution()],
+        programmes=[
+            {
+                "slug": "bsc-agriculture",
+                "name_en": "B.Sc (Hons) Agriculture",
+                "level": "ug",
+                "discipline": "agriculture",
+                "duration_months": "48",
+            }
+        ],
+        institution_programmes=[
+            {
+                "institution_slug": "tnau",
+                "programme_slug": "bsc-agriculture",
+                "intake_seats": "120",
+                "annual_fees_inr": "50000",
+                "fee_note": "",
+                "admission_route": "TNEA counselling",
+                "source_url": "https://tnau.ac.in/admissions",
+                "last_verified_at": "2026-08-10",
+            }
+        ],
+        student_resources=[
+            {
+                "slug": "icar-jrf",
+                "name_en": "ICAR JRF",
+                "kind": "scholarship",
+                "category": "entrance",
+                "scope": "india",
+                "provider": "ICAR",
+                "levels": "ug,pg",
+                "benefit": "Monthly stipend",
+                "official_url": "https://icar.gov.in/jrf",
+                "last_verified_at": "2026-08-10",
+                "status": "active",
+            }
+        ],
+        guides=[
+            {
+                "slug": "icar-counselling",
+                "title_en": "ICAR Counselling Guide",
+                "kind": "counselling",
+                "country_code": "IN",
+                "state": "",
+                "summary_en": "How to apply through ICAR counselling.",
+                "source_url": "https://icar.gov.in/counselling",
+                "last_verified_at": "2026-08-10",
+                "status": "active",
+            }
+        ],
+    )
+    assert _violations(bundle) == []
+
+
+def test_cli_passes_on_the_committed_bundle() -> None:
+    # The committed seed bundle must ALWAYS validate — this is the gate every
+    # data PR has to pass.
+    assert _main([]) == 0
+
+
+def test_cli_reports_violations_and_exits_nonzero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for name in (
+        "institutions.csv",
+        "programmes.csv",
+        "institution_programmes.csv",
+        "student_resources.csv",
+        "guides.csv",
+    ):
+        (tmp_path / name).write_text("slug\n", encoding="utf-8")
+    (tmp_path / "institutions.csv").write_text(
+        "slug,name_en,kind,country_code,state,trust,status,source_url,last_verified_at\n"
+        "abroad,Nowhere,nonsense,IN,Atlantis,verified,active,,\n",
+        encoding="utf-8",
+    )
+
+    assert _main(["--seed-dir", str(tmp_path)]) == 1
+    printed = capsys.readouterr().out
+    assert "rule 6" in printed
+    assert "rule 4" in printed

@@ -200,6 +200,24 @@ class Settings(BaseSettings):
     # visible; past it, the weather section goes empty rather than lie.
     weather_stale_ttl_seconds: int = 86400
 
+    # --- A-U2 W2: mandi prices (Agmarknet via data.gov.in) --------------
+    # Empty by default and NEVER committed: the client refuses to call
+    # without it. Supplied through the environment (SOPS-managed once the
+    # age keypair exists — docs/runbooks/secrets.md).
+    data_gov_api_key: str = ""
+    data_gov_timeout_seconds: float = 20.0
+    data_gov_retries: int = 3
+    # The state the daily pull ingests. Tamil Nadu is the launch
+    # geography (geo.pincodes is TN-only); widening this is a config
+    # change, not a code change.
+    mandi_ingest_state: str = "Tamil Nadu"
+    # Quality gate: a modal price this many times the trailing median is
+    # quarantined for review rather than rendered (spec W2).
+    mandi_outlier_factor: float = 10.0
+    mandi_median_window_days: int = 30
+    # Kill switch for scripts/mandi_pull.py.
+    mandi_ingest_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

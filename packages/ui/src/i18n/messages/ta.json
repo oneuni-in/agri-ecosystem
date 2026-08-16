@@ -207,7 +207,8 @@
         "range": "30-நாள்: ₹{low}–{high}",
         "modal": "மாதிரி ₹{modal}",
         "arrivals": "வரத்து {qtl} குவிண்டால்",
-        "share": "{name} விலையை WhatsApp-ல் பகிர"
+        "share": "{name} விலையை WhatsApp-ல் பகிர",
+        "empty": "இந்தப் பகுதிக்கு இன்னும் சந்தை விவரம் இல்லை"
       },
       "calendar": {
         "eyebrow": "பருவ வழிகாட்டி · {zone}",

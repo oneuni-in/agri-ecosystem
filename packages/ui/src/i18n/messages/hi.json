@@ -207,7 +207,8 @@
         "range": "30-दिन: ₹{low}–{high}",
         "modal": "मोडल ₹{modal}",
         "arrivals": "आवक {qtl} क्विंटल",
-        "share": "{name} का भाव WhatsApp पर साझा करें"
+        "share": "{name} का भाव WhatsApp पर साझा करें",
+        "empty": "इस क्षेत्र के लिए अभी बाज़ार डेटा नहीं है"
       },
       "calendar": {
         "eyebrow": "मौसम गाइड · {zone}",

@@ -113,8 +113,18 @@ MODULES: dict[str, dict[str, str]] = {
         "schemes, helplines) rendered as browsable reference sections.",
         "spec": "docs/Execution schedule v5.MD SS E5.",
         "pii_note": "should hold no personal data - datasets are public records",
-        "extra_never": "- Never serve a dataset without source + as-of date metadata\n"
-        "  (data.gov.in sourcing traps: 10-row cap, case-sensitive filters).",
+        "extra_never": "- Never serve a dataset without source + as-of date metadata.\n"
+        "- Never label derived output with an authority that did not produce\n"
+        "  it: Open-Meteo publishes no warnings API (/v1/warnings 404s), so\n"
+        "  severe alerts are OUR derivation over its numbers and say\n"
+        "  source='open-meteo' - never 'IMD'.\n"
+        "- Never trust data.gov.in's echo of your request. limit>10 silently\n"
+        "  returns 10 rows, and filters on date-typed fields are silently\n"
+        "  IGNORED (a past-date query returns today). Page by row offset and\n"
+        "  stop on `total`.\n"
+        "- Never call data.gov.in without an explicit User-Agent: it\n"
+        "  blackholes httpx's default and the request dies on read timeout\n"
+        "  with no status code, which looks exactly like an outage.",
     },
     "ads": {
         "purpose": "Ads: flat-rate slot inventory targeted by vertical x geo x role\n"

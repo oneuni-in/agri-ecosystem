@@ -455,9 +455,21 @@ export default async function HomePage() {
             <Eyebrow>{t("agriHome.mandi.eyebrow", { source: today.mandi.source })}</Eyebrow>
             <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2.5">
               <h2 className="font-display text-xl font-extrabold">{t("agriHome.mandi.title")}</h2>
+              {/* A-U2 §2, honest degradation: with no ingested rows for
+                  this area there is no as-of to stamp, so the strip says
+                  so instead of rendering a dangling "updated". */}
               <span className="text-[10.5px] text-muted">
-                <LiveDot />
-                {t("agriHome.mandi.stamp", { source: today.mandi.source, asOf: today.mandi.as_of })}
+                {today.mandi.commodities.length > 0 ? (
+                  <>
+                    <LiveDot />
+                    {t("agriHome.mandi.stamp", {
+                      source: today.mandi.source,
+                      asOf: today.mandi.as_of,
+                    })}
+                  </>
+                ) : (
+                  t("agriHome.mandi.empty")
+                )}
               </span>
             </div>
             <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">

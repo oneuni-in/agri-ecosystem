@@ -207,7 +207,8 @@
         "range": "30-day: ₹{low}–{high}",
         "modal": "modal ₹{modal}",
         "arrivals": "arrivals {qtl} qtl",
-        "share": "Share {name} price on WhatsApp"
+        "share": "Share {name} price on WhatsApp",
+        "empty": "No market data for this area yet"
       },
       "calendar": {
         "eyebrow": "Season guide · {zone}",

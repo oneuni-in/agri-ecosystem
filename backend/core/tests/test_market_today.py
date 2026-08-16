@@ -22,9 +22,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.market_data import open_meteo, service
+from modules.market_data.agmarknet import parse_record
+from modules.market_data.ingest import ingest_records
 from shared.flags import FeatureFlag, reset_flag_cache
 
 from .d26_helpers import api  # noqa: F401 — the shared client fixture
+from .test_market_mandi import LIVE_ROWS
 from .test_market_weather import _forecast
 
 pytestmark = pytest.mark.anyio
@@ -40,6 +43,25 @@ def live_forecast(monkeypatch: pytest.MonkeyPatch) -> None:
         return _forecast()
 
     monkeypatch.setattr(service, "fetch_forecast", _fake)
+
+
+async def _seed_coimbatore_prices(session: AsyncSession) -> None:
+    """Two real feed rows, ingested through the real quality gate, so the
+    payload's mandi block is genuinely ingested data rather than a mock."""
+    rows = [
+        _mandi_row(arrival_date="14/08/2026", min_price=2300, max_price=2350, modal_price=2300),
+        _mandi_row(arrival_date="15/08/2026", min_price=2380, max_price=2410, modal_price=2400),
+    ]
+    records = [record for record in (parse_record(row) for row in rows) if record is not None]
+    await ingest_records(session, records)
+    await session.flush()
+
+
+def _mandi_row(**overrides: object) -> dict[str, object]:
+    row = dict(LIVE_ROWS[0])
+    row.update({"district": "Coimbatore", "market": "Coimbatore market"})
+    row.update(overrides)
+    return row
 
 
 async def _set_agri_today(session: AsyncSession, enabled: bool) -> None:
@@ -66,6 +88,7 @@ async def test_flag_on_serves_the_frozen_contract(
 ) -> None:
     client, session = api
     await _set_agri_today(session, True)
+    await _seed_coimbatore_prices(session)
     r = await client.get(f"/market/today/{PINCODE}")
     assert r.status_code == 200
     body = r.json()
@@ -79,14 +102,20 @@ async def test_flag_on_serves_the_frozen_contract(
     for block in (body["weather"]["condition"], body["weather"]["advisory"]["title"]):
         assert {"en", "ta", "hi"} <= set(block)  # TranslatedText everywhere
 
-    # W2/W3 still to land: these three remain A-U1 fixtures, and `stub`
-    # stays True until the last one is replaced.
-    assert body["stub"] is True
-    assert body["mandi"]["source"] and body["mandi"]["as_of"]
-    assert len(body["mandi"]["commodities"]) == 8
+    # MOVED from the fixture's fixed 8 commodities: mandi is ingested
+    # data now, so the assertion is about SHAPE and provenance, not a
+    # count someone typed. The two rows come from the real feed capture.
+    assert body["mandi"]["source"] == "Agmarknet"
+    assert body["mandi"]["as_of"] == "2026-08-15"  # newest ingested day
+    assert [c["slug"] for c in body["mandi"]["commodities"]] == ["paddy"]
     for c in body["mandi"]["commodities"]:
         assert len(c["series_30d"]) >= 2  # sparkline needs a line
         assert {"en", "ta", "hi"} <= set(c["name"])
+        assert c["price"] == 24.0  # 2400/qtl, converted once
+
+    # W3 still to land: calendar + schemes remain A-U1 fixtures, and
+    # `stub` stays True until the last one is replaced.
+    assert body["stub"] is True
     assert len(body["calendar"]["months"]) == 8
     assert body["schemes"]["items"], "verified scheme entries"
     for item in body["schemes"]["items"]:

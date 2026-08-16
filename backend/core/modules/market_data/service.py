@@ -22,10 +22,12 @@ best-effort, and a failure just means we go to the API every time.
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, cast
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from settings import get_settings
@@ -33,11 +35,21 @@ from shared.cache import get_redis
 from shared.geo.service import centroid_for_pincode, district_for_pincode
 from shared.telemetry import get_logger
 
+from .models import STATUS_ACTIVE, Commodity, Market, PriceRow, per_kg
 from .open_meteo import Forecast, OpenMeteoError, fetch_forecast
-from .schemas import SevereAlert, WeatherBlock
+from .schemas import (
+    MandiBlock,
+    MandiCommodity,
+    SevereAlert,
+    TranslatedText,
+    WeatherBlock,
+)
 from .weather import SOURCE, build_weather, day_stamp, derive_severe_alert, now_ist
 
 logger = get_logger(__name__)
+
+# The contract field is series_30d; this is that window.
+SERIES_WINDOW_DAYS = 30
 
 FRESH_KEY = "market:wx:{pincode}"
 STALE_KEY = "market:wx:last:{pincode}"
@@ -148,3 +160,133 @@ async def get_weather(
 async def district_name_for(session: AsyncSession, pincode: str) -> str | None:
     district = await district_for_pincode(session, pincode)
     return district.name if district is not None else None
+
+
+# ── mandi (W2) ───────────────────────────────────────────────────────
+
+
+async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
+    """Latest curated prices for the visitor's district, or None.
+
+    None means "no market data for this area yet" — the spec's third
+    degradation case. It is returned whenever the district has no
+    ingested rows, which is the honest state for most of India until the
+    ingest widens beyond the launch state.
+
+    Only `status='active'` rows are read: a quarantined row is visible to
+    ops and to nobody else.
+    """
+    district = await district_for_pincode(session, pincode)
+    if district is None:
+        return None
+
+    # The window the contract's `series_30d` names. Anchored on the
+    # newest ingested day, not on today: on a Sunday (or any day the
+    # feed is quiet) "today" would slide the window off real data.
+    newest_day = await session.scalar(
+        select(func.max(PriceRow.arrival_date))
+        .join(Market, Market.id == PriceRow.market_id)
+        .where(Market.district == district.name, PriceRow.status == STATUS_ACTIVE)
+    )
+    if newest_day is None:
+        return None
+    window_start = newest_day - timedelta(days=SERIES_WINDOW_DAYS)
+
+    rows = (
+        await session.execute(
+            select(PriceRow, Commodity, Market)
+            .join(Commodity, Commodity.id == PriceRow.commodity_id)
+            .join(Market, Market.id == PriceRow.market_id)
+            .where(
+                Market.district == district.name,
+                PriceRow.status == STATUS_ACTIVE,
+                PriceRow.arrival_date > window_start,
+            )
+            # variety/grade break ties so one date yields one point
+            # deterministically instead of whichever row the planner
+            # happened to return first.
+            .order_by(
+                Commodity.slug,
+                PriceRow.arrival_date.desc(),
+                PriceRow.variety,
+                PriceRow.grade,
+            )
+        )
+    ).all()
+    if not rows:
+        return None
+
+    # Group by commodity AND market: a district can hold several mandis,
+    # and splicing their prices into one line would draw a trend that no
+    # single market ever had.
+    by_pair: dict[tuple[str, uuid.UUID], list[tuple[PriceRow, Commodity, Market]]] = {}
+    for price, commodity, market in rows:
+        by_pair.setdefault((commodity.slug, market.id), []).append((price, commodity, market))
+
+    # One market per commodity: the one with the freshest observation,
+    # breaking ties on the longer history.
+    best: dict[str, list[tuple[PriceRow, Commodity, Market]]] = {}
+    for (slug, _market_id), entries in by_pair.items():
+        incumbent = best.get(slug)
+        if incumbent is None or (entries[0][0].arrival_date, len(entries)) > (
+            incumbent[0][0].arrival_date,
+            len(incumbent),
+        ):
+            best[slug] = entries
+
+    commodities: list[MandiCommodity] = []
+    latest_date: date | None = None
+    market_name = ""
+
+    for entries in best.values():
+        # One point per date (the first row after the deterministic sort).
+        per_day: dict[date, PriceRow] = {}
+        for price, _c, _m in entries:
+            per_day.setdefault(price.arrival_date, price)
+        days = sorted(per_day)
+
+        newest, commodity, market = entries[0]
+        if latest_date is None or newest.arrival_date > latest_date:
+            latest_date = newest.arrival_date
+            market_name = market.name
+
+        # Oldest first — the sparkline input. Only real observations:
+        # a series with one point renders no line, which is correct on
+        # day one of ingestion rather than a fabricated trend.
+        series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+        prices = series
+
+        previous = per_day[days[-2]] if len(days) > 1 else None
+        change = (
+            round(per_kg(newest.modal_price_qtl) - per_kg(previous.modal_price_qtl), 2)
+            if previous is not None
+            else 0.0
+        )
+
+        commodities.append(
+            MandiCommodity(
+                slug=commodity.slug,
+                name=TranslatedText(**commodity.name),
+                emoji=commodity.emoji,
+                market=market.name,
+                unit=commodity.display_unit,
+                price=per_kg(newest.modal_price_qtl),
+                change=change,
+                series_30d=series,
+                range_low=min(prices),
+                range_high=max(prices),
+                modal=per_kg(newest.modal_price_qtl),
+                # Agmarknet's daily-price resource publishes no arrivals
+                # figure, so this stays null rather than invented.
+                arrivals_qtl=None,
+                note=None,
+            )
+        )
+
+    commodities.sort(key=lambda item: item.slug)
+    return MandiBlock(
+        market=market_name,
+        as_of=latest_date.isoformat() if latest_date else "",
+        source="Agmarknet",
+        commodities=commodities,
+    )

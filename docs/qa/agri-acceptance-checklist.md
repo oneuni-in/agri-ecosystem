@@ -22,6 +22,15 @@ live browser.
 | AG-A12 | Farm calculators (EMI · seed rate · fertilizer dose from SHC · spray dilution) compute correctly and work offline | Unit tests per formula with hand-checked fixtures; e2e offline-mode run of `/tools`; formulas' sources cited in code | 🟡 implemented — /tools client-side, zero network; 12 unit tests green (@agri/ui agri-calculators); TNAU/FCO citations in code; offline e2e run pending |
 | AG-A13 | Grid renders exactly 36 registry verticals — `farm-tools` live, `machinery-rental` Soon (· CHC) | e2e: tile count === 36 asserted against the registry response; registry diff shows the two new entries added this pass | 🟡 implemented — 0037 seeds exactly 36 (farm-tools live, machinery-rental Soon·CHC); spec asserts count vs registry in CP3 e2e batch |
 
+| AG-A14 | Weather renders REAL per-pincode data with source + as-of visible | Live dev capture: `/market/today/641001` → Open-Meteo values rendered on `/` (26.7 °C, 72 %, 22 km/h SW, soil 25.5 °C at 08:48 IST 2026-08-16); 16 unit tests drive the parser from a captured LIVE response; `weather.source` asserted non-empty and rendered verbatim | 🟡 implemented (W1) — live capture + tests green; flips ✅ on CI green |
+| AG-A15 | Mandi cards match raw ingested rows (spot-check 3 commodities against the API) | Unit tests assert card values equal ingested rows through the one qtl→kg conversion (Paddy 2400/qtl → ₹24.00/kg); **spot-check of 3 TN commodities BLOCKED** — the feed published 0 Tamil Nadu rows on 2026-08-16 (Sunday) and the shared sample key 429s, so a real TN pull needs the owner's registered key on a weekday | ⬜ blocked (owner action: `DATA_GOV_API_KEY`) |
+| AG-A16 | Price-alert subscription round-trips and fires after a pull | W3 — not built in this pass | ⬜ pending (W3) |
+| AG-A17 | MSP overlay values match the verified dataset | W3 — not built in this pass | ⬜ pending (W3) |
+| AG-A18 | Compare view rows match the underlying table | W3 — not built in this pass | ⬜ pending (W3) |
+| AG-A19 | Outage degradation shows a stale stamp (kill the worker, reload) | Test `test_outage_with_a_warm_cache_serves_stale_with_a_visible_stamp`: upstream raises, payload still 200 and `weather.source` starts `Open-Meteo · as of …`; cold-cache twin asserts 503 (nothing invented) | 🟡 implemented (W1) — specs green locally; flips ✅ on CI green |
+| AG-A20 | Zero stub/fixture code remains (grep for the fixture markers) | W3 flip — `market_data/fixtures.py` still supplies calendar + schemes, and `stub` is still `true` in the payload | ⬜ pending (W3) |
+| AG-A21 | Lighthouse still ≥ 0.90 on `/` with the flag ON (real data must not regress perf) | Not yet measured with real data; home payload SHRANK when fixtures left (566 KB → 492 KB HTML) but LHCI has not been re-run | ⬜ pending (W3) |
+
 ## Verification legend
 - **e2e** — Playwright spec committed under `e2e/`, asserting DOM SHAPE
   (counts for flag-off absence, never visibility), no

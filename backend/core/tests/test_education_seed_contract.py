@@ -132,6 +132,33 @@ def _institution(**overrides: str) -> dict[str, str]:
     return row
 
 
+def _guide(**overrides: str) -> dict[str, str]:
+    """A guides row carrying EXACTLY the columns of the spec §8 header.
+
+    Critically this has no `source_url` / `official_url` — guides cite their
+    sources through `official_links_json`. A helper that invented one would
+    test a row shape `load_bundle` can never produce.
+    """
+    row = {
+        "slug": "icar-counselling",
+        "title_en": "ICAR UG counselling",
+        "title_ta": "",
+        "title_hi": "",
+        "kind": "counselling",
+        "country_code": "IN",
+        "state": "",
+        "summary_en": "How ICAR AIEEA UG counselling runs, round by round.",
+        "summary_ta": "",
+        "summary_hi": "",
+        "steps_json": '[{"title": "Register", "body": "x", "links": []}]',
+        "official_links_json": '["https://icar.org.in/"]',
+        "last_verified_at": "2026-08-10",
+        "status": "published",
+    }
+    row.update(overrides)
+    return row
+
+
 def _violations(bundle: Bundle) -> list[str]:
     try:
         validate(bundle, GEO, today=TODAY)
@@ -310,6 +337,33 @@ def test_rule_8_dangling_programme_slug_in_institution_programmes() -> None:
     assert any("rule 8" in v and "programme_slug" in v for v in found)
 
 
+def test_rule_1_guide_cites_through_official_links_json() -> None:
+    # guides.csv has no source_url/official_url column (spec §8) — a guide's
+    # citation IS official_links_json. A real, complete guide row must pass.
+    assert _violations(Bundle(guides=[_guide()])) == []
+
+
+def test_rule_1_guide_without_official_links_rejected() -> None:
+    found = _violations(Bundle(guides=[_guide(official_links_json="[]")]))
+    assert any("rule 1" in v for v in found)
+
+
+def test_rule_1_guide_with_blank_official_links_rejected() -> None:
+    found = _violations(Bundle(guides=[_guide(official_links_json="")]))
+    assert any("rule 1" in v for v in found)
+
+
+def test_rule_3_still_applies_to_guides() -> None:
+    # The official_links_json branch must not skip the date checks.
+    found = _violations(Bundle(guides=[_guide(last_verified_at="2027-01-01")]))
+    assert any("rule 3" in v for v in found)
+
+
+def test_guide_with_unparseable_official_links_is_a_structural_violation() -> None:
+    found = _violations(Bundle(guides=[_guide(official_links_json="[not json")]))
+    assert any("official_links_json" in v for v in found)
+
+
 def test_valid_bundle_across_all_five_collections_raises_nothing() -> None:
     # test_valid_bundle_raises_nothing only ever exercises institutions; this
     # covers the happy path of every other loop (programmes,
@@ -353,19 +407,7 @@ def test_valid_bundle_across_all_five_collections_raises_nothing() -> None:
                 "status": "active",
             }
         ],
-        guides=[
-            {
-                "slug": "icar-counselling",
-                "title_en": "ICAR Counselling Guide",
-                "kind": "counselling",
-                "country_code": "IN",
-                "state": "",
-                "summary_en": "How to apply through ICAR counselling.",
-                "source_url": "https://icar.gov.in/counselling",
-                "last_verified_at": "2026-08-10",
-                "status": "active",
-            }
-        ],
+        guides=[_guide()],
     )
     assert _violations(bundle) == []
 

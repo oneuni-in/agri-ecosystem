@@ -9,6 +9,7 @@ and on a laptop with no Postgres.
 from __future__ import annotations
 
 import csv
+import json
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -150,11 +151,38 @@ def _check_stamps(row: dict[str, str], where: str, today: date, out: list[str]) 
     strict subset of rule 1, because `listed` rows must also cite the bulk list
     they came from. Enforcing rule 1 on every row enforces rule 2 by
     construction.
+
+    Which column carries the citation differs by file, so it is chosen by
+    column presence: `official_url` for student_resources, `source_url` for
+    institutions and institution_programmes, and `official_links_json` for
+    guides — whose spec §8 header deliberately has no single-URL column,
+    because a counselling or foreign-study guide is assembled from an
+    authority's several official pages rather than one. Rule 1 still bites
+    there: a guide citing nothing is rejected exactly like a row with an empty
+    `source_url`.
     """
-    url_key = "official_url" if "official_url" in row else "source_url"
-    if not row.get(url_key) or not row.get("last_verified_at"):
-        out.append(f"rule 1 · {where}: {url_key} and last_verified_at are both required")
-        return
+    if "official_links_json" in row:
+        raw = row.get("official_links_json", "")
+        links: list[object] = []
+        if raw:
+            try:
+                decoded = json.loads(raw)
+            except ValueError:
+                out.append(f"structure · {where}: official_links_json is not valid JSON")
+                return
+            if isinstance(decoded, list):
+                links = decoded
+        if not links or not row.get("last_verified_at"):
+            out.append(
+                f"rule 1 · {where}: official_links_json (at least one link) and "
+                "last_verified_at are both required"
+            )
+            return
+    else:
+        url_key = "official_url" if "official_url" in row else "source_url"
+        if not row.get(url_key) or not row.get("last_verified_at"):
+            out.append(f"rule 1 · {where}: {url_key} and last_verified_at are both required")
+            return
     parsed = _is_iso_date(row["last_verified_at"])
     if parsed is None:
         out.append(f"rule 3 · {where}: last_verified_at must be ISO-8601 (YYYY-MM-DD)")

@@ -1,6 +1,7 @@
 """geo schema v1: Tamil Nadu snapshot loads, pincode -> district + centroid
 lookups are correct (D03 non-negotiable 4)."""
 
+import csv
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,6 +14,12 @@ from shared.geo.service import centroid_for_pincode, district_for_pincode
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "geo"
 
+
+def _csv_rows(path: Path) -> int:
+    with path.open(encoding="utf-8") as fh:
+        return sum(1 for _ in csv.DictReader(fh))
+
+
 # Tamil Nadu bounding box (generous)
 TN_LAT = (Decimal("8.0"), Decimal("13.6"))
 TN_LON = (Decimal("76.2"), Decimal("80.4"))
@@ -21,11 +28,13 @@ TN_LON = (Decimal("76.2"), Decimal("80.4"))
 async def test_tn_snapshot_loads_with_expected_counts(db_session: AsyncSession) -> None:
     counts = await load_geo(db_session, DATA_DIR)
 
-    assert counts.states == 1
+    assert counts.states == _csv_rows(DATA_DIR / "states.csv")
     assert counts.districts == 38  # TN has 38 districts (LGD)
     assert counts.pincodes > 1000
 
-    assert await db_session.scalar(select(func.count()).select_from(State)) == 1
+    assert await db_session.scalar(select(func.count()).select_from(State)) == _csv_rows(
+        DATA_DIR / "states.csv"
+    )
     assert await db_session.scalar(select(func.count()).select_from(District)) == 38
     assert await db_session.scalar(select(func.count()).select_from(Pincode)) == counts.pincodes
 

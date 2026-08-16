@@ -43,6 +43,15 @@ launch, not after. Four days are inserted after D53. Cascade: milk corrections D
 **D7 — no perf carve-out.** Per the A-U1→A-U4 plan's Decision 3, every agri route ships
 against the 0.90 throttled-3G Lighthouse merge gate. The colleges routes are no exception.
 
+**D8 — full-India states pulled forward into `geo`.** *(added 16 Aug 2026 during planning)*
+`geo.states` shipped TN-only (D03); full-India geo was scheduled for D65 — after launch.
+A national corpus cannot FK into a one-row table, so all 28 states + 8 UTs load now from
+the LGD source already documented in `data/geo/SOURCES.md` (stable `lgd_code`s, no new
+provenance to establish). **Districts stay TN-only until D65** and `district_id` remains
+nullable. This is additive and safe: every existing consumer (`ads`, `directory.milk_home`,
+`directory.search_sync`, `identity.location_router`, `identity.profile_service`) resolves a
+state *from* a district or pincode, and nothing in the codebase enumerates all states.
+
 ---
 
 ## 2. Scope
@@ -313,9 +322,14 @@ summary_hi, steps_json, official_links_json, last_verified_at, status`
 `SeedContractError` rejects the **entire bundle — nothing imported** — on any of:
 
 1. Missing `source_url` or `last_verified_at` on any row.
-2. `trust=verified` without both.
+2. `trust=verified` without both. *(Subsumed by rule 1 in the implementation —
+   `listed` rows must also cite the bulk list they came from, so rule 1 applies to every
+   row. The number is kept for traceability; there is no separate branch.)*
 3. `last_verified_at` not ISO-8601, or in the future.
-4. `state` / `district` that does not resolve in `geo` (when `country_code = IN`).
+4. `state` that does not resolve in `geo.states` (when `country_code = IN`) — national
+   after D8. `district` is validated **only when supplied and its state's districts are
+   loaded** (Tamil Nadu today); a district for a state whose districts have not loaded is
+   rejected rather than silently dropped.
 5. `country_code = IN` with an empty `state`.
 6. A slug that slugifies to a reserved segment (`state`, `abroad`).
 7. Duplicate slug within a file.
@@ -367,7 +381,12 @@ proven `import_vendor_seed` loader:
 - **Acceptance checklist:** rows added to `docs/qa/agri-acceptance-checklist.md` *per
   checkpoint*, never reconstructed at the end.
 
-### Known assertion to move
+### Known assertions to move
+
+`backend/core/tests/test_geo.py:24` asserts `counts.states == 1`. D8 makes that 36. The
+assertion is **moved, not weakened**: it compares the loaded count against the row count of
+`data/geo/states.csv`, which is what it was actually trying to prove.
+
 
 `e2e/agri-categories.spec.ts:46` hardcodes `expect(slugs.length).toBe(36)`, and `AG-A13` in
 the acceptance checklist repeats it. A 37th tile breaks that spec. Per the standing rule the

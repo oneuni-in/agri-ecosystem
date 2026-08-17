@@ -47,7 +47,34 @@ jobs:
           key: turbo-${{ runner.os }}-web-${{ github.sha }}
           restore-keys: |
             turbo-${{ runner.os }}-
-      - run: pnpm exec turbo run lint typecheck test build --cache-dir=.turbo
+      # Retried once because `next/font/google` resolves Bricolage Grotesque and
+      # Public Sans from fonts.gstatic.com at BUILD time, so any outbound network
+      # blip on the runner fails the build regardless of what the PR changed.
+      # Observed on PR #67 and #72, both of whose diffs were entirely
+      # backend/core/data/seeds/**.csv.
+      #
+      # The retry is cheap because turbo caches successful tasks: on a second
+      # attempt lint/typecheck/test are cache hits and only the failed build
+      # re-runs. The cost is that a GENUINELY broken build runs twice before
+      # reporting.
+      #
+      # This treats the symptom. The cure is vendoring the fonts via
+      # next/font/local, which touches packages/ui (imported by all five apps)
+      # and the preload behaviour the Lighthouse gate depends on -- deliberately
+      # not bundled into this change.
+      - name: lint, typecheck, test, build (retry once on transient failure)
+        run: |
+          set -o pipefail
+          for attempt in 1 2; do
+            if pnpm exec turbo run lint typecheck test build --cache-dir=.turbo; then
+              exit 0
+            fi
+            if [ "$attempt" = 1 ]; then
+              echo "::warning::web build attempt 1 failed; retrying once (turbo cache makes this cheap)"
+              sleep 15
+            fi
+          done
+          exit 1
         env:
           # sentry source-map upload: inactive until these secrets are set at
           # launch prep (docs/runbooks/monitoring.md); unset -> builds skip it

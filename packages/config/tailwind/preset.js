@@ -268,6 +268,15 @@ export const agriPreset = {
           from: { transform: "scale(.5)", opacity: ".7" },
           to: { transform: "scale(1.4)", opacity: "0" },
         },
+        // A-U4 W0 — the A1 reference's skeleton sweep (agri_home_desktop_v1
+        // .html `.skeleton`/`@keyframes shimmer`). Streaming put real
+        // placeholders on the home for the first time, so the reference's
+        // treatment stops being decoration and becomes the thing a visitor
+        // actually looks at while a section arrives.
+        shimmer: {
+          from: { backgroundPosition: "200% 0" },
+          to: { backgroundPosition: "-200% 0" },
+        },
       },
       animation: {
         // Reduced motion is honoured at the call site with
@@ -279,8 +288,15 @@ export const agriPreset = {
         draw: "draw 1.1s .25s ease-out forwards",
         float: "float 4.5s ease-in-out infinite",
         pulse2: "pulse2 1.8s ease-out infinite",
+        // 1.4s, exactly the reference's timing.
+        shimmer: "shimmer 1.4s infinite",
       },
       backgroundImage: {
+        // A1 draws the sweep with #F1EDE2 -> #FAF7EF -> #F1EDE2; those two
+        // literals ARE --cream-deep and --cream, so the tokens carry it and
+        // the no-raw-hex rule holds.
+        "shimmer-gradient":
+          "linear-gradient(90deg, var(--cream-deep) 25%, var(--cream) 50%, var(--cream-deep) 75%)",
         "header-gradient": "linear-gradient(160deg, var(--brand-deep), var(--brand))",
         "cta-gradient": "linear-gradient(140deg, var(--brand-deep), var(--brand))",
         "eco-milk": "linear-gradient(140deg, #174A85, #2563A8)",

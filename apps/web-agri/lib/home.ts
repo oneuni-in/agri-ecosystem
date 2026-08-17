@@ -270,15 +270,27 @@ export async function fetchReviewSignals(
  * market_data/schemas.py) — A-U2's real workers replace the fixtures
  * WITHOUT this function or the UI changing.
  *
- * `cache: "no-store"`: the payload is per-pincode and time-of-day data; a
- * cached "today" is yesterday's lie. Any non-OK status, network failure or
- * shape mismatch degrades to null (F1 rule — a dead engine never 500s the
- * home).
+ * Caching is the CALLER's call, because the right window depends on the
+ * surface. A-U1 hard-coded `cache: "no-store"` here on the argument that "a
+ * cached today is yesterday's lie" — true of a day, false of a minute, and it
+ * put a guaranteed upstream round trip in front of first byte on every hit
+ * (A-U4 W0 measured the cost). The home now passes a 60 s window from
+ * `lib/home-data.ts`, where every read's window is declared together; callers
+ * that genuinely need the live payload can still pass `{ revalidate: 0 }`.
+ *
+ * Any non-OK status, network failure or shape mismatch degrades to null
+ * (F1 rule — a dead engine never 500s the home).
  */
-export async function fetchToday(pincode: string): Promise<TodayPayload | null> {
+export async function fetchToday(
+  pincode: string,
+  opts: { revalidate?: number } = {},
+): Promise<TodayPayload | null> {
+  const revalidate = opts.revalidate ?? 0;
   try {
     const res = await fetch(`${API}/market/today/${encodeURIComponent(pincode)}`, {
-      cache: "no-store",
+      // revalidate 0 is Next's "always refetch" — identical in effect to the
+      // previous no-store default, so an unchanged caller behaves unchanged.
+      next: { revalidate },
     });
     if (!res.ok) return null;
     const body = (await res.json()) as TodayPayload;

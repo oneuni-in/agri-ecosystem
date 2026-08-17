@@ -17,6 +17,7 @@ the number that actually matters when revisiting a decision.
 | [0009](0009-secure-router-default-private.md) | SecureRouter: private by default | one-way as policy |
 | [0010](0010-lighthouse-ci-gate.md) | Lighthouse CI merge gate | one-way as policy |
 | [0011](0011-netdata-kuma-not-prometheus.md) | Netdata + Kuma, not Prometheus/Grafana | two-way |
+| [0012](0012-mandi-series-accumulates-forward.md) | Mandi series accumulates forward, no backfill | one-way (not ours) |
 
 ## Template for new ADRs
 

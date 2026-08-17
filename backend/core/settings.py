@@ -182,6 +182,54 @@ class Settings(BaseSettings):
     # Kill switch for scripts/geo_tier_nightly.py.
     geo_tier_job_enabled: bool = True
 
+    # --- A-U2 W1: weather (Open-Meteo) ----------------------------------
+    # Open-Meteo needs no API key on the free tier, but the base URL is
+    # config so tests point at a local double and a future self-hosted
+    # instance is an env change, not a deploy (spec A-U2 W1).
+    open_meteo_base_url: str = "https://api.open-meteo.com"
+    open_meteo_timeout_seconds: float = 8.0
+    # One retry only: this call sits in a public request path behind a
+    # cache; a long retry budget would turn an upstream slowdown into our
+    # own latency. A miss serves stale (honest degradation) instead.
+    open_meteo_retries: int = 1
+    # Fresh window per pincode. 30 min matches the upstream model refresh
+    # cadence; below that we would burn quota for identical numbers.
+    weather_cache_ttl_seconds: int = 1800
+    # Last-known-good retention. An upstream outage inside this window
+    # serves the previous payload with its real (stale) as-of stamp
+    # visible; past it, the weather section goes empty rather than lie.
+    weather_stale_ttl_seconds: int = 86400
+
+    # --- A-U2 W2: mandi prices (Agmarknet via data.gov.in) --------------
+    # Empty by default and NEVER committed: the client refuses to call
+    # without it. Supplied through the environment (SOPS-managed once the
+    # age keypair exists — docs/runbooks/secrets.md).
+    data_gov_api_key: str = ""
+    data_gov_timeout_seconds: float = 20.0
+    data_gov_retries: int = 3
+    # The state the daily pull ingests. Tamil Nadu is the launch
+    # geography (geo.pincodes is TN-only); widening this is a config
+    # change, not a code change.
+    mandi_ingest_state: str = "Tamil Nadu"
+    # Quality gate: a modal price this many times the trailing median is
+    # quarantined for review rather than rendered (spec W2).
+    mandi_outlier_factor: float = 10.0
+    mandi_median_window_days: int = 30
+    # Kill switch for scripts/mandi_pull.py.
+    mandi_ingest_enabled: bool = True
+    # Hour (IST, 24h) the mandi-cron container wakes to pull. Evening, not
+    # morning: the resource is published progressively as each mandi
+    # reports, so a 6 AM pull captures an almost empty day (measured
+    # 2026-08-16 — 58 rows nationwide at 08:48 IST). Re-running later is
+    # free (the natural key upserts), so a late pull costs nothing and an
+    # early one costs the day.
+    mandi_pull_hour_ist: int = 19
+    # Same-day retry: an un-pulled day is permanently unrecoverable
+    # (ADR-0012), so a failed pull is retried within the day rather than
+    # waiting for tomorrow.
+    mandi_pull_retry_minutes: int = 45
+    mandi_pull_retries: int = 3
+
 
 @lru_cache
 def get_settings() -> Settings:

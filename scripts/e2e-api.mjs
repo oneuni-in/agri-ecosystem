@@ -108,6 +108,20 @@ const houseAds = spawnSync(
 );
 if (houseAds.status !== 0) process.exit(houseAds.status ?? 1);
 
+// A-U2 W3: the agri Today sections read real engines now that the fixtures
+// are deleted, so seed their two REAL inputs — a captured Open-Meteo
+// response written into the weather cache, and real Agmarknet rows pushed
+// through the real ingest. Without this the home would either call
+// Open-Meteo on every CI run (rude, and flaky) or render empty states,
+// and e2e/agri-home.spec.ts could assert neither. Idempotent: the cache
+// write overwrites and the ingest upserts on its natural key.
+const agriSeed = spawnSync(python, ["-m", "scripts.seed_e2e_agri"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (agriSeed.status !== 0) process.exit(agriSeed.status ?? 1);
+
 const server = spawn(
   python,
   ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],

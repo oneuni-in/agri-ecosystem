@@ -22,7 +22,7 @@
         "inputLabel": "Search agri.in"
       },
       "categories": {
-        "eyebrow": "All 36 verticals · one registry",
+        "eyebrow": "All {count} verticals · one registry",
         "title": "Everything for the farm · பண்ணைக்கு எல்லாம்",
         "note": "tiles open an honest coming-soon landing with notify-me — never a dead link. Every vertical is a registry entry, not a separate build.",
         "groups": {
@@ -165,7 +165,7 @@
         "catMandi": "Mandi prices · விலை",
         "catWeather": "Weather · வானிலை",
         "catSchemes": "Schemes · Seeds · Tractors",
-        "catAll": "All 36 categories",
+        "catAll": "All {count} categories",
         "stTn": "Tamil Nadu",
         "stKa": "Karnataka",
         "stApTg": "Andhra · Telangana",
@@ -184,6 +184,140 @@
       "nav": {
         "mandi": "Mandi",
         "ask": "Ask"
+      },
+      "today": {
+        "label": "Today near you",
+        "details": "Details →",
+        "weather": "My weather · வானிலை",
+        "weatherGo": "7-day forecast →",
+        "mandi": "My mandi · சந்தை",
+        "mandiGo": "All {count} commodities →",
+        "schemes": "My schemes · திட்டங்கள்",
+        "ask": "Ask agri.in",
+        "askValue": "Ask anything",
+        "askSub": "Crop, price, scheme — Tamil, English, हिन्दी",
+        "askGo": "Speak or type →"
+      },
+      "mandi": {
+        "eyebrow": "Market data · {source}",
+        "title": "Mandi prices · சந்தை விலை",
+        "stamp": "{source} · updated {asOf}",
+        "tickerLabel": "Today's mandi prices — {market}",
+        "tickerCount": "{count} commodities",
+        "range": "30-day: ₹{low}–{high}",
+        "modal": "modal ₹{modal}",
+        "arrivals": "arrivals {qtl} qtl",
+        "share": "Share {name} price on WhatsApp",
+        "empty": "No market data for this area yet"
+      },
+      "calendar": {
+        "eyebrow": "Season guide · {zone}",
+        "title": "Kharif calendar · பருவநிலை காலண்டர்",
+        "sowing": "Sowing window open now — {zone}:",
+        "harvesting": "Harvesting now:"
+      },
+      "weather": {
+        "eyebrow": "Hyperlocal forecast",
+        "title": "Weather for your farm · வானிலை",
+        "stripLabel": "7-day forecast",
+        "humidity": "Humidity",
+        "wind": "Wind",
+        "rain": "Rain chance",
+        "soil": "Soil temp",
+        "source": "Source: {source}"
+      },
+      "schemes": {
+        "eyebrow": "Verified govt data · dated sources",
+        "title": "Government schemes · அரசு திட்டங்கள்",
+        "central": "🇮🇳 Central",
+        "state": "State",
+        "verifiedStamp": "✓ Verified against {domain} · {date}",
+        "deadlines": "Deadlines this month",
+        "reminders": "Set reminders"
+      },
+      "sarkari": {
+        "eyebrow": "Official portals · verified links · we never store your records",
+        "title": "Govt services & status checks · அரசு சேவைகள்",
+        "pmKisan": {
+          "title": "PM-Kisan — check status",
+          "sub": "Instalment & beneficiary status by Aadhaar/mobile"
+        },
+        "patta": {
+          "title": "Patta / Chitta land records",
+          "sub": "View & download TN land records — நில ஆவணம்"
+        },
+        "pmfby": {
+          "title": "PMFBY — policy & claim status",
+          "sub": "Crop insurance status · report loss within 72 hrs: 14447"
+        },
+        "agristack": {
+          "title": "AgriStack farmer registry",
+          "sub": "Farmer ID registration & enrolment status"
+        },
+        "shc": {
+          "title": "Soil Health Card",
+          "sub": "Download your SHC · feeds our fertilizer calculator"
+        },
+        "enam": {
+          "title": "eNAM registration",
+          "sub": "Sell in regulated e-markets — how to enrol"
+        }
+      },
+      "toolsRow": {
+        "eyebrow": "Free tools · work offline",
+        "title": "Farm calculators · கணிப்பான்கள்",
+        "all": "All tools →",
+        "calc": "Calculate →",
+        "emi": {
+          "title": "Tractor EMI",
+          "sub": "Monthly EMI by price, down payment, tenure"
+        },
+        "seed": {
+          "title": "Seed rate",
+          "sub": "kg per acre by crop — விதை அளவு"
+        },
+        "fert": {
+          "title": "Fertilizer dose",
+          "sub": "NPK from your Soil Health Card values"
+        },
+        "spray": {
+          "title": "Spray dilution",
+          "sub": "ml per tank, per label dose — safe mixing"
+        }
+      },
+      "categoriesPage": {
+        "metaTitle": "All categories — Agri.in",
+        "metaDescription": "Every agriculture vertical on agri.in — mandi prices, weather, schemes, inputs, services, community and trade. Live now or opening in stages.",
+        "crumbHome": "Home",
+        "crumb": "All categories",
+        "eyebrow": "{count} verticals · one registry · zero hamburgers",
+        "title": "All categories · எல்லா பிரிவுகளும்",
+        "sub": "{live} live now · {soon} opening in stages — every tile is a registry entry, never a dead link",
+        "liveCount": "· {count} live",
+        "stageCount": "· {count} · Stage {stage}",
+        "searchLabel": "Find a category",
+        "searchPlaceholder": "Find a category… e.g. tractor, மண் பரிசோதனை, loans",
+        "noMatches": "No category matches your search — try another word or language."
+      },
+      "soonPage": {
+        "metaTitle": "{name} — Agri.in",
+        "metaDescription": "{name} on agri.in — every vertical is a registry entry, never a dead link.",
+        "crumbHome": "Home",
+        "crumbCategories": "All categories",
+        "eyebrowSoon": "Coming soon · registry entry",
+        "eyebrowLive": "Live now",
+        "bodyStaged": "{name} on agri.in is opening in stage {stage} — every vertical is a registry entry from day one, never a dead link. Leave your pincode and we'll tell you the moment it opens near you.",
+        "body": "{name} on agri.in is opening soon — every vertical is a registry entry from day one, never a dead link. Leave your pincode and we'll tell you the moment it opens near you.",
+        "liveBody": "{name} is live on agri.in — this page is just the door.",
+        "liveCta": "Go",
+        "formTitle": "Get notified when it opens near you",
+        "pincodeLabel": "Your pincode",
+        "pincodePlaceholder": "e.g. 641001",
+        "contactLabel": "Phone or email (optional)",
+        "contactPlaceholder": "So we can reach you — optional",
+        "cta": "Notify me",
+        "done": "🎉 Thanks — we'll tell you the moment this opens in {pincode}.",
+        "error": "Something went wrong — please try again."
       }
     },
     "search": {
@@ -1038,6 +1172,66 @@
         "saveFailed": "Could not update — please try again.",
         "loadFailed": "Could not load your preferences — please try again.",
         "openCenter": "Open notification center"
+      }
+    },
+    "tools": {
+      "reviewNote": "TODO review: Tamil and Hindi below are machine-assisted — needs native review",
+      "metaTitle": "Farm calculators — Agri.in",
+      "metaDescription": "Free offline farm calculators: tractor & loan EMI, seed rate, fertilizer dose from your Soil Health Card, spray dilution — English, Tamil, Hindi.",
+      "crumbHome": "Home",
+      "crumb": "Farm calculators",
+      "eyebrow": "Free tools · work offline · nothing stored",
+      "title": "Farm calculators · கணிப்பான்கள்",
+      "sub": "Plan seed, fertilizer, spray and loan numbers in seconds — everything computes on your phone, even offline",
+      "disclaimer": "Planning aids only — real dosages and terms vary by product label, soil, season and lender. Verify critical decisions with your agri officer, dealer or bank.",
+      "emi": {
+        "title": "Tractor & loan EMI",
+        "sub": "Reducing-balance EMI by amount, rate and tenure",
+        "principal": "Loan amount (₹)",
+        "rate": "Interest rate (% per year)",
+        "months": "Tenure (months)",
+        "result": "Monthly EMI",
+        "total": "Total payment {total} · interest {interest}"
+      },
+      "seed": {
+        "title": "Seed rate",
+        "sub": "kg of seed for your area, by crop",
+        "crop": "Crop",
+        "area": "Area (acres)",
+        "result": "Seed needed",
+        "note": "Reference rates: TNAU agritech portal · transplanted & direct-sown paddy differ",
+        "crops": {
+          "paddyTransplanted": "Paddy (transplanted)",
+          "paddyDirect": "Paddy (direct sown)",
+          "maize": "Maize",
+          "groundnut": "Groundnut",
+          "blackgram": "Black gram"
+        }
+      },
+      "fert": {
+        "title": "Fertilizer dose",
+        "sub": "Urea · DAP · MOP for your area from an NPK dose",
+        "n": "N (kg/ha)",
+        "p": "P₂O₅ (kg/ha)",
+        "k": "K₂O (kg/ha)",
+        "area": "Area (acres)",
+        "result": "For your area:",
+        "urea": "urea",
+        "dap": "DAP",
+        "mop": "MOP",
+        "note": "v1 is recommended dose × area (presets: TNAU guides). Enter your Soil Health Card-adjusted dose for a farm-specific plan. DAP's 18% N is not netted off in v1.",
+        "crops": {
+          "paddy": "Paddy preset",
+          "maize": "Maize preset"
+        }
+      },
+      "spray": {
+        "title": "Spray dilution",
+        "sub": "ml per tank from the label dose — safe mixing",
+        "dose": "Label dose (ml per litre)",
+        "tank": "Tank size (litres)",
+        "resultPerTank": "Chemical per tank",
+        "resultTanks": "≈ {tanks} tanks per acre at {volume} L/acre spray volume"
       }
     }
   },

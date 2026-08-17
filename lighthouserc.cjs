@@ -16,7 +16,7 @@ module.exports = {
       // 3 runs per URL, asserted on the median run: a single run on shared
       // CI VMs swings 15-20 perf points (observed: 0.78 vs 0.99 for the same
       // page); the median is stable without loosening any threshold.
-      numberOfRuns: 3,
+      numberOfRuns: 5,
       settings: {
         // Lighthouse's mobile defaults already emulate a Moto G-class phone;
         // this pins the classic 3G network profile + 4x CPU slowdown.

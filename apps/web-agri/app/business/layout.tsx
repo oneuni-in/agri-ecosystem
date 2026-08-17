@@ -1,6 +1,8 @@
 import { ConsoleShell } from "@agri/ui";
+import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
+import { pickUiMessages } from "@/lib/client-messages";
 import { CONSOLE_MODULES } from "@/lib/console-modules";
 import { adsVisible, billingVisible, fetchOwnedBusinesses } from "@/lib/console-gates";
 
@@ -20,6 +22,10 @@ export default async function BusinessConsoleLayout({
   // deep link.
   const t = await getTranslations("ui.console");
   const owned = await fetchOwnedBusinesses();
+  // AG-A8: the console's client catalog rides on THIS subtree, not the root
+  // provider — shipping ui.console on every public page moved the home's
+  // Lighthouse median (see lib/client-messages.ts).
+  const messages = await pickUiMessages(["console", "localeSwitcher"]);
 
   // U2 role-gated rendering: a consumer session (owns no business) never
   // renders the vendor nav. They still reach the pages themselves — the
@@ -27,12 +33,14 @@ export default async function BusinessConsoleLayout({
   // consumer becomes a vendor.
   if (owned.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-6">
-        <div className="mb-2 flex justify-end">
-          <ConsoleLocaleSwitcher />
+      <NextIntlClientProvider messages={messages}>
+        <div className="mx-auto w-full max-w-5xl px-4 py-6">
+          <div className="mb-2 flex justify-end">
+            <ConsoleLocaleSwitcher />
+          </div>
+          {children}
         </div>
-        {children}
-      </div>
+      </NextIntlClientProvider>
     );
   }
 
@@ -43,6 +51,7 @@ export default async function BusinessConsoleLayout({
     return true;
   }).map((entry) => ({ ...entry, title: t(`nav.${entry.id}`) }));
   return (
+    <NextIntlClientProvider messages={messages}>
     <ConsoleShell
       navLabel={t("heading")}
       heading={t("heading")}
@@ -57,5 +66,6 @@ export default async function BusinessConsoleLayout({
     >
       {children}
     </ConsoleShell>
+    </NextIntlClientProvider>
   );
 }

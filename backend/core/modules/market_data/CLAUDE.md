@@ -24,5 +24,15 @@ schemes, helplines) rendered as browsable reference sections.
   licence.
 - Never read another module's tables directly.
 - Never bypass rate limiting or add an undeclared public route.
-- Never serve a dataset without source + as-of date metadata
-  (data.gov.in sourcing traps: 10-row cap, case-sensitive filters).
+- Never serve a dataset without source + as-of date metadata.
+- Never label derived output with an authority that did not produce
+  it: Open-Meteo publishes no warnings API (/v1/warnings 404s), so
+  severe alerts are OUR derivation over its numbers and say
+  source='open-meteo' - never 'IMD'.
+- Never trust data.gov.in's echo of your request. limit>10 silently
+  returns 10 rows, and filters on date-typed fields are silently
+  IGNORED (a past-date query returns today). Page by row offset and
+  stop on `total`.
+- Never call data.gov.in without an explicit User-Agent: it
+  blackholes httpx's default and the request dies on read timeout
+  with no status code, which looks exactly like an outage.

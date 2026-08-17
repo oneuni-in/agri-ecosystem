@@ -9,9 +9,8 @@ import Link from "next/link";
  *
  * Link targets, honest-today edition:
  *   · Home    → "/" (aria-current)
- *   · Mandi   → /c/mandi-prices — the vertical's landing route, same CP3
- *               convention as the §6 grid tiles (mandi surfaces are flag-off
- *               this pass; the landing is the one honest door)
+ *   · Mandi   → /#mandi — the §7 mandi-cards anchor (real since CP3; when
+ *               the flag is off the anchor scrolls to top, still honest)
  *   · Ask     → /#ask — the §12 Ask band's anchor on this page
  *   · Alerts  → /notifications (real)
  *   · Profile → /account/inquiries — the only account surface web-agri has
@@ -21,7 +20,7 @@ export async function AgriBottomNav() {
   const t = await getTranslations("ui");
   const left = [
     { href: "/", icon: "🏠", label: t("nav.home"), active: true },
-    { href: "/c/mandi-prices", icon: "📈", label: t("agriHome.nav.mandi"), active: false },
+    { href: "/#mandi", icon: "📈", label: t("agriHome.nav.mandi"), active: false },
   ];
   const right = [
     { href: "/notifications", icon: "🔔", label: t("nav.alerts"), active: false },

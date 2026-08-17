@@ -42,6 +42,11 @@ const AUDIT_EXCLUDE = new Set(["web-admin"]);
 // answers; the skip is logged, never silent.
 const EXTRA_URLS = {
   "web-milk": ["/coimbatore/641001"], // seeded covered pincode (seed_e2e_milk.py)
+  // A-U1 AG-A8: /categories holds the 0.90 floor alongside the agri home —
+  // it is the registry surface every Soon tile funnels through. Its grid is
+  // GET /catalog/verticals, so it rides the same api-up gate below: without
+  // a backend the registry read is empty and the audit would score a shell.
+  "web-agri": ["/categories"],
 };
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -135,8 +140,13 @@ let exitCode = 1;
 try {
   await Promise.all(apps.map((app) => waitForReady(`http://localhost:${APPS[app]}/`)));
   // warm every audited URL (not just home pages): the first SSR render pays
-  // one-off costs that would otherwise land inside the first lighthouse run
-  await Promise.all(urls.map((url) => fetch(url).catch(() => {})));
+  // one-off costs that would otherwise land inside the first lighthouse run.
+  // Three passes, not one - a single request primes the route module but
+  // leaves JIT/render caches cold (A-U1 evidence: first-sample outliers
+  // survived the single-pass warm-up).
+  for (let pass = 0; pass < 3; pass += 1) {
+    await Promise.all(urls.map((url) => fetch(url).catch(() => {})));
+  }
   run("pnpm", ["exec", "lhci", "autorun", "--config=lighthouserc.cjs"], {
     stdio: "inherit",
     env: { ...process.env, LHCI_URLS: urls.join(",") },

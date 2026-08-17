@@ -1,3 +1,4 @@
+import type { TodayPayload } from "@agri/types";
 import { parseLocCookie } from "@agri/ui";
 
 import { DEFAULT_LOCATION } from "./default-location";
@@ -105,6 +106,38 @@ export async function fetchVerticals(): Promise<VerticalItem[]> {
   }
   return out;
 }
+
+/** §6/A2 — A1 `.vg-dot` colour per group + the tile icon-disc tint. ONE
+ * binding for the home grid and /categories (identical tiles, both pages). */
+export const GROUP_STYLE: Record<
+  VerticalGroupKey,
+  { dot: string; tint: "green" | "sand" | "aqua" | "lilac" | "peach" }
+> = {
+  essentials: { dot: "bg-brand-deep", tint: "green" },
+  inputs: { dot: "bg-coins-fg", tint: "sand" },
+  services: { dot: "bg-down", tint: "aqua" },
+  community: { dot: "bg-brand", tint: "lilac" },
+  "buy-sell": { dot: "bg-sponsored-fg", tint: "peach" },
+};
+
+/** A2 — stage letter per non-live group (blueprint stages B–E). This is
+ * presentation config about the ROLLOUT PLAN, not a category list — tiles
+ * and landings still render only what the registry returns. */
+export const GROUP_STAGE: Partial<Record<VerticalGroupKey, string>> = {
+  inputs: "B",
+  services: "C",
+  community: "D",
+  "buy-sell": "E",
+};
+
+/** Group key → ui.agriHome.categories.groups.* message key. */
+export const GROUP_LABEL_KEY: Record<VerticalGroupKey, string> = {
+  essentials: "essentials",
+  inputs: "inputs",
+  services: "services",
+  community: "community",
+  "buy-sell": "buySell",
+};
 
 /** Groups in A1 order (essentials → inputs → services → community →
  * buy-sell), items by their registry `order`. */
@@ -227,14 +260,35 @@ export async function fetchReviewSignals(
 /* ── §2b/§3/§6b/§7/§7b/§8/§9 · TODAY payload ───────────────────────────── */
 
 /**
- * The `agri_today` flag is consumed at the API boundary: when the A-U2
- * stub/worker endpoint exists (`GET /market/today/{pincode}`, W3), it will
- * be fetched HERE and this function's return type becomes the frozen A-U2
- * payload contract. Until then it returns null — and null means the severe
- * strip, TODAY strip, mandi ticker/cards, calendar, weather and schemes
- * sections are ABSENT from the DOM (assert node count, not visibility —
- * the A11 lesson).
+ * The `agri_today` flag is consumed at the API boundary: the W3 stub
+ * endpoint `GET /market/today/{pincode}` 404s (`feature_disabled`) while the
+ * flag is OFF, and this returns null — null means the severe strip, TODAY
+ * strip, mandi ticker/cards, calendar, weather and schemes sections are
+ * ABSENT from the DOM (assert node count, not visibility — the A11 lesson).
+ * Flag ON: the deterministic fixture payload arrives in the frozen A-U2
+ * contract shape (`TodayPayload` in @agri/types, mirror of the backend's
+ * market_data/schemas.py) — A-U2's real workers replace the fixtures
+ * WITHOUT this function or the UI changing.
+ *
+ * `cache: "no-store"`: the payload is per-pincode and time-of-day data; a
+ * cached "today" is yesterday's lie. Any non-OK status, network failure or
+ * shape mismatch degrades to null (F1 rule — a dead engine never 500s the
+ * home).
  */
-export async function fetchToday(): Promise<null> {
-  return null;
+export async function fetchToday(pincode: string): Promise<TodayPayload | null> {
+  try {
+    const res = await fetch(`${API}/market/today/${encodeURIComponent(pincode)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as TodayPayload;
+    // Minimal shape guard. NOT a weather check: contract v2 makes
+    // `weather` nullable, so a payload without it is a valid payload
+    // whose weather section is simply absent — the mandi, calendar and
+    // schemes sections must still render.
+    if (typeof body !== "object" || body === null || !body.mandi) return null;
+    return body;
+  } catch {
+    return null;
+  }
 }

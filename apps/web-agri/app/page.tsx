@@ -1,3 +1,4 @@
+import type { MandiCommodity, TodayPayload, TranslatedText } from "@agri/types";
 import {
   AdCarousel,
   Badge,
@@ -6,20 +7,31 @@ import {
   Card,
   CategoryGroup,
   CategoryTile,
-  CountUp,
+  CropChip,
+  DeadlineItem,
+  DeadlinesBar,
   EarnCard,
   EcoPill,
   EcoStrip,
   EmptyState,
   Eyebrow,
+  LiveDot,
   LOC_COOKIE,
+  MandiCard,
+  Marquee,
   RatingStars,
   ReviewCard,
-  Reveal,
+  SeasonCalendar,
+  SeasonNote,
   Section,
+  SevereAlertStrip,
+  ShareChip,
   StatBand,
   StatCell,
   StoryCard,
+  TipCard,
+  TodayStrip,
+  TodayTile,
   TrustPillar,
   WaveDivider,
   Wrap,
@@ -28,18 +40,21 @@ import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { HELPLINES } from "@/data/helplines";
+import { SARKARI_LINKS } from "@/data/sarkari";
 import { HOME_HERO_SLOT, serveAds } from "@/lib/ads";
 import {
   fetchDirectoryRow,
   fetchReviewSignals,
   fetchToday,
   fetchVerticals,
+  GROUP_LABEL_KEY,
+  GROUP_STYLE,
   groupVerticals,
   resolveHomePincode,
   UNLOCATABLE_M,
-  type VerticalGroupKey,
 } from "@/lib/home";
 
 import { HeaderLocation } from "./header-location";
@@ -49,6 +64,13 @@ const SITE = "https://agri.in";
 
 // Per-request: the page renders the VISITOR's pincode (their `agri_loc`
 // cookie) — same contract as milk's U1 home.
+/** The A1 stats format (thousands → Indian grouping + "+"), server-side —
+ * the CountUp island's formatCount is client-module-bound, and the band now
+ * renders static finals (motion deferred under the AG-A8 floor). */
+function statValue(n: number): string {
+  return n >= 1000 ? `${n.toLocaleString("en-IN")}+` : String(n);
+}
+
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
@@ -82,22 +104,37 @@ function homeJsonLd(faq: { q: string; a: string }[]): string {
   return JSON.stringify(graph).replaceAll("<", "\\u003c");
 }
 
-/** §6 — A1 `.vg-dot` colour per group + the tile icon-disc tint. */
-const GROUP_STYLE: Record<VerticalGroupKey, { dot: string; tint: "green" | "sand" | "aqua" | "lilac" | "peach" }> = {
-  essentials: { dot: "bg-brand-deep", tint: "green" },
-  inputs: { dot: "bg-coins-fg", tint: "sand" },
-  services: { dot: "bg-down", tint: "aqua" },
-  community: { dot: "bg-brand", tint: "lilac" },
-  "buy-sell": { dot: "bg-sponsored-fg", tint: "peach" },
-};
+/** TranslatedText → the visitor's locale, EN fallback (E5 rule). */
+function pickText(locale: string, text: TranslatedText | null | undefined): string {
+  if (!text) return "";
+  return text[locale as keyof TranslatedText] ?? text.en;
+}
 
-const GROUP_LABEL_KEY: Record<VerticalGroupKey, string> = {
-  essentials: "essentials",
-  inputs: "inputs",
-  services: "services",
-  community: "community",
-  "buy-sell": "buySell",
-};
+/** Signed change → tone + the "▲ ₹4" / "▼ ₹2" / "—" text (A1 `.chg`). */
+function priceChange(change: number): { tone: "up" | "down" | "flat"; text: string } {
+  if (change > 0) return { tone: "up", text: `▲ ₹${change}` };
+  if (change < 0) return { tone: "down", text: `▼ ₹${-change}` };
+  return { tone: "flat", text: "—" };
+}
+
+const CHANGE_TEXT_CLASS = { up: "text-up", down: "text-down", flat: "text-muted" } as const;
+
+const INR = new Intl.NumberFormat("en-IN");
+
+/** §7 — the mandi-card WhatsApp share text, built SERVER-side from the
+ * payload (name/price/change/market/as-of/source — never literals). */
+function waShareHref(c: MandiCommodity, locale: string, today: TodayPayload): string {
+  const text = `${pickText(locale, c.name)} ₹${c.price}/${c.unit} (${priceChange(c.change).text}) — ${c.market} · ${today.mandi.as_of} · ${today.mandi.source} via agri.in`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
+/** §10c — the four calculator entry cards; hrefs anchor into /tools. */
+const TOOL_CARDS = [
+  { key: "emi", icon: "🚜", href: "/tools#emi" },
+  { key: "seed", icon: "🌱", href: "/tools#seed-rate" },
+  { key: "fert", icon: "🧪", href: "/tools#fertilizer" },
+  { key: "spray", icon: "💧", href: "/tools#spray" },
+] as const;
 
 /**
  * The agri.in home — A-U1 CP2, assembled per the A1 FINAL v4 reference
@@ -111,18 +148,23 @@ export default async function HomePage() {
   const locale = await getLocale();
   const pincode = resolveHomePincode((await cookies()).get(LOC_COOKIE)?.value);
 
-  const [today, verticals, directory, heroAds, t] = await Promise.all([
-    fetchToday(),
+  // §10 rating meta + §15 strip come from the SAME D18 signals seam milk
+  // proved (approved-only is the engine's own guarantee). The signals chain
+  // starts the moment the directory read resolves and rides the SAME
+  // Promise.all — a serial await here added its whole latency to first byte
+  // (AG-A8 TTFB evidence).
+  const directoryPromise = fetchDirectoryRow(pincode);
+  const signalsPromise = directoryPromise.then((d) => fetchReviewSignals(d, 2));
+  const [today, verticals, directory, heroAds, t, { ratings, reviews }] = await Promise.all([
+    fetchToday(pincode),
     fetchVerticals(),
-    fetchDirectoryRow(pincode),
+    directoryPromise,
     // Served on the SERVER: the hero is the LCP element, and a client fetch
     // delays its image until after hydration (milk's measured 2372ms lesson).
     serveAds(HOME_HERO_SLOT, { pincode, locale }, 5),
     getTranslations("ui"),
+    signalsPromise,
   ]);
-  // §10 rating meta + §15 strip come from the SAME D18 signals seam milk
-  // proved (approved-only is the engine's own guarantee).
-  const { ratings, reviews } = await fetchReviewSignals(directory, 2);
 
   const faq = (["1", "2", "3", "4", "5", "6"] as const).map((n) => ({
     q: t(`agriHome.faq.q${n}`),
@@ -139,11 +181,91 @@ export default async function HomePage() {
 
       {/* §2b severe strip · §3 TODAY strip · §6b mandi ticker · §7 mandi
           cards · §7b kharif calendar · §8 weather+tip · §9 schemes+deadlines:
-          agri_today is OFF, fetchToday() is null → these sections are ABSENT
-          from the DOM (assert node count, not visibility). Their shapes ship
-          in /demo; A-U2 binds them here without touching the composites.
-          Rendering the (null) payload keeps the binding point explicit. */}
-      {today}
+          flag off → `GET /market/today/{pincode}` 404s → fetchToday() is
+          null → these sections are ABSENT from the DOM (assert node count,
+          not visibility). Flag on: every value below renders FROM the
+          payload — prices, stamps, sources, dates — never a literal. */}
+
+      {/* §2b — severe-weather alert strip, full-bleed directly under the
+          header: ONLY when the payload carries an active IMD alert for the
+          visitor's district. "Details →" anchors the §8 weather section. */}
+      {today?.severe_alert ? (
+        <SevereAlertStrip
+          data-testid="severe-alert-strip"
+          action={
+            <a href="#weather" className="text-severe-ink no-underline">
+              {t("agriHome.today.details")}
+            </a>
+          }
+        >
+          <b className="text-severe-ink">{pickText(locale, today.severe_alert.headline)}</b> —{" "}
+          {today.severe_alert.district} · {pickText(locale, today.severe_alert.window)}
+        </SevereAlertStrip>
+      ) : null}
+
+      {/* §3 — TODAY strip, the FIRST section (location-first lead, D52):
+          my weather · my mandi · my schemes · ask. ABOVE the fold — no
+          Reveal, no content-visibility (the AG-A8 LCP lessons). */}
+      {today ? (
+        <Wrap>
+          <section aria-label={t("agriHome.today.label")} data-testid="today-strip" className="mt-3.5">
+            <TodayStrip className="max-md:grid-cols-2 md:[grid-template-columns:1.1fr_1.1fr_1.1fr_1fr]">
+              {/* Contract v2: weather can be absent (upstream down, cold
+                  cache). The tile omits itself; the rest of the strip —
+                  mandi, schemes, ask — is unaffected. */}
+              {today.weather ? (
+                <TodayTile
+                  href="#weather"
+                  label={t("agriHome.today.weather")}
+                  value={
+                    <>
+                      {today.weather.condition_icon} {today.weather.temp_c}°C
+                    </>
+                  }
+                  sub={`${today.district ?? today.pincode} · ${pickText(locale, today.weather.condition)}`}
+                  go={t("agriHome.today.weatherGo")}
+                />
+              ) : null}
+              {today.mandi.commodities[0] ? (
+                <TodayTile
+                  href="#mandi"
+                  label={t("agriHome.today.mandi")}
+                  value={
+                    <>
+                      {today.mandi.commodities[0].emoji} ₹{today.mandi.commodities[0].price}/
+                      {today.mandi.commodities[0].unit}{" "}
+                      <span
+                        className={`text-[12px] font-medium ${CHANGE_TEXT_CLASS[priceChange(today.mandi.commodities[0].change).tone]}`}
+                      >
+                        {priceChange(today.mandi.commodities[0].change).text}
+                      </span>
+                    </>
+                  }
+                  sub={`${pickText(locale, today.mandi.commodities[0].name)} · ${today.mandi.market} · ${today.mandi.as_of}`}
+                  go={t("agriHome.today.mandiGo", { count: today.mandi.commodities.length })}
+                />
+              ) : null}
+              {today.schemes.items[0] ? (
+                <TodayTile
+                  href="#schemes"
+                  label={t("agriHome.today.schemes")}
+                  value={<>🏛️ {pickText(locale, today.schemes.items[0].title)}</>}
+                  sub={pickText(locale, today.schemes.items[0].body)}
+                  go={`${pickText(locale, today.schemes.items[0].link_label)} →`}
+                />
+              ) : null}
+              <TodayTile
+                href="/c/experts"
+                tone="ask"
+                label={t("agriHome.today.ask")}
+                value={<>🎙️ {t("agriHome.today.askValue")}</>}
+                sub={t("agriHome.today.askSub")}
+                go={t("agriHome.today.askGo")}
+              />
+            </TodayStrip>
+          </section>
+        </Wrap>
+      ) : null}
 
       {/* §4 — full-bleed hero ad, D21 slot agri_home_hero_xl (config-only
           onboarding; engine untouched). The box reserves the seeded creative
@@ -165,7 +287,12 @@ export default async function HomePage() {
               href="/business"
               className="flex h-full w-full flex-col items-center justify-center gap-2 [background-color:var(--brand-deep)] bg-cta-gradient text-white no-underline"
             >
-              <b className="font-display text-xl font-semibold">{t("agriHome.hero.houseTitle")}</b>
+              {/* A1 `.hero-ad h1` scale (clamp 21–32px): the house door is a real
+                  hero banner, not a caption — and the page's largest text
+                  block belongs at the top of the stream, not mid-page. */}
+              <b className="max-w-[15em] px-5 text-center font-display text-[length:clamp(21px,3vw,32px)] font-semibold leading-[1.18]">
+                {t("agriHome.hero.houseTitle")}
+              </b>
               <span className="rounded-pill bg-accent px-4 py-2 text-[13px] font-bold text-accent-ink">
                 {t("agriHome.hero.houseCta")}
               </span>
@@ -234,11 +361,22 @@ export default async function HomePage() {
           title={t("agriHome.categories.title")}
           className="pb-0"
         >
-          <Eyebrow className="-mt-3">{t("agriHome.categories.eyebrow")}</Eyebrow>
+          {/* A1's reveal/stagger/count-up motion is DEFERRED on the home:
+              ~15 hydration islands walking a 6000px DOM were the measured
+              anchor under the AG-A8 0.90 floor (Decision 3 outranks
+              decorative motion; the milk StatBand precedent). The static
+              state below IS the reference's reduced-motion fallback; /demo
+              keeps the full motion spec. Recorded in polish-a1.md §0. */}
+          <Eyebrow className="-mt-3">
+            {/* Count comes from the registry read, never a literal:
+                adding a vertical is a migration, and this line must
+                follow it without an app-code change. */}
+            {t("agriHome.categories.eyebrow", { count: verticals.length })}
+          </Eyebrow>
           {groups.map((group) => {
             const style = GROUP_STYLE[group.key];
             return (
-              <Reveal key={group.key}>
+              <div key={group.key}>
                 <CategoryGroup
                   label={
                     <>
@@ -251,7 +389,7 @@ export default async function HomePage() {
                     </>
                   }
                 >
-                  {group.items.map((vertical, index) => {
+                  {group.items.map((vertical) => {
                     const label = vertical.name[locale] ?? vertical.name["en"] ?? vertical.slug;
                     // UX law 1: EN + mother tongue on every tile. name.ta is
                     // the vernacular line; on /ta itself (where the label IS
@@ -260,15 +398,7 @@ export default async function HomePage() {
                     const vernacular =
                       locale === "ta" ? (vertical.name["en"] ?? "") : (vertical.name["ta"] ?? "");
                     return (
-                      // A1 staggered pop-in: the wrapper joins the group's
-                      // Reveal (hidden until the group intersects, pops with
-                      // i×45ms delay); under reduced motion / no JS the tile
-                      // is simply visible.
-                      <div
-                        key={vertical.slug}
-                        style={{ animationDelay: `${index * 45}ms` }}
-                        className="group-data-[in=false]/reveal:opacity-0 group-data-[in=true]/reveal:animate-pop motion-reduce:!animate-none motion-reduce:!opacity-100"
-                      >
+                      <div key={vertical.slug}>
                         <CategoryTile
                           href={`/c/${vertical.slug}`}
                           icon={vertical.icon}
@@ -282,7 +412,7 @@ export default async function HomePage() {
                     );
                   })}
                 </CategoryGroup>
-              </Reveal>
+              </div>
             );
           })}
           <p className="mt-2.5 text-[11.5px] text-muted">
@@ -290,6 +420,365 @@ export default async function HomePage() {
             {t("agriHome.categories.note")}
           </p>
         </Section>
+
+        {/* §6b — mandi ticker: every lane item renders from the payload
+            (names, prices, changes), closed by the source + commodity count
+            — also from the payload. Marquee handles reduced-motion. */}
+        {today ? (
+          <Marquee
+            data-testid="mandi-ticker"
+            label={t("agriHome.mandi.tickerLabel", { market: today.mandi.market })}
+            className="mt-4"
+          >
+            <span className="pl-4">
+              {today.mandi.market} · {today.mandi.as_of}
+            </span>
+            {today.mandi.commodities.map((c) => (
+              <span key={c.slug}>
+                {pickText(locale, c.name)}{" "}
+                <b className="font-medium text-ink">
+                  ₹{c.price}/{c.unit}{" "}
+                  {c.change > 0 ? `▲${c.change}` : c.change < 0 ? `▼${-c.change}` : "—"}
+                </b>
+              </span>
+            ))}
+            <span>
+              <b className="font-medium text-ink">
+                {today.mandi.source} ·{" "}
+                {t("agriHome.mandi.tickerCount", { count: today.mandi.commodities.length })}
+              </b>{" "}
+              ·
+            </span>
+          </Marquee>
+        ) : null}
+
+        {/* §7 — mandi price cards: first 8 commodities, tone from the sign
+            of `change`, 30-day sparkline, range line and the WhatsApp share
+            link ALL from the payload. The row stamp (source · updated as-of)
+            is data; the LiveDot is the A1 freshness pulse. */}
+        {today ? (
+          <section
+            id="mandi"
+            aria-label={t("agriHome.mandi.title")}
+            className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
+            <Eyebrow>{t("agriHome.mandi.eyebrow", { source: today.mandi.source })}</Eyebrow>
+            <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2.5">
+              <h2 className="font-display text-xl font-extrabold">{t("agriHome.mandi.title")}</h2>
+              {/* A-U2 §2, honest degradation: with no ingested rows for
+                  this area there is no as-of to stamp, so the strip says
+                  so instead of rendering a dangling "updated". */}
+              <span className="text-[10.5px] text-muted">
+                {today.mandi.commodities.length > 0 ? (
+                  <>
+                    <LiveDot />
+                    {t("agriHome.mandi.stamp", {
+                      source: today.mandi.source,
+                      asOf: today.mandi.as_of,
+                    })}
+                  </>
+                ) : (
+                  t("agriHome.mandi.empty")
+                )}
+              </span>
+            </div>
+            <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+              {today.mandi.commodities.slice(0, 8).map((c) => {
+                const change = priceChange(c.change);
+                const rangeParts = [
+                  t("agriHome.mandi.range", { low: c.range_low, high: c.range_high }),
+                  c.modal !== null ? t("agriHome.mandi.modal", { modal: c.modal }) : null,
+                  c.arrivals_qtl !== null
+                    ? t("agriHome.mandi.arrivals", { qtl: INR.format(c.arrivals_qtl) })
+                    : null,
+                  c.note ? pickText(locale, c.note) : null,
+                ].filter(Boolean);
+                return (
+                  <MandiCard
+                    key={c.slug}
+                    data-testid="mandi-card"
+                    emoji={c.emoji}
+                    name={pickText(locale, c.name)}
+                    market={c.market}
+                    price={`₹${c.price}/${c.unit}`}
+                    change={change.text}
+                    tone={change.tone}
+                    spark={[...c.series_30d]}
+                    range={rangeParts.join(" · ")}
+                    share={
+                      <ShareChip
+                        label={t("agriHome.mandi.share", { name: pickText(locale, c.name) })}
+                        href={waShareHref(c, locale, today)}
+                      />
+                    }
+                  />
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {/* §7b — kharif calendar: months rail + sowing/harvest chips from
+            the payload's E5-shaped calendar block; zone in the eyebrow. */}
+        {today ? (
+          <section
+            aria-label={t("agriHome.calendar.title")}
+            className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
+            <Eyebrow>
+              {t("agriHome.calendar.eyebrow", { zone: pickText(locale, today.calendar.zone) })}
+            </Eyebrow>
+            <h2 className="mb-3.5 font-display text-xl font-extrabold">
+              {t("agriHome.calendar.title")}
+            </h2>
+            <div>
+              <SeasonCalendar
+                months={today.calendar.months.map((m) => ({
+                  label: m.label,
+                  inSeason: m.in_season,
+                  current: m.current,
+                }))}
+              >
+                <SeasonNote>
+                  🌱 {t("agriHome.calendar.sowing", { zone: pickText(locale, today.calendar.zone) })}
+                </SeasonNote>
+                {today.calendar.sowing.map((w) => (
+                  <CropChip key={w.icon + pickText(locale, w.label)}>
+                    {w.icon} {pickText(locale, w.label)}
+                    {w.until ? ` · ${pickText(locale, w.until)}` : ""}
+                  </CropChip>
+                ))}
+                <SeasonNote className="mt-2">🌾 {t("agriHome.calendar.harvesting")}</SeasonNote>
+                {today.calendar.harvesting.map((w) => (
+                  <CropChip harvest key={w.icon + pickText(locale, w.label)}>
+                    {w.icon} {pickText(locale, w.label)}
+                    {w.until ? ` · ${pickText(locale, w.until)}` : ""}
+                  </CropChip>
+                ))}
+              </SeasonCalendar>
+            </div>
+          </section>
+        ) : null}
+
+        {/* §8 — weather: 7-day strip (first cell = today, brand-soft
+            highlight), spray advisory, meta chips and the tip — all payload,
+            incl. the source stamp. A1 grid: 2fr / 1.1fr from md.
+            Contract v2: `today.weather` is nullable, so an Open-Meteo
+            outage with a cold cache removes THIS section and nothing
+            else — mandi, the calendar and schemes keep rendering from
+            our own tables. */}
+        {today?.weather ? (
+          <section
+            id="weather"
+            aria-label={t("agriHome.weather.title")}
+            className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
+            <Eyebrow>{t("agriHome.weather.eyebrow")}</Eyebrow>
+            <h2 className="mb-3.5 font-display text-xl font-extrabold">
+              {t("agriHome.weather.title")}
+            </h2>
+            <div className="grid gap-2.5 md:[grid-template-columns:2fr_1.1fr]">
+              <div
+                aria-label={t("agriHome.weather.stripLabel")}
+                className="flex gap-1.5 overflow-x-auto rounded-card border border-cream-line bg-card px-4 py-3.5"
+              >
+                {today.weather.days.map((day, index) => (
+                  <div
+                    key={pickText(locale, day.label)}
+                    className={`min-w-[52px] flex-1 rounded-[10px] px-0.5 py-2 text-center ${
+                      index === 0 ? "bg-brand-soft" : ""
+                    }`}
+                  >
+                    {/* --muted is 5.09:1 on white but ~4.47:1 on the
+                        today cell's --brand-soft, which misses AA by a
+                        hair (measured: Lighthouse color-contrast, 0.92).
+                        Only cell 0 has that background, so only cell 0
+                        darkens — the emphasised day reading darker is
+                        also what the A1 reference implies. */}
+                    <small
+                      className={`block text-[10px] ${index === 0 ? "text-ink" : "text-muted"}`}
+                    >
+                      {pickText(locale, day.label)}
+                    </small>
+                    <span aria-hidden="true" className="my-1 block text-xl">
+                      {day.icon}
+                    </span>
+                    <b className="text-[11.5px] font-medium">
+                      {day.high_c}° / {day.low_c}°
+                    </b>
+                  </div>
+                ))}
+              </div>
+              {today.weather.advisory ? (
+                <div className="rounded-card border border-accent bg-trust-bg px-4 py-3.5">
+                  <b className="mb-[3px] block text-[13px] font-medium text-ink">
+                    🚿 {pickText(locale, today.weather.advisory.title)}
+                  </b>
+                  <p className="text-[11.5px] leading-[1.55] text-sub">
+                    {pickText(locale, today.weather.advisory.body)}
+                  </p>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-card border border-cream-line bg-card px-4 py-3 text-[11px] text-sub md:col-span-2">
+                <span>
+                  💧 {t("agriHome.weather.humidity")}{" "}
+                  <b className="font-medium text-ink">{today.weather.humidity_pct}%</b>
+                </span>
+                <span>
+                  🌬️ {t("agriHome.weather.wind")}{" "}
+                  <b className="font-medium text-ink">
+                    {today.weather.wind_kmh} km/h {today.weather.wind_dir}
+                  </b>
+                </span>
+                {today.weather.rain_chance_pct !== null ? (
+                  <span>
+                    🌧️ {t("agriHome.weather.rain")}{" "}
+                    <b className="font-medium text-ink">{today.weather.rain_chance_pct}%</b>
+                  </span>
+                ) : null}
+                {today.weather.soil_temp_c !== null ? (
+                  <span>
+                    🌡️ {t("agriHome.weather.soil")}{" "}
+                    <b className="font-medium text-ink">{today.weather.soil_temp_c}°C</b>
+                  </span>
+                ) : null}
+                <span>🛰️ {t("agriHome.weather.source", { source: today.weather.source })}</span>
+              </div>
+            </div>
+            {today.weather.tip ? (
+              <TipCard
+                className="mt-2.5"
+                title={pickText(locale, today.weather.tip.title)}
+                sub={pickText(locale, today.weather.tip.body)}
+              />
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* §9 — schemes spotlight + deadlines bar: level chips, bodies, the
+            "verified against · date" stamp and every deadline chip render
+            from the payload's E5-shaped schemes block. External links open
+            the OFFICIAL portals. */}
+        {today ? (
+          <section
+            id="schemes"
+            aria-label={t("agriHome.schemes.title")}
+            className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
+            <Eyebrow>{t("agriHome.schemes.eyebrow")}</Eyebrow>
+            <h2 className="mb-3.5 font-display text-xl font-extrabold">
+              {t("agriHome.schemes.title")}
+            </h2>
+            <div className="grid gap-2.5 md:grid-cols-3">
+              {today.schemes.items.slice(0, 3).map((scheme) => (
+                <div
+                  key={scheme.url}
+                  data-testid="scheme-card"
+                  className="rounded-card border border-cream-line bg-card px-4 py-3.5"
+                >
+                  <div className="mb-[7px] flex gap-1.5">
+                    {scheme.level === "central" ? (
+                      <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[9.5px] font-medium text-brand-deep">
+                        {t("agriHome.schemes.central")}
+                      </span>
+                    ) : (
+                      <span className="rounded-pill bg-sponsored-bg px-2 py-0.5 text-[9.5px] font-medium text-sponsored-fg">
+                        {pickText(locale, scheme.state_label) || t("agriHome.schemes.state")}
+                      </span>
+                    )}
+                  </div>
+                  <b className="block text-[13.5px] font-medium text-ink">
+                    {pickText(locale, scheme.title)}
+                  </b>
+                  <p className="mb-2 mt-1 text-[11.5px] leading-[1.55] text-sub">
+                    {pickText(locale, scheme.body)}
+                  </p>
+                  <span className="block text-[9.5px] text-muted">
+                    {t("agriHome.schemes.verifiedStamp", {
+                      domain: scheme.verified_against,
+                      date: scheme.verified_on,
+                    })}
+                  </span>
+                  <a
+                    href={scheme.url}
+                    target="_blank"
+                    rel="noopener"
+                    className="tap-target mt-1.5 inline-block text-[11.5px] font-medium text-brand no-underline"
+                  >
+                    {pickText(locale, scheme.link_label)} →
+                  </a>
+                </div>
+              ))}
+            </div>
+            {today.schemes.deadlines.length > 0 ? (
+              <DeadlinesBar
+                data-testid="deadlines-bar"
+                className="mt-2.5"
+                heading={<>⏰ {t("agriHome.schemes.deadlines")}</>}
+                action={
+                  <a
+                    href="/notifications"
+                    className="tap-target inline-flex min-h-[24px] items-center no-underline"
+                  >
+                    {t("agriHome.schemes.reminders")} 🔔
+                  </a>
+                }
+              >
+                {today.schemes.deadlines.map((deadline) => (
+                  <DeadlineItem key={deadline.chip + pickText(locale, deadline.title)} chip={deadline.chip}>
+                    <b className="font-medium text-ink">{pickText(locale, deadline.title)}</b>
+                    {deadline.note ? <> · {pickText(locale, deadline.note)}</> : null}
+                  </DeadlineItem>
+                ))}
+              </DeadlinesBar>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* §9b — sarkari services hub: REAL in this pass, flag-independent.
+            Deep links to OFFICIAL portals only (data/sarkari.ts, checked by
+            scripts/check-sarkari-links.mjs — AG-A11). We link, we never
+            fetch or store anyone's records (DPDP). Domain + verified stamp
+            render from the data file. */}
+        <section
+          aria-label={t("agriHome.sarkari.title")}
+          className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
+          <Eyebrow>{t("agriHome.sarkari.eyebrow")}</Eyebrow>
+          <h2 className="mb-3.5 font-display text-xl font-extrabold">
+            {t("agriHome.sarkari.title")}
+          </h2>
+          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-3">
+            {SARKARI_LINKS.map((link) => (
+              <a
+                key={link.key}
+                data-testid="sarkari-link"
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-[11px] rounded-card border border-cream-line bg-card px-3.5 py-3 no-underline transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-brand-soft text-base"
+                >
+                  {link.icon}
+                </span>
+                <span className="min-w-0">
+                  <b className="block text-[12.5px] font-medium text-ink">
+                    {t(`agriHome.sarkari.${link.key}.title`)}
+                  </b>
+                  <small className="mt-px block text-[10px] leading-normal text-muted">
+                    {t(`agriHome.sarkari.${link.key}.sub`)}
+                  </small>
+                  <span className="mt-[3px] inline-block text-[9.5px] font-medium text-brand">
+                    {link.domain} ↗ · ✓ {link.verified_on}
+                  </span>
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
 
         {/* §10 — directory row: businesses covering the visitor's pincode,
             nearest first, from the public covers() read. Organic only: milk
@@ -385,6 +874,47 @@ export default async function HomePage() {
             §11 knowledge + news: content module (E6) is empty → ABSENT — no
             lorem articles, ever. */}
 
+        {/* §10c — farm calculators entry (A1 .tools-grid): REAL doors into
+            /tools, the client-side offline calculators the `farm-tools`
+            registry vertical points at. */}
+        <section
+          aria-label={t("agriHome.toolsRow.title")}
+          className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
+          <Eyebrow>{t("agriHome.toolsRow.eyebrow")}</Eyebrow>
+          <div className="mb-3.5 flex items-baseline justify-between gap-2.5">
+            <h2 className="font-display text-xl font-extrabold">{t("agriHome.toolsRow.title")}</h2>
+            <a
+              href="/tools"
+              className="tap-target text-[13px] font-bold text-brand-deep no-underline"
+            >
+              {t("agriHome.toolsRow.all")}
+            </a>
+          </div>
+          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+            {TOOL_CARDS.map((tool) => (
+              <a
+                key={tool.key}
+                href={tool.href}
+                className="block rounded-card border border-cream-line bg-card px-[15px] py-[13px] no-underline transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <span aria-hidden="true" className="text-xl">
+                  {tool.icon}
+                </span>
+                <b className="mt-1.5 block text-[12px] font-medium text-ink">
+                  {t(`agriHome.toolsRow.${tool.key}.title`)}
+                </b>
+                <small className="mt-0.5 block text-[10px] leading-[1.45] text-muted">
+                  {t(`agriHome.toolsRow.${tool.key}.sub`)}
+                </small>
+                <span className="mt-[7px] inline-block text-[10.5px] font-medium text-brand">
+                  {t("agriHome.toolsRow.calc")}
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+
         {/* §11b/§11c — Q&A + events are Stage D surfaces: honest Soon cards
             (door to the /c/ landing), never fake threads or events. */}
         <Section title={t("agriHome.community.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
@@ -439,12 +969,13 @@ export default async function HomePage() {
               </b>
               <p className="mt-0.5 text-[12px] text-brand-soft-2">{t("agriHome.ask.sub")}</p>
             </div>
-            <a
+            <Link
               href="/c/experts"
+              prefetch={false}
               className="inline-flex min-h-[44px] items-center rounded-pill bg-accent px-[18px] text-[13.5px] font-bold text-accent-ink no-underline"
             >
               {t("agriHome.ask.cta")}
-            </a>
+            </Link>
           </div>
           <p className="mt-2.5 text-[10.5px] text-brand-soft-2">{t("agriHome.ask.note")}</p>
         </section>
@@ -497,11 +1028,11 @@ export default async function HomePage() {
           <StatBand label={t("agriHome.stats.label")} data-testid="stats-band" className="mt-5">
             <StatCell
               first
-              value={<CountUp end={verticals.length} />}
+              value={statValue(verticals.length)}
               label={t("agriHome.stats.verticals")}
             />
             {reviewCount > 0 ? (
-              <StatCell value={<CountUp end={reviewCount} />} label={t("agriHome.stats.reviews")} />
+              <StatCell value={statValue(reviewCount)} label={t("agriHome.stats.reviews")} />
             ) : null}
           </StatBand>
         ) : null}
@@ -511,7 +1042,7 @@ export default async function HomePage() {
             (nums omitted until a real consented story replaces it). */}
         <Section title={t("agriHome.pillars.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
           <Eyebrow className="-mt-3">{t("agriHome.pillars.eyebrow")}</Eyebrow>
-          <Reveal className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             <TrustPillar
               icon="🆓"
               tint="green"
@@ -536,7 +1067,7 @@ export default async function HomePage() {
               title={t("agriHome.pillars.p4t")}
               sub={t("agriHome.pillars.p4d")}
             />
-          </Reveal>
+          </div>
           <StoryCard
             className="mt-3"
             quote={t("agriHome.story.quote")}

@@ -28,6 +28,11 @@ dependencies = [
     "minio>=7.2",
     "maxminddb>=2.6",
     "fpdf2>=2.8",
+    # RSS/Atom parsing (A-U3 W1). Feeds are XML from the public internet,
+    # and stdlib ElementTree is documented as vulnerable to entity-expansion
+    # bombs. Already present transitively; declared so it cannot vanish
+    # under us when an upstream drops it.
+    "defusedxml>=0.7",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +40,8 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "mypy>=1.10",
+    # defusedxml ships no py.typed (A-U3 W1 feed parsing).
+    "types-defusedxml>=0.7",
     "ruff>=0.5",
     "import-linter>=2.0",
 ]

@@ -83,3 +83,13 @@
 # out from under Google is a different decision from hiding a home section.
 /market/commodities
 /market/commodities/{slug}
+# /content/feed and /content/items/{slug}: the E6 content engine's reader
+# surface (A-U3 W1). APPROVED items only — the gate is structural, in
+# service._published(), so no handler can widen it. Same read-only
+# reference class as /catalog/verticals: editorial/news content that is
+# already public at its source, with no user data and no mutation. A
+# pending, rejected or nonexistent slug all 404 identically, so the
+# public read cannot enumerate the moderation queue. Bookmarks are NOT
+# here — they are per-user and private by SecureRouter default.
+/content/feed
+/content/items/{slug}

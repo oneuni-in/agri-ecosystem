@@ -204,3 +204,24 @@ class Msp(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     price_qtl: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     verified_against: Mapped[str] = mapped_column(Text, nullable=False)
     verified_on: Mapped[date] = mapped_column(Date, nullable=False)
+
+
+class PriceAlert(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
+    """A user's standing request for their area's mandi prices.
+
+    Keyed on (user, pincode), not commodity: the home card asks for alerts
+    for an AREA, and the daily digest covers whatever curated commodities
+    reported in that district.
+
+    `user_id` carries no FK — modules never read identity's tables, so
+    notify resolves the recipient from this id at delivery time.
+    """
+
+    __tablename__ = "price_alerts"
+    __table_args__ = {"schema": "market"}
+
+    user_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
+    pincode: Mapped[str] = mapped_column(Text, nullable=False)
+    # Once-a-day latch: the daily pull is deliberately re-runnable, so
+    # without this a retry would notify twice for the same prices.
+    last_notified_on: Mapped[date | None] = mapped_column(Date, nullable=True)

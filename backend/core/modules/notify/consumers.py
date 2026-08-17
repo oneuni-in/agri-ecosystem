@@ -13,7 +13,7 @@ from shared.telemetry import get_logger
 
 logger = get_logger(__name__)
 
-STREAMS = ("identity", "notify", "directory", "billing", "ads")
+STREAMS = ("identity", "notify", "directory", "billing", "ads", "market")
 CONSUMER_GROUP = "notify"
 
 EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
@@ -49,6 +49,10 @@ EVENT_ROUTES: dict[str, tuple[str, frozenset[str]]] = {
     "billing.ad_invoice": ("ad_invoice", frozenset({"email"})),
     "campaign.activated": ("campaign_activated", frozenset({"email"})),
     "creative.rejected": ("creative_rejected", frozenset()),
+    # A-U2 AG-A16: the daily mandi digest. in_app only and no destination
+    # in the payload — market_data resolves nothing about the user, notify
+    # does, which is what keeps the two modules independent.
+    "market.price_alert": ("mandi_price_alert", frozenset()),
 }
 
 

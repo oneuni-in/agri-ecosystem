@@ -217,6 +217,9 @@ class Settings(BaseSettings):
     mandi_median_window_days: int = 30
     # Kill switch for scripts/mandi_pull.py.
     mandi_ingest_enabled: bool = True
+    # AG-A16 price alerts. The per-user cap is the spam brake (fail-closed
+    # like the reveal/need caps); notify's own hourly cap is the second.
+    price_alert_max_per_user: int = 5
     # Hour (IST, 24h) the mandi-cron container wakes to pull. Evening, not
     # morning: the resource is published progressively as each mandi
     # reports, so a 6 AM pull captures an almost empty day (measured

@@ -40,6 +40,7 @@ from modules.market_data.agmarknet import (  # noqa: E402
     AgmarknetError,
     fetch_day,
 )
+from modules.market_data.alerts import dispatch_due_alerts  # noqa: E402
 from modules.market_data.ingest import IngestResult, ingest_records  # noqa: E402
 from modules.market_data.models import (  # noqa: E402
     OUTCOME_DISABLED,
@@ -148,6 +149,23 @@ async def run_pull() -> int:
     # exit code.
     outcome = OUTCOME_OK if result.fetched else OUTCOME_EMPTY
     await _record(started_at=started_at, outcome=outcome, state_filter=state, result=result)
+
+    # AG-A16: digests go out AFTER the ingest has committed, so an alert can
+    # only ever describe prices that are actually readable. Failing to
+    # notify must not un-write the day's prices, so this is best-effort and
+    # never changes the pull's exit code — the once-a-day latch means the
+    # next run picks up anyone missed.
+    try:
+        async with get_sessionmaker()() as session:
+            published = await dispatch_due_alerts(session)
+            await session.commit()
+        if published:
+            print(f"price alerts: {published} digest(s) published")  # noqa: T201
+    except Exception as exc:  # noqa: BLE001 — prices are already safe
+        logger.warning(
+            "market.price_alert_dispatch_failed",
+            extra={"extra_fields": {"exc_type": type(exc).__name__}},
+        )
 
     print(  # noqa: T201
         f"mandi pull: outcome={outcome} fetched={result.fetched} written={result.written}"

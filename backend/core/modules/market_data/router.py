@@ -15,15 +15,19 @@ endpoint, and every Today section vanishes from the home's DOM rather
 than rendering an empty shell.
 """
 
+import uuid
+from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, HTTPException, Path, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import get_session
 from shared.flags import flag_enabled
 from shared.security import SecureRouter
 
+from .alerts import AlertCapReached, list_alerts, subscribe, unsubscribe
 from .schemas import (
     CalendarBlock,
     CommodityDetail,
@@ -136,3 +140,57 @@ async def get_commodity_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail="commodity_not_found")
     return detail
+
+
+# ── price alerts (AG-A16) ────────────────────────────────────────────
+# NO public=True here: these read and write a user's own subscriptions,
+# so they are private by default on SecureRouter (ADR-0009) and never
+# appear in public_routes.txt.
+
+
+class AlertIn(BaseModel):
+    pincode: str = Field(pattern=r"^\d{6}$")
+
+
+class AlertOut(BaseModel):
+    id: uuid.UUID
+    pincode: str
+    last_notified_on: date | None
+
+
+def _caller(request: Request) -> uuid.UUID:
+    """The authenticated user, from the principal require_auth resolved."""
+    user_id = request.state.principal.user_id
+    assert isinstance(user_id, uuid.UUID)  # narrow Starlette state's Any
+    return user_id
+
+
+@router.get("/alerts")
+async def get_alerts(session: SessionDep, request: Request) -> list[AlertOut]:
+    """The CALLER's alerts only — never another user's, and there is no
+    parameter that could ask for one."""
+    return [
+        AlertOut(id=a.id, pincode=a.pincode, last_notified_on=a.last_notified_on)
+        for a in await list_alerts(session, _caller(request))
+    ]
+
+
+@router.post("/alerts", status_code=status.HTTP_201_CREATED)
+async def create_alert(session: SessionDep, request: Request, body: AlertIn) -> AlertOut:
+    """Subscribe to a pincode's daily mandi digest. Idempotent: the home
+    card's button has no 'already subscribed' state, so pressing it twice
+    must be harmless rather than a 409 the UI has to explain."""
+    try:
+        alert = await subscribe(session, _caller(request), body.pincode)
+    except AlertCapReached:
+        raise HTTPException(status_code=429, detail="alert_cap_reached") from None
+    return AlertOut(id=alert.id, pincode=alert.pincode, last_notified_on=alert.last_notified_on)
+
+
+@router.delete("/alerts/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_alert(session: SessionDep, request: Request, alert_id: uuid.UUID) -> None:
+    """Unsubscribe. Someone else's id and a nonexistent id both 404 —
+    EXACTLY the same response, so this cannot be used to discover which
+    ids exist (the U2 IDOR rule)."""
+    if not await unsubscribe(session, _caller(request), alert_id):
+        raise HTTPException(status_code=404, detail="alert_not_found")

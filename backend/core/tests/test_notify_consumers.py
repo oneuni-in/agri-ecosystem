@@ -73,6 +73,10 @@ def test_route_table_matches_seeded_templates() -> None:
         "billing.ad_invoice": ("ad_invoice", frozenset({"email"})),
         "campaign.activated": ("campaign_activated", frozenset({"email"})),
         "creative.rejected": ("creative_rejected", frozenset()),
+        # A-U2 AG-A16: the daily mandi digest. in_app only (empty channel
+        # set) and no destination in the payload — market_data publishes
+        # user_id and nothing else, so it never touches identity.
+        "market.price_alert": ("mandi_price_alert", frozenset()),
     } == EVENT_ROUTES
 
 

@@ -45,3 +45,31 @@ live browser.
 - **Binding proof row** — screenshot + the real API call, recorded in
   `docs/design-reference/polish-a1.md` as each section is bound.
 - **Recorded run** — command + output archived in the PR that flips the row.
+
+## A-U3 rows (AG-A26 … AG-A34)
+
+**Numbering note.** The A-U3 build prompt §2 names its nine rows AG-A22…A30,
+but A-U2 had already appended AG-A22…AG-A25. Rows are appended and never
+rewritten, so A-U3's rows take the next free numbers and the prompt's names
+map as: A22→**A26**, A23→**A27**, A24→**A28**, A25→**A29**, A26→**A30**,
+A27→**A31**, A28→**A32**, A29→**A33**, A30→**A34**. Wording is unchanged.
+
+| Row | Acceptance | Verification method | Status |
+|---|---|---|---|
+| AG-A26 | News items show real source + attribution, nothing auto-published | Live ingest of the three curated feeds seeded by 0045 (ICAR · The Hindu Agriculture · BusinessLine Agri-business), 2026-08-17: **130 items written, all `pending`** — `SELECT moderation_status, count(*)` returned `pending 130` and `GET /content/feed` returned `{"items":[]}` at the same moment, so the gate is proven by the pair, not by assertion. Re-run wrote **0, with 130 duplicates**, both runs recorded in `content.ingest_runs`. After approving 12 through the gate, the feed serves them with `source_name`/`source_url`/`published_at` non-null on every card and the publisher's own date rendered. 25 tests in `test_content_ingest.py` drive the parser from REAL captured feed bytes and assert an entry missing title/link/date is dropped rather than defaulted | ✅ verified |
+| AG-A27 | Video content renders with duration/language and an approved-provider embed | BUILT, NOT POPULATED. `kind='video'` with `duration_seconds` + `language`; providers are a CODE-side allowlist (`VIDEO_PROVIDERS`, youtube-nocookie + vimeo) and the embed src is BUILT server-side at read time, so a row stores an opaque id and never iframe markup or an arbitrary origin. A DB check constraint rejects a half-populated video row; the create contract 422s an unapproved provider (tested). `duration_seconds` is nullable because no keyless official API reports YouTube duration and scraping the watch page is out of bounds — it is curator-entered, and a card with no duration renders without the pill rather than inventing one. OWNER DECISION 2026-08-17: ship CP1 with zero video rows; first rows land in CP2 via the knowledge CMS | ⬜ pending (CP2 — code path + tests green, no rows yet) |
+| AG-A28 | Knowledge publish requires the human gate (attempt publish as non-approver → rejected) | `content.publish` is a router-level dependency on the only route that can move an item forward, and is SEPARATE from `content.write` (drafting is not approving). Test `test_publish_requires_the_human_gate` posts as `roles=user` → **403**, then re-reads the row to prove it is *still* `pending` (the 403 was not cosmetic), then posts as `roles=staff` → 200 + `approved`. `create_item()` strips `moderation_status`, so the CMS cannot create something pre-approved; the ingest worker never names the column at all. Every transition writes an audit row — 12 `content.moderated` rows for the 12 CP1 approvals | 🟡 implemented (tests green locally; flips ✅ on CI green) |
+| AG-A29 | Pest advisory surfaces only in its target district/window | ⬜ CP2 (W2) |
+| AG-A30 | Helplines served from E5 with per-number source + verified_on; static file gone; offline page works with network off | ⬜ CP2 (W2) |
+| AG-A31 | Schemes list renders verified stamps from data | ⬜ CP2 (W2) |
+| AG-A32 | Hub directory filters return real businesses; sponsored pins labelled | ⬜ CP3 (W3) |
+| AG-A33 | Agri ads serve via config only with caps + labels | ⬜ CP3 (W4) |
+| AG-A34 | Lighthouse ≥ 0.90 holds on `/`, `/categories`, `/tools`, and the new content/directory routes | ⬜ CP3 |
+
+### A-U1 carry-over (the four open rows, per A-U3 §0)
+| Row | Lands in | State at CP1 |
+|---|---|---|
+| AG-A4 | W4 (ads activation) | open — CP3 |
+| AG-A5 | W3 (search results surface) | open — CP3 |
+| AG-A6 | W3 (hub directory, real seeded businesses) | open — CP3 |
+| AG-A10 | no natural W1–W4 home; proposed slot recorded at CP3 | open — CP3 |

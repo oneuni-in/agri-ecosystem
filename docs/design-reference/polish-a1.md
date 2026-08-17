@@ -16,7 +16,7 @@ render their empty state or not at all; reference sample data lives only on
 | "grid renders 36 from data" | Registry held exactly 1 row (`milk`) | Migration `0037_agri_verticals.py` seeds all 36 with grid metadata in `nav_placement.agri_home {group, order, icon, soon}` — no schema change |
 | `agri_today` flag read by the frontend | No frontend flag reader / public flags endpoint exists | Flag is consumed at the API boundary: flag OFF → today endpoint absent/404 → `fetchToday()` null → sections ABSENT from DOM. Flag row exists in `public.feature_flags` (0037), OFF. |
 | Section 13b live activity feed | No feed endpoint exists | `agri_live_feed` flag seeded OFF; section absent — no fabricated events |
-| §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3 |
+| §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3. **CLOSED at A-U3 W1**: module built (0045), §11 renders from approved items — see §2 below |
 | §10b equipment via `/catalog` products | No agri vertical has a spec schema yet (products 404) | Section absent from DOM until Stage B |
 | Branch `feat/agri-u1-home` | Session instruction | `feat/agri-d40-home-today-strip` |
 | A1 reveal/stagger/count-up motion on the home | ~15 hydration islands walking a 6000px DOM were the measured anchor under the AG-A8 0.90 floor (three CI rounds) | DEFERRED on `/` by Decision 3 (perf outranks decorative motion; the milk StatBand precedent): sections render statically visible — which IS the reference's own reduced-motion fallback. `/demo` keeps the full motion spec; a cheaper mechanism (CSS scroll-driven animations) may restore it post-launch. |
@@ -64,3 +64,24 @@ render their empty state or not at all; reference sample data lives only on
 | 20 | FAQ | 6 Q&As i18n + `FAQPage` (+WebSite/Organization) JSON-LD for https://agri.in | Bound (CP2) |
 | 20b | Weekly digest | Soon state, notify-me wiring at CP3 | Soon (CP2) |
 | 21–23 | Family · footer · bottom nav | static + eco; bottom nav Home · Mandi · Ask · Alerts · Profile | Bound (CP2) |
+
+
+## 2. A-U3 binding proofs (§ = A1 reference section)
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 11 | Knowledge + news | E6 content engine, live. Cards + news rail come from ONE `fetchKnowledgeSection()` call that dedupes them against each other (they were rendering the same three stories when built as two fetches — caught in the first capture). Every card and headline carries `source_name` + the PUBLISHER's `published_at`, read from the row. Section ABSENT when nothing is approved — the A-U1 note here said "no lorem articles, ever", and that is now enforced by data rather than by a comment | Bound (A-U3 CP1, real) |
+| 11 | Knowledge hub `/knowledge` | Kind filters are server-rendered LINKS, not an island: `?kind=video` re-renders on the server, works with JS off, and is crawlable. Unfiltered-empty 404s (no heading over an empty grid); filtered-empty gets a message, because there the reader asked a question | Bound (A-U3 CP1, real) |
+| 11 | Item page `/knowledge/[slug]` | Attribution above the fold; "Read it at {source}" is the primary action and feed items carry NO body — the article belongs to its publisher. Pending, rejected and unknown slugs 404 identically, so a slug guess cannot enumerate the queue | Bound (A-U3 CP1, real) |
+| 11 | Video embed | `embed_url` is BUILT server-side from a code-side provider allowlist; the page never receives markup or an origin, so there is no iframe HTML to sanitise. Zero video rows at CP1 by owner decision — code path and tests green | Built, unpopulated |
+| 11 | Bookmarks | The entire client footprint of the content surfaces: one optimistic toggle through the new `/api/content` BFF, bearer stays server-side (D10) | Bound (A-U3 CP1, real) |
+
+### A-U3 prompt-to-repo substitutions
+
+| Prompt says | Repo reality | Substitution used |
+|---|---|---|
+| "A-U1 and A-U2 are complete on this branch, unmerged … PR #34" | Both are IN `dev` (merged via PRs #73/#74); `feat/agri-d44-ag-a8` was 1 commit ahead of `dev` at A-U3 start, and `ads/service.py`'s `agri_home_hero_xl` entry is already in dev, NOT in this branch's diff | Work continues on the same branch, committed locally, unpushed. PR number to be confirmed by the owner at push time |
+| Read `docs/ads/vertical-onboarding.md` before W4 | Still does not exist (recorded in §0 above at A-U1) | Unchanged: the M6/U1 config-only recipe. Per A-U3 §W4 the missing recipe IS the escalation — raised at CP1, resolved at CP3 |
+| Checklist rows AG-A22…A30 | A-U2 already used AG-A22…A25 | Appended as AG-A26…A34 with a mapping note (owner-confirmed 2026-08-17) |
+| RSS source list incl. PIB | `pib.gov.in` RSS answers **403** to a declared bot User-Agent | PIB EXCLUDED, not worked around: the only way past a 403 is to disguise the client. Three curated sources seeded instead (ICAR, The Hindu, BusinessLine), each with a `terms_note` and a robots.txt check dated 2026-08-17 |
+| Video with `duration` | No keyless official API reports YouTube duration; scraping the watch page is out of bounds | `duration_seconds` nullable + curator-entered; card renders without the pill when unknown. Owner chose to ship CP1 with no video rows |

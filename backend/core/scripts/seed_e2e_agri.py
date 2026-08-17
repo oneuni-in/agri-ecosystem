@@ -25,11 +25,16 @@ NEVER runs in prod — the same hard guard as the other e2e escape hatches
 import asyncio
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy import select  # noqa: E402
+
+from modules.content.models import KIND_GUIDE, KIND_VIDEO, ContentItem  # noqa: E402
+from modules.content.service import APPROVED, create_item, set_moderation  # noqa: E402
 from modules.market_data import service  # noqa: E402
 from modules.market_data.agmarknet import parse_record  # noqa: E402
 from modules.market_data.ingest import ingest_records  # noqa: E402
@@ -127,11 +132,79 @@ async def _main() -> int:
         )
         await session.commit()
 
+    # 3. Approved content, so /knowledge is auditable.
+    #
+    # This is the one place anything gets approved without a human, and it
+    # is deliberately narrow: the function refuses outside a test env, the
+    # items are transparently labelled fixtures, and they exist so the
+    # Lighthouse gate has a populated page to score.
+    #
+    # /knowledge 404s when nothing is approved — the honesty rule, and the
+    # right behaviour in production. But it means CI, which has an empty
+    # content table, was auditing a 404 and failing for the wrong reason.
+    # Seeding a real approved row is the honest fix; loosening the page to
+    # render an empty shell just to satisfy an audit would not be.
+    content = await _seed_content()
+
     print(  # noqa: T201
         f"agri e2e seed: weather cached for {PINCODE};"
-        f" prices written={result.written} quarantined={result.quarantined}"
+        f" prices written={result.written} quarantined={result.quarantined};"
+        f" content approved={content}"
     )
     return 0
+
+
+# (slug, kind, title, summary, extra) — obviously fixtures, never mistakable
+# for editorial copy. One video so the card's play/duration treatment is on
+# the audited page too.
+_E2E_CONTENT: list[tuple[str, str, str, str, dict[str, Any]]] = [
+    (
+        "e2e-fixture-kharif-sowing-note",
+        KIND_GUIDE,
+        "E2E fixture — kharif sowing note",
+        "Deterministic fixture row for the e2e and Lighthouse runs.",
+        {},
+    ),
+    (
+        "e2e-fixture-drip-irrigation-clip",
+        KIND_VIDEO,
+        "E2E fixture — drip irrigation clip",
+        "Deterministic fixture row exercising the video card treatment.",
+        {
+            "video_provider": "youtube",
+            "video_id": "e2eFixtureVid",
+            "duration_seconds": 372,
+            "language": "ta",
+        },
+    ),
+]
+
+
+async def _seed_content() -> int:
+    """Create + approve the fixture rows. Idempotent on slug."""
+    approved = 0
+    async with get_sessionmaker()() as session:
+        for slug, kind, title, summary, extra in _E2E_CONTENT:
+            existing = await session.scalar(select(ContentItem).where(ContentItem.slug == slug))
+            item = existing or await create_item(
+                session,
+                kind=kind,
+                slug=slug,
+                title={"en": title},
+                summary={"en": summary},
+                source_name="agri.in e2e fixture",
+                source_url="https://agri.in/",
+                published_at=datetime(2026, 8, 17, tzinfo=UTC),
+                verticals=[],
+                states=[],
+                **extra,
+            )
+            # Approve through the real service call, not a raw UPDATE — the
+            # fixture should travel the same path a human approval does.
+            await set_moderation(session, item.id, status=APPROVED)
+            approved += 1
+        await session.commit()
+    return approved
 
 
 if __name__ == "__main__":

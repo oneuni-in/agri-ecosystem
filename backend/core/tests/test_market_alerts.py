@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import date
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -119,9 +120,15 @@ async def test_unsubscribe_only_touches_your_own(db_session: AsyncSession) -> No
 # ── the daily digest ─────────────────────────────────────────────────
 
 
-async def _drain(stream: str) -> list[dict[str, object]]:
-    entries = await get_redis().xrange(stream)
-    return [json.loads(fields["payload"]) for _id, fields in entries]
+async def _drain(stream: str) -> list[dict[str, Any]]:
+    """Every event on the bus stream, decoded.
+
+    The cast mirrors shared/events.py: redis-py types stream replies as a
+    loose bytes|str union, but the shared client sets decode_responses,
+    so these really are str.
+    """
+    entries = cast(list[tuple[str, dict[str, str]]], await get_redis().xrange(stream) or [])
+    return [cast(dict[str, Any], json.loads(fields["payload"])) for _id, fields in entries]
 
 
 async def test_a_due_alert_publishes_one_digest(
@@ -137,7 +144,7 @@ async def test_a_due_alert_publishes_one_digest(
     assert len(events) == 1
     payload = events[0]
     assert payload["user_id"] == str(USER)
-    variables = payload["vars"]
+    variables: dict[str, str] = payload["vars"]
     assert variables["market"] == "Coimbatore market"
     assert variables["as_of"] == "2026-08-15"
     # Leads with the mover, in the same per-kg unit as the card.

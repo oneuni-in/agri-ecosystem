@@ -39,7 +39,10 @@ from modules.market_data.weather import IST, now_ist  # noqa: E402
 from scripts.mandi_pull import run_pull  # noqa: E402
 from settings import get_settings  # noqa: E402
 from shared.db import get_sessionmaker  # noqa: E402
-from shared.telemetry import get_logger  # noqa: E402
+from shared.telemetry import (
+    configure_logging,  # noqa: E402
+    get_logger,  # noqa: E402
+)
 
 logger = get_logger(__name__)
 
@@ -104,6 +107,13 @@ async def _pull_with_retries() -> None:
 
 async def _main() -> int:
     settings = get_settings()
+    # Without this every logger.info below is dropped: configure_logging
+    # runs in main.create_app, which a standalone script never touches, so
+    # `docker logs` on this container showed NOTHING — indistinguishable
+    # from a hung process on a job that sleeps for hours between pulls.
+    # (scripts/verify_audit_chain.py sets the precedent.) Logging config is
+    # global, so the pull this drives inherits it.
+    configure_logging(settings.log_level)
     hour = settings.mandi_pull_hour_ist
     logger.info("market.scheduler_started", extra={"extra_fields": {"hour_ist": hour}})
 

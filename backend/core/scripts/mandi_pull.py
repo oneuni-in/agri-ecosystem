@@ -53,7 +53,7 @@ from modules.market_data.models import (  # noqa: E402
 )
 from settings import get_settings  # noqa: E402
 from shared.db import get_sessionmaker  # noqa: E402
-from shared.telemetry import get_logger  # noqa: E402
+from shared.telemetry import configure_logging, get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
@@ -175,4 +175,8 @@ async def run_pull() -> int:
 
 
 if __name__ == "__main__":
+    # Run by hand, nothing has configured logging yet (the scheduler does
+    # it for the scheduled path). Without this the ingest's own counters
+    # never reach the operator running it.
+    configure_logging(get_settings().log_level)
     sys.exit(asyncio.run(run_pull()))

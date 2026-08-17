@@ -36,6 +36,8 @@ live browser.
 
 | AG-A24 | A-U2's NEW Tamil/Hindi copy is read by a native speaker before launch | Owner reviewed the 15 ADVICE pairs in `docs/qa/agri-vernacular-review.md` (spray timing, urea, irrigation, disease scouting, severe-weather headlines) on 2026-08-17 and reported no corrections — the sheet came back unchanged. The ~38 remaining strings are weather-condition labels and weekday abbreviations in `wmo.py`, where an awkward word is cosmetic rather than behaviour-changing | ✅ verified — owner native read, no changes required |
 
+| AG-A25 | The daily mandi pull ACTUALLY RUNS somewhere, and a missed day is visible | `mandi-cron` now runs in `docker-compose.dev.yml` as well as staging, because the Agmarknet resource serves ONLY the live day — a day nobody pulls is a permanently unbackfillable hole, and "staging will run it eventually" loses one every 24h until staging exists. Verified: container up, reads `DATA_GOV_API_KEY` from the bind-mounted `.env`, fires at 19:00 IST, and correctly does NOT re-pull a day already in `market.ingest_runs`. Also made OBSERVABLE — `configure_logging` never ran in standalone scripts, so `docker logs` showed nothing at all, which on a job that sleeps for hours is indistinguishable from a hang | 🟡 implemented (dev + staging compose) — flips ✅ when it has fired unattended on a real environment |
+
 ## Verification legend
 - **e2e** — Playwright spec committed under `e2e/`, asserting DOM SHAPE
   (counts for flag-off absence, never visibility), no

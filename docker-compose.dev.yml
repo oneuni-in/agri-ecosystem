@@ -54,6 +54,41 @@ services:
       redis:
         condition: service_healthy
 
+  # A-U2: the thing that actually captures the day's mandi prices.
+  # Wired here as well as in staging because the Agmarknet resource serves
+  # ONLY the live day — a day nobody pulls is a permanent hole in the
+  # series, and "staging will run it eventually" quietly loses one every
+  # 24h until staging exists. The scheduler no-ops without
+  # DATA_GOV_API_KEY, so this is inert on a machine that has not set one.
+  mandi-cron:
+    build: ./backend/core
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@postgres:5432/agri
+      REDIS_URL: redis://redis:6379/0
+      # Without this the scheduler's stdout sits in Python's buffer and
+      # `docker logs` shows nothing until the process exits — on a job that
+      # sleeps for hours between pulls, that reads exactly like a hung
+      # container. This job's failure mode is a silently un-pulled day, so
+      # being able to see it start and fire is the point.
+      PYTHONUNBUFFERED: "1"
+      # DATA_GOV_API_KEY is deliberately NOT listed here. The source tree
+      # is bind-mounted at /app, so pydantic-settings reads the key from
+      # /app/.env (gitignored) exactly as it does on the host. Passing
+      # ${DATA_GOV_API_KEY:-} instead would set an EMPTY env var whenever
+      # the host shell lacks it, and env vars outrank .env — so the
+      # "convenience" would silently shadow the real key.
+    volumes:
+      - ./backend/core:/app
+    working_dir: /app
+    command: ["python", "-m", "scripts.mandi_scheduler"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   search-worker:
     build: ./backend/core
     environment:

@@ -51,6 +51,11 @@ EXPECTED_PUBLIC_ROUTES = [
     "/catalog/verticals/{vertical}/products",
     "/catalog/milk/coverage/pincodes",
     "/catalog/milk/home/{pincode}",
+    # A-U3 W1/W2 — the content engine's reader surface. Approved items
+    # only; the gate is structural in service._published().
+    "/content/feed",
+    "/content/items/{slug}",
+    "/content/advisories",
     "/directory/categories/active",
     "/directory/businesses/{slug}",
     "/directory/covers/{pincode}",
@@ -70,6 +75,9 @@ EXPECTED_PUBLIC_ROUTES = [
     # HOME strip's kill switch, and these are indexed SEO pages.
     "/market/commodities",
     "/market/commodities/{slug}",
+    # A-U3 W2 — published government helpline numbers and scheme cards.
+    "/market/helplines",
+    "/market/schemes",
     "/reviews",
     "/reviews/summary",
     "/search",

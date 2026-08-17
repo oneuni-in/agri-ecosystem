@@ -323,6 +323,13 @@
         "cta": "Notify me",
         "done": "🎉 Thanks — we'll tell you the moment this opens in {pincode}.",
         "error": "Something went wrong — please try again."
+      },
+      "knowledge": {
+        "eyebrow": "KNOWLEDGE & NEWS · EN | TA | HI",
+        "title": "Know more, grow more",
+        "all": "Knowledge hub →",
+        "newsTitle": "Agri news today",
+        "sourceStamp": "{source} · {date}"
       }
     },
     "search": {
@@ -1238,6 +1245,33 @@
         "resultPerTank": "Chemical per tank",
         "resultTanks": "≈ {tanks} tanks per acre at {volume} L/acre spray volume"
       }
+    },
+    "knowledge": {
+      "metaTitle": "Knowledge & news — guides, advisories and video · agri.in",
+      "metaDescription": "Farming guides, pest advisories, curated video and agriculture news from named sources. Every item reviewed by a person before it appears.",
+      "crumbHome": "Home",
+      "crumb": "Knowledge",
+      "eyebrow": "KNOWLEDGE & NEWS · EN | TA | HI",
+      "title": "Know more, grow more",
+      "sub": "Guides, advisories, video and news — every item carries its source and the date its publisher put it out.",
+      "filterLabel": "Filter by type",
+      "all": "All",
+      "kinds": {
+        "article": "News",
+        "video": "Video",
+        "guide": "Guide",
+        "advisory": "Advisory"
+      },
+      "languages": {
+        "en": "English",
+        "ta": "Tamil",
+        "hi": "Hindi"
+      },
+      "noneOfKind": "Nothing of this type has been published yet.",
+      "durationLabel": "{duration} watch",
+      "readAtSource": "Read it at {source}",
+      "save": "Save",
+      "saved": "Saved"
     }
   },
   "coins": {

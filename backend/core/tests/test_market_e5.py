@@ -110,44 +110,67 @@ async def test_an_unclaimed_district_gets_no_calendar(db_session: AsyncSession) 
 # ── MSP overlay ──────────────────────────────────────────────────────
 
 
-async def test_no_msp_row_means_no_overlay(db_session: AsyncSession, tn_geo_sample: None) -> None:
-    """0039 seeds market.msp EMPTY on purpose: an unverified MSP is worse
-    than no MSP, so the note is simply absent."""
-    assert await msp_notes(db_session) == {}
-
-    await ingest_records(
-        db_session,
-        _records([_row(district="Coimbatore", market="Coimbatore market")]),
-    )
-    block = await get_mandi(db_session, "641001")
-    assert block is not None
-    assert block.commodities[0].note is None
-
-
-async def test_a_verified_msp_row_renders_on_the_card(
+async def test_a_non_msp_commodity_gets_no_overlay(
     db_session: AsyncSession, tn_geo_sample: None
 ) -> None:
-    """AG-A17: the overlay value comes from the verified row, shown in the
-    same per-kg unit as the price beside it."""
-    paddy = (await db_session.scalars(select(Commodity).where(Commodity.slug == "paddy"))).one()
-    db_session.add(
-        Msp(
-            commodity_id=paddy.id,
-            season="Kharif 2026-27",
-            price_qtl=Decimal("2430.00"),
-            verified_against="cacp.dacnet.nic.in",
-            verified_on=date(2026, 8, 16),
-        )
-    )
-    await db_session.flush()
+    """MOVED from "the table is empty" (true only between 0039 and 0043).
 
+    0043 seeds the two MSP crops in our curated set. Tomato is NOT a
+    mandated MSP crop, so it must carry no note — implying a floor price
+    that does not exist would be worse than showing nothing.
+    """
+    await ingest_records(
+        db_session,
+        _records([_row(commodity="Tomato", district="Coimbatore", market="Coimbatore market")]),
+    )
+    block = await get_mandi(db_session, "641001")
+    assert block is not None
+    tomato = next(c for c in block.commodities if c.slug == "tomato")
+    assert tomato.note is None
+
+
+async def test_only_mandated_crops_carry_an_msp(db_session: AsyncSession) -> None:
+    """Of the eight curated commodities exactly two are MSP crops. Coconut
+    is deliberately excluded: copra is the mandated commodity, and copra
+    is not what the `coconut` row tracks."""
+    notes = await msp_notes(db_session)
+    slugs = {
+        row.slug for row in (await db_session.scalars(select(Commodity))).all() if row.id in notes
+    }
+    assert slugs == {"paddy", "groundnut"}
+
+
+async def test_the_seeded_msp_renders_with_its_provenance(
+    db_session: AsyncSession, tn_geo_sample: None
+) -> None:
+    """AG-A17: the overlay value comes from the SEEDED row (0043, read off
+    the PIB Kharif 2026-27 release), shown in the same per-kg unit as the
+    price beside it so the two numbers are directly comparable.
+
+    MOVED from inserting its own row — that now collides with the seed on
+    the (commodity, season) unique key, which is the constraint doing its
+    job.
+    """
     await ingest_records(
         db_session,
         _records([_row(district="Coimbatore", market="Coimbatore market")]),
     )
     block = await get_mandi(db_session, "641001")
     assert block is not None
-    note = block.commodities[0].note
-    assert note is not None
-    # 2430/qtl -> 24.3/kg, comparable with the ₹24.00/kg price on the card.
-    assert note.en == "MSP ₹24.3"
+    paddy = next(c for c in block.commodities if c.slug == "paddy")
+    assert paddy.note is not None
+    # 2441/qtl -> 24.41/kg.
+    assert paddy.note.en == "MSP ₹24.41"
+
+    row = (
+        await db_session.scalars(
+            select(Msp)
+            .join(Commodity, Commodity.id == Msp.commodity_id)
+            .where(Commodity.slug == "paddy")
+        )
+    ).one()
+    assert row.season == "Kharif 2026-27"
+    assert row.price_qtl == Decimal("2441.00")
+    # Provenance is not decoration: a guaranteed price must stay traceable.
+    assert "pib.gov.in" in row.verified_against
+    assert row.verified_on == date(2026, 8, 17)

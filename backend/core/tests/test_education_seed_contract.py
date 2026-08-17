@@ -259,6 +259,47 @@ def test_rule_10_listed_institution_cannot_carry_numbers() -> None:
     assert any("rule 10" in v for v in found)
 
 
+def test_structure_website_that_is_an_email_is_rejected() -> None:
+    # A real row shipped with "cdttpt.svvu@gmail.com" in the website column and
+    # no rule objected. An email address is not a URL.
+    found = _violations(Bundle(institutions=[_institution(website="dean.abc@gmail.com")]))
+    assert any("website" in v and "email" in v for v in found)
+
+
+def test_structure_website_equal_to_parent_is_rejected() -> None:
+    # AISHE college records inherit the affiliating university's URL. 137 seeded
+    # colleges pointed at their own parent's site, so a polytechnic in Bargi
+    # linked to a university homepage in Bidar.
+    parent = _institution(slug="tnau", website="https://tnau.ac.in/")
+    child = _institution(slug="acri-coimbatore", parent_slug="tnau", website="https://tnau.ac.in/")
+    found = _violations(Bundle(institutions=[parent, child]))
+    assert any("website" in v and "parent" in v for v in found)
+
+
+def test_structure_website_differing_from_parent_is_fine() -> None:
+    parent = _institution(slug="tnau", website="https://tnau.ac.in/")
+    child = _institution(
+        slug="acri-coimbatore", parent_slug="tnau", website="https://acri.example.edu/"
+    )
+    assert _violations(Bundle(institutions=[parent, child])) == []
+
+
+def test_structure_website_host_match_ignores_scheme_and_www() -> None:
+    parent = _institution(slug="tnau", website="https://www.tnau.ac.in/")
+    child = _institution(slug="acri-coimbatore", parent_slug="tnau", website="tnau.ac.in")
+    found = _violations(Bundle(institutions=[parent, child]))
+    assert any("parent" in v for v in found)
+
+
+def test_structure_slug_with_a_digit_run_is_rejected() -> None:
+    # d-y-patil-9421886474-yes-limited-... shipped a telephone number inside an
+    # immutable URL segment, from a PDF parser that swallowed the next column.
+    found = _violations(
+        Bundle(institutions=[_institution(slug="d-y-patil-9421886474-yes-limited")])
+    )
+    assert any("slug" in v for v in found)
+
+
 def test_rule_11_unknown_enum_rejected() -> None:
     found = _violations(Bundle(institutions=[_institution(kind="Agricultural University")]))
     assert any("rule 11" in v for v in found)

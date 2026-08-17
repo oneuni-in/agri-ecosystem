@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -197,6 +198,58 @@ def _check_enum(
         out.append(f"rule 11 · {where}: {field_name}={value!r} is not one of {sorted(allowed)}")
 
 
+_EMAILISH = re.compile(r"^[^@\s/]+@[^@\s/]+\.[A-Za-z]{2,}$")
+_DIGIT_RUN = re.compile(r"\d{7,}")
+
+
+def _host(url: str) -> str:
+    """Bare host of a URL, so scheme and a www. prefix don't hide a match."""
+    u = (url or "").strip().lower()
+    u = re.sub(r"^[a-z][a-z0-9+.-]*://", "", u)
+    u = re.sub(r"^www\.", "", u)
+    return u.split("/")[0].split("?")[0]
+
+
+def _check_plausibility(
+    row: dict[str, str], where: str, parent_sites: dict[str, str], out: list[str]
+) -> None:
+    """Structural sanity that the twelve spec rules do not cover.
+
+    These are not spec rules; they are guards against classes of bad value that
+    reached dev and had to be corrected afterwards, each caught by chance rather
+    than by the gate:
+
+    * an EMAIL ADDRESS in `website` -- "cdttpt.svvu@gmail.com" shipped that way;
+    * a `website` identical to the row's own parent -- AISHE college records
+      inherit the affiliating university's URL, and 137 rows pointed a college
+      at its university's homepage;
+    * a long digit run in `slug` -- a PDF parser once swallowed the next table
+      column and wrote a telephone number into an immutable URL segment.
+
+    Reported with the `structure ·` prefix, like ragged-row errors: they are
+    shape problems, not violations of a numbered rule in spec section 8.
+    """
+    site = (row.get("website") or "").strip()
+    if site and _EMAILISH.match(site):
+        out.append(f"structure · {where}: website {site!r} is an email address, not a URL")
+
+    parent = row.get("parent_slug", "")
+    if site and parent:
+        parent_site = parent_sites.get(parent, "")
+        if parent_site and _host(site) and _host(site) == _host(parent_site):
+            out.append(
+                f"structure · {where}: website host {_host(site)!r} is its parent "
+                f"{parent!r}'s own site, not this institution's"
+            )
+
+    digits = _DIGIT_RUN.search(row.get("slug", ""))
+    if digits:
+        out.append(
+            f"structure · {where}: slug contains a {len(digits.group())}-digit run, "
+            "which usually means a phone number leaked in from a parsed table"
+        )
+
+
 def validate(bundle: Bundle, geo: GeoReference, *, today: date) -> None:
     out: list[str] = []
 
@@ -218,9 +271,14 @@ def validate(bundle: Bundle, geo: GeoReference, *, today: date) -> None:
             if slug in RESERVED_SLUGS:
                 out.append(f"rule 6 · {name}: {slug!r} is a reserved route segment")
 
+    parent_sites = {
+        r.get("slug", ""): (r.get("website") or "").strip() for r in bundle.institutions
+    }
+
     for row in bundle.institutions:
         where = f"institutions[{row.get('slug', '?')}]"
         _check_stamps(row, where, today, out)
+        _check_plausibility(row, where, parent_sites, out)
         _check_enum(row.get("kind", ""), INSTITUTION_KINDS, "kind", where, out)
         _check_enum(row.get("trust", ""), TRUST_VALUES, "trust", where, out)
         _check_enum(row.get("status", ""), INSTITUTION_STATUSES, "status", where, out)

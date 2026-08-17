@@ -376,12 +376,13 @@ export default async function HomePage() {
       <Wrap>
         {/* §5 — search band. Gradient with a solid token underlay (never a
             bg-* class beside a gradient through cn() — tw-merge drops it).
-            DECISION: web-agri has NO /search route and /directory has no
-            index page accepting a query (verified: app/ contains only
-            account/api/business/demo/directory/[slug]/notifications). The
-            form targets /categories — this work package's CP3 surface, whose
-            client-side filter reads ?q — rather than a fabricated results
-            page. The mic is an entry stub (A1 ships it inert too). */}
+            A-U3 W3 closes the A-U1 deviation recorded here: the band
+            pointed at /categories because no /search route existed and a
+            fabricated results page would have been worse. /search is now
+            real (the D19 facade, site=agri pinned server-side), so the
+            form targets it. The mic is still an entry stub — A1 ships it
+            inert too, and a dead mic button is honest where a fake
+            transcript would not be. */}
         <section className="mt-3.5 rounded-band [background-color:var(--brand)] bg-band-gradient px-5 pb-7 pt-[26px] text-center text-white">
           <h1 className="font-display text-[clamp(19px,2.4vw,27px)] font-semibold">
             {t("agriHome.search.title")}
@@ -390,7 +391,7 @@ export default async function HomePage() {
             {t("agriHome.search.sub")}
           </p>
           <form
-            action="/categories"
+            action="/search"
             method="get"
             className="mx-auto flex max-w-[620px] items-center gap-2.5 rounded-[14px] bg-card p-1.5 pl-4"
           >

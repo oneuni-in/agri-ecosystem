@@ -18,12 +18,15 @@ import { RegisterHelplineSW } from "./register-sw";
  * farmer with no signal, so this page is built to be cacheable and to
  * survive being served from that cache:
  *
- *  - STATICALLY rendered (no `force-dynamic`, no cookies, no per-visitor
- *    branch), so the service worker can hold one copy that is correct
- *    for everyone.
- *  - Numbers come from E5 at build/revalidate time and are baked into
- *    the HTML. Nothing here fetches at runtime, so an offline load
- *    renders exactly what an online load renders.
+ *  - No `force-dynamic` and no per-visitor branch. The route still
+ *    builds as Dynamic (`getTranslations` reads the NEXT_LOCALE cookie,
+ *    which opts any page into dynamic rendering) — but the RESPONSE is
+ *    identical for every visitor in a locale, which is what the service
+ *    worker actually needs. It caches a rendered response, not a
+ *    prerender.
+ *  - Numbers are fetched server-side on a 24h revalidate and land in the
+ *    HTML. Nothing fetches from the client, so an offline load renders
+ *    exactly what the cached online load rendered.
  *  - `tel:` links need no network at all — tapping one hands off to the
  *    dialer, which is the whole point.
  *

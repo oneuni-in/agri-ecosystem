@@ -46,12 +46,34 @@ const EXTRA_URLS = {
   // it is the registry surface every Soon tile funnels through. Its grid is
   // GET /catalog/verticals, so it rides the same api-up gate below: without
   // a backend the registry read is empty and the audit would score a shell.
-  "web-agri": ["/categories"],
+  // A-U3 AG-A34 extends the floor to /tools and the four surfaces this
+  // pass added. All of them are data-bearing and dynamic, so they ride
+  // the same api-up gate below — without a backend they render empty or
+  // notFound() and would fail the audit for the wrong reason:
+  //   /knowledge  404s when nothing is approved
+  //   /schemes    404s when the E5 dataset is empty
+  //   /helplines  404s when the helpline dataset is empty
+  //   /directory  renders its empty state with no coverage data
+  // /search is deliberately EXCLUDED: it is noindex, it needs a ?q= to
+  // render anything, and auditing a query page's empty state would gate
+  // on a shell.
+  "web-agri": [
+    "/categories",
+    "/tools",
+    "/knowledge",
+    "/directory",
+    "/schemes",
+    "/helplines",
+  ],
 };
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32", ...opts });
+  return execFileSync(cmd, args, {
+    encoding: "utf8",
+    shell: process.platform === "win32",
+    ...opts,
+  });
 }
 
 function affectedApps() {
@@ -62,14 +84,23 @@ function affectedApps() {
   }
   try {
     const dry = JSON.parse(
-      run("pnpm", ["exec", "turbo", "run", "build", `--filter=...[${base}]`, "--dry=json"]),
+      run("pnpm", [
+        "exec",
+        "turbo",
+        "run",
+        "build",
+        `--filter=...[${base}]`,
+        "--dry=json",
+      ]),
     );
     const affected = (dry.tasks ?? [])
       .filter((t) => t.task === "build" && t.package.startsWith("@agri/web-"))
       .map((t) => t.package.replace("@agri/", ""));
     return [...new Set(affected)];
   } catch (error) {
-    console.warn(`lhci: turbo dry-run vs ${base} failed (${error.message}) - auditing all apps`);
+    console.warn(
+      `lhci: turbo dry-run vs ${base} failed (${error.message}) - auditing all apps`,
+    );
     return Object.keys(APPS);
   }
 }
@@ -85,7 +116,9 @@ async function waitForReady(url) {
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`server at ${url} not ready after ${READY_TIMEOUT_MS / 1000}s`);
+  throw new Error(
+    `server at ${url} not ready after ${READY_TIMEOUT_MS / 1000}s`,
+  );
 }
 
 function kill(child) {
@@ -93,7 +126,9 @@ function kill(child) {
   if (process.platform === "win32") {
     // next start forks workers; kill the whole tree
     try {
-      execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+        stdio: "ignore",
+      });
     } catch {
       /* already gone */
     }
@@ -108,7 +143,9 @@ const apps = [...new Set([...affectedApps(), ALWAYS])].filter(
 console.log(`lhci: auditing apps: ${apps.join(", ")}`);
 
 const filters = apps.flatMap((app) => [`--filter=@agri/${app}`]);
-run("pnpm", ["exec", "turbo", "run", "build", ...filters], { stdio: "inherit" });
+run("pnpm", ["exec", "turbo", "run", "build", ...filters], {
+  stdio: "inherit",
+});
 
 const urls = apps.map((app) => `http://localhost:${APPS[app]}/`);
 if (apps.includes(ALWAYS)) urls.push(`http://localhost:${APPS[ALWAYS]}/demo`);
@@ -138,7 +175,9 @@ const servers = apps.map((app) =>
 
 let exitCode = 1;
 try {
-  await Promise.all(apps.map((app) => waitForReady(`http://localhost:${APPS[app]}/`)));
+  await Promise.all(
+    apps.map((app) => waitForReady(`http://localhost:${APPS[app]}/`)),
+  );
   // warm every audited URL (not just home pages): the first SSR render pays
   // one-off costs that would otherwise land inside the first lighthouse run.
   // Three passes, not one - a single request primes the route module but

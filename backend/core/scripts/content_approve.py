@@ -30,10 +30,10 @@ from sqlalchemy import select  # noqa: E402
 
 from modules.content.models import ContentItem, Source  # noqa: E402
 from modules.content.service import APPROVED, PENDING, REJECTED, set_moderation  # noqa: E402
+from settings import get_settings  # noqa: E402
 from shared.audit import audit  # noqa: E402
 from shared.db import get_sessionmaker  # noqa: E402
 from shared.telemetry import configure_logging  # noqa: E402
-from settings import get_settings  # noqa: E402
 
 
 async def main(args: argparse.Namespace) -> int:

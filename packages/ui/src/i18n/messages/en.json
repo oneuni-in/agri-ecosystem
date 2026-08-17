@@ -1299,6 +1299,40 @@
       "sub": "Tap a number to call. Each one shows the official source it was checked against and when.",
       "verifiedStamp": "✓ {domain} · checked {date}",
       "offlineNote": "Once you have opened this page on your phone, it stays available with the network off. Calling needs signal, but finding the number does not."
+    },
+    "searchPage": {
+      "metaTitle": "Search · agri.in",
+      "metaTitleQuery": "{q} · search · agri.in",
+      "crumbHome": "Home",
+      "crumb": "Search",
+      "eyebrow": "SEARCH · BUSINESSES & PRODUCTS",
+      "title": "Search agri.in",
+      "titleQuery": "Results for “{q}”",
+      "inputLabel": "Search agri.in",
+      "placeholder": "Seeds, tractor, soil testing…",
+      "cta": "Search",
+      "resultCount": "{count, plural, =0 {No results} one {1 result} other {# results}} near {pincode}",
+      "promptForQuery": "Type what you need — businesses and products across agri.in.",
+      "noResults": "Nothing matched “{q}”. Try a shorter word, or browse the directory.",
+      "verified": "Verified",
+      "kinds": {
+        "business": "Business",
+        "product": "Product"
+      }
+    },
+    "directoryPage": {
+      "metaTitle": "Agri businesses near you · agri.in",
+      "metaDescription": "Browse verified agri businesses — machinery, nurseries, feed, veterinary and soil testing — by category and pincode.",
+      "crumbHome": "Home",
+      "crumb": "Directory",
+      "eyebrow": "DIRECTORY · BY CATEGORY × PINCODE",
+      "title": "Agri businesses covering {pincode}",
+      "sub": "Nearest first. Contact details live on each business page, never in this list.",
+      "filterLabel": "Filter by category",
+      "all": "All",
+      "verified": "Verified",
+      "viewProfile": "View profile",
+      "empty": "No businesses cover {pincode} yet. Try a nearby pincode."
     }
   },
   "coins": {

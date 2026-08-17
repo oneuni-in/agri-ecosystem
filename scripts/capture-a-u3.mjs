@@ -47,28 +47,39 @@ if (!slug) {
 
 // Width sweep, English.
 for (const width of WIDTHS) {
-  const context = await browser.newContext({ viewport: { width, height: 900 } });
+  const context = await browser.newContext({
+    viewport: { width, height: 900 },
+  });
   await context.addCookies([
     { name: "NEXT_LOCALE", value: "en", url: AGRI },
     // 641001 Coimbatore — the pincode A-U2 verified the Today strip on.
-    { name: "agri_loc", value: JSON.stringify({ pincode: "641001" }), url: AGRI },
+    {
+      name: "agri_loc",
+      value: JSON.stringify({ pincode: "641001" }),
+      url: AGRI,
+    },
   ]);
   await shoot(context, "/knowledge", `knowledge-${width}`);
   await shoot(context, `/knowledge/${slug}`, `knowledge-item-${width}`);
   await shoot(context, "/", `home-knowledge-${width}`);
   await shoot(context, "/schemes", `schemes-${width}`);
   await shoot(context, "/helplines", `helplines-${width}`);
+  await shoot(context, "/directory", `directory-${width}`);
+  await shoot(context, "/search?q=seeds", `search-${width}`);
   await context.close();
   console.log(`captured ${width}`);
 }
 
 // Locale sweep at 390 (the reference mobile width) — one context each.
 for (const locale of LOCALES) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 900 },
+  });
   await context.addCookies([{ name: "NEXT_LOCALE", value: locale, url: AGRI }]);
   await shoot(context, "/knowledge", `knowledge-390-${locale}`);
   await shoot(context, "/schemes", `schemes-390-${locale}`);
   await shoot(context, "/helplines", `helplines-390-${locale}`);
+  await shoot(context, "/directory", `directory-390-${locale}`);
   await context.close();
   console.log(`captured ${locale}`);
 }

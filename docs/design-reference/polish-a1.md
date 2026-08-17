@@ -103,3 +103,39 @@ render their empty state or not at all; reference sample data lives only on
 | CMS UI built in **web-admin**, which §4 lists as "parked" | Every other moderation queue (ads, claims, reviews, ops) already lives there. A content queue anywhere else fragments moderation, and a CMS with no authoring surface is not a CMS. Read §4's "parked" as "no unrelated web-admin work", not "ship the gate with no door" | Delete `apps/web-admin/app/content/` and one nav entry. The API stands alone (the CLI `scripts/content_approve.py` already drives it) |
 | A **service worker** added to web-agri, when §4 defers the "PWA sweep" to A-U4 | AG-A30 requires the offline page to work with the network off, and that is impossible without one. This worker handles exactly one route, has no manifest/push/offline-shell, and is registered from `/helplines` alone | Delete `public/sw.js` + `register-sw.tsx`. Nothing else references either, so A-U4 starts clean |
 | Livestock/advisory seed copy is **agent-drafted** | It is the dosage-rule category. Mitigated by landing `pending` (the gate holds it), and by carrying scouting/husbandry practice only — no chemical names, no doses, no vaccination schedules; every treatment decision routed to a vet or the KCC | Reject the three items in the queue; nothing reaches a reader |
+
+## 4. A-U3 W3/W4 binding proofs
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 5 | Search band → `/search` | A-U1's recorded deviation is CLOSED. The band pointed at `/categories` because no results route existed; `/search` now renders the D19 facade with `site=agri` pinned server-side (a query-string site would show another vertical's index under agri.in chrome). noindex — a results page is a query, not a document | Bound (A-U3 CP3, real) |
+| 10 | `/directory` hub | Category × pincode over the EXISTING E1 `covers()` read. Chips from `/directory/categories/active`, counts from data. Organic-only, asserted at zero sponsored markers | Bound (A-U3 CP3, real) |
+| 4 | Agri ads | Config only: `git diff dev...HEAD -- backend/core/modules/ads/` is EMPTY. Caps, label and cross-vertical analytics all verified live | Bound (A-U3 CP3, real) |
+
+### The A-U1 `ads/service.py` question — RESOLVED
+
+A-U3 §W4 asked whether A-U1's `ads/service.py` touch was justified. It is,
+and the diff makes the case:
+
+- The change is ONE string added to the `SLOT_KEYS` frozenset. That set is
+  an allowlist of permitted slot names — the same class of thing as
+  `public_routes.txt` — and nothing in the serving path branches on which
+  vertical a slot belongs to.
+- It IS step 1 of the config-only recipe (`polish-u1.md` §binding, now
+  written up properly as `docs/ads/vertical-onboarding.md`), so it is the
+  recipe being followed, not worked around.
+- It is already in `dev`; `git diff dev...HEAD -- backend/core/modules/ads/`
+  returns nothing for this branch.
+
+No revert needed. The escalation §W4 asked for is a DIFFERENT thing: the
+recipe document itself did not exist, which is why this question had to be
+re-litigated at all. `docs/ads/vertical-onboarding.md` now exists.
+
+### CP3 dev-environment findings (not code defects)
+
+| Finding | Cause | Fix applied |
+|---|---|---|
+| `/search?site=agri` 500'd | `search_agri` Meili index existed with EMPTY `sortableAttributes`, so `_geo` sorting was rejected. `ensure_indexes()` only runs at search-WORKER startup, and the Meili volume had been recreated under a running worker | Ran `ensure_indexes()` + `reindex_search`. Worth a startup re-assert; logged as a gotcha rather than patched blind |
+| Production build 500'd on every route | `next build` writing `.next` while the dev server used the same directory (the U2 build-vs-dev trap). Isolated by a control run WITH the secret, which failed identically | Added an opt-in `NEXT_DIST_DIR` to `next.config.ts` so a prod build can land elsewhere. Unset in CI and Docker |
+| Hero ad rendered with no "Sponsored" badge | The browser context had consumed its 6 serves; the house fallback carries no badge by design | Nothing — this was the frequency cap working through the SSR path. Re-checked with a fresh UA |
+| `₹` displayed as `â‚¹` | Windows curl/psql pipeline, not the data (`e282b9` in the DB, correct in the browser) | Nothing |

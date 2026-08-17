@@ -589,7 +589,15 @@ export default async function HomePage() {
                       index === 0 ? "bg-brand-soft" : ""
                     }`}
                   >
-                    <small className="block text-[10px] text-muted">
+                    {/* --muted is 5.09:1 on white but ~4.47:1 on the
+                        today cell's --brand-soft, which misses AA by a
+                        hair (measured: Lighthouse color-contrast, 0.92).
+                        Only cell 0 has that background, so only cell 0
+                        darkens — the emphasised day reading darker is
+                        also what the A1 reference implies. */}
+                    <small
+                      className={`block text-[10px] ${index === 0 ? "text-ink" : "text-muted"}`}
+                    >
                       {pickText(locale, day.label)}
                     </small>
                     <span aria-hidden="true" className="my-1 block text-xl">
@@ -708,7 +716,10 @@ export default async function HomePage() {
                 className="mt-2.5"
                 heading={<>⏰ {t("agriHome.schemes.deadlines")}</>}
                 action={
-                  <a href="/notifications" className="tap-target no-underline">
+                  <a
+                    href="/notifications"
+                    className="tap-target inline-flex min-h-[24px] items-center no-underline"
+                  >
                     {t("agriHome.schemes.reminders")} 🔔
                   </a>
                 }

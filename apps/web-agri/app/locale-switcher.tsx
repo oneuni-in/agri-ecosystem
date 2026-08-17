@@ -44,7 +44,12 @@ export function AgriLocaleSwitcher() {
             // `.tap-target` (§1.5): the visible control is a 13px glyph; the
             // overlay supplies the 44px hit box without growing the header row.
             className={cn(
-              "tap-target px-1 text-[13px]",
+              // min-h/min-w, not just `.tap-target`: the 44px ::after
+              // overlay is invisible to Lighthouse's target-size audit,
+              // which measures the button's own box (WCAG 2.5.8 wants
+              // 24x24). The glyph stays 13px; only the hit box grows.
+              "tap-target inline-flex min-h-[24px] min-w-[24px] items-center justify-center",
+              "px-1 text-[13px]",
               locale.code === active ? "font-extrabold text-white" : "text-brand-soft",
             )}
             onClick={() => switchTo(locale.code)}

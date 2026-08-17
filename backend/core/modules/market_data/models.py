@@ -225,3 +225,36 @@ class PriceAlert(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
     # Once-a-day latch: the daily pull is deliberately re-runnable, so
     # without this a retry would notify twice for the same prices.
     last_notified_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class Helpline(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
+    """A published government helpline number (0046, A-U3 W2).
+
+    This replaces `apps/web-agri/data/helplines.ts` — the A-U1 deviation
+    that shipped helplines as a static TS file "pending E5 migration".
+    The static file is deleted, not kept as a fallback: two copies of a
+    phone number is two things to keep true, and the stale one always
+    wins eventually.
+
+    `source` + `verified_on` are per NUMBER and are RENDERED, so a number
+    nobody has re-checked in a year says so on screen.
+    """
+
+    __tablename__ = "helplines"
+    __table_args__ = {"schema": "market"}
+
+    slug: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    # Data, not an i18n key: a helpline added by an admin must render in
+    # three languages without a deploy.
+    name: Mapped[dict[str, Any]] = mapped_column(postgresql.JSONB, nullable=False)
+    number: Mapped[str] = mapped_column(Text, nullable=False)
+    # Digits only, for tel:. Stored rather than derived — short codes and
+    # toll-free numbers dial differently and stripping punctuation is a
+    # guess dressed up as a rule.
+    dial: Mapped[str] = mapped_column(Text, nullable=False)
+    scope: Mapped[str] = mapped_column(Text, nullable=False, server_default="national")
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    verified_on: Mapped[date] = mapped_column(Date, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")

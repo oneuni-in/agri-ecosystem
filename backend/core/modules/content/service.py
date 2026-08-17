@@ -16,17 +16,18 @@ is never misread.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Any, cast
 
 import uuid6
-from sqlalchemy import CursorResult, Select, delete, select
+from sqlalchemy import CursorResult, Select, delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.pagination import Page, paginate
 
-from .models import KINDS, Bookmark, ContentItem
+from .models import KIND_ADVISORY, KINDS, Bookmark, ContentItem
 
 APPROVED = "approved"
 PENDING = "pending"
@@ -82,6 +83,52 @@ async def list_feed(
     if kind is not None:
         query = query.where(ContentItem.kind == kind)
     return await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+
+
+async def list_advisories(
+    session: AsyncSession,
+    *,
+    district: str | None = None,
+    on_date: date | None = None,
+    limit: int = 5,
+) -> list[ContentItem]:
+    """Live pest advisories for one district on one day (AG row: an
+    advisory surfaces only in its target district and window).
+
+    Three filters, and each one is a deliberate refusal:
+
+    - approved only, like every other read;
+    - the window must be OPEN today. Unlike the permissive column
+      default, an advisory with NO window at all is excluded here: a pest
+      alert that never expires is a notice, and it would sit on the page
+      long after it stopped being true;
+    - the district must match, or the advisory must be nationwide. A
+      visitor whose district we do not know sees ONLY the nationwide
+      ones — never a guess, because "spray now" aimed at the wrong
+      district costs a farmer money.
+
+    Windowing runs in SQL so LIMIT applies to the rows that survive;
+    district matching runs in Python because JSONB containment cannot
+    express "empty list OR contains X" without a much uglier query, and
+    the candidate set is already bounded to live advisories.
+    """
+    day = on_date or date.today()
+    query = (
+        _published()
+        .where(
+            ContentItem.kind == KIND_ADVISORY,
+            # NOT NULL: an alert must say when it stops being true.
+            ContentItem.window_start.is_not(None),
+            ContentItem.window_start <= day,
+            or_(ContentItem.window_end.is_(None), ContentItem.window_end >= day),
+        )
+        .order_by(ContentItem.published_at.desc())
+        # Bounded before the Python filter so a district with hundreds of
+        # live advisories cannot pull the whole table into memory.
+        .limit(limit * 4)
+    )
+    rows = (await session.scalars(query)).all()
+    return [row for row in rows if row.covers_district(district)][:limit]
 
 
 async def get_item(session: AsyncSession, slug: str) -> ContentItem | None:

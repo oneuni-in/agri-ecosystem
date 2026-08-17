@@ -159,6 +159,29 @@ class ContentItem(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, UGCMixin, Base
     # card title is translated three ways.
     language: Mapped[str] = mapped_column(Text, nullable=False, server_default="en")
 
+    # ── advisory targeting (kind='advisory'); 0046 ───────────────────
+    # NULL/empty means UNRESTRICTED for all three. An article must not
+    # have to populate targeting to stay visible, so absence is the
+    # permissive default — but `list_advisories` never uses that default,
+    # because an advisory with no window is a notice, not an alert.
+    districts: Mapped[list[str] | None] = mapped_column(postgresql.JSONB, nullable=True)
+    window_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    window_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    def live_on(self, day: date) -> bool:
+        """Is this advisory's window open on `day`?"""
+        if self.window_start and day < self.window_start:
+            return False
+        return not (self.window_end and day > self.window_end)
+
+    def covers_district(self, district: str | None) -> bool:
+        """Does this advisory target `district`? An empty target list means
+        everywhere; a visitor with no known district only sees the
+        everywhere ones, never a guess."""
+        if not self.districts:
+            return True
+        return district is not None and district in self.districts
+
     # ── video (kind='video' only) ────────────────────────────────────
     video_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
     video_id: Mapped[str | None] = mapped_column(Text, nullable=True)

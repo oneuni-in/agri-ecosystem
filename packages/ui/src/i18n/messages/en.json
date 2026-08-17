@@ -1272,6 +1272,33 @@
       "readAtSource": "Read it at {source}",
       "save": "Save",
       "saved": "Saved"
+    },
+    "schemes": {
+      "metaTitle": "Government schemes for farmers · agri.in",
+      "metaDescription": "Central and Tamil Nadu farm schemes, each with the official source it was checked against and the date. Links go to the government portal.",
+      "crumbHome": "Home",
+      "crumb": "Schemes",
+      "eyebrow": "GOVERNMENT SCHEMES · EN | TA | HI",
+      "title": "Schemes you can apply for",
+      "sub": "Each card says which official site it was checked against, and when. Apply on the government portal — we never take an application.",
+      "deadlinesTitle": "Dates worth knowing",
+      "levels": {
+        "central": "Central",
+        "state": "State"
+      },
+      "verifiedStamp": "✓ Verified against {domain} · {date}",
+      "eligibilityNote": "This page tells you a scheme exists and where to apply. It does not check whether you qualify — that needs your land records and your own details, and it is not something we will guess at."
+    },
+    "helplinesPage": {
+      "metaTitle": "Farm helpline numbers — works offline · agri.in",
+      "metaDescription": "Kisan Call Centre and other verified farm helpline numbers. This page keeps working with no network — tap to call.",
+      "crumbHome": "Home",
+      "crumb": "Helplines",
+      "eyebrow": "HELPLINES · WORKS OFFLINE",
+      "title": "Helpline numbers",
+      "sub": "Tap a number to call. Each one shows the official source it was checked against and when.",
+      "verifiedStamp": "✓ {domain} · checked {date}",
+      "offlineNote": "Once you have opened this page on your phone, it stays available with the network off. Calling needs signal, but finding the number does not."
     }
   },
   "coins": {

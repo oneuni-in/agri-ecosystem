@@ -11,7 +11,7 @@ would have shown that.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 import pytest
@@ -37,6 +37,7 @@ from modules.content.service import (
     add_bookmark,
     create_item,
     get_item,
+    list_advisories,
     list_feed,
     remove_bookmark,
     set_moderation,
@@ -426,3 +427,87 @@ async def test_unknown_slug_and_pending_slug_404_identically(api) -> None:  # no
     b = await client.get("/content/items/no-such-thing-here")
     assert a.status_code == b.status_code == 404
     assert a.json() == b.json()
+
+
+# ── advisory targeting (AG row: right district, right window) ────────
+
+
+async def _advisory(session, **overrides):
+    from modules.content.models import KIND_ADVISORY
+
+    fields = {
+        "kind": KIND_ADVISORY,
+        "slug": f"adv-{uuid.uuid4().hex[:8]}",
+        "title": {"en": "Scout maize"},
+        "summary": {"en": "s"},
+        "source_name": "agri.in",
+        "source_url": "https://agri.in/",
+        "published_at": datetime.now(UTC),
+        "verticals": [],
+        "states": [],
+        "districts": ["Coimbatore", "Erode"],
+        "window_start": date(2026, 8, 1),
+        "window_end": date(2026, 9, 30),
+    }
+    fields.update(overrides)
+    item = await create_item(session, **fields)
+    await set_moderation(session, item.id, status=APPROVED)
+    return item
+
+
+async def test_advisory_serves_only_inside_its_window(db_session) -> None:
+    """A pest alert is a fact about a few weeks. Outside the window it is
+    not 'less relevant' — it is not served."""
+    item = await _advisory(db_session)
+    inside = await list_advisories(db_session, district="Coimbatore", on_date=date(2026, 8, 20))
+    assert [i.id for i in inside] == [item.id]
+
+    for outside in (date(2026, 7, 31), date(2026, 10, 1)):
+        assert await list_advisories(db_session, district="Coimbatore", on_date=outside) == []
+
+
+async def test_advisory_serves_only_in_its_target_districts(db_session) -> None:
+    await _advisory(db_session)
+    on = date(2026, 8, 20)
+    assert len(await list_advisories(db_session, district="Erode", on_date=on)) == 1
+    assert await list_advisories(db_session, district="Madurai", on_date=on) == []
+
+
+async def test_unknown_district_narrows_rather_than_widens(db_session) -> None:
+    """A visitor whose district we cannot resolve sees nationwide
+    advisories ONLY. Guessing would put 'spray now' in front of the wrong
+    field, which costs a farmer money."""
+    await _advisory(db_session)  # district-targeted
+    nationwide = await _advisory(db_session, districts=[])
+    got = await list_advisories(db_session, district=None, on_date=date(2026, 8, 20))
+    assert [i.id for i in got] == [nationwide.id]
+
+
+async def test_advisory_without_a_window_is_never_served(db_session) -> None:
+    """The column default is permissive so an ARTICLE need not fill it in,
+    but an advisory with no end is a notice that would sit on the page
+    forever. The advisory read requires a window."""
+    await _advisory(db_session, window_start=None, window_end=None)
+    assert await list_advisories(db_session, district="Coimbatore", on_date=date(2026, 8, 20)) == []
+
+
+async def test_pending_advisory_is_never_served(db_session) -> None:
+    """The gate applies here too — targeting does not bypass approval."""
+    from modules.content.models import KIND_ADVISORY
+
+    await create_item(
+        db_session,
+        kind=KIND_ADVISORY,
+        slug="adv-pending",
+        title={"en": "x"},
+        summary={"en": "s"},
+        source_name="agri.in",
+        source_url="https://agri.in/",
+        published_at=datetime.now(UTC),
+        verticals=[],
+        states=[],
+        districts=["Coimbatore"],
+        window_start=date(2026, 8, 1),
+        window_end=date(2026, 9, 30),
+    )
+    assert await list_advisories(db_session, district="Coimbatore", on_date=date(2026, 8, 20)) == []

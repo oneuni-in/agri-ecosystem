@@ -93,3 +93,16 @@
 # here — they are per-user and private by SecureRouter default.
 /content/feed
 /content/items/{slug}
+# /content/advisories: live pest advisories for a district (A-U3 W2).
+# Approved items only, and additionally window-bounded — an advisory
+# outside its dates is not served at all. Same public reference class as
+# /content/feed. An unknown/absent location returns nationwide advisories
+# only, never a guess.
+/content/advisories
+# /market/helplines and /market/schemes (A-U3 W2): published government
+# helpline numbers and scheme cards. Public records already printed on
+# official sites — no user data, no mutation — each carrying the source
+# and verified-on date the UI renders. /market/schemes is the SAME read
+# the home spotlight uses, so page and home can never disagree.
+/market/helplines
+/market/schemes

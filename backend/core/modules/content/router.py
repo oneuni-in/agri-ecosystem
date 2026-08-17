@@ -20,17 +20,19 @@ from fastapi import Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import get_session
+from shared.geo.service import district_for_pincode
 from shared.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, InvalidCursorError
 from shared.security import SecureRouter
 
 from .models import KINDS
-from .schemas import BookmarkIn, ContentDetail, ContentPage, to_card, to_detail
+from .schemas import BookmarkIn, ContentCard, ContentDetail, ContentPage, to_card, to_detail
 from .service import (
     BookmarkCapReached,
     UnknownKind,
     add_bookmark,
     bookmarked_ids,
     get_item,
+    list_advisories,
     list_bookmarks,
     list_feed,
     remove_bookmark,
@@ -43,6 +45,9 @@ router = SecureRouter(prefix="/content", tags=["content"])
 # Tag values are free text in the DB but bounded on the wire: a filter is
 # a query parameter, and an unbounded one invites probing.
 _TAG = Annotated[str | None, Query(max_length=64, pattern=r"^[a-z0-9-]+$")]
+# District names are proper nouns from the geo dataset ("Tiruvannamalai"),
+# not slugs, so they need their own looser-but-still-bounded shape.
+_TAG_FREE = Annotated[str | None, Query(max_length=64, pattern=r"^[A-Za-z .\-]+$")]
 
 
 def _caller(request: Request) -> uuid.UUID:
@@ -155,3 +160,29 @@ async def delete_bookmark(session: SessionDep, request: Request, item_id: uuid.U
     alike (the U2 IDOR rule)."""
     if not await remove_bookmark(session, _caller(request), item_id):
         raise HTTPException(status_code=404, detail="bookmark_not_found")
+
+
+@router.get("/advisories", public=True)
+async def get_advisories(
+    session: SessionDep,
+    district: _TAG_FREE = None,
+    pincode: Annotated[str | None, Query(min_length=6, max_length=6, pattern=r"^\d{6}$")] = None,
+) -> list[ContentCard]:
+    """Live pest advisories for a district (AG row: target district + window).
+
+    Takes either a district name or a pincode we resolve one from — the
+    home has a pincode, the hub has a district. When NEITHER resolves,
+    the caller gets nationwide advisories only: a wrong-district "spray
+    now" costs a farmer money, so an unknown location narrows the answer
+    rather than widening it.
+
+    Uncursored: bounded to `limit` live advisories by construction, and
+    an advisory set large enough to need paging would itself be the bug.
+    """
+    resolved = district
+    if resolved is None and pincode is not None:
+        # An unmapped pincode leaves this None, which narrows the answer
+        # to nationwide advisories rather than widening it to everything.
+        row = await district_for_pincode(session, pincode)
+        resolved = row.name if row is not None else None
+    return [to_card(item) for item in await list_advisories(session, district=resolved)]

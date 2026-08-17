@@ -50,8 +50,8 @@ import {
   pick as pickContent,
   type ContentKind,
 } from "@/lib/content";
-import { HELPLINES } from "@/data/helplines";
 import { SARKARI_LINKS } from "@/data/sarkari";
+import { fetchHelplines, helplineStamp } from "@/lib/helplines";
 import { HOME_HERO_SLOT, serveAds } from "@/lib/ads";
 import {
   fetchDirectoryRow,
@@ -194,6 +194,7 @@ export default async function HomePage() {
     t,
     { ratings, reviews },
     { cards: knowledge, news },
+    helplines,
   ] = await Promise.all([
     fetchToday(pincode),
     fetchVerticals(),
@@ -208,6 +209,12 @@ export default async function HomePage() {
     // renders the section ABSENT rather than as a heading over nothing
     // (honesty rule, unchanged from A-U1's note here).
     fetchKnowledgeSection(3, 6),
+    // §13 — helplines from E5 (0046). A-U1 read these from a static TS
+    // file; that file is gone. State scoping needs the visitor's state,
+    // which the Today payload carries — but that read is in this same
+    // Promise.all, so the band asks for national numbers here and the
+    // state-specific one is a follow-up when a state is known.
+    fetchHelplines(),
   ]);
 
   const faq = (["1", "2", "3", "4", "5", "6"] as const).map((n) => ({
@@ -219,10 +226,10 @@ export default async function HomePage() {
     (sum, r) => sum + r.rating_count,
     0,
   );
-  const helplineStampDate = HELPLINES[0]?.verified_on ?? "";
-  const helplineSources = [...new Set(HELPLINES.map((h) => h.source))].join(
-    " · ",
-  );
+  // The stamp claims something about the WHOLE band, so it carries the
+  // OLDEST verification in it — see helplineStamp().
+  const { sources: helplineSources, date: helplineStampDate } =
+    helplineStamp(helplines);
 
   return (
     <main className="bg-cream pb-6">
@@ -1189,42 +1196,47 @@ export default async function HomePage() {
           </p>
         </section>
 
-        {/* §13 — helpline band from the human-verified E5 dataset; name,
-            number, tel: link AND the source+date stamp all render from
-            data/helplines.ts. */}
-        <section
-          aria-label={t("agriHome.helplines.title")}
-          className="mt-5 rounded-band border border-accent bg-trust-bg px-[18px] py-4"
-        >
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-1.5">
-            <h2 className="font-display text-lg font-extrabold">
-              📞 {t("agriHome.helplines.title")}
-            </h2>
-            <span className="text-[10.5px] text-muted">
-              {t("agriHome.helplines.offline")}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {HELPLINES.map((helpline) => (
-              <a
-                key={helpline.key}
-                href={helpline.telHref}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill border border-cream-line bg-card px-3.5 text-[12px] text-ink no-underline hover:border-brand"
-              >
-                <b className="font-semibold text-brand-deep">
-                  {t(`agriHome.helplines.${helpline.name}`)}
-                </b>{" "}
-                {helpline.number}
-              </a>
-            ))}
-          </div>
-          <p className="mt-2 text-[9.5px] text-muted">
-            {t("agriHome.helplines.verifiedStamp", {
-              sources: helplineSources,
-              date: helplineStampDate,
-            })}
-          </p>
-        </section>
+        {/* §13 — helpline band from the E5 dataset (market.helplines,
+            0046). Name, number, tel: link and the per-number source+date
+            stamp ALL render from the row — the static data/helplines.ts
+            is deleted, not kept as a fallback. Band absent when the
+            dataset is empty: a helpline band with no numbers helps
+            nobody, and a wrong number is worse than none. */}
+        {helplines.length > 0 ? (
+          <section
+            aria-label={t("agriHome.helplines.title")}
+            className="mt-5 rounded-band border border-accent bg-trust-bg px-[18px] py-4"
+          >
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-1.5">
+              <h2 className="font-display text-lg font-extrabold">
+                📞 {t("agriHome.helplines.title")}
+              </h2>
+              <span className="text-[10.5px] text-muted">
+                {t("agriHome.helplines.offline")}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {helplines.map((helpline) => (
+                <a
+                  key={helpline.slug}
+                  href={`tel:${helpline.dial}`}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill border border-cream-line bg-card px-3.5 text-[12px] text-ink no-underline hover:border-brand"
+                >
+                  <b className="font-semibold text-brand-deep">
+                    {pickContent(locale, helpline.name)}
+                  </b>{" "}
+                  {helpline.number}
+                </a>
+              ))}
+            </div>
+            <p className="mt-2 text-[9.5px] text-muted">
+              {t("agriHome.helplines.verifiedStamp", {
+                sources: helplineSources,
+                date: helplineStampDate,
+              })}
+            </p>
+          </section>
+        ) : null}
 
         {/* §13b live activity feed: agri_live_feed flag is OFF and no feed
             endpoint exists → ABSENT (events are never fabricated). */}

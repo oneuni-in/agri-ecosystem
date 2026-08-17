@@ -72,11 +72,21 @@ USER_AGENT = "agri.in-mandi-ingest/1.0 (+https://agri.in)"
 # "Current Daily Price of Various Commodities from Various Markets (Mandi)"
 DAILY_RESOURCE = "9ef84268-d588-465a-a308-a864a43d0070"
 
-# The observed hard ceiling per request. Asking for more is not an error,
-# it is a silent truncation, so we ask for exactly this and page.
-PAGE_SIZE = 10
-# Bounds the walk so a feed that reports an absurd `total` cannot spin
-# forever. 2000 pages x 10 rows is far above a real national day.
+# Rows requested per page. THE CEILING IS PER-KEY, not global: the public
+# sample key silently truncates to 10 (echoing "limit": 10 as if you had
+# asked for it), while a registered key honours large limits — measured
+# 2026-08-17, limit=2000 returned 2000 rows. Tamil Nadu alone publishes
+# ~5.8k rows a day, so paging at 10 would be ~580 requests where 6 will
+# do, and hammering a public API 580 times a day to work around a
+# restriction we no longer have would be rude as well as slow.
+#
+# The walk below never TRUSTS this number, though — see fetch_day. It
+# advances by however many rows actually came back, so a downgraded key
+# (or a server that quietly caps again) costs extra requests, never
+# silently-missing data.
+PAGE_SIZE = 1000
+# Bounds the walk so a feed that reports an absurd `total` — or one that
+# keeps returning rows — cannot spin forever.
 MAX_PAGES = 2000
 
 
@@ -205,18 +215,29 @@ async def fetch_day(
         total = int(first.get("total") or 0)
         pages = [first]
 
-        # Sequential, not concurrent: one polite reader, and the row
-        # offset walk has to see a stable ordering anyway.
-        for page_index in range(1, MAX_PAGES):
-            start = page_index * PAGE_SIZE
-            if start >= total:
+        # Advance by rows ACTUALLY RETURNED, never by PAGE_SIZE. The
+        # server may hand back fewer than asked for — silently, echoing a
+        # limit it did not honour — and stepping by the requested size
+        # would then skip every row in the gap. Stepping by the real count
+        # is correct under any cap, including one that changes mid-walk.
+        #
+        # Sequential, not concurrent: one polite reader, and the offset
+        # walk needs a stable ordering anyway.
+        seen = len(first.get("records") or [])
+        for _page_index in range(1, MAX_PAGES):
+            if seen >= total or seen == 0:
                 break
             await asyncio.sleep(page_pause_seconds)
-            pages.append(
-                await _get_page(
-                    client, params | {"offset": str(start)}, settings.data_gov_retries + 1
-                )
+            page = await _get_page(
+                client, params | {"offset": str(seen)}, settings.data_gov_retries + 1
             )
+            rows = len(page.get("records") or [])
+            if rows == 0:
+                # Nothing left despite `total` claiming otherwise: stop
+                # rather than loop on an offset that yields nothing.
+                break
+            pages.append(page)
+            seen += rows
 
     for page in pages:
         for raw in page.get("records") or []:

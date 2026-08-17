@@ -71,6 +71,12 @@ export type {
   SeedCrop,
 } from "./lib/agri-calculators";
 export { cn } from "./lib/cn";
+// A-U3 content-surface formatting (tested here; web-agri has no runner).
+export {
+  extractFaq,
+  formatDuration,
+  helplineStamp,
+} from "./lib/content-format";
 export { fetchCoinsBalance } from "./lib/coins-balance";
 export {
   LOC_COOKIE,

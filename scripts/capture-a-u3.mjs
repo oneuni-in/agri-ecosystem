@@ -56,6 +56,8 @@ for (const width of WIDTHS) {
   await shoot(context, "/knowledge", `knowledge-${width}`);
   await shoot(context, `/knowledge/${slug}`, `knowledge-item-${width}`);
   await shoot(context, "/", `home-knowledge-${width}`);
+  await shoot(context, "/schemes", `schemes-${width}`);
+  await shoot(context, "/helplines", `helplines-${width}`);
   await context.close();
   console.log(`captured ${width}`);
 }
@@ -65,6 +67,8 @@ for (const locale of LOCALES) {
   const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
   await context.addCookies([{ name: "NEXT_LOCALE", value: locale, url: AGRI }]);
   await shoot(context, "/knowledge", `knowledge-390-${locale}`);
+  await shoot(context, "/schemes", `schemes-390-${locale}`);
+  await shoot(context, "/helplines", `helplines-390-${locale}`);
   await context.close();
   console.log(`captured ${locale}`);
 }

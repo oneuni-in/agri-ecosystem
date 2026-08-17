@@ -11,6 +11,10 @@
  * the section is ABSENT. There is no empty-state card for knowledge,
  * because "we have no articles" is not something a reader needs told.
  */
+// Pure formatters live in @agri/ui (tested there — web-agri has no
+// runner). Re-exported so call sites keep one import for the module.
+export { extractFaq, formatDuration } from "@agri/ui";
+
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 /**
@@ -143,14 +147,4 @@ export function pick(
 ): string {
   if (!text) return "";
   return text[locale] ?? text["en"] ?? "";
-}
-
-/** `412` -> `6:52`. Null in, null out: no duration means no pill. */
-export function formatDuration(seconds: number | null): string | null {
-  if (!seconds || seconds < 1) return null;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const mm = hours ? String(minutes).padStart(2, "0") : String(minutes);
-  return `${hours ? `${hours}:` : ""}${mm}:${String(secs).padStart(2, "0")}`;
 }

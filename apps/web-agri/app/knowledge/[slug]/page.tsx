@@ -1,12 +1,22 @@
 import { Eyebrow, Wrap } from "@agri/ui";
-import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
+import {
+  buildMetadata,
+  canonicalUrl,
+  faqPageJsonLd,
+  JsonLd,
+} from "@agri/ui/seo";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BookmarkButton } from "@/app/knowledge/bookmark-button";
-import { fetchContentItem, formatDuration, pick } from "@/lib/content";
+import {
+  extractFaq,
+  fetchContentItem,
+  formatDuration,
+  pick,
+} from "@/lib/content";
 
 /**
  * A-U3 W1 — one content item.
@@ -60,6 +70,10 @@ export default async function ContentItemPage({
   if (!item) notFound();
 
   const duration = formatDuration(item.duration_seconds);
+  // FAQPage ONLY where the guide is genuinely Q&A shaped (see
+  // extractFaq — it returns nothing below two complete pairs). Claiming
+  // a page answers questions it does not is structured-data spam.
+  const faq = item.body ? extractFaq(pick(locale, item.body)) : [];
   const published = new Date(item.published_at).toLocaleDateString(locale, {
     day: "numeric",
     month: "long",
@@ -68,6 +82,9 @@ export default async function ContentItemPage({
 
   return (
     <main className="bg-cream pb-10">
+      {faq.length > 0 ? (
+        <JsonLd data={faqPageJsonLd({ questions: faq })} />
+      ) : null}
       <Wrap>
         <nav className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted">
           <Link

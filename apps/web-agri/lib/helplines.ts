@@ -12,6 +12,10 @@
  *  - `source` + `verified_on` are PER NUMBER rather than one stamp for
  *    the whole band, so a number nobody has re-checked says so.
  */
+// The footer stamp rule (oldest date wins) lives in @agri/ui with its
+// tests; re-exported so the home keeps one import for helplines.
+export { helplineStamp } from "@agri/ui";
+
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 /**
@@ -56,20 +60,4 @@ export async function fetchHelplines(
   } catch {
     return [];
   }
-}
-
-/** The band's footer stamp: the distinct sources, and the OLDEST
- * verification date across the numbers shown.
- *
- * Oldest, not newest, deliberately. The stamp is a claim about the whole
- * band, and the honest claim is the weakest one in it — showing the most
- * recent date would let one freshly-checked number vouch for three that
- * nobody has looked at in years. */
-export function helplineStamp(helplines: Helpline[]): {
-  sources: string;
-  date: string;
-} {
-  const sources = [...new Set(helplines.map((h) => h.source))].join(" · ");
-  const date = helplines.map((h) => h.verified_on).sort()[0] ?? "";
-  return { sources, date };
 }

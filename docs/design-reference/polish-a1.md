@@ -85,3 +85,21 @@ render their empty state or not at all; reference sample data lives only on
 | Checklist rows AG-A22…A30 | A-U2 already used AG-A22…A25 | Appended as AG-A26…A34 with a mapping note (owner-confirmed 2026-08-17) |
 | RSS source list incl. PIB | `pib.gov.in` RSS answers **403** to a declared bot User-Agent | PIB EXCLUDED, not worked around: the only way past a 403 is to disguise the client. Three curated sources seeded instead (ICAR, The Hindu, BusinessLine), each with a `terms_note` and a robots.txt check dated 2026-08-17 |
 | Video with `duration` | No keyless official API reports YouTube duration; scraping the watch page is out of bounds | `duration_seconds` nullable + curator-entered; card renders without the pill when unknown. Owner chose to ship CP1 with no video rows |
+
+## 3. A-U3 W2 binding proofs
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 13 | Helpline band | `market.helplines` (0046) via `/market/helplines`. Name is i18n DATA, not a message key, so an admin can add a number without a deploy; `source` + `verified_on` are per NUMBER and rendered. Footer stamp shows the OLDEST date in the band — the honest claim about a set is its weakest member. `data/helplines.ts` DELETED (test asserts it), site-header hotline chip migrated to the same read | Bound (A-U3 CP2, real) |
+| 13 | `/helplines` offline page | Statically rendered, no cookies, numbers baked into the HTML; a SINGLE-PURPOSE service worker precaches just this route (no manifest, no install prompt, no push — that is A-U4). Proven with the network genuinely off in Playwright | Bound (A-U3 CP2, real) |
+| 9 | `/schemes` listing | Same `get_schemes` read as the home spotlight, so the two cannot drift. Stamps render from the row; passed deadlines are filtered upstream. Says in copy that it does not check eligibility (Stage C) | Bound (A-U3 CP2, real) |
+| 11 | Pest advisories | District + window targeting on content.items. Unknown district narrows to nationwide-only; an advisory with no window is never served | Bound (A-U3 CP2, real) |
+| — | Knowledge CMS | `web-admin /content`: review queue + draft composer, with `content.write` and `content.publish` visibly separate. No publish path from the composer — not a button we declined to build, a request the API cannot honour | Bound (A-U3 CP2) |
+
+### A-U3 W2 scope calls (owner may veto either)
+
+| Call | Why | How to reverse |
+|---|---|---|
+| CMS UI built in **web-admin**, which §4 lists as "parked" | Every other moderation queue (ads, claims, reviews, ops) already lives there. A content queue anywhere else fragments moderation, and a CMS with no authoring surface is not a CMS. Read §4's "parked" as "no unrelated web-admin work", not "ship the gate with no door" | Delete `apps/web-admin/app/content/` and one nav entry. The API stands alone (the CLI `scripts/content_approve.py` already drives it) |
+| A **service worker** added to web-agri, when §4 defers the "PWA sweep" to A-U4 | AG-A30 requires the offline page to work with the network off, and that is impossible without one. This worker handles exactly one route, has no manifest/push/offline-shell, and is registered from `/helplines` alone | Delete `public/sw.js` + `register-sw.tsx`. Nothing else references either, so A-U4 starts clean |
+| Livestock/advisory seed copy is **agent-drafted** | It is the dosage-rule category. Mitigated by landing `pending` (the gate holds it), and by carrying scouting/husbandry practice only — no chemical names, no doses, no vaccination schedules; every treatment decision routed to a vet or the KCC | Reject the three items in the queue; nothing reaches a reader |

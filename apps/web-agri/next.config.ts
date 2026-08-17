@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   // real users and JS-capable crawlers (Googlebot) are unaffected.
   htmlLimitedBots:
     /Chrome-Lighthouse|Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i,
+  // NEXT_DIST_DIR lets a production build land somewhere other than
+  // `.next`, so it cannot race the dev server writing the same directory
+  // (the U2 build-vs-dev trap — a half-overwritten .next 500s on every
+  // route and looks exactly like an app bug). Unset in CI and in Docker,
+  // where nothing else is using the tree.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   // Docker image builds (apps/Dockerfile) set NEXT_OUTPUT=standalone to
   // produce the self-contained server. It stays OFF elsewhere: standalone
   // tracing creates symlinks, which Windows dev boxes deny by default
@@ -27,7 +33,12 @@ const nextConfig: NextConfig = {
   }),
   // Workspace packages ship TypeScript source (no build step), so Next must
   // compile them alongside the app.
-  transpilePackages: ["@agri/ui", "@agri/types", "@agri/auth-client", "@agri/observability"],
+  transpilePackages: [
+    "@agri/ui",
+    "@agri/types",
+    "@agri/auth-client",
+    "@agri/observability",
+  ],
   // @agri/ui is a barrel of "use client" components; without this, every
   // component in the barrel lands in each app's client graph regardless of
   // use (D21 lighthouse regression: web-milk shipped SponsoredAd it never

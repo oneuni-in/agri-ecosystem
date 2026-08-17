@@ -15,10 +15,12 @@ import {
   EcoStrip,
   EmptyState,
   Eyebrow,
+  KnowledgeCard,
   LiveDot,
   LOC_COOKIE,
   MandiCard,
   Marquee,
+  NewsList,
   RatingStars,
   ReviewCard,
   SeasonCalendar,
@@ -42,8 +44,14 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
 import Link from "next/link";
 
-import { HELPLINES } from "@/data/helplines";
+import {
+  fetchKnowledgeSection,
+  formatDuration,
+  pick as pickContent,
+  type ContentKind,
+} from "@/lib/content";
 import { SARKARI_LINKS } from "@/data/sarkari";
+import { fetchHelplines, helplineStamp } from "@/lib/helplines";
 import { HOME_HERO_SLOT, serveAds } from "@/lib/ads";
 import {
   fetchDirectoryRow,
@@ -105,25 +113,48 @@ function homeJsonLd(faq: { q: string; a: string }[]): string {
 }
 
 /** TranslatedText → the visitor's locale, EN fallback (E5 rule). */
-function pickText(locale: string, text: TranslatedText | null | undefined): string {
+function pickText(
+  locale: string,
+  text: TranslatedText | null | undefined,
+): string {
   if (!text) return "";
   return text[locale as keyof TranslatedText] ?? text.en;
 }
 
 /** Signed change → tone + the "▲ ₹4" / "▼ ₹2" / "—" text (A1 `.chg`). */
-function priceChange(change: number): { tone: "up" | "down" | "flat"; text: string } {
+function priceChange(change: number): {
+  tone: "up" | "down" | "flat";
+  text: string;
+} {
   if (change > 0) return { tone: "up", text: `▲ ₹${change}` };
   if (change < 0) return { tone: "down", text: `▼ ₹${-change}` };
   return { tone: "flat", text: "—" };
 }
 
-const CHANGE_TEXT_CLASS = { up: "text-up", down: "text-down", flat: "text-muted" } as const;
+const CHANGE_TEXT_CLASS = {
+  up: "text-up",
+  down: "text-down",
+  flat: "text-muted",
+} as const;
 
 const INR = new Intl.NumberFormat("en-IN");
 
+/** §11 media stand-ins per content kind. Presentation, not data — the
+ * A1 reference uses emoji tiles where artwork will later go. */
+const KNOWLEDGE_ICON: Record<ContentKind, string> = {
+  article: "📰",
+  video: "🎬",
+  guide: "🌾",
+  advisory: "🐛",
+};
+
 /** §7 — the mandi-card WhatsApp share text, built SERVER-side from the
  * payload (name/price/change/market/as-of/source — never literals). */
-function waShareHref(c: MandiCommodity, locale: string, today: TodayPayload): string {
+function waShareHref(
+  c: MandiCommodity,
+  locale: string,
+  today: TodayPayload,
+): string {
   const text = `${pickText(locale, c.name)} ₹${c.price}/${c.unit} (${priceChange(c.change).text}) — ${c.market} · ${today.mandi.as_of} · ${today.mandi.source} via agri.in`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
@@ -155,7 +186,16 @@ export default async function HomePage() {
   // (AG-A8 TTFB evidence).
   const directoryPromise = fetchDirectoryRow(pincode);
   const signalsPromise = directoryPromise.then((d) => fetchReviewSignals(d, 2));
-  const [today, verticals, directory, heroAds, t, { ratings, reviews }] = await Promise.all([
+  const [
+    today,
+    verticals,
+    directory,
+    heroAds,
+    t,
+    { ratings, reviews },
+    { cards: knowledge, news },
+    helplines,
+  ] = await Promise.all([
     fetchToday(pincode),
     fetchVerticals(),
     directoryPromise,
@@ -164,6 +204,17 @@ export default async function HomePage() {
     serveAds(HOME_HERO_SLOT, { pincode, locale }, 5),
     getTranslations("ui"),
     signalsPromise,
+    // §11 — E6 content. Cards and rail come from ONE call so they cannot
+    // show the same story twice. Empty arrays on any failure, and empty
+    // renders the section ABSENT rather than as a heading over nothing
+    // (honesty rule, unchanged from A-U1's note here).
+    fetchKnowledgeSection(3, 6),
+    // §13 — helplines from E5 (0046). A-U1 read these from a static TS
+    // file; that file is gone. State scoping needs the visitor's state,
+    // which the Today payload carries — but that read is in this same
+    // Promise.all, so the band asks for national numbers here and the
+    // state-specific one is a follow-up when a state is known.
+    fetchHelplines(),
   ]);
 
   const faq = (["1", "2", "3", "4", "5", "6"] as const).map((n) => ({
@@ -171,13 +222,21 @@ export default async function HomePage() {
     a: t(`agriHome.faq.a${n}`),
   }));
   const groups = groupVerticals(verticals);
-  const reviewCount = Object.values(ratings).reduce((sum, r) => sum + r.rating_count, 0);
-  const helplineStampDate = HELPLINES[0]?.verified_on ?? "";
-  const helplineSources = [...new Set(HELPLINES.map((h) => h.source))].join(" · ");
+  const reviewCount = Object.values(ratings).reduce(
+    (sum, r) => sum + r.rating_count,
+    0,
+  );
+  // The stamp claims something about the WHOLE band, so it carries the
+  // OLDEST verification in it — see helplineStamp().
+  const { sources: helplineSources, date: helplineStampDate } =
+    helplineStamp(helplines);
 
   return (
     <main className="bg-cream pb-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd(faq) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: homeJsonLd(faq) }}
+      />
 
       {/* §2b severe strip · §3 TODAY strip · §6b mandi ticker · §7 mandi
           cards · §7b kharif calendar · §8 weather+tip · §9 schemes+deadlines:
@@ -198,8 +257,11 @@ export default async function HomePage() {
             </a>
           }
         >
-          <b className="text-severe-ink">{pickText(locale, today.severe_alert.headline)}</b> —{" "}
-          {today.severe_alert.district} · {pickText(locale, today.severe_alert.window)}
+          <b className="text-severe-ink">
+            {pickText(locale, today.severe_alert.headline)}
+          </b>{" "}
+          — {today.severe_alert.district} ·{" "}
+          {pickText(locale, today.severe_alert.window)}
         </SevereAlertStrip>
       ) : null}
 
@@ -208,7 +270,11 @@ export default async function HomePage() {
           Reveal, no content-visibility (the AG-A8 LCP lessons). */}
       {today ? (
         <Wrap>
-          <section aria-label={t("agriHome.today.label")} data-testid="today-strip" className="mt-3.5">
+          <section
+            aria-label={t("agriHome.today.label")}
+            data-testid="today-strip"
+            className="mt-3.5"
+          >
             <TodayStrip className="max-md:grid-cols-2 md:[grid-template-columns:1.1fr_1.1fr_1.1fr_1fr]">
               {/* Contract v2: weather can be absent (upstream down, cold
                   cache). The tile omits itself; the rest of the strip —
@@ -232,7 +298,8 @@ export default async function HomePage() {
                   label={t("agriHome.today.mandi")}
                   value={
                     <>
-                      {today.mandi.commodities[0].emoji} ₹{today.mandi.commodities[0].price}/
+                      {today.mandi.commodities[0].emoji} ₹
+                      {today.mandi.commodities[0].price}/
                       {today.mandi.commodities[0].unit}{" "}
                       <span
                         className={`text-[12px] font-medium ${CHANGE_TEXT_CLASS[priceChange(today.mandi.commodities[0].change).tone]}`}
@@ -242,14 +309,18 @@ export default async function HomePage() {
                     </>
                   }
                   sub={`${pickText(locale, today.mandi.commodities[0].name)} · ${today.mandi.market} · ${today.mandi.as_of}`}
-                  go={t("agriHome.today.mandiGo", { count: today.mandi.commodities.length })}
+                  go={t("agriHome.today.mandiGo", {
+                    count: today.mandi.commodities.length,
+                  })}
                 />
               ) : null}
               {today.schemes.items[0] ? (
                 <TodayTile
                   href="#schemes"
                   label={t("agriHome.today.schemes")}
-                  value={<>🏛️ {pickText(locale, today.schemes.items[0].title)}</>}
+                  value={
+                    <>🏛️ {pickText(locale, today.schemes.items[0].title)}</>
+                  }
                   sub={pickText(locale, today.schemes.items[0].body)}
                   go={`${pickText(locale, today.schemes.items[0].link_label)} →`}
                 />
@@ -305,19 +376,22 @@ export default async function HomePage() {
       <Wrap>
         {/* §5 — search band. Gradient with a solid token underlay (never a
             bg-* class beside a gradient through cn() — tw-merge drops it).
-            DECISION: web-agri has NO /search route and /directory has no
-            index page accepting a query (verified: app/ contains only
-            account/api/business/demo/directory/[slug]/notifications). The
-            form targets /categories — this work package's CP3 surface, whose
-            client-side filter reads ?q — rather than a fabricated results
-            page. The mic is an entry stub (A1 ships it inert too). */}
+            A-U3 W3 closes the A-U1 deviation recorded here: the band
+            pointed at /categories because no /search route existed and a
+            fabricated results page would have been worse. /search is now
+            real (the D19 facade, site=agri pinned server-side), so the
+            form targets it. The mic is still an entry stub — A1 ships it
+            inert too, and a dead mic button is honest where a fake
+            transcript would not be. */}
         <section className="mt-3.5 rounded-band [background-color:var(--brand)] bg-band-gradient px-5 pb-7 pt-[26px] text-center text-white">
           <h1 className="font-display text-[clamp(19px,2.4vw,27px)] font-semibold">
             {t("agriHome.search.title")}
           </h1>
-          <p className="mb-4 mt-1.5 text-[13px] text-brand-soft">{t("agriHome.search.sub")}</p>
+          <p className="mb-4 mt-1.5 text-[13px] text-brand-soft">
+            {t("agriHome.search.sub")}
+          </p>
           <form
-            action="/categories"
+            action="/search"
             method="get"
             className="mx-auto flex max-w-[620px] items-center gap-2.5 rounded-[14px] bg-card p-1.5 pl-4"
           >
@@ -357,10 +431,7 @@ export default async function HomePage() {
             are the /c/{slug} landing routes — they land in CP3 (this work
             package) as the vertical's real surface or its honest noindexed
             coming-soon page. */}
-        <Section
-          title={t("agriHome.categories.title")}
-          className="pb-0"
-        >
+        <Section title={t("agriHome.categories.title")} className="pb-0">
           {/* A1's reveal/stagger/count-up motion is DEFERRED on the home:
               ~15 hydration islands walking a 6000px DOM were the measured
               anchor under the AG-A8 0.90 floor (Decision 3 outranks
@@ -384,19 +455,26 @@ export default async function HomePage() {
                         aria-hidden="true"
                         className={`h-2.5 w-2.5 flex-shrink-0 rounded-[3px] ${style.dot}`}
                       />
-                      {t(`agriHome.categories.groups.${GROUP_LABEL_KEY[group.key]}`)} (
-                      {group.items.length})
+                      {t(
+                        `agriHome.categories.groups.${GROUP_LABEL_KEY[group.key]}`,
+                      )}{" "}
+                      ({group.items.length})
                     </>
                   }
                 >
                   {group.items.map((vertical) => {
-                    const label = vertical.name[locale] ?? vertical.name["en"] ?? vertical.slug;
+                    const label =
+                      vertical.name[locale] ??
+                      vertical.name["en"] ??
+                      vertical.slug;
                     // UX law 1: EN + mother tongue on every tile. name.ta is
                     // the vernacular line; on /ta itself (where the label IS
                     // Tamil) the English name takes that slot instead of
                     // duplicating.
                     const vernacular =
-                      locale === "ta" ? (vertical.name["en"] ?? "") : (vertical.name["ta"] ?? "");
+                      locale === "ta"
+                        ? (vertical.name["en"] ?? "")
+                        : (vertical.name["ta"] ?? "");
                     return (
                       <div key={vertical.slug}>
                         <CategoryTile
@@ -416,7 +494,9 @@ export default async function HomePage() {
             );
           })}
           <p className="mt-2.5 text-[11.5px] text-muted">
-            <b className="font-semibold text-brand-deep">{t("agriHome.soon")}</b>{" "}
+            <b className="font-semibold text-brand-deep">
+              {t("agriHome.soon")}
+            </b>{" "}
             {t("agriHome.categories.note")}
           </p>
         </Section>
@@ -427,7 +507,9 @@ export default async function HomePage() {
         {today ? (
           <Marquee
             data-testid="mandi-ticker"
-            label={t("agriHome.mandi.tickerLabel", { market: today.mandi.market })}
+            label={t("agriHome.mandi.tickerLabel", {
+              market: today.mandi.market,
+            })}
             className="mt-4"
           >
             <span className="pl-4">
@@ -438,14 +520,20 @@ export default async function HomePage() {
                 {pickText(locale, c.name)}{" "}
                 <b className="font-medium text-ink">
                   ₹{c.price}/{c.unit}{" "}
-                  {c.change > 0 ? `▲${c.change}` : c.change < 0 ? `▼${-c.change}` : "—"}
+                  {c.change > 0
+                    ? `▲${c.change}`
+                    : c.change < 0
+                      ? `▼${-c.change}`
+                      : "—"}
                 </b>
               </span>
             ))}
             <span>
               <b className="font-medium text-ink">
                 {today.mandi.source} ·{" "}
-                {t("agriHome.mandi.tickerCount", { count: today.mandi.commodities.length })}
+                {t("agriHome.mandi.tickerCount", {
+                  count: today.mandi.commodities.length,
+                })}
               </b>{" "}
               ·
             </span>
@@ -462,9 +550,13 @@ export default async function HomePage() {
             aria-label={t("agriHome.mandi.title")}
             className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
           >
-            <Eyebrow>{t("agriHome.mandi.eyebrow", { source: today.mandi.source })}</Eyebrow>
+            <Eyebrow>
+              {t("agriHome.mandi.eyebrow", { source: today.mandi.source })}
+            </Eyebrow>
             <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2.5">
-              <h2 className="font-display text-xl font-extrabold">{t("agriHome.mandi.title")}</h2>
+              <h2 className="font-display text-xl font-extrabold">
+                {t("agriHome.mandi.title")}
+              </h2>
               {/* A-U2 §2, honest degradation: with no ingested rows for
                   this area there is no as-of to stamp, so the strip says
                   so instead of rendering a dangling "updated". */}
@@ -486,10 +578,17 @@ export default async function HomePage() {
               {today.mandi.commodities.slice(0, 8).map((c) => {
                 const change = priceChange(c.change);
                 const rangeParts = [
-                  t("agriHome.mandi.range", { low: c.range_low, high: c.range_high }),
-                  c.modal !== null ? t("agriHome.mandi.modal", { modal: c.modal }) : null,
+                  t("agriHome.mandi.range", {
+                    low: c.range_low,
+                    high: c.range_high,
+                  }),
+                  c.modal !== null
+                    ? t("agriHome.mandi.modal", { modal: c.modal })
+                    : null,
                   c.arrivals_qtl !== null
-                    ? t("agriHome.mandi.arrivals", { qtl: INR.format(c.arrivals_qtl) })
+                    ? t("agriHome.mandi.arrivals", {
+                        qtl: INR.format(c.arrivals_qtl),
+                      })
                     : null,
                   c.note ? pickText(locale, c.note) : null,
                 ].filter(Boolean);
@@ -507,7 +606,9 @@ export default async function HomePage() {
                     range={rangeParts.join(" · ")}
                     share={
                       <ShareChip
-                        label={t("agriHome.mandi.share", { name: pickText(locale, c.name) })}
+                        label={t("agriHome.mandi.share", {
+                          name: pickText(locale, c.name),
+                        })}
                         href={waShareHref(c, locale, today)}
                       />
                     }
@@ -526,7 +627,9 @@ export default async function HomePage() {
             className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
           >
             <Eyebrow>
-              {t("agriHome.calendar.eyebrow", { zone: pickText(locale, today.calendar.zone) })}
+              {t("agriHome.calendar.eyebrow", {
+                zone: pickText(locale, today.calendar.zone),
+              })}
             </Eyebrow>
             <h2 className="mb-3.5 font-display text-xl font-extrabold">
               {t("agriHome.calendar.title")}
@@ -540,7 +643,10 @@ export default async function HomePage() {
                 }))}
               >
                 <SeasonNote>
-                  🌱 {t("agriHome.calendar.sowing", { zone: pickText(locale, today.calendar.zone) })}
+                  🌱{" "}
+                  {t("agriHome.calendar.sowing", {
+                    zone: pickText(locale, today.calendar.zone),
+                  })}
                 </SeasonNote>
                 {today.calendar.sowing.map((w) => (
                   <CropChip key={w.icon + pickText(locale, w.label)}>
@@ -548,7 +654,9 @@ export default async function HomePage() {
                     {w.until ? ` · ${pickText(locale, w.until)}` : ""}
                   </CropChip>
                 ))}
-                <SeasonNote className="mt-2">🌾 {t("agriHome.calendar.harvesting")}</SeasonNote>
+                <SeasonNote className="mt-2">
+                  🌾 {t("agriHome.calendar.harvesting")}
+                </SeasonNote>
                 {today.calendar.harvesting.map((w) => (
                   <CropChip harvest key={w.icon + pickText(locale, w.label)}>
                     {w.icon} {pickText(locale, w.label)}
@@ -622,7 +730,9 @@ export default async function HomePage() {
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-card border border-cream-line bg-card px-4 py-3 text-[11px] text-sub md:col-span-2">
                 <span>
                   💧 {t("agriHome.weather.humidity")}{" "}
-                  <b className="font-medium text-ink">{today.weather.humidity_pct}%</b>
+                  <b className="font-medium text-ink">
+                    {today.weather.humidity_pct}%
+                  </b>
                 </span>
                 <span>
                   🌬️ {t("agriHome.weather.wind")}{" "}
@@ -633,16 +743,25 @@ export default async function HomePage() {
                 {today.weather.rain_chance_pct !== null ? (
                   <span>
                     🌧️ {t("agriHome.weather.rain")}{" "}
-                    <b className="font-medium text-ink">{today.weather.rain_chance_pct}%</b>
+                    <b className="font-medium text-ink">
+                      {today.weather.rain_chance_pct}%
+                    </b>
                   </span>
                 ) : null}
                 {today.weather.soil_temp_c !== null ? (
                   <span>
                     🌡️ {t("agriHome.weather.soil")}{" "}
-                    <b className="font-medium text-ink">{today.weather.soil_temp_c}°C</b>
+                    <b className="font-medium text-ink">
+                      {today.weather.soil_temp_c}°C
+                    </b>
                   </span>
                 ) : null}
-                <span>🛰️ {t("agriHome.weather.source", { source: today.weather.source })}</span>
+                <span>
+                  🛰️{" "}
+                  {t("agriHome.weather.source", {
+                    source: today.weather.source,
+                  })}
+                </span>
               </div>
             </div>
             {today.weather.tip ? (
@@ -683,7 +802,8 @@ export default async function HomePage() {
                       </span>
                     ) : (
                       <span className="rounded-pill bg-sponsored-bg px-2 py-0.5 text-[9.5px] font-medium text-sponsored-fg">
-                        {pickText(locale, scheme.state_label) || t("agriHome.schemes.state")}
+                        {pickText(locale, scheme.state_label) ||
+                          t("agriHome.schemes.state")}
                       </span>
                     )}
                   </div>
@@ -725,9 +845,16 @@ export default async function HomePage() {
                 }
               >
                 {today.schemes.deadlines.map((deadline) => (
-                  <DeadlineItem key={deadline.chip + pickText(locale, deadline.title)} chip={deadline.chip}>
-                    <b className="font-medium text-ink">{pickText(locale, deadline.title)}</b>
-                    {deadline.note ? <> · {pickText(locale, deadline.note)}</> : null}
+                  <DeadlineItem
+                    key={deadline.chip + pickText(locale, deadline.title)}
+                    chip={deadline.chip}
+                  >
+                    <b className="font-medium text-ink">
+                      {pickText(locale, deadline.title)}
+                    </b>
+                    {deadline.note ? (
+                      <> · {pickText(locale, deadline.note)}</>
+                    ) : null}
                   </DeadlineItem>
                 ))}
               </DeadlinesBar>
@@ -787,7 +914,10 @@ export default async function HomePage() {
             real campaign can serve (honesty rule). Call/WhatsApp are doors to
             the profile page, where D18's capped, fail-closed contact-reveal
             flow lives — numbers are never in list payloads. */}
-        <Section title={t("agriHome.directory.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.directory.title")}
+          className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <Eyebrow className="-mt-3">{t("agriHome.directory.eyebrow")}</Eyebrow>
           {directory.length === 0 ? (
             <EmptyState
@@ -850,10 +980,16 @@ export default async function HomePage() {
         </Section>
 
         {/* §10a2 — how agri.in works (static i18n). */}
-        <Section title={t("agriHome.how.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.how.title")}
+          className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <div className="grid gap-3 md:grid-cols-3">
             {(["s1", "s2", "s3"] as const).map((step, index) => (
-              <div key={step} className="rounded-card border border-cream-line bg-card p-4 text-center">
+              <div
+                key={step}
+                className="rounded-card border border-cream-line bg-card p-4 text-center"
+              >
                 <span
                   aria-hidden="true"
                   className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-pill bg-brand-soft font-display text-base font-extrabold text-brand-deep"
@@ -863,16 +999,88 @@ export default async function HomePage() {
                 <b className="block text-[13px] font-semibold text-ink">
                   {t(`agriHome.how.${step}.t`)}
                 </b>
-                <small className="text-[11px] text-muted">{t(`agriHome.how.${step}.d`)}</small>
+                <small className="text-[11px] text-muted">
+                  {t(`agriHome.how.${step}.d`)}
+                </small>
               </div>
             ))}
           </div>
         </Section>
 
         {/* §10b equipment showcase: /catalog/verticals/{slug}/products has no
-            agri schema yet → no products can exist → section ABSENT.
-            §11 knowledge + news: content module (E6) is empty → ABSENT — no
-            lorem articles, ever. */}
+            agri schema yet → no products can exist → section ABSENT. */}
+
+        {/* §11 — knowledge + news, from the E6 content engine (A-U3 W1).
+            APPROVED items only: the backend gate means anything rendered
+            here was passed by a human. The whole section is absent when
+            nothing has been approved — the A-U1 note that stood here said
+            "no lorem articles, ever", and that rule is now enforced by the
+            data rather than by a comment. Every card and every headline
+            carries its source name and the PUBLISHER's date, read from
+            the row. */}
+        {knowledge.length > 0 || news.length > 0 ? (
+          <Section
+            title={t("agriHome.knowledge.title")}
+            see={t("agriHome.knowledge.all")}
+            seeHref="/knowledge"
+            className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
+            <Eyebrow className="-mt-3">
+              {t("agriHome.knowledge.eyebrow")}
+            </Eyebrow>
+            <div className="grid gap-3 lg:grid-cols-[2fr_1.2fr]">
+              {knowledge.length > 0 ? (
+                <div className="grid content-start gap-2.5 max-md:grid-cols-1 md:grid-cols-3">
+                  {knowledge.map((item) => (
+                    <KnowledgeCard
+                      key={item.id}
+                      href={`/knowledge/${item.slug}`}
+                      icon={KNOWLEDGE_ICON[item.kind]}
+                      isVideo={item.kind === "video"}
+                      duration={formatDuration(item.duration_seconds)}
+                      category={
+                        item.kind === "video"
+                          ? `▶ ${t(`knowledge.kinds.${item.kind}`)}`
+                          : t(`knowledge.kinds.${item.kind}`)
+                      }
+                      title={pickContent(locale, item.title)}
+                      meta={t("agriHome.knowledge.sourceStamp", {
+                        source: item.source_name,
+                        date: new Date(item.published_at).toLocaleDateString(
+                          locale,
+                          {
+                            day: "numeric",
+                            month: "short",
+                          },
+                        ),
+                      })}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {news.length > 0 ? (
+                <NewsList
+                  title={`📰 ${t("agriHome.knowledge.newsTitle")}`}
+                  items={news.map((item) => ({
+                    id: item.id,
+                    href: `/knowledge/${item.slug}`,
+                    headline: pickContent(locale, item.title),
+                    source: t("agriHome.knowledge.sourceStamp", {
+                      source: item.source_name,
+                      date: new Date(item.published_at).toLocaleDateString(
+                        locale,
+                        {
+                          day: "numeric",
+                          month: "short",
+                        },
+                      ),
+                    }),
+                  }))}
+                />
+              ) : null}
+            </div>
+          </Section>
+        ) : null}
 
         {/* §10c — farm calculators entry (A1 .tools-grid): REAL doors into
             /tools, the client-side offline calculators the `farm-tools`
@@ -883,7 +1091,9 @@ export default async function HomePage() {
         >
           <Eyebrow>{t("agriHome.toolsRow.eyebrow")}</Eyebrow>
           <div className="mb-3.5 flex items-baseline justify-between gap-2.5">
-            <h2 className="font-display text-xl font-extrabold">{t("agriHome.toolsRow.title")}</h2>
+            <h2 className="font-display text-xl font-extrabold">
+              {t("agriHome.toolsRow.title")}
+            </h2>
             <a
               href="/tools"
               className="tap-target text-[13px] font-bold text-brand-deep no-underline"
@@ -917,7 +1127,10 @@ export default async function HomePage() {
 
         {/* §11b/§11c — Q&A + events are Stage D surfaces: honest Soon cards
             (door to the /c/ landing), never fake threads or events. */}
-        <Section title={t("agriHome.community.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.community.title")}
+          className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <div className="grid gap-2.5 md:grid-cols-2">
             {(
               [
@@ -967,7 +1180,9 @@ export default async function HomePage() {
               <b className="block font-display text-[17px] font-semibold">
                 {t("agriHome.ask.title")}
               </b>
-              <p className="mt-0.5 text-[12px] text-brand-soft-2">{t("agriHome.ask.sub")}</p>
+              <p className="mt-0.5 text-[12px] text-brand-soft-2">
+                {t("agriHome.ask.sub")}
+              </p>
             </div>
             <Link
               href="/c/experts"
@@ -977,43 +1192,52 @@ export default async function HomePage() {
               {t("agriHome.ask.cta")}
             </Link>
           </div>
-          <p className="mt-2.5 text-[10.5px] text-brand-soft-2">{t("agriHome.ask.note")}</p>
-        </section>
-
-        {/* §13 — helpline band from the human-verified E5 dataset; name,
-            number, tel: link AND the source+date stamp all render from
-            data/helplines.ts. */}
-        <section
-          aria-label={t("agriHome.helplines.title")}
-          className="mt-5 rounded-band border border-accent bg-trust-bg px-[18px] py-4"
-        >
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-1.5">
-            <h2 className="font-display text-lg font-extrabold">
-              📞 {t("agriHome.helplines.title")}
-            </h2>
-            <span className="text-[10.5px] text-muted">{t("agriHome.helplines.offline")}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {HELPLINES.map((helpline) => (
-              <a
-                key={helpline.key}
-                href={helpline.telHref}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill border border-cream-line bg-card px-3.5 text-[12px] text-ink no-underline hover:border-brand"
-              >
-                <b className="font-semibold text-brand-deep">
-                  {t(`agriHome.helplines.${helpline.name}`)}
-                </b>{" "}
-                {helpline.number}
-              </a>
-            ))}
-          </div>
-          <p className="mt-2 text-[9.5px] text-muted">
-            {t("agriHome.helplines.verifiedStamp", {
-              sources: helplineSources,
-              date: helplineStampDate,
-            })}
+          <p className="mt-2.5 text-[10.5px] text-brand-soft-2">
+            {t("agriHome.ask.note")}
           </p>
         </section>
+
+        {/* §13 — helpline band from the E5 dataset (market.helplines,
+            0046). Name, number, tel: link and the per-number source+date
+            stamp ALL render from the row — the static data/helplines.ts
+            is deleted, not kept as a fallback. Band absent when the
+            dataset is empty: a helpline band with no numbers helps
+            nobody, and a wrong number is worse than none. */}
+        {helplines.length > 0 ? (
+          <section
+            aria-label={t("agriHome.helplines.title")}
+            className="mt-5 rounded-band border border-accent bg-trust-bg px-[18px] py-4"
+          >
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-1.5">
+              <h2 className="font-display text-lg font-extrabold">
+                📞 {t("agriHome.helplines.title")}
+              </h2>
+              <span className="text-[10.5px] text-muted">
+                {t("agriHome.helplines.offline")}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {helplines.map((helpline) => (
+                <a
+                  key={helpline.slug}
+                  href={`tel:${helpline.dial}`}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-pill border border-cream-line bg-card px-3.5 text-[12px] text-ink no-underline hover:border-brand"
+                >
+                  <b className="font-semibold text-brand-deep">
+                    {pickContent(locale, helpline.name)}
+                  </b>{" "}
+                  {helpline.number}
+                </a>
+              ))}
+            </div>
+            <p className="mt-2 text-[9.5px] text-muted">
+              {t("agriHome.helplines.verifiedStamp", {
+                sources: helplineSources,
+                date: helplineStampDate,
+              })}
+            </p>
+          </section>
+        ) : null}
 
         {/* §13b live activity feed: agri_live_feed flag is OFF and no feed
             endpoint exists → ABSENT (events are never fabricated). */}
@@ -1025,14 +1249,21 @@ export default async function HomePage() {
             no total and web-agri has no coverage feed, and a cell without an
             honest source is not rendered (milk's §16 rule). */}
         {verticals.length > 0 ? (
-          <StatBand label={t("agriHome.stats.label")} data-testid="stats-band" className="mt-5">
+          <StatBand
+            label={t("agriHome.stats.label")}
+            data-testid="stats-band"
+            className="mt-5"
+          >
             <StatCell
               first
               value={statValue(verticals.length)}
               label={t("agriHome.stats.verticals")}
             />
             {reviewCount > 0 ? (
-              <StatCell value={statValue(reviewCount)} label={t("agriHome.stats.reviews")} />
+              <StatCell
+                value={statValue(reviewCount)}
+                label={t("agriHome.stats.reviews")}
+              />
             ) : null}
           </StatBand>
         ) : null}
@@ -1040,7 +1271,10 @@ export default async function HomePage() {
         {/* §14b — trust pillars (static i18n) + the success story, which is
             marked ILLUSTRATIVE in copy and carries NO number chips in prod
             (nums omitted until a real consented story replaces it). */}
-        <Section title={t("agriHome.pillars.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.pillars.title")}
+          className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <Eyebrow className="-mt-3">{t("agriHome.pillars.eyebrow")}</Eyebrow>
           <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             <TrustPillar
@@ -1091,10 +1325,14 @@ export default async function HomePage() {
         {/* §15 — reviews strip: approved-only D18 rows composed from the
             businesses on this page; zero reviews → section ABSENT. */}
         {reviews.length > 0 ? (
-          <Section title={t("agriHome.reviews.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+          <Section
+            title={t("agriHome.reviews.title")}
+            className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+          >
             <div className="grid gap-2.5 md:grid-cols-3">
               {reviews.slice(0, 3).map((review) => {
-                const body = review.body[locale] ?? Object.values(review.body)[0] ?? "";
+                const body =
+                  review.body[locale] ?? Object.values(review.body)[0] ?? "";
                 return (
                   <ReviewCard
                     key={review.id}
@@ -1121,7 +1359,10 @@ export default async function HomePage() {
             referral-code), so the cards carry i18n copy WITHOUT amounts —
             the coin glyph fills EarnCard's amount slot; real numbers arrive
             when a rules read exists. Never invent amounts. */}
-        <Section title={t("agriHome.earn.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.earn.title")}
+          className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <Eyebrow className="-mt-3">{t("agriHome.earn.eyebrow")}</Eyebrow>
           <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
             {(
@@ -1182,14 +1423,22 @@ export default async function HomePage() {
             arrives with agri's PWA pass. */}
 
         {/* §20 — FAQ; the same strings are emitted as FAQPage JSON-LD above. */}
-        <Section title={t("agriHome.faq.title")} className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.faq.title")}
+          className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <div className="flex flex-col gap-2">
             {faq.map((item) => (
-              <details key={item.q} className="rounded-btn border border-cream-line bg-card px-4">
+              <details
+                key={item.q}
+                className="rounded-btn border border-cream-line bg-card px-4"
+              >
                 <summary className="cursor-pointer list-none py-3.5 text-[13px] font-semibold text-ink">
                   {item.q}
                 </summary>
-                <div className="pb-3.5 text-[12px] leading-relaxed text-sub">{item.a}</div>
+                <div className="pb-3.5 text-[12px] leading-relaxed text-sub">
+                  {item.a}
+                </div>
               </details>
             ))}
           </div>
@@ -1212,7 +1461,9 @@ export default async function HomePage() {
                 {t("agriHome.soon")}
               </span>
             </b>
-            <p className="mt-0.5 text-[11.5px] text-sub">{t("agriHome.digest.sub")}</p>
+            <p className="mt-0.5 text-[11.5px] text-sub">
+              {t("agriHome.digest.sub")}
+            </p>
           </div>
           <button
             type="button"
@@ -1227,11 +1478,18 @@ export default async function HomePage() {
         {/* §21 — family strip: agri (you are here, not a link) · milk ·
             organic · coins (→ /notifications, the coins surface milk also
             uses until a coins center exists). */}
-        <Section title={t("agriHome.family.title")} className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+        <Section
+          title={t("agriHome.family.title")}
+          className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
+        >
           <EcoStrip>
             <span className="min-w-[210px] shrink-0 rounded-card bg-brand px-[18px] py-3.5 text-white">
-              <b className="block font-display text-[17px] font-extrabold">🌾 agri.in</b>
-              <small className="text-xs opacity-90">{t("agriHome.family.here")}</small>
+              <b className="block font-display text-[17px] font-extrabold">
+                🌾 agri.in
+              </b>
+              <small className="text-xs opacity-90">
+                {t("agriHome.family.here")}
+              </small>
             </span>
             <EcoPill
               href="https://milk.in"

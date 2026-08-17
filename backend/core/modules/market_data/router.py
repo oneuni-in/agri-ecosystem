@@ -19,7 +19,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path, Request, status
+from fastapi import Depends, HTTPException, Path, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,7 @@ from .schemas import (
     CommodityDetail,
     CommodityListItem,
     MandiBlock,
+    SchemesBlock,
     TodayPayload,
     TranslatedText,
 )
@@ -40,6 +41,7 @@ from .service import (
     district_name_for,
     get_calendar,
     get_commodity,
+    get_helplines,
     get_mandi,
     get_schemes,
     get_weather,
@@ -194,3 +196,66 @@ async def delete_alert(session: SessionDep, request: Request, alert_id: uuid.UUI
     ids exist (the U2 IDOR rule)."""
     if not await unsubscribe(session, _caller(request), alert_id):
         raise HTTPException(status_code=404, detail="alert_not_found")
+
+
+# ── helplines + schemes (A-U3 W2) ────────────────────────────────────
+# public=True: published government helpline numbers and scheme cards —
+# public records, already printed on official sites, no user data and no
+# mutation. Declared in backend/core/public_routes.txt in this same PR.
+#
+# NOT flag-gated, like /market/commodities and for the same reason: these
+# are their own surfaces (the helpline band, /schemes), and `agri_today`
+# is the HOME strip's kill switch, not a switch for the whole module.
+
+
+class HelplineOut(BaseModel):
+    slug: str
+    name: TranslatedText
+    number: str
+    dial: str
+    scope: str
+    state: str | None
+    # Per-number provenance, RENDERED by the UI: a number nobody has
+    # re-checked in a year says so on screen.
+    source: str
+    source_url: str
+    verified_on: date
+
+
+@router.get("/helplines", public=True)
+async def get_helpline_list(
+    session: SessionDep,
+    state: Annotated[str | None, Query(max_length=64)] = None,
+) -> list[HelplineOut]:
+    """National helplines, plus `state`'s if one is given.
+
+    Uncursored on purpose (the /market/commodities precedent): the set is
+    curated and tiny, one row per number a human verified, and it renders
+    as a single band rather than a growable list.
+    """
+    return [
+        HelplineOut(
+            slug=h.slug,
+            name=TranslatedText(**h.name),
+            number=h.number,
+            dial=h.dial,
+            scope=h.scope,
+            state=h.state,
+            source=h.source,
+            source_url=h.source_url,
+            verified_on=h.verified_on,
+        )
+        for h in await get_helplines(session, state)
+    ]
+
+
+@router.get("/schemes", public=True)
+async def get_scheme_list(session: SessionDep) -> SchemesBlock:
+    """The /schemes listing (A-U3 W2 "schemes static v0").
+
+    The SAME read the home spotlight uses, so the two can never disagree
+    about what a scheme says or when it was last verified. Deadlines whose
+    `due_on` has passed are already dropped by the service — the page
+    never advertises a window that closed.
+    """
+    return await get_schemes(session)

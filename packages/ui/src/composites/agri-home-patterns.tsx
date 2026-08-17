@@ -30,7 +30,13 @@ import { tintClass, type Tint } from "../components/category-tile";
 /* ── A1 polish layer · section eyebrow ─────────────────────────────────── */
 
 /** `.eyebrow`: 10px uppercase tracked label with the 22×2 accent dash. */
-export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
+export function Eyebrow({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
@@ -63,11 +69,18 @@ export function SevereAlertStrip({
   action?: ReactNode;
 } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className="border-b border-severe-border bg-severe-bg text-[12px] text-severe-ink" {...rest}>
+    <div
+      className="border-b border-severe-border bg-severe-bg text-[12px] text-severe-ink"
+      {...rest}
+    >
       <div className="mx-auto flex max-w-[1140px] items-center gap-2 px-4 py-2">
         <span aria-hidden="true">{icon}</span>
         <span className="min-w-0 flex-1">{children}</span>
-        {action ? <span className="ml-auto whitespace-nowrap font-medium">{action}</span> : null}
+        {action ? (
+          <span className="ml-auto whitespace-nowrap font-medium">
+            {action}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -93,7 +106,12 @@ const sparkStroke: Record<PriceTone, string> = {
  * Maps a price series onto the reference's 110×26 polyline space (evenly
  * spaced x, y inverted, padded). A flat series draws the centre line.
  */
-export function sparkPoints(values: number[], width = 110, height = 26, pad = 3): string {
+export function sparkPoints(
+  values: number[],
+  width = 110,
+  height = 26,
+  pad = 3,
+): string {
   if (values.length === 0) return "";
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -105,7 +123,9 @@ export function sparkPoints(values: number[], width = 110, height = 26, pad = 3)
       const y =
         span === 0
           ? height / 2
-          : Math.round((pad + (1 - (v - min) / span) * (height - 2 * pad)) * 10) / 10;
+          : Math.round(
+              (pad + (1 - (v - min) / span) * (height - 2 * pad)) * 10,
+            ) / 10;
       return `${x},${y}`;
     })
     .join(" ");
@@ -213,7 +233,10 @@ export function MandiCard({
 } & Omit<React.HTMLAttributes<HTMLDivElement>, "className">) {
   return (
     <div
-      className={cn("relative rounded-card border border-cream-line bg-card px-3.5 py-3", className)}
+      className={cn(
+        "relative rounded-card border border-cream-line bg-card px-3.5 py-3",
+        className,
+      )}
       {...rest}
     >
       {share}
@@ -228,10 +251,16 @@ export function MandiCard({
       </div>
       <div className="mt-1.5 font-display text-[19px] font-semibold text-ink">
         {price}{" "}
-        <span className={cn("font-body text-[11px] font-medium", chgText[tone])}>{change}</span>
+        <span
+          className={cn("font-body text-[11px] font-medium", chgText[tone])}
+        >
+          {change}
+        </span>
       </div>
       {spark ? <Spark values={spark} tone={tone} /> : null}
-      {range ? <div className="mt-1 text-[9.5px] text-muted">{range}</div> : null}
+      {range ? (
+        <div className="mt-1 text-[9.5px] text-muted">{range}</div>
+      ) : null}
     </div>
   );
 }
@@ -276,7 +305,12 @@ export function SeasonCalendar({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-card border border-cream-line bg-card px-[18px] py-4", className)}>
+    <div
+      className={cn(
+        "rounded-card border border-cream-line bg-card px-[18px] py-4",
+        className,
+      )}
+    >
       <div aria-hidden="true" className="mb-3 flex gap-1">
         {months.map((m) => (
           <span
@@ -310,7 +344,9 @@ export function CropChip({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-pill px-[13px] py-1.5 text-[11.5px] font-medium",
-        harvest ? "bg-sponsored-bg text-sponsored-fg" : "bg-brand-soft text-brand-deep",
+        harvest
+          ? "bg-sponsored-bg text-sponsored-fg"
+          : "bg-brand-soft text-brand-deep",
         className,
       )}
     >
@@ -320,8 +356,18 @@ export function CropChip({
 }
 
 /** `.season .lbl`: full-width row label between chip groups. */
-export function SeasonNote({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("mt-0.5 w-full text-[11px] text-muted", className)}>{children}</span>;
+export function SeasonNote({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={cn("mt-0.5 w-full text-[11px] text-muted", className)}>
+      {children}
+    </span>
+  );
 }
 
 /* ── §9 · scheme deadlines bar ─────────────────────────────────────────── */
@@ -353,7 +399,9 @@ export function DeadlinesBar({
       </span>
       {children}
       {action ? (
-        <span className="ml-auto text-[11.5px] font-medium text-brand">{action}</span>
+        <span className="ml-auto text-[11.5px] font-medium text-brand">
+          {action}
+        </span>
       ) : null}
     </div>
   );
@@ -425,7 +473,9 @@ export function TrustPillar({
       </span>
       <span>
         <b className="block text-[12.5px] font-medium text-ink">{title}</b>
-        <small className="mt-0.5 block text-[10.5px] leading-normal text-muted">{sub}</small>
+        <small className="mt-0.5 block text-[10.5px] leading-normal text-muted">
+          {sub}
+        </small>
       </span>
     </div>
   );
@@ -463,7 +513,9 @@ export function StoryCard({
         <div className="font-display text-[length:clamp(15px,1.8vw,19px)] font-medium leading-normal">
           {quote}
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[12px] text-brand-soft-2">{who}</div>
+        <div className="mt-3 flex items-center gap-2 text-[12px] text-brand-soft-2">
+          {who}
+        </div>
       </div>
       {nums?.length ? (
         <div className="grid grid-cols-2 gap-2">
@@ -472,7 +524,9 @@ export function StoryCard({
               key={n.label}
               className="rounded-xl border border-white/[.16] bg-white/10 px-3 py-2.5 text-center"
             >
-              <b className="block font-display text-xl font-semibold text-coins-bg">{n.value}</b>
+              <b className="block font-display text-xl font-semibold text-coins-bg">
+                {n.value}
+              </b>
               <small className="text-[10px] text-brand-soft-2">{n.label}</small>
             </div>
           ))}
@@ -544,7 +598,10 @@ export function TipCard({
         className,
       )}
     >
-      <span aria-hidden="true" className="text-[22px] motion-safe:animate-float">
+      <span
+        aria-hidden="true"
+        className="text-[22px] motion-safe:animate-float"
+      >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -567,7 +624,10 @@ export function WaveDivider({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
-      className={cn("pointer-events-none absolute inset-x-0 -bottom-px h-[26px] w-full", className)}
+      className={cn(
+        "pointer-events-none absolute inset-x-0 -bottom-px h-[26px] w-full",
+        className,
+      )}
       viewBox="0 0 1440 26"
       preserveAspectRatio="none"
     >
@@ -576,5 +636,136 @@ export function WaveDivider({ className }: { className?: string }) {
         className="fill-cream"
       />
     </svg>
+  );
+}
+
+/* ── §11 · knowledge + news (E6 content engine) ────────────────────────── */
+
+/**
+ * `.kcard`: the knowledge tile — media band, category pill, title, meta.
+ *
+ * `duration` and `play` are OPTIONAL and independent of each other for a
+ * reason. Video duration is curator-entered metadata (no keyless official
+ * API reports it), so a real video can legitimately arrive without one.
+ * The play affordance still renders — it is a video — and the duration
+ * chip simply does not, rather than showing a placeholder time.
+ */
+export function KnowledgeCard({
+  href,
+  icon,
+  tint,
+  category,
+  title,
+  meta,
+  duration,
+  isVideo = false,
+  className,
+}: {
+  href: string;
+  /** Emoji stand-in for artwork, as the reference uses. */
+  icon: string;
+  tint?: Tint;
+  /** The pill: "Guide · Kharif", "Advisory", "▶ Video · Water". */
+  category: ReactNode;
+  title: ReactNode;
+  /** Attribution + read/watch time — built by the caller from data. */
+  meta: ReactNode;
+  /** "12:40". Omitted when unknown; never a placeholder. */
+  duration?: string | null;
+  isVideo?: boolean;
+  className?: string;
+}) {
+  return (
+    <a
+      href={href}
+      className={cn(
+        "group/kcard block overflow-hidden rounded-card border border-cream-line bg-card no-underline",
+        "transition-shadow hover:shadow-lift",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "relative flex h-[74px] items-center justify-center text-[30px]",
+          tint ? tintClass[tint] : "bg-brand-soft",
+        )}
+      >
+        <span aria-hidden="true">{icon}</span>
+        {isVideo ? (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute flex h-[34px] w-[34px] items-center justify-center rounded-full",
+              "bg-ink/75 pl-[3px] text-[13px] text-white transition-colors",
+              "group-hover/kcard:bg-brand",
+            )}
+          >
+            ▶
+          </span>
+        ) : null}
+        {duration ? (
+          <span className="absolute bottom-1.5 right-[7px] rounded-[5px] bg-ink/75 px-1.5 py-px text-[9px] text-white">
+            {duration}
+          </span>
+        ) : null}
+      </div>
+      <div className="px-[11px] py-[9px]">
+        <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[9px] font-semibold text-brand-deep">
+          {category}
+        </span>
+        <b className="my-[5px] mb-[3px] block text-xs font-medium leading-[1.35] text-ink">
+          {title}
+        </b>
+        <div className="text-[10px] text-muted">{meta}</div>
+      </div>
+    </a>
+  );
+}
+
+/**
+ * `.news-list`: the headline rail beside the knowledge cards.
+ *
+ * Every row is a LINK OUT to the publisher, and `source` is required, not
+ * optional: this component cannot render a headline that does not say
+ * whose headline it is.
+ */
+export function NewsList({
+  title,
+  items,
+  className,
+}: {
+  title: ReactNode;
+  items: {
+    id: string;
+    href: string;
+    headline: ReactNode;
+    /** "The Hindu · 2 hrs ago" — publisher and age, always both. */
+    source: ReactNode;
+  }[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-card border border-cream-line bg-card px-3.5 py-3",
+        className,
+      )}
+    >
+      <h3 className="mb-2 font-display text-[13px] font-semibold text-ink">
+        {title}
+      </h3>
+      {items.map((item) => (
+        <a
+          key={item.id}
+          href={item.href}
+          className="block border-t border-cream-line py-[7px] text-xs leading-[1.45] text-ink no-underline first-of-type:border-t-0 hover:text-brand-deep"
+        >
+          {item.headline}
+          <small className="mt-0.5 block text-[10px] text-muted">
+            {item.source}
+          </small>
+        </a>
+      ))}
+    </div>
   );
 }

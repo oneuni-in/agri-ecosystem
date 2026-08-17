@@ -73,6 +73,14 @@ PERMISSION_CATALOG: dict[str, frozenset[str]] = {
     "flags.manage": _SUPER_ONLY,
     # audit reader (Group C)
     "audit.read": _STAFF_UP,
+    # content engine (E6, A-U3). `content.publish` IS the human gate: the
+    # RSS worker and the CMS both leave items `pending`, and this is the
+    # only permission that can move one forward. Split from `content.write`
+    # deliberately — drafting and approving are different acts, and RBAC v2
+    # needs them separable to give an editor one without the other.
+    "content.read": _STAFF_UP,
+    "content.write": _STAFF_UP,
+    "content.publish": _STAFF_UP,
 }
 
 

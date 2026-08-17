@@ -21,12 +21,25 @@ export interface AdminNavItem {
 const STAFF_UP = ["staff", "super_admin"] as const;
 
 export const ADMIN_NAV: readonly AdminNavItem[] = [
-  { href: "/", title: "Dashboard", icon: "🏠", sub: "Console home", roles: STAFF_UP },
+  {
+    href: "/",
+    title: "Dashboard",
+    icon: "🏠",
+    sub: "Console home",
+    roles: STAFF_UP,
+  },
   {
     href: "/ops",
     title: "Ops",
     icon: "🛠️",
     sub: "Moderation queues, flags & tiers",
+    roles: STAFF_UP,
+  },
+  {
+    href: "/content",
+    title: "Content",
+    icon: "📰",
+    sub: "Review & publish news, guides, advisories",
     roles: STAFF_UP,
   },
   {
@@ -43,7 +56,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     sub: "One business by slug + audit log",
     roles: STAFF_UP,
   },
-  { href: "/ads", title: "Ads", icon: "📣", sub: "Creatives & campaigns", roles: STAFF_UP },
+  {
+    href: "/ads",
+    title: "Ads",
+    icon: "📣",
+    sub: "Creatives & campaigns",
+    roles: STAFF_UP,
+  },
   {
     href: "/ad-performance",
     title: "Ad performance",
@@ -51,7 +70,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     sub: "Impressions, clicks & CTR",
     roles: STAFF_UP,
   },
-  { href: "/users", title: "Users", icon: "👤", sub: "Search & profiles", roles: STAFF_UP },
+  {
+    href: "/users",
+    title: "Users",
+    icon: "👤",
+    sub: "Search & profiles",
+    roles: STAFF_UP,
+  },
   {
     href: "/payments",
     title: "Payments",
@@ -84,5 +109,7 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
 
 /** The role-gated filter the shell and dashboard both render from. */
 export function navFor(roles: readonly string[]): readonly AdminNavItem[] {
-  return ADMIN_NAV.filter((item) => item.roles.some((role) => roles.includes(role)));
+  return ADMIN_NAV.filter((item) =>
+    item.roles.some((role) => roles.includes(role)),
+  );
 }

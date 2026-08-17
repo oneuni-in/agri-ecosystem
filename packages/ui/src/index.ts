@@ -9,7 +9,12 @@ export { AdImage } from "./components/ad-image";
 export { Badge } from "./components/badge";
 export { BottomNav } from "./components/bottom-nav";
 export type { BottomNavItem } from "./components/bottom-nav";
-export { Button, buttonVariants, CallButton, WhatsAppButton } from "./components/button";
+export {
+  Button,
+  buttonVariants,
+  CallButton,
+  WhatsAppButton,
+} from "./components/button";
 export type { ButtonProps } from "./components/button";
 export { Card } from "./components/card";
 export type { CardProps } from "./components/card";
@@ -27,8 +32,17 @@ export { EmptyState } from "./components/empty-state";
 export { NotificationBell, formatUnread } from "./components/notification-bell";
 export { OtpInput } from "./components/otp-input";
 export type { OtpInputProps } from "./components/otp-input";
-export { Avatar, CoinsPill, GpsPill, LangSwitcher, LocationPill } from "./components/pills";
-export { CoinsBalancePill, useCoinsBalance } from "./components/coins-balance-pill";
+export {
+  Avatar,
+  CoinsPill,
+  GpsPill,
+  LangSwitcher,
+  LocationPill,
+} from "./components/pills";
+export {
+  CoinsBalancePill,
+  useCoinsBalance,
+} from "./components/coins-balance-pill";
 export { PincodeInput } from "./components/pincode-input";
 export type { PincodeInputProps } from "./components/pincode-input";
 export { ProfileNudge, clampScore } from "./components/profile-nudge";
@@ -50,8 +64,19 @@ export {
   sprayMlPerTank,
   tanksPerAcre,
 } from "./lib/agri-calculators";
-export type { FertilizerPlan, NpkCrop, NpkDose, SeedCrop } from "./lib/agri-calculators";
+export type {
+  FertilizerPlan,
+  NpkCrop,
+  NpkDose,
+  SeedCrop,
+} from "./lib/agri-calculators";
 export { cn } from "./lib/cn";
+// A-U3 content-surface formatting (tested here; web-agri has no runner).
+export {
+  extractFaq,
+  formatDuration,
+  helplineStamp,
+} from "./lib/content-format";
 export { fetchCoinsBalance } from "./lib/coins-balance";
 export {
   LOC_COOKIE,
@@ -62,7 +87,11 @@ export {
   serializeLocCookie,
 } from "./lib/location";
 export type { LocContext, LocSource } from "./lib/location";
-export { LOW_DATA_COOKIE, lowDataCookieString, parseLowDataCookie } from "./lib/low-data-core";
+export {
+  LOW_DATA_COOKIE,
+  lowDataCookieString,
+  parseLowDataCookie,
+} from "./lib/low-data-core";
 export { LowDataToggle, setLowData, useLowData } from "./lib/low-data";
 export {
   injectSponsored,
@@ -77,8 +106,17 @@ export {
 export type { AdServeContext, ListEntry, ServedAd } from "./lib/sponsored";
 
 // Composite patterns (design-system.md §2, "Composite patterns")
-export { AD_CAROUSEL_INTERVAL_MS, AD_CAROUSEL_MAX, AdCarousel } from "./composites/ad-carousel";
-export { AdSlot, AdUnit, sendAdBeacon, useImpression } from "./composites/ad-slot";
+export {
+  AD_CAROUSEL_INTERVAL_MS,
+  AD_CAROUSEL_MAX,
+  AdCarousel,
+} from "./composites/ad-carousel";
+export {
+  AdSlot,
+  AdUnit,
+  sendAdBeacon,
+  useImpression,
+} from "./composites/ad-slot";
 export { BigCtaGrid, BigCtaTile } from "./composites/big-cta-tile";
 export { CategoryBar, CategoryBarLink } from "./composites/category-bar";
 export { CategoryGroup } from "./composites/category-group";
@@ -106,8 +144,10 @@ export {
   DeadlinesBar,
   EarnCard,
   Eyebrow,
+  KnowledgeCard,
   LiveDot,
   MandiCard,
+  NewsList,
   SeasonCalendar,
   SeasonNote,
   SevereAlertStrip,
@@ -145,7 +185,10 @@ export {
   consoleNavLinkClass,
   StateChip,
 } from "./composites/console-patterns";
-export type { AdminColumn, ConsoleStateTone } from "./composites/console-patterns";
+export type {
+  AdminColumn,
+  ConsoleStateTone,
+} from "./composites/console-patterns";
 export { ConfirmAction } from "./composites/confirm-action";
 export { ConfirmDialog } from "./composites/confirm-dialog";
 export { DetailDrawer } from "./composites/detail-drawer";

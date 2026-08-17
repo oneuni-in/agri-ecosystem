@@ -16,7 +16,7 @@ render their empty state or not at all; reference sample data lives only on
 | "grid renders 36 from data" | Registry held exactly 1 row (`milk`) | Migration `0037_agri_verticals.py` seeds all 36 with grid metadata in `nav_placement.agri_home {group, order, icon, soon}` — no schema change |
 | `agri_today` flag read by the frontend | No frontend flag reader / public flags endpoint exists | Flag is consumed at the API boundary: flag OFF → today endpoint absent/404 → `fetchToday()` null → sections ABSENT from DOM. Flag row exists in `public.feature_flags` (0037), OFF. |
 | Section 13b live activity feed | No feed endpoint exists | `agri_live_feed` flag seeded OFF; section absent — no fabricated events |
-| §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3 |
+| §11 knowledge + news via content module (E6) | `modules/content` is an empty stub (no routes) | Section absent from DOM until A-U3. **CLOSED at A-U3 W1**: module built (0045), §11 renders from approved items — see §2 below |
 | §10b equipment via `/catalog` products | No agri vertical has a spec schema yet (products 404) | Section absent from DOM until Stage B |
 | Branch `feat/agri-u1-home` | Session instruction | `feat/agri-d40-home-today-strip` |
 | A1 reveal/stagger/count-up motion on the home | ~15 hydration islands walking a 6000px DOM were the measured anchor under the AG-A8 0.90 floor (three CI rounds) | DEFERRED on `/` by Decision 3 (perf outranks decorative motion; the milk StatBand precedent): sections render statically visible — which IS the reference's own reduced-motion fallback. `/demo` keeps the full motion spec; a cheaper mechanism (CSS scroll-driven animations) may restore it post-launch. |
@@ -64,3 +64,78 @@ render their empty state or not at all; reference sample data lives only on
 | 20 | FAQ | 6 Q&As i18n + `FAQPage` (+WebSite/Organization) JSON-LD for https://agri.in | Bound (CP2) |
 | 20b | Weekly digest | Soon state, notify-me wiring at CP3 | Soon (CP2) |
 | 21–23 | Family · footer · bottom nav | static + eco; bottom nav Home · Mandi · Ask · Alerts · Profile | Bound (CP2) |
+
+
+## 2. A-U3 binding proofs (§ = A1 reference section)
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 11 | Knowledge + news | E6 content engine, live. Cards + news rail come from ONE `fetchKnowledgeSection()` call that dedupes them against each other (they were rendering the same three stories when built as two fetches — caught in the first capture). Every card and headline carries `source_name` + the PUBLISHER's `published_at`, read from the row. Section ABSENT when nothing is approved — the A-U1 note here said "no lorem articles, ever", and that is now enforced by data rather than by a comment | Bound (A-U3 CP1, real) |
+| 11 | Knowledge hub `/knowledge` | Kind filters are server-rendered LINKS, not an island: `?kind=video` re-renders on the server, works with JS off, and is crawlable. Unfiltered-empty 404s (no heading over an empty grid); filtered-empty gets a message, because there the reader asked a question | Bound (A-U3 CP1, real) |
+| 11 | Item page `/knowledge/[slug]` | Attribution above the fold; "Read it at {source}" is the primary action and feed items carry NO body — the article belongs to its publisher. Pending, rejected and unknown slugs 404 identically, so a slug guess cannot enumerate the queue | Bound (A-U3 CP1, real) |
+| 11 | Video embed | `embed_url` is BUILT server-side from a code-side provider allowlist; the page never receives markup or an origin, so there is no iframe HTML to sanitise. Zero video rows at CP1 by owner decision — code path and tests green | Built, unpopulated |
+| 11 | Bookmarks | The entire client footprint of the content surfaces: one optimistic toggle through the new `/api/content` BFF, bearer stays server-side (D10) | Bound (A-U3 CP1, real) |
+
+### A-U3 prompt-to-repo substitutions
+
+| Prompt says | Repo reality | Substitution used |
+|---|---|---|
+| "A-U1 and A-U2 are complete on this branch, unmerged … PR #34" | Both are IN `dev` (merged via PRs #73/#74); `feat/agri-d44-ag-a8` was 1 commit ahead of `dev` at A-U3 start, and `ads/service.py`'s `agri_home_hero_xl` entry is already in dev, NOT in this branch's diff | Work continues on the same branch, committed locally, unpushed. PR number to be confirmed by the owner at push time |
+| Read `docs/ads/vertical-onboarding.md` before W4 | Still does not exist (recorded in §0 above at A-U1) | Unchanged: the M6/U1 config-only recipe. Per A-U3 §W4 the missing recipe IS the escalation — raised at CP1, resolved at CP3 |
+| Checklist rows AG-A22…A30 | A-U2 already used AG-A22…A25 | Appended as AG-A26…A34 with a mapping note (owner-confirmed 2026-08-17) |
+| RSS source list incl. PIB | `pib.gov.in` RSS answers **403** to a declared bot User-Agent | PIB EXCLUDED, not worked around: the only way past a 403 is to disguise the client. Three curated sources seeded instead (ICAR, The Hindu, BusinessLine), each with a `terms_note` and a robots.txt check dated 2026-08-17 |
+| Video with `duration` | No keyless official API reports YouTube duration; scraping the watch page is out of bounds | `duration_seconds` nullable + curator-entered; card renders without the pill when unknown. Owner chose to ship CP1 with no video rows |
+
+## 3. A-U3 W2 binding proofs
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 13 | Helpline band | `market.helplines` (0046) via `/market/helplines`. Name is i18n DATA, not a message key, so an admin can add a number without a deploy; `source` + `verified_on` are per NUMBER and rendered. Footer stamp shows the OLDEST date in the band — the honest claim about a set is its weakest member. `data/helplines.ts` DELETED (test asserts it), site-header hotline chip migrated to the same read | Bound (A-U3 CP2, real) |
+| 13 | `/helplines` offline page | Statically rendered, no cookies, numbers baked into the HTML; a SINGLE-PURPOSE service worker precaches just this route (no manifest, no install prompt, no push — that is A-U4). Proven with the network genuinely off in Playwright | Bound (A-U3 CP2, real) |
+| 9 | `/schemes` listing | Same `get_schemes` read as the home spotlight, so the two cannot drift. Stamps render from the row; passed deadlines are filtered upstream. Says in copy that it does not check eligibility (Stage C) | Bound (A-U3 CP2, real) |
+| 11 | Pest advisories | District + window targeting on content.items. Unknown district narrows to nationwide-only; an advisory with no window is never served | Bound (A-U3 CP2, real) |
+| — | Knowledge CMS | `web-admin /content`: review queue + draft composer, with `content.write` and `content.publish` visibly separate. No publish path from the composer — not a button we declined to build, a request the API cannot honour | Bound (A-U3 CP2) |
+
+### A-U3 W2 scope calls (owner may veto either)
+
+| Call | Why | How to reverse |
+|---|---|---|
+| CMS UI built in **web-admin**, which §4 lists as "parked" | Every other moderation queue (ads, claims, reviews, ops) already lives there. A content queue anywhere else fragments moderation, and a CMS with no authoring surface is not a CMS. Read §4's "parked" as "no unrelated web-admin work", not "ship the gate with no door" | Delete `apps/web-admin/app/content/` and one nav entry. The API stands alone (the CLI `scripts/content_approve.py` already drives it) |
+| A **service worker** added to web-agri, when §4 defers the "PWA sweep" to A-U4 | AG-A30 requires the offline page to work with the network off, and that is impossible without one. This worker handles exactly one route, has no manifest/push/offline-shell, and is registered from `/helplines` alone | Delete `public/sw.js` + `register-sw.tsx`. Nothing else references either, so A-U4 starts clean |
+| Livestock/advisory seed copy is **agent-drafted** | It is the dosage-rule category. Mitigated by landing `pending` (the gate holds it), and by carrying scouting/husbandry practice only — no chemical names, no doses, no vaccination schedules; every treatment decision routed to a vet or the KCC | Reject the three items in the queue; nothing reaches a reader |
+
+## 4. A-U3 W3/W4 binding proofs
+
+| § | Section | Binding | State |
+|---|---|---|---|
+| 5 | Search band → `/search` | A-U1's recorded deviation is CLOSED. The band pointed at `/categories` because no results route existed; `/search` now renders the D19 facade with `site=agri` pinned server-side (a query-string site would show another vertical's index under agri.in chrome). noindex — a results page is a query, not a document | Bound (A-U3 CP3, real) |
+| 10 | `/directory` hub | Category × pincode over the EXISTING E1 `covers()` read. Chips from `/directory/categories/active`, counts from data. Organic-only, asserted at zero sponsored markers | Bound (A-U3 CP3, real) |
+| 4 | Agri ads | Config only: `git diff dev...HEAD -- backend/core/modules/ads/` is EMPTY. Caps, label and cross-vertical analytics all verified live | Bound (A-U3 CP3, real) |
+
+### The A-U1 `ads/service.py` question — RESOLVED
+
+A-U3 §W4 asked whether A-U1's `ads/service.py` touch was justified. It is,
+and the diff makes the case:
+
+- The change is ONE string added to the `SLOT_KEYS` frozenset. That set is
+  an allowlist of permitted slot names — the same class of thing as
+  `public_routes.txt` — and nothing in the serving path branches on which
+  vertical a slot belongs to.
+- It IS step 1 of the config-only recipe (`polish-u1.md` §binding, now
+  written up properly as `docs/ads/vertical-onboarding.md`), so it is the
+  recipe being followed, not worked around.
+- It is already in `dev`; `git diff dev...HEAD -- backend/core/modules/ads/`
+  returns nothing for this branch.
+
+No revert needed. The escalation §W4 asked for is a DIFFERENT thing: the
+recipe document itself did not exist, which is why this question had to be
+re-litigated at all. `docs/ads/vertical-onboarding.md` now exists.
+
+### CP3 dev-environment findings (not code defects)
+
+| Finding | Cause | Fix applied |
+|---|---|---|
+| `/search?site=agri` 500'd | `search_agri` Meili index existed with EMPTY `sortableAttributes`, so `_geo` sorting was rejected. `ensure_indexes()` only runs at search-WORKER startup, and the Meili volume had been recreated under a running worker | Ran `ensure_indexes()` + `reindex_search`. Worth a startup re-assert; logged as a gotcha rather than patched blind |
+| Production build 500'd on every route | `next build` writing `.next` while the dev server used the same directory (the U2 build-vs-dev trap). Isolated by a control run WITH the secret, which failed identically | Added an opt-in `NEXT_DIST_DIR` to `next.config.ts` so a prod build can land elsewhere. Unset in CI and Docker |
+| Hero ad rendered with no "Sponsored" badge | The browser context had consumed its 6 serves; the house fallback carries no badge by design | Nothing — this was the frequency cap working through the SSR path. Re-checked with a fresh UA |
+| `₹` displayed as `â‚¹` | Windows curl/psql pipeline, not the data (`e282b9` in the DB, correct in the browser) | Nothing |

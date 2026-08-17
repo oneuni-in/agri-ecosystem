@@ -1,8 +1,17 @@
-import { AuthCluster, NotificationBellIsland, SignedIn } from "@agri/auth-client/react";
-import { CoinsBalancePill, HeaderStack, UtilityLink, UtilityStrip } from "@agri/ui";
+import {
+  AuthCluster,
+  NotificationBellIsland,
+  SignedIn,
+} from "@agri/auth-client/react";
+import {
+  CoinsBalancePill,
+  HeaderStack,
+  UtilityLink,
+  UtilityStrip,
+} from "@agri/ui";
 import { getTranslations } from "next-intl/server";
 
-import { HELPLINES } from "@/data/helplines";
+import { fetchHelplines } from "@/lib/helplines";
 
 import { HeaderLocation } from "./header-location";
 import { AgriLocaleSwitcher } from "./locale-switcher";
@@ -19,9 +28,10 @@ import { AgriLocaleSwitcher } from "./locale-switcher";
  */
 export async function SiteHeader() {
   const t = await getTranslations("ui");
-  // §1 hotline chip = the SAME human-verified E5 dataset the §13 band
-  // renders — one source, never a second literal.
-  const kcc = HELPLINES.find((h) => h.key === "kcc");
+  // §1 hotline chip = the SAME E5 dataset the §13 band renders (0046),
+  // one source, never a second literal. A dead read leaves `kcc`
+  // undefined and the chip absent — the header still renders (F1).
+  const kcc = (await fetchHelplines()).find((h) => h.slug === "kcc");
   return (
     <>
       {/* §1 — utility strip. Static server markup only (milk's CLS lesson:
@@ -32,32 +42,42 @@ export async function SiteHeader() {
           (axe `region`). */}
       <nav aria-label={t("agriHome.utility.navLabel")}>
         <UtilityStrip
-        tagline={
-          <>
-            {t("agriHome.utility.tagline")}
-            <span className="ml-3 max-md:hidden">
-              <a href="https://milk.in" className="tap-target mr-3 text-brand-soft no-underline">
-                🥛 milk.in
+          tagline={
+            <>
+              {t("agriHome.utility.tagline")}
+              <span className="ml-3 max-md:hidden">
+                <a
+                  href="https://milk.in"
+                  className="tap-target mr-3 text-brand-soft no-underline"
+                >
+                  🥛 milk.in
+                </a>
+                <a
+                  href="https://theorganic.in"
+                  className="tap-target text-brand-soft no-underline"
+                >
+                  🌿 theorganic.in
+                </a>
+              </span>
+            </>
+          }
+          links={
+            <>
+              <UtilityLink href="/business">
+                {t("utility.listBusiness")}
+              </UtilityLink>
+              <UtilityLink href="/business/ads">
+                {t("utility.advertise")}
+              </UtilityLink>
+            </>
+          }
+          hotline={
+            kcc ? (
+              <a href={`tel:${kcc.dial}`} className="no-underline">
+                {t("agriHome.utility.hotline", { number: kcc.number })}
               </a>
-              <a href="https://theorganic.in" className="tap-target text-brand-soft no-underline">
-                🌿 theorganic.in
-              </a>
-            </span>
-          </>
-        }
-        links={
-          <>
-            <UtilityLink href="/business">{t("utility.listBusiness")}</UtilityLink>
-            <UtilityLink href="/business/ads">{t("utility.advertise")}</UtilityLink>
-          </>
-        }
-        hotline={
-          kcc ? (
-            <a href={kcc.telHref} className="no-underline">
-              {t("agriHome.utility.hotline", { number: kcc.number })}
-            </a>
-          ) : null
-        }
+            ) : null
+          }
         />
       </nav>
       <HeaderStack

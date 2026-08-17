@@ -39,6 +39,7 @@ from .models import (
     STATUS_ACTIVE,
     Commodity,
     CropCalendar,
+    Helpline,
     Market,
     Msp,
     PriceRow,
@@ -585,3 +586,22 @@ async def get_commodity(session: AsyncSession, slug: str) -> CommodityDetail | N
         note=notes.get(commodity.id),
         markets=markets,
     )
+
+
+async def get_helplines(session: AsyncSession, state: str | None = None) -> list[Helpline]:
+    """National helplines, plus the ones for `state` (A-U3 W2).
+
+    A state helpline is offered ONLY to a visitor in that state. Showing
+    a Tamil Nadu number to someone in Bihar is not a bonus row; it is a
+    number that will not help them, printed with the same authority as
+    one that would.
+
+    Not cursor-paginated, for the same reason `list_commodities` is not:
+    the set is curated and tiny — one row per helpline someone has
+    verified — and it renders as a single band, never as a list a feed
+    can grow without limit.
+    """
+    national = Helpline.scope == "national"
+    wanted = or_(national, Helpline.state == state) if state else national
+    query = select(Helpline).where(wanted).order_by(Helpline.sort_order, Helpline.id)
+    return list((await session.scalars(query)).all())

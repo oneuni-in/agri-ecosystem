@@ -162,6 +162,10 @@ export default async function KnowledgePage({
                 href={`/knowledge/${item.slug}`}
                 icon={KIND_ICON[item.kind]}
                 isVideo={item.kind === "video"}
+                // Directly under the page h1, so the card titles are h2.
+                // Without this the document jumped h1 -> the footer's h3
+                // and axe flagged heading-order (a11y 0.94 in CI).
+                titleAs="h2"
                 duration={formatDuration(item.duration_seconds)}
                 category={categoryLabel(item, t(`kinds.${item.kind}`))}
                 title={pick(locale, item.title)}

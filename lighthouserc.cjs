@@ -21,7 +21,12 @@ module.exports = {
         // Lighthouse's mobile defaults already emulate a Moto G-class phone;
         // this pins the classic 3G network profile + 4x CPU slowdown.
         formFactor: "mobile",
-        screenEmulation: { mobile: true, width: 412, height: 823, deviceScaleFactor: 1.75 },
+        screenEmulation: {
+          mobile: true,
+          width: 412,
+          height: 823,
+          deviceScaleFactor: 1.75,
+        },
         // PSI sends "Chrome-Lighthouse" in its UA; local lighthouse 12 does
         // not. Pin the PSI-style UA so Next's htmlLimitedBots list (see
         // next.config.ts) serves blocking in-head metadata to the audit.
@@ -55,9 +60,18 @@ module.exports = {
           // issue-#59 carve-out below — every other app home stays at 0.90.
           matchingUrlPattern: "^https?://[^/]+:(?!3000/$)\\d+/$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median-run" }],
-            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
-            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:performance": [
+              "error",
+              { minScore: 0.9, aggregationMethod: "median-run" },
+            ],
+            "categories:accessibility": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
+            "categories:seo": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
           },
         },
         {
@@ -70,9 +84,18 @@ module.exports = {
           // in #59). a11y/SEO stay at the full floor.
           matchingUrlPattern: "^https?://[^/]+:3000/$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.8, aggregationMethod: "median-run" }],
-            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
-            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:performance": [
+              "error",
+              { minScore: 0.8, aggregationMethod: "median-run" },
+            ],
+            "categories:accessibility": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
+            "categories:seo": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
           },
         },
         {
@@ -99,9 +122,43 @@ module.exports = {
           // perf work. a11y/SEO stay at the full floor.
           matchingUrlPattern: "/[a-z][a-z-]*/\\d{6}$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.85, aggregationMethod: "median-run" }],
-            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
-            "categories:seo": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:performance": [
+              "error",
+              { minScore: 0.85, aggregationMethod: "median-run" },
+            ],
+            "categories:accessibility": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
+            "categories:seo": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
+          },
+        },
+        {
+          // A-U3: the agri non-root surfaces. Until now NOTHING matched
+          // them — assertMatrix applies assertions only to URLs a pattern
+          // matches, and every existing pattern ends at `/` or `/demo`, so
+          // /categories and /tools were COLLECTED but never GATED. Their
+          // scores were read by hand at A-U1/A-U2 and taken as a floor
+          // holding; nothing would have failed had they regressed.
+          // AG-A34 asks that the floor HOLD here, which means asserting it.
+          matchingUrlPattern:
+            "^https?://[^/]+:3002/(categories|tools|knowledge|directory|schemes|helplines)$",
+          assertions: {
+            "categories:performance": [
+              "error",
+              { minScore: 0.9, aggregationMethod: "median-run" },
+            ],
+            "categories:accessibility": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
+            "categories:seo": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
           },
         },
         {
@@ -116,8 +173,14 @@ module.exports = {
           // drift, not a code regression. Real regressions still fail.
           matchingUrlPattern: "/demo$",
           assertions: {
-            "categories:performance": ["error", { minScore: 0.75, aggregationMethod: "median-run" }],
-            "categories:accessibility": ["error", { minScore: 0.95, aggregationMethod: "median-run" }],
+            "categories:performance": [
+              "error",
+              { minScore: 0.75, aggregationMethod: "median-run" },
+            ],
+            "categories:accessibility": [
+              "error",
+              { minScore: 0.95, aggregationMethod: "median-run" },
+            ],
           },
         },
       ],

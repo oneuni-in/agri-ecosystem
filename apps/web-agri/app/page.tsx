@@ -1037,6 +1037,9 @@ export default async function HomePage() {
                       href={`/knowledge/${item.slug}`}
                       icon={KNOWLEDGE_ICON[item.kind]}
                       isVideo={item.kind === "video"}
+                      // Under the section h2, so h3 here — the same level
+                      // NewsList uses beside it.
+                      titleAs="h3"
                       duration={formatDuration(item.duration_seconds)}
                       category={
                         item.kind === "video"

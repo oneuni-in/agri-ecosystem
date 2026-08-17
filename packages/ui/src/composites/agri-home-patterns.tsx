@@ -659,6 +659,7 @@ export function KnowledgeCard({
   meta,
   duration,
   isVideo = false,
+  titleAs: Title = "b",
   className,
 }: {
   href: string;
@@ -673,6 +674,15 @@ export function KnowledgeCard({
   /** "12:40". Omitted when unknown; never a placeholder. */
   duration?: string | null;
   isVideo?: boolean;
+  /**
+   * Heading element for the card title. Defaults to `b` — a plain bold
+   * span — because the level depends on what surrounds the card, and a
+   * component cannot know that. A grid of cards directly under the page
+   * `h1` must pass `h2` or the document skips a level (axe
+   * `heading-order`, which is how this prop came to exist); the same grid
+   * under a section `h2` passes `h3`.
+   */
+  titleAs?: "b" | "h2" | "h3";
   className?: string;
 }) {
   return (
@@ -704,7 +714,12 @@ export function KnowledgeCard({
           </span>
         ) : null}
         {duration ? (
-          <span className="absolute bottom-1.5 right-[7px] rounded-[5px] bg-ink/75 px-1.5 py-px text-[9px] text-white">
+          // SOLID bg-ink, not bg-ink/75. Over a translucent background axe
+          // resolves the contrast against whatever shows THROUGH (here the
+          // media tint, giving 1.13:1 on white) and the CI a11y floor fails
+          // — the AG-A21 lesson, where an effect axe cannot measure was
+          // made real rather than argued with.
+          <span className="absolute bottom-1.5 right-[7px] rounded-[5px] bg-ink px-1.5 py-px text-[9px] text-white">
             {duration}
           </span>
         ) : null}
@@ -713,9 +728,9 @@ export function KnowledgeCard({
         <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[9px] font-semibold text-brand-deep">
           {category}
         </span>
-        <b className="my-[5px] mb-[3px] block text-xs font-medium leading-[1.35] text-ink">
+        <Title className="my-[5px] mb-[3px] block text-xs font-medium leading-[1.35] text-ink">
           {title}
-        </b>
+        </Title>
         <div className="text-[10px] text-muted">{meta}</div>
       </div>
     </a>

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import httpx
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +77,9 @@ async def test_a_state_helpline_is_not_offered_outside_its_state(
     assert {h.slug for h in elsewhere} == {h.slug for h in national}
 
 
-async def test_route_serves_the_dataset_with_stamps(api) -> None:  # noqa: F811
+async def test_route_serves_the_dataset_with_stamps(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     client, _ = api
     body = (await client.get("/market/helplines?state=Tamil Nadu")).json()
     assert len(body) == 4

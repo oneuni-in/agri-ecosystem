@@ -88,6 +88,10 @@ known-first-party = ["modules", "shared", "settings", "main"]
 "tests/test_market_mandi.py" = ["F811"]
 "tests/test_market_commodities.py" = ["F811"]
 "tests/test_market_alerts.py" = ["F811"]
+# A-U3: same shared-`api`-fixture shadowing as the market suites above —
+# importing the fixture and naming the parameter after it is the idiom.
+"tests/test_content_ingest.py" = ["F811"]
+"tests/test_helplines_e5.py" = ["F811"]
 
 [tool.mypy]
 python_version = "3.12"

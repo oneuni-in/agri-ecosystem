@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
+from typing import Any
 
 import httpx
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.content.ingest import (
     normalise_url,
@@ -184,7 +186,7 @@ def test_slug_is_dated_and_survives_a_non_ascii_title() -> None:
 # ── the gate ─────────────────────────────────────────────────────────
 
 
-async def _ingest(session, feed: str, source_slug: str = "the-hindu") -> None:
+async def _ingest(session: AsyncSession, feed: str, source_slug: str = "the-hindu") -> None:
     """Drive ingest_source against a canned body — no network in tests."""
     from modules.content.ingest import ingest_source
 
@@ -198,7 +200,9 @@ async def _ingest(session, feed: str, source_slug: str = "the-hindu") -> None:
         await ingest_source(session, source, client=client)
 
 
-async def test_ingested_items_are_pending_and_invisible_to_readers(db_session) -> None:
+async def test_ingested_items_are_pending_and_invisible_to_readers(
+    db_session: AsyncSession,
+) -> None:
     """THE module rule. Nothing the worker writes is readable until a
     human approves it."""
     await _ingest(db_session, HINDU_FEED)
@@ -212,7 +216,7 @@ async def test_ingested_items_are_pending_and_invisible_to_readers(db_session) -
     assert page.items == []
 
 
-async def test_attribution_is_stored_from_the_source_row(db_session) -> None:
+async def test_attribution_is_stored_from_the_source_row(db_session: AsyncSession) -> None:
     await _ingest(db_session, HINDU_FEED)
     item = (await db_session.scalars(select(ContentItem))).first()
     assert item is not None
@@ -224,7 +228,7 @@ async def test_attribution_is_stored_from_the_source_row(db_session) -> None:
     assert item.body is None
 
 
-async def test_untranslated_locales_are_absent_not_faked(db_session) -> None:
+async def test_untranslated_locales_are_absent_not_faked(db_session: AsyncSession) -> None:
     """An English headline must not be written into the `ta`/`hi` slots.
     A missing translation should surface as English text via fallback,
     never as a string labelled Tamil that is not Tamil."""
@@ -234,7 +238,7 @@ async def test_untranslated_locales_are_absent_not_faked(db_session) -> None:
     assert set(item.title) == {"en"}
 
 
-async def test_rerunning_the_pull_writes_nothing_new(db_session) -> None:
+async def test_rerunning_the_pull_writes_nothing_new(db_session: AsyncSession) -> None:
     """Dedupe on the normalised canonical URL. The second run is a
     no-op, which is what makes the worker safe to schedule twice."""
     await _ingest(db_session, HINDU_FEED)
@@ -243,7 +247,7 @@ async def test_rerunning_the_pull_writes_nothing_new(db_session) -> None:
     assert len(rows) == 2
 
 
-async def test_approving_makes_exactly_that_item_readable(db_session) -> None:
+async def test_approving_makes_exactly_that_item_readable(db_session: AsyncSession) -> None:
     await _ingest(db_session, HINDU_FEED)
     rows = (await db_session.scalars(select(ContentItem))).all()
 
@@ -256,7 +260,7 @@ async def test_approving_makes_exactly_that_item_readable(db_session) -> None:
     assert await get_item(db_session, rows[0].slug) is not None
 
 
-async def test_create_item_cannot_self_publish(db_session) -> None:
+async def test_create_item_cannot_self_publish(db_session: AsyncSession) -> None:
     """Even asked directly, create leaves the item pending — the gate is
     not a parameter."""
     item = await create_item(
@@ -287,7 +291,7 @@ def test_embed_url_is_built_from_the_allowlist_only() -> None:
     assert set(VIDEO_PROVIDERS) == {"youtube", "vimeo"}
 
 
-async def test_video_row_carries_duration_and_language(db_session) -> None:
+async def test_video_row_carries_duration_and_language(db_session: AsyncSession) -> None:
     item = await create_item(
         db_session,
         kind=KIND_VIDEO,
@@ -309,7 +313,7 @@ async def test_video_row_carries_duration_and_language(db_session) -> None:
     assert item.language == "ta"
 
 
-async def test_non_video_rows_never_embed(db_session) -> None:
+async def test_non_video_rows_never_embed(db_session: AsyncSession) -> None:
     item = await create_item(
         db_session,
         kind=KIND_ARTICLE,
@@ -328,7 +332,9 @@ async def test_non_video_rows_never_embed(db_session) -> None:
 # ── bookmarks ────────────────────────────────────────────────────────
 
 
-async def test_bookmarks_are_idempotent_and_cannot_reach_pending_items(db_session) -> None:
+async def test_bookmarks_are_idempotent_and_cannot_reach_pending_items(
+    db_session: AsyncSession,
+) -> None:
     await _ingest(db_session, HINDU_FEED)
     rows = (await db_session.scalars(select(ContentItem))).all()
     reader = uuid.uuid4()
@@ -351,7 +357,9 @@ async def test_bookmarks_are_idempotent_and_cannot_reach_pending_items(db_sessio
 # ── routes ───────────────────────────────────────────────────────────
 
 
-async def test_public_feed_serves_only_approved(api) -> None:  # noqa: F811
+async def test_public_feed_serves_only_approved(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     client, session = api
     await _ingest(session, HINDU_FEED)
     rows = (await session.scalars(select(ContentItem))).all()
@@ -367,7 +375,7 @@ async def test_public_feed_serves_only_approved(api) -> None:  # noqa: F811
     assert card["source_url"] and card["published_at"]
 
 
-async def test_publish_requires_the_human_gate(api) -> None:  # noqa: F811
+async def test_publish_requires_the_human_gate(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
     """AG row: attempt publish as a non-approver -> rejected."""
     client, session = api
     await _ingest(session, HINDU_FEED)
@@ -391,13 +399,17 @@ async def test_publish_requires_the_human_gate(api) -> None:  # noqa: F811
     assert allowed.json()["moderation_status"] == APPROVED
 
 
-async def test_queue_is_not_readable_without_permission(api) -> None:  # noqa: F811
+async def test_queue_is_not_readable_without_permission(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     client, _ = api
     ordinary = {"x-test-user": str(uuid.uuid4()), "x-test-roles": "user"}
     assert (await client.get("/admin/content/queue", headers=ordinary)).status_code == 403
 
 
-async def test_video_create_rejects_an_unapproved_provider(api) -> None:  # noqa: F811
+async def test_video_create_rejects_an_unapproved_provider(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     """The allowlist is enforced at the contract boundary, so a bad
     provider never reaches the database."""
     client, _ = api
@@ -417,7 +429,9 @@ async def test_video_create_rejects_an_unapproved_provider(api) -> None:  # noqa
     assert created.status_code == 422
 
 
-async def test_unknown_slug_and_pending_slug_404_identically(api) -> None:  # noqa: F811
+async def test_unknown_slug_and_pending_slug_404_identically(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
     client, session = api
     await _ingest(session, HINDU_FEED)
     pending_item = (await session.scalars(select(ContentItem))).first()
@@ -432,7 +446,7 @@ async def test_unknown_slug_and_pending_slug_404_identically(api) -> None:  # no
 # ── advisory targeting (AG row: right district, right window) ────────
 
 
-async def _advisory(session, **overrides):
+async def _advisory(session: AsyncSession, **overrides: Any) -> ContentItem:
     from modules.content.models import KIND_ADVISORY
 
     fields = {
@@ -455,7 +469,7 @@ async def _advisory(session, **overrides):
     return item
 
 
-async def test_advisory_serves_only_inside_its_window(db_session) -> None:
+async def test_advisory_serves_only_inside_its_window(db_session: AsyncSession) -> None:
     """A pest alert is a fact about a few weeks. Outside the window it is
     not 'less relevant' — it is not served."""
     item = await _advisory(db_session)
@@ -466,14 +480,14 @@ async def test_advisory_serves_only_inside_its_window(db_session) -> None:
         assert await list_advisories(db_session, district="Coimbatore", on_date=outside) == []
 
 
-async def test_advisory_serves_only_in_its_target_districts(db_session) -> None:
+async def test_advisory_serves_only_in_its_target_districts(db_session: AsyncSession) -> None:
     await _advisory(db_session)
     on = date(2026, 8, 20)
     assert len(await list_advisories(db_session, district="Erode", on_date=on)) == 1
     assert await list_advisories(db_session, district="Madurai", on_date=on) == []
 
 
-async def test_unknown_district_narrows_rather_than_widens(db_session) -> None:
+async def test_unknown_district_narrows_rather_than_widens(db_session: AsyncSession) -> None:
     """A visitor whose district we cannot resolve sees nationwide
     advisories ONLY. Guessing would put 'spray now' in front of the wrong
     field, which costs a farmer money."""
@@ -483,7 +497,7 @@ async def test_unknown_district_narrows_rather_than_widens(db_session) -> None:
     assert [i.id for i in got] == [nationwide.id]
 
 
-async def test_advisory_without_a_window_is_never_served(db_session) -> None:
+async def test_advisory_without_a_window_is_never_served(db_session: AsyncSession) -> None:
     """The column default is permissive so an ARTICLE need not fill it in,
     but an advisory with no end is a notice that would sit on the page
     forever. The advisory read requires a window."""
@@ -491,7 +505,7 @@ async def test_advisory_without_a_window_is_never_served(db_session) -> None:
     assert await list_advisories(db_session, district="Coimbatore", on_date=date(2026, 8, 20)) == []
 
 
-async def test_pending_advisory_is_never_served(db_session) -> None:
+async def test_pending_advisory_is_never_served(db_session: AsyncSession) -> None:
     """The gate applies here too — targeting does not bypass approval."""
     from modules.content.models import KIND_ADVISORY
 

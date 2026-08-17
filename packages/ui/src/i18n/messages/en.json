@@ -126,7 +126,12 @@
         "title": "Get mandi price alerts for {pincode}",
         "sub": "Your commodities, your market — free morning notification",
         "cta": "Open alerts",
-        "dismiss": "Not now"
+        "dismiss": "Not now",
+        "saving": "Saving…",
+        "done": "Alerts on ✓",
+        "capped": "Alert limit reached",
+        "error": "Could not save — try again",
+        "signin": "Sign in to get alerts"
       },
       "faq": {
         "title": "Common questions",

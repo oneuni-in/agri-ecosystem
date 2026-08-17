@@ -80,6 +80,7 @@ known-first-party = ["modules", "shared", "settings", "main"]
 "tests/test_market_weather.py" = ["F811"]
 "tests/test_market_mandi.py" = ["F811"]
 "tests/test_market_commodities.py" = ["F811"]
+"tests/test_market_alerts.py" = ["F811"]
 
 [tool.mypy]
 python_version = "3.12"

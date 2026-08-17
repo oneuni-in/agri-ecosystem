@@ -32,6 +32,10 @@ EXPECTED_CHANNELS = {
     "ad_invoice": {"in_app", "email"},
     "campaign_activated": {"in_app", "email"},
     "creative_rejected": {"in_app"},
+    # A-U2 AG-A16: the daily mandi digest. in_app ONLY — a price summary is
+    # not worth an SMS, and the event deliberately carries no destination,
+    # which is what keeps market_data independent of identity.
+    "mandi_price_alert": {"in_app"},
 }
 
 

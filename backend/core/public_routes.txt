@@ -120,3 +120,9 @@
 # Returns published product facts only: no balance, no identity, and no
 # reference to the caller.
 /coins/rules
+# /search/federated (A-U4 W3, D64): cross-vertical search for the hub.
+# Same read class as /search - public business/product documents, no user
+# data and no mutation - but queried across every site index and tagged
+# with the one it came from. Bounded and uncursored on purpose (see the
+# route's docstring).
+/search/federated

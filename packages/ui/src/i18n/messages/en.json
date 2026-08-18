@@ -589,7 +589,16 @@
       "empty": "You're all caught up.",
       "markAllRead": "Mark all read",
       "markRead": "Mark read",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "push": {
+        "title": "Alerts on this device",
+        "body": "Get mandi price and weather alerts as notifications, even when agri.in is closed.",
+        "on": "Turn on alerts",
+        "off": "Turn off alerts",
+        "working": "Working…",
+        "deniedBody": "Notifications are blocked for agri.in in this browser. You can re-enable them in your browser's site settings.",
+        "iosBody": "On iPhone and iPad, add agri.in to your Home Screen first — Safari only allows notifications from an installed app."
+      }
     },
     "dairyCategories": {
       "veterinarian": {
@@ -1332,7 +1341,9 @@
       "kinds": {
         "business": "Business",
         "product": "Product"
-      }
+      },
+      "federatedTitle": "Also in the agri.in family",
+      "federatedSub": "Matching businesses on our other sites."
     },
     "directoryPage": {
       "metaTitle": "Agri businesses near you · agri.in",

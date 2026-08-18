@@ -88,6 +88,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/market/schemes",
     "/reviews",
     "/reviews/summary",
+    # A-U4 W3 (D64): cross-vertical search for the hub. Same public read
+    # class as /search, queried across every site index. Listed before
+    # "/search" because that is the order the router registers them.
+    "/search/federated",
     "/search",
     "/identity/location",
 ]

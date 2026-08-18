@@ -8,6 +8,7 @@ import {
   DeadlineItem,
   DeadlinesBar,
   EmptyState,
+  EarnCard,
   Eyebrow,
   KnowledgeCard,
   LiveDot,
@@ -30,6 +31,7 @@ import {
 } from "@agri/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { EARN_CARDS, fetchEarnRules } from "@/lib/coins";
 import { formatDuration, pick as pickContent, type ContentKind } from "@/lib/content";
 import { helplineStamp } from "@/lib/helplines";
 import { HOME_HERO_SLOT } from "@/lib/ads";
@@ -939,6 +941,48 @@ export async function ReviewsStrip({ pincode }: { pincode: string }) {
                   {review.business.name}
                 </a>
               }
+            />
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+
+/* ── §15b · earn AgriCoins ────────────────────────────────────────────────── */
+
+/**
+ * The A1 earn cards, rendering REAL amounts from the rules engine.
+ *
+ * A-U1 shipped these with a coin glyph in the amount slot and an explicit
+ * note: the coins engine exposed no public rules read, and inventing figures
+ * was refused. A-U4 W2 added `GET /coins/rules`, so the number beside each
+ * card is now the amount that rule actually pays.
+ *
+ * Two honesty rules survive into the rendering:
+ *  - a card whose rule is missing or inactive shows NO amount rather than a
+ *    guess, which is the A-U1 rule unchanged;
+ *  - the webinar card has no rule at all (events are Stage D) and carries
+ *    the Soon treatment instead of a number — see EARN_CARDS.
+ */
+export async function EarnCoins() {
+  const [rules, t] = await Promise.all([fetchEarnRules(), getTranslations("ui")]);
+
+  return (
+    <Section title={t("agriHome.earn.title")} className="pb-0">
+      <Eyebrow className="-mt-3">{t("agriHome.earn.eyebrow")}</Eyebrow>
+      <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
+        {EARN_CARDS.map((card) => {
+          const rule = card.code ? rules[card.code] : undefined;
+          return (
+            <EarnCard
+              key={card.key}
+              icon={card.icon}
+              title={t(`agriHome.earn.${card.key}t`)}
+              sub={t(`agriHome.earn.${card.key}d`)}
+              // No rule -> no number. Never a placeholder that reads like one.
+              amount={rule ? `+${rule.amount}` : t("agriHome.soon")}
             />
           );
         })}

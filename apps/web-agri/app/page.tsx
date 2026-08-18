@@ -2,7 +2,6 @@ import {
   BigCtaGrid,
   BigCtaTile,
   Card,
-  EarnCard,
   EcoPill,
   EcoStrip,
   Eyebrow,
@@ -28,6 +27,7 @@ import {
   CalendarBlock,
   CategoryGrid,
   DirectoryRow,
+  EarnCoins,
   HeroAd,
   HelplineBand,
   KnowledgeBlock,
@@ -43,6 +43,7 @@ import {
   CalendarSkeleton,
   CategoryGridSkeleton,
   DirectorySkeleton,
+  EarnSkeleton,
   HelplinesSkeleton,
   KnowledgeSkeleton,
   MandiSkeleton,
@@ -574,35 +575,16 @@ export default async function HomePage() {
           </Suspense>
         </BelowFold>
 
-        {/* §15b — earn AgriCoins. DECISION: the coins engine exposes no public
-            rules endpoint (only authed /coins/balance·history·referral-code),
-            so the cards carry i18n copy WITHOUT amounts — the coin glyph fills
-            EarnCard's amount slot; real numbers arrive when a rules read
-            exists. Never invent amounts. (W2 revisits this.) */}
-        <Section
-          title={t("agriHome.earn.title")}
-          className="pb-0 [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
-        >
-          <Eyebrow className="-mt-3">{t("agriHome.earn.eyebrow")}</Eyebrow>
-          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
-            {(
-              [
-                { icon: "⭐", key: "e1" },
-                { icon: "🎪", key: "e2" },
-                { icon: "🤝", key: "e3" },
-                { icon: "📅", key: "e4" },
-              ] as const
-            ).map((item) => (
-              <EarnCard
-                key={item.key}
-                icon={item.icon}
-                title={t(`agriHome.earn.${item.key}t`)}
-                sub={t(`agriHome.earn.${item.key}d`)}
-                amount="🪙"
-              />
-            ))}
-          </div>
-        </Section>
+        {/* §15b — earn AgriCoins. A-U4 W2 turns this from static copy into a
+            data-bearing section: the amounts now come from GET /coins/rules,
+            which is why it moved behind a boundary like every other read on
+            this page. A-U1's rule still holds inside it — a card with no
+            active rule shows no number rather than a guess. */}
+        <BelowFold>
+          <Suspense fallback={<EarnSkeleton />}>
+            <EarnCoins />
+          </Suspense>
+        </BelowFold>
 
         {/* §16 popular searches: OMITTED this pass — chips may only link routes
             that resolve. Returns with the search facade. */}

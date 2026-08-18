@@ -192,3 +192,14 @@ export function HelplinesSkeleton() {
 export function StatsSkeleton() {
   return <Bar className="mt-5 h-[86px] w-full rounded-band" aria-hidden="true" />;
 }
+
+/** §15b — the four earn cards. */
+export function EarnSkeleton() {
+  return (
+    <GridSkeleton
+      count={4}
+      gridClass="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4"
+      cardClass="h-[74px]"
+    />
+  );
+}

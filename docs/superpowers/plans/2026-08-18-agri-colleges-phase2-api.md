@@ -31,7 +31,8 @@ These are recorded here because a reader of the spec alone would not be able to 
 3. **The API owns the state-slug vocabulary.** `geo.states` has `name` and `lgd_code` but **no slug** (verified: `shared/geo/models.py:18-24`). `/colleges/state/[state]` needs a URL segment, so something must slugify. If both the Next.js route generator and the Python filter did it independently, the two would drift on the first state name with a period or an ampersand and the page would 404 against its own link. A single endpoint, `GET /education/states`, returns the slug vocabulary and the frontend consumes it — it never derives one.
 4. **`/education/states` returns only states that have at least one institution.** The data audit found 19 states with no agri institution at all. Generating ISR pages for them would publish 19 thin, empty, indexable pages — actively bad for the SEO these pages exist to earn.
 5. **List endpoints serve `status=active` only.** A browse list is a list of places a student can apply to. `closed` and `merged` rows stay reachable by direct slug — that is what keeps the 301 and the closed-banner behaviour of §7 working — but they do not appear in listings.
-6. **`?country=` stays even though every row is `IN`.** The column exists, the filter is three lines, and the corpus scope is an owner decision that could change. Same reasoning the spec already applied to keeping `abroad` in `RESERVED_SLUGS`.
+6. **`?district=` resolves inside Tamil Nadu only, today.** `geo.districts` holds 38 rows, all Tamil Nadu, until D65 — so `district_id` stores an LGD code rather than an FK (Plan 1), and a district filter for any other state correctly returns nothing. This is a data gap, not a bug, and the frontend should not offer a district filter outside TN until D65 lands. Plan 3 needs to know this.
+7. **`?country=` stays even though every row is `IN`.** The column exists, the filter is three lines, and the corpus scope is an owner decision that could change. Same reasoning the spec already applied to keeping `abroad` in `RESERVED_SLUGS`.
 
 ---
 
@@ -66,9 +67,7 @@ has to hold against a database that is already wrong.
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.education.models import Institution, InstitutionProgramme, Programme
@@ -94,7 +93,7 @@ async def _inst(session: AsyncSession, slug: str, **kw: object) -> Institution:
 
 
 async def _offering(
-    session: AsyncSession, inst: Institution, *, seats: int | None, fees: str | None
+    session: AsyncSession, inst: Institution, *, seats: int | None, fees: int | None
 ) -> None:
     programme = Programme(
         slug=f"bsc-ag-{inst.slug}", name_en="B.Sc. Agriculture", level="ug",
@@ -105,8 +104,7 @@ async def _offering(
     session.add(
         InstitutionProgramme(
             institution_id=inst.id, programme_id=programme.id,
-            intake_seats=seats,
-            annual_fees_inr=Decimal(fees) if fees is not None else None,
+            intake_seats=seats, annual_fees_inr=fees,
             admission_route="TNAU counselling",
             source_url="https://example.ac.in/fees", last_verified_at=date(2026, 8, 10),
         )
@@ -117,7 +115,7 @@ async def _offering(
 async def test_a_listed_row_cannot_emit_seats_or_fees(db_session: AsyncSession) -> None:
     """The row is poisoned on purpose: seats and fees present, trust=listed."""
     inst = await _inst(db_session, "poisoned-college", trust="listed")
-    await _offering(db_session, inst, seats=120, fees="45000")
+    await _offering(db_session, inst, seats=120, fees=45000)
 
     detail = to_detail(await get_institution(db_session, "poisoned-college"))  # type: ignore[arg-type]
 
@@ -134,7 +132,7 @@ async def test_a_closed_verified_row_cannot_emit_admission_data(
 ) -> None:
     """Spec section 7: a dead page still saying 'apply here' is the harmful case."""
     inst = await _inst(db_session, "shut-college", trust="verified", status="closed")
-    await _offering(db_session, inst, seats=60, fees="30000")
+    await _offering(db_session, inst, seats=60, fees=30000)
 
     detail = to_detail(await get_institution(db_session, "shut-college"))  # type: ignore[arg-type]
 
@@ -147,13 +145,13 @@ async def test_a_closed_verified_row_cannot_emit_admission_data(
 async def test_a_verified_active_row_emits_everything(db_session: AsyncSession) -> None:
     """The negative tests above are only meaningful if the positive one passes."""
     inst = await _inst(db_session, "good-college")
-    await _offering(db_session, inst, seats=80, fees="25000")
+    await _offering(db_session, inst, seats=80, fees=25000)
 
     detail = to_detail(await get_institution(db_session, "good-college"))  # type: ignore[arg-type]
 
     offering = detail.programmes[0]
     assert offering.intake_seats == 80
-    assert offering.annual_fees_inr == "25000.00"
+    assert offering.annual_fees_inr == 25000
     assert offering.admission_route == "TNAU counselling"
 
 
@@ -298,7 +296,9 @@ class OfferingOut(BaseModel):
     duration_months: int | None
     # ── suppressed unless can_show_admission_data ──
     intake_seats: int | None = None
-    annual_fees_inr: str | None = None
+    # int, not Decimal-as-string: fees are whole rupees (Plan 1 records the
+    # divergence from the spec's Numeric and why).
+    annual_fees_inr: int | None = None
     fee_note: str | None = None
     admission_route: str | None = None
     # ── stamps: present whenever the offering is ──
@@ -399,7 +399,7 @@ def _to_offering(row: InstitutionProgramme, programme: Programme, *, full: bool)
         # 120 seats at Rs 45,000" is a claim we have not checked.
         return out
     out.intake_seats = row.intake_seats
-    out.annual_fees_inr = str(row.annual_fees_inr) if row.annual_fees_inr is not None else None
+    out.annual_fees_inr = row.annual_fees_inr
     out.fee_note = row.fee_note
     out.admission_route = row.admission_route
     return out
@@ -583,7 +583,13 @@ async def list_institutions(
             == state_slug(state)
         )
     if district is not None:
-        query = query.join(District, Institution.district_id == District.id).where(
+        # Joins District.lgd_code, NOT District.id: district_id holds the LGD
+        # code because geo.districts is Tamil Nadu only until D65 and an FK
+        # would reject a valid Punjab college (Plan 1 models.py). Consequence:
+        # a district filter outside TN correctly returns nothing, because we
+        # do not know those district ids yet. Getting the join column wrong
+        # returns nothing too -- which is why the contract suite pins it.
+        query = query.join(District, Institution.district_id == District.lgd_code).where(
             func.lower(func.regexp_replace(District.name, "[^a-zA-Z0-9]+", "-", "g"))
             == state_slug(district)
         )
@@ -1070,7 +1076,7 @@ async def test_a_draft_guide_404s_exactly_like_a_missing_one(
         Guide(
             slug="tn-counselling-2026", title_en="TN Agri Counselling 2026",
             kind="counselling", summary_en="Rounds and dates.",
-            steps=[], official_links=[{"label": "TNAU", "url": "https://tnau.ac.in/"}],
+            steps=[], official_links=["https://tnau.ac.in/"],
             last_verified_at=date(2026, 8, 10), status="draft",
         )
     )
@@ -1090,7 +1096,7 @@ async def test_draft_guides_are_absent_from_the_index(
     session.add(
         Guide(
             slug="draft-guide", title_en="Draft", kind="general", summary_en="x",
-            steps=[], official_links=[{"label": "x", "url": "https://x.gov.in/"}],
+            steps=[], official_links=["https://x.gov.in/"],
             last_verified_at=date(2026, 8, 10), status="draft",
         )
     )
@@ -1263,7 +1269,6 @@ router from a module that has one.
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -1519,6 +1524,10 @@ Plan 3 (surfaces) can rely on:
   row enters the sitemap feed.
 - Both `source_url`/`last_verified_at` pairs — institution-level and per-offering — for the
   "verified Mar 2026 · fees last checked Aug 2025" line.
+
+Plan 3 must also know that **`?district=` only works in Tamil Nadu** until D65 loads the
+rest of `geo.districts` — offering the filter elsewhere would render an empty result set that
+looks like "no colleges here" rather than "we do not have that data".
 
 Open question Plan 3 must answer: **what a `verified` institution with a stale offering stamp
 renders.** The data says "checked, but the fee is a year old". The options are showing it

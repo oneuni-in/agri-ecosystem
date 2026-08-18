@@ -109,7 +109,12 @@ jobs:
         working-directory: backend/core
     services:
       postgres:
-        image: postgres:16
+        # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047
+        # runs CREATE EXTENSION vector for the A-U4 assistant corpus.
+        # Same PG major; the extension is additive. Keep every postgres
+        # service in this file on this image or the job that misses it
+        # fails at migrate time, not at test time.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app # CI-only credentials
@@ -172,7 +177,12 @@ jobs:
         working-directory: backend/core
     services:
       postgres:
-        image: postgres:16
+        # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047
+        # runs CREATE EXTENSION vector for the A-U4 assistant corpus.
+        # Same PG major; the extension is additive. Keep every postgres
+        # service in this file on this image or the job that misses it
+        # fails at migrate time, not at test time.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app # CI-only credentials
@@ -284,10 +294,25 @@ jobs:
   # backend they render notFound() and cannot be gated at all.
   lighthouse:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 15
+    # 25, raised from 15 in A-U4. The job was cancelled at 15m09s having just
+    # printed "Checking assertions against 12 URL(s), 60 total run(s)" — it
+    # collected every run and was killed two seconds into asserting them, so
+    # the gate reported nothing rather than reporting a failure. 12 URLs x 5
+    # runs is simply more wall-clock than 15 minutes on a shared runner.
+    #
+    # This is a wall-clock change, NOT a threshold change: every assertion in
+    # lighthouserc.cjs is untouched, and a slow job that cannot report is
+    # strictly worse than a slow job that can. If this creeps toward 25 too,
+    # the answer is fewer URLs or fewer runs per URL, not a bigger number.
+    timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16
+        # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047
+        # runs CREATE EXTENSION vector for the A-U4 assistant corpus.
+        # Same PG major; the extension is additive. Keep every postgres
+        # service in this file on this image or the job that misses it
+        # fails at migrate time, not at test time.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app # CI-only credentials
@@ -386,7 +411,12 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047
+        # runs CREATE EXTENSION vector for the A-U4 assistant corpus.
+        # Same PG major; the extension is additive. Keep every postgres
+        # service in this file on this image or the job that misses it
+        # fails at migrate time, not at test time.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app # CI-only credentials
@@ -471,7 +501,12 @@ jobs:
     timeout-minutes: 45
     services:
       postgres:
-        image: postgres:16
+        # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047
+        # runs CREATE EXTENSION vector for the A-U4 assistant corpus.
+        # Same PG major; the extension is additive. Keep every postgres
+        # service in this file on this image or the job that misses it
+        # fails at migrate time, not at test time.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app # CI-only credentials

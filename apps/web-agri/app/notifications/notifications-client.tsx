@@ -1,6 +1,8 @@
 "use client";
 
 import { NotificationsPanel, type NotificationsApi } from "@agri/ui";
+
+import { PushCard } from "./push-card";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
@@ -28,15 +30,20 @@ export function NotificationsClient() {
     [locale],
   );
   return (
-    <NotificationsPanel
-      api={api}
-      strings={{
-        title: t("title"),
-        empty: t("empty"),
-        markAllRead: t("markAllRead"),
-        markRead: t("markRead"),
-        loadMore: t("loadMore"),
-      }}
-    />
+    <>
+      {/* A-U4 W3: this DEVICE's push subscription, above the in-app list.
+          Renders nothing when no VAPID key is provisioned. */}
+      <PushCard />
+      <NotificationsPanel
+        api={api}
+        strings={{
+          title: t("title"),
+          empty: t("empty"),
+          markAllRead: t("markAllRead"),
+          markRead: t("markRead"),
+          loadMore: t("loadMore"),
+        }}
+      />
+    </>
   );
 }

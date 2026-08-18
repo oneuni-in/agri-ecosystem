@@ -106,3 +106,23 @@
 # the home spotlight uses, so page and home can never disagree.
 /market/helplines
 /market/schemes
+# /ai/status (A-U4 W1): one boolean - is the assistant switched on.
+# Public because the web app must choose between the chat surface and
+# the honest not-yet state before a visitor logs in, and /ai/ask cannot
+# tell it: SecureRouter's auth dependency runs before the flag check, so
+# an unauthenticated probe returns 401 in BOTH states. Reads nothing
+# about the caller and exposes no data beyond the flag itself.
+/ai/status
+# /coins/rules (A-U4 W2): the active earn rules - code, amount, caps.
+# Public because the home's "Earn AgriCoins" cards render for logged-out
+# visitors and must show the REAL configured amount rather than the A1
+# mockup's illustrative one (the A-U1 'never invent amounts' deviation).
+# Returns published product facts only: no balance, no identity, and no
+# reference to the caller.
+/coins/rules
+# /search/federated (A-U4 W3, D64): cross-vertical search for the hub.
+# Same read class as /search - public business/product documents, no user
+# data and no mutation - but queried across every site index and tagged
+# with the one it came from. Bounded and uncursored on purpose (see the
+# route's docstring).
+/search/federated

@@ -11,6 +11,11 @@ REASON_LABEL_KEYS: dict[str, str] = {
     "manual_adjust": "coins.reason.manual_adjust",
     "compensation": "coins.reason.compensation",
     "review_approved": "coins.reason.review_approved",
+    # business_claim has been awarded by the worker since D16 but was never
+    # mapped here, so a user who claimed a business saw "unknown" against
+    # the largest single award on their ledger. A-U4 W2 fixes it.
+    "business_claim": "coins.reason.business_claim",
+    "daily_visit_streak": "coins.reason.daily_visit_streak",
 }
 
 

@@ -54,6 +54,76 @@ class SearchPage(BaseModel):
     next_cursor: str | None = None
 
 
+class FederatedHit(SearchHit):
+    """A hit plus the index it came from.
+
+    `sites` (inherited) is which sites a business COVERS. `source_site` is
+    which vertical's index produced this row — different questions, and the
+    hub needs the second one to label a card and send the visitor to the
+    right domain.
+    """
+
+    source_site: str
+
+
+class FederatedPage(BaseModel):
+    items: list[FederatedHit]
+    #: Sites that actually answered. A site whose index is empty or
+    #: unreachable is absent here rather than silently folded into the
+    #: results, so the UI can say what it searched.
+    searched: list[str]
+
+
+# public=True: the same read class as /search — no user data, no mutation.
+@router.get("/federated", public=True)
+async def federated_search(
+    session: SessionDep,
+    q: Annotated[str, Query(max_length=200)] = "",
+    pincode: Annotated[str | None, Query(pattern=r"^\d{6}$")] = None,
+    limit: Annotated[int, Query(ge=1, le=10)] = 4,
+) -> FederatedPage:
+    """Cross-vertical search for the hub (A-U4 W3, D64 scope).
+
+    DELIBERATELY NOT PAGINATED, and that is a scope decision rather than an
+    omission. Each site is an independent Meilisearch index with its own
+    relevance ordering and its own offset; a resumable cursor over a merged
+    set would have to encode a per-index position AND a stable merge order,
+    which is a different and much harder problem than the one the hub has.
+    What the hub needs is "here is what else exists in the family" — a
+    bounded rail per vertical, with depth reached through that vertical's
+    own search. So this returns a small slice per site and no cursor.
+
+    `kind`/`vertical`/`covered` are not accepted here either: those narrow a
+    single vertical's index, and a cross-vertical rail that silently applied
+    an agri vertical filter to the milk index would return a confusing
+    nothing. Narrowing belongs on /search, per site.
+
+    A site that errors is DROPPED from `searched` rather than failing the
+    request: one vertical's Meili being down must not take the hub's search
+    with it.
+    """
+    items: list[FederatedHit] = []
+    searched: list[str] = []
+    for site in SITES:
+        try:
+            result = await run_search(
+                session,
+                site=site,
+                q=q,
+                pincode=pincode,
+                kind=None,
+                vertical=None,
+                covered=False,
+                cursor=None,
+                limit=limit,
+            )
+        except Exception:  # noqa: BLE001 — one site's outage is not the hub's
+            continue
+        searched.append(site)
+        items.extend(FederatedHit(**hit, source_site=site) for hit in result["items"])
+    return FederatedPage(items=items, searched=searched)
+
+
 @router.get("", public=True)
 async def search(
     session: SessionDep,

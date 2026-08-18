@@ -8,7 +8,6 @@ import { notFound } from "next/navigation";
 import { pick } from "@/lib/content";
 import { fetchHelplines } from "@/lib/helplines";
 
-import { RegisterHelplineSW } from "./register-sw";
 
 /**
  * A-U3 W2 — the offline click-to-call page.
@@ -63,7 +62,6 @@ export default async function HelplinesPage() {
       {/* Opting THIS page into offline caching. Mounted here and nowhere
           else — see register-sw.tsx for why that placement is the scope
           boundary against A-U4's PWA work. */}
-      <RegisterHelplineSW />
       <Wrap>
         <nav className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted">
           <Link

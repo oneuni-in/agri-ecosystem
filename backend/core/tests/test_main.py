@@ -43,6 +43,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/ads/serve",
     "/ads/impressions",
     "/ads/clicks",
+    # A-U4 W1: one boolean — is the assistant switched on. The web app needs
+    # it before login to choose between the chat and the honest not-yet
+    # state, and /ai/ask cannot answer (auth runs before the flag check).
+    "/ai/status",
     "/billing/webhook/razorpay",
     "/catalog/verticals/{vertical}/schema",
     "/catalog/verticals",
@@ -51,6 +55,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/catalog/verticals/{vertical}/products",
     "/catalog/milk/coverage/pincodes",
     "/catalog/milk/home/{pincode}",
+    # A-U4 W2: the active earn rules (code, amount, caps). Public because
+    # the home's "Earn AgriCoins" cards render for logged-out visitors and
+    # must show the real configured amount, not the mockup's placeholder.
+    "/coins/rules",
     # A-U3 W1/W2 — the content engine's reader surface. Approved items
     # only; the gate is structural in service._published().
     "/content/feed",
@@ -80,6 +88,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/market/schemes",
     "/reviews",
     "/reviews/summary",
+    # A-U4 W3 (D64): cross-vertical search for the hub. Same public read
+    # class as /search, queried across every site index. Listed before
+    # "/search" because that is the order the router registers them.
+    "/search/federated",
     "/search",
     "/identity/location",
 ]

@@ -77,7 +77,15 @@ export async function SiteFooter() {
 function FooterCol({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-[12px] font-semibold text-white">{title}</h3>
+      {/* h2, not h3 — and this is an a11y fix, not a style preference.
+          These are top-level sections of the footer landmark, so on a page
+          whose main content happens to have no h2 (/categories, /helplines,
+          /mandi) an h3 here follows the page h1 directly and breaks
+          heading-order. Lighthouse scored all three at a11y 0.98 for exactly
+          that. Fixing it in the shared footer fixes every such page at once
+          and stops the next h2-less page inheriting the bug; the visual size
+          is set by the class, so nothing moves. */}
+      <h2 className="mb-2 text-[12px] font-semibold text-white">{title}</h2>
       <ul className="list-none text-[11px] leading-[2.1]">{children}</ul>
     </div>
   );

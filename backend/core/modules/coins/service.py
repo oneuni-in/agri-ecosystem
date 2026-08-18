@@ -138,6 +138,17 @@ async def history(
     )
 
 
+def _user_lock_key(user_id: uuid.UUID) -> int:
+    """A stable per-user bigint for pg_advisory_xact_lock.
+
+    The top 64 bits of the UUID, mapped into signed range. Collisions between
+    two different users are astronomically unlikely and, more importantly,
+    harmless: a collision costs those two users a moment of mutual exclusion
+    on their own awards, never a wrong balance.
+    """
+    return (user_id.int >> 64) - (1 << 63)
+
+
 async def award(
     session: AsyncSession,
     *,
@@ -147,7 +158,25 @@ async def award(
     idempotency_key: str,
     now: datetime,
 ) -> LedgerEntry:
-    """Rules-gated award - the ONLY sanctioned award path (no cap bypass)."""
+    """Rules-gated award - the ONLY sanctioned award path (no cap bypass).
+
+    SERIALIZED PER USER, and that is a correctness fix rather than a
+    precaution. `check_numeric_caps` counts existing ledger rows and then
+    inserts one; without a lock those two steps race, and every concurrent
+    transaction reads the same pre-insert count. Measured before this lock
+    existed: a weekly_cap of 5 admitted ALL 40 concurrent awards
+    (tests/test_coins_award_concurrency.py). The unique idempotency key
+    cannot help here - each attempt legitimately carries a different key
+    (different review ids), so the only thing standing between a user and an
+    over-award is this count, and the count has to be serialized to mean
+    anything.
+
+    A transaction-scoped advisory lock is the right shape: it needs no row to
+    exist (a first-ever award has no balance row to lock), it is released
+    automatically on commit or rollback, and it serializes only the awards of
+    ONE user - concurrent awards to different users are unaffected.
+    """
+    await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _user_lock_key(user_id)})
     rule = await rules.load_active_rule(session, rule_code, now)
     await rules.check_numeric_caps(session, rule, user_id, now)
     return await record_entry(

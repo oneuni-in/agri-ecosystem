@@ -51,6 +51,8 @@ function pickClientMessages(all: Record<string, unknown>): Record<string, unknow
   return { ui: picked };
 }
 
+import { RegisterSW } from "./register-sw";
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
@@ -67,6 +69,8 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <SiteHeader />
           {children}
+          {/* A-U4 W4: one service worker, one scope, site-wide. */}
+          <RegisterSW />
           <SiteFooter />
           <AgriBottomNav />
         </NextIntlClientProvider>

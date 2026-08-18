@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { pick } from "@/lib/content";
-import { searchAgri, type SearchHit } from "@/lib/directory";
+import { searchAgri, searchFederated, type SearchHit } from "@/lib/directory";
 import { resolveHomePincode } from "@/lib/home";
 
 /**
@@ -72,9 +72,25 @@ export default async function SearchPage({
       ? params.kind
       : undefined;
 
-  const page = q
-    ? await searchAgri({ q, pincode, ...(kind ? { kind } : {}), limit: 24 })
-    : { items: [], next_cursor: null };
+  // Agri results and the cross-vertical rail are fetched together: the rail
+  // is supplementary, so it must not add a serial hop to the page the
+  // visitor actually came for.
+  const [page, federated] = q
+    ? await Promise.all([
+        searchAgri({ q, pincode, ...(kind ? { kind } : {}), limit: 24 }),
+        searchFederated({ q, pincode, limit: 4 }),
+      ])
+    : [{ items: [], next_cursor: null }, { items: [], searched: [] }];
+
+  // The rail is what ELSE the family has, so it excludes two things: rows
+  // from agri's own index, and rows for a business ALREADY shown above.
+  // A business that covers both sites is indexed on both, so without the
+  // second filter "Annapoorna Feed Depot" renders in the results and again
+  // in the rail — the same shop, twice, dressed up as a discovery.
+  const shown = new Set(page.items.map((hit) => hit.id));
+  const elsewhere = federated.items.filter(
+    (hit) => hit.source_site !== "agri" && !shown.has(hit.id),
+  );
 
   return (
     <main className="bg-cream pb-10">
@@ -151,6 +167,43 @@ export default async function SearchPage({
                     {hit.verified ? (
                       <Badge variant="verified">{t("verified")}</Badge>
                     ) : null}
+
+        {/* A-U4 W3 (D64) — the federated rail. agri.in is the family's hub, so
+            a search here says what else exists on milk.in. Rendered only when
+            another vertical actually answered: an empty rail is absent, never
+            a heading over nothing. Each card links to that vertical's own
+            domain, and says which one, so nothing is passed off as agri's. */}
+        {elsewhere.length > 0 ? (
+          <section aria-labelledby="federated" className="mt-7">
+            <h2 id="federated" className="font-display text-base font-semibold text-ink">
+              {t("federatedTitle")}
+            </h2>
+            <p className="mt-0.5 text-[11.5px] text-muted">{t("federatedSub")}</p>
+            <ul className="mt-3 grid list-none gap-2.5 p-0 md:grid-cols-2 lg:grid-cols-4">
+              {elsewhere.map((hit) => (
+                <li key={`${hit.source_site}-${hit.id}`}>
+                  <a
+                    href={`https://${hit.source_site}.in/directory/businesses/${hit.business_slug ?? ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-full flex-col gap-1.5 rounded-card border border-cream-line bg-card p-4 no-underline transition-shadow hover:shadow-lift"
+                  >
+                    <span className="rounded-pill bg-cream-deep px-2 py-0.5 text-[10px] font-semibold text-sub">
+                      {hit.source_site}.in ↗
+                    </span>
+                    <b className="text-[14px] font-extrabold leading-[1.3] text-ink">
+                      {hit.name}
+                    </b>
+                    {hit.business_name ? (
+                      <span className="text-[11.5px] text-muted">{hit.business_name}</span>
+                    ) : null}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
                     <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-deep">
                       {t(`kinds.${hit.kind}`)}
                     </span>

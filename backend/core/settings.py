@@ -233,6 +233,49 @@ class Settings(BaseSettings):
     mandi_pull_retry_minutes: int = 45
     mandi_pull_retries: int = 3
 
+    # --- A-U4 W1: the agri AI assistant ---------------------------------
+    # Empty by default and NEVER committed. The service refuses to answer
+    # without it rather than degrading to something that looks like an
+    # answer — an assistant that invents when its model is unreachable is
+    # worse than one that says it is unavailable.
+    anthropic_api_key: str = ""
+    # Claude Opus 5. Adaptive thinking is on by default on this model; the
+    # service pins effort rather than a token budget (budget_tokens is
+    # rejected on Opus 5).
+    ai_model: str = "claude-opus-5"
+    ai_effort: str = "low"
+    ai_max_tokens: int = 1024
+    ai_timeout_seconds: float = 60.0
+    # Retrieval. 15 approved documents is the entire corpus at build time
+    # (A-U4 CP1 note), so a small k is not a tuning choice — it is most of
+    # the corpus. Revisit when curation grows it.
+    ai_retrieval_k: int = 6
+    # A QUALITY floor, and deliberately not described as anything more.
+    # Measured on the real corpus (A-U4 W1): agriculture queries score
+    # 0.60-0.68, but "quantum computing" scores 0.618 — HIGHER than some
+    # genuine matches. bge-small has a high baseline similarity, so no
+    # threshold separates in-domain from out-of-domain on this corpus.
+    # Scope is enforced by safety.check_question's keyword guard, which
+    # runs first; this only drops the weakest tail of matches.
+    ai_similarity_floor: float = 0.45
+    # fastembed's BAAI/bge-small-en-v1.5 — 384 dims, ONNX, CPU, ~50MB. It
+    # runs IN OUR PROCESS, so a visitor's question is never sent to a third
+    # party to be embedded; only the final answer call leaves the building.
+    # Changing this model changes the vector width and REQUIRES a migration
+    # plus a full re-embed — see modules/ai/embedding.py.
+    ai_embedding_model: str = "BAAI/bge-small-en-v1.5"
+    ai_embedding_dims: int = 384
+    # Per-user limits (spec W1: "per-user rate + turn limits"). These are
+    # ON TOP OF the global SecureRouter rate limit, because the cost and
+    # the abuse surface of a model call are not the cost of a page read.
+    ai_max_turns_per_conversation: int = 12
+    ai_max_questions_per_day: int = 30
+    ai_max_question_chars: int = 1000
+    # Where the assistant's read-only tools call back into our own public
+    # API. Loopback and unauthenticated on purpose: the tools must see
+    # exactly what a visitor sees and nothing more (modules/ai/tools.py).
+    internal_api_base_url: str = "http://127.0.0.1:8000"
+
 
 @lru_cache
 def get_settings() -> Settings:

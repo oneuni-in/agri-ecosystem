@@ -567,7 +567,21 @@
       "loadMore": "Load more",
       "referralTitle": "Your referral code",
       "referralHint": "You earn coins once your friend signs up and completes their profile — not just for sharing the link.",
-      "referralShare": "Share this link"
+      "referralShare": "Share this link",
+      "reason": {
+        "signup_complete": "Signed up",
+        "profile_100": "Completed your profile",
+        "daily_visit": "Daily visit",
+        "daily_visit_streak": "7-day streak bonus",
+        "referral_referrer": "Referral reward",
+        "referral_referee": "Joined with a referral code",
+        "review_approved": "Review published",
+        "business_claim": "Claimed a business",
+        "redeem": "Redeemed",
+        "manual_adjust": "Adjustment",
+        "compensation": "Compensation",
+        "unknown": "Coin activity"
+      }
     },
     "notifications": {
       "bell": "Notifications",
@@ -1352,6 +1366,24 @@
       "routeCta": "Go to the verified source",
       "emptyState": "Ask a question to get started.",
       "loginNeeded": "Log in to ask a question."
+    },
+    "agriCoins": {
+      "eyebrow": "One wallet across agri.in, milk.in and theorganic.in",
+      "heading": "AgriCoins",
+      "sub": "Earn coins for using agri.in. Your balance is the same everywhere in the family.",
+      "balanceLabel": "Your balance",
+      "historyTitle": "Recent activity",
+      "historyEmpty": "No coin activity yet.",
+      "loadMore": "Load more",
+      "referralTitle": "Refer a farmer",
+      "referralSub": "Share your code. You both earn when they verify their number.",
+      "copyCode": "Copy code",
+      "copied": "Copied",
+      "shareWhatsapp": "Share on WhatsApp",
+      "shareText": "Join agri.in — mandi prices, weather and schemes for farmers. Use my code:",
+      "error": "Could not load your coins. Please try again.",
+      "loading": "Loading…",
+      "notMoney": "AgriCoins are a loyalty reward, not money. They cannot be bought, cashed out or transferred."
     }
   },
   "coins": {

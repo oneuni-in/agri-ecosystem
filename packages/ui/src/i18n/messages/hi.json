@@ -567,7 +567,21 @@
       "loadMore": "और लोड करें",
       "referralTitle": "आपका रेफ़रल कोड",
       "referralHint": "जब आपका दोस्त साइन अप करके अपनी प्रोफ़ाइल पूरी करता है, तभी आपको कॉइन मिलते हैं — केवल लिंक साझा करने पर नहीं।",
-      "referralShare": "यह लिंक साझा करें"
+      "referralShare": "यह लिंक साझा करें",
+      "reason": {
+        "signup_complete": "साइन अप पूरा",
+        "profile_100": "प्रोफ़ाइल पूरी की",
+        "daily_visit": "दैनिक विज़िट",
+        "daily_visit_streak": "7-दिन स्ट्रीक बोनस",
+        "referral_referrer": "रेफ़रल इनाम",
+        "referral_referee": "रेफ़रल कोड से जुड़े",
+        "review_approved": "समीक्षा प्रकाशित",
+        "business_claim": "व्यवसाय पर दावा",
+        "redeem": "भुनाया",
+        "manual_adjust": "समायोजन",
+        "compensation": "मुआवज़ा",
+        "unknown": "सिक्का गतिविधि"
+      }
     },
     "notifications": {
       "bell": "सूचनाएँ",
@@ -1352,6 +1366,24 @@
       "routeCta": "सत्यापित स्रोत पर जाएँ",
       "emptyState": "शुरू करने के लिए एक सवाल पूछें।",
       "loginNeeded": "सवाल पूछने के लिए लॉग इन करें।"
+    },
+    "agriCoins": {
+      "eyebrow": "agri.in, milk.in और theorganic.in — एक ही वॉलेट",
+      "heading": "AgriCoins",
+      "sub": "agri.in इस्तेमाल करके सिक्के कमाएँ। आपका बैलेंस हर जगह एक ही है।",
+      "balanceLabel": "आपका बैलेंस",
+      "historyTitle": "हाल की गतिविधि",
+      "historyEmpty": "अभी तक कोई सिक्का गतिविधि नहीं।",
+      "loadMore": "और दिखाएँ",
+      "referralTitle": "किसान को रेफ़र करें",
+      "referralSub": "अपना कोड साझा करें। उनके नंबर सत्यापित करते ही दोनों को मिलेगा।",
+      "copyCode": "कोड कॉपी करें",
+      "copied": "कॉपी हो गया",
+      "shareWhatsapp": "WhatsApp पर साझा करें",
+      "shareText": "agri.in से जुड़ें — मंडी भाव, मौसम और योजनाएँ। मेरा कोड:",
+      "error": "आपके सिक्के लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+      "loading": "लोड हो रहा है…",
+      "notMoney": "AgriCoins एक लॉयल्टी रिवॉर्ड है, पैसा नहीं। इन्हें खरीदा, भुनाया या ट्रांसफ़र नहीं किया जा सकता।"
     }
   },
   "coins": {

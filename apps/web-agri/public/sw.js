@@ -1,38 +1,56 @@
-/* Agri.in service worker — SINGLE PURPOSE (A-U3 W2).
+/* Agri.in service worker — A-U4 W4 (was A-U3 W2's single-purpose worker).
  *
- * This is NOT the PWA sweep. That is A-U4, and it is deliberately not
- * happening here: there is no manifest, no install prompt, no push
- * handler, no offline shell for the whole site. This worker exists for
- * exactly one page.
+ * ONE worker, extended in place. A-U3 shipped this for /helplines alone and
+ * said the PWA sweep would extend it rather than register a second one; this
+ * is that extension. A second registration is the failure mode to avoid —
+ * two workers on one scope fight over fetch handling and the loser's cache
+ * silently goes stale.
  *
- * /helplines has to work with the network off. A farmer who needs the
- * Kisan Call Centre number is often precisely the farmer with no signal,
- * and `tel:` needs no network once the page is on screen. So the page is
- * precached at install and served cache-first — the only route in this
- * file with that policy, because it is the only one where a stale-but-
- * present answer beats a fresh-but-absent one.
+ * WHAT IS CACHED, AND WHY EACH ONE EARNS IT. Every entry here is a page where
+ * a stale answer beats no answer for someone with no signal:
+ *
+ *   /helplines  — a farmer who needs the Kisan Call Centre is often exactly
+ *                 the farmer with no bars. `tel:` needs no network once the
+ *                 page is on screen. (A-U3; unchanged.)
+ *   /mandi      — last-known prices. A price from this morning is worth a
+ *                 great deal at a mandi gate with no signal; no price at all
+ *                 is worth nothing. The stamp on the page carries its own
+ *                 as-of date, so a stale page still says how stale it is.
+ *   /saved      — items the visitor deliberately saved to read later, which
+ *                 is close to a declaration that they expect to read them
+ *                 somewhere without signal.
+ *   /offline    — the shell, shown for any OTHER navigation that fails.
  *
  * Cache policy IS the threat model (milk's D28 sw.js, same rules):
  *  - only same-origin GETs are touched at all;
- *  - /api/* is NEVER intercepted — no PII in caches, ever;
- *  - /_next/static/* is deliberately NOT cached. Production sets
- *    immutable cache-control so the browser already holds it, and in dev
- *    those URLs are not content-hashed — a cache-first SW then serves
- *    stale modules after Fast Refresh, which forces reloads that abort
- *    in-flight fetches (this broke three milk e2e specs; do not "fix"
- *    it by adding them here).
+ *  - /api/* is NEVER intercepted — no PII in caches, ever. This matters more
+ *    now than it did in A-U3: /saved is per-user, so its API payload must
+ *    never land in a shared cache. Only the RENDERED page is cached, by the
+ *    browser that rendered it, and a logged-out visitor re-fetches it.
+ *  - /_next/static/* is deliberately NOT cached. Production sets immutable
+ *    cache-control so the browser already holds it, and in dev those URLs
+ *    are not content-hashed — a cache-first SW then serves stale modules
+ *    after Fast Refresh, which forces reloads that abort in-flight fetches
+ *    (this broke three milk e2e specs; do not "fix" it by adding them here).
  */
-const VERSION = "v1"; // bump to invalidate
-const HELPLINE_CACHE = `agri-helplines-${VERSION}`;
-const HELPLINE_URL = "/helplines";
+const VERSION = "v2"; // bumped by A-U4 W4 — invalidates A-U3's v1 caches
+const CACHE = `agri-offline-${VERSION}`;
+
+/** Precached at install. /offline must be here or the shell cannot show. */
+const PRECACHE = ["/offline", "/helplines"];
+
+/** Navigations kept fresh in the cache as the visitor uses them. Not
+ * precached: /saved is per-user and /mandi is large, so both are stored only
+ * once the visitor has actually been there. */
+const RUNTIME_CACHEABLE = new Set(["/helplines", "/mandi", "/saved"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
-      .open(HELPLINE_CACHE)
-      .then((cache) => cache.add(HELPLINE_URL))
-      // Failing to precache must not wedge the install: the page still
-      // works online, and the next visit retries.
+      .open(CACHE)
+      .then((cache) => cache.addAll(PRECACHE))
+      // Failing to precache must not wedge the install: the pages still work
+      // online, and the next visit retries.
       .catch(() => undefined)
       .then(() => self.skipWaiting()),
   );
@@ -43,11 +61,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== HELPLINE_CACHE)
-            .map((key) => caches.delete(key)),
-        ),
+        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
       )
       .then(() => self.clients.claim()),
   );
@@ -55,31 +69,29 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method !== "GET" || url.origin !== self.location.origin)
-    return;
+  if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return; // NEVER cache API responses
+  if (event.request.mode !== "navigate") return; // documents only
 
-  // Only /helplines. Every other navigation is left entirely alone —
-  // this worker has no opinion about the rest of the site, which is what
-  // keeps it out of A-U4's way.
-  if (event.request.mode !== "navigate" || url.pathname !== HELPLINE_URL)
-    return;
+  const cacheable = RUNTIME_CACHEABLE.has(url.pathname);
 
   event.respondWith(
-    // Network first so a re-verified number reaches people, cache second
-    // so a dead network still hands over a phone number.
+    // Network first, always. These pages carry dates and prices, so a fresh
+    // answer is strictly better when one is available; the cache is the
+    // fallback, never the default.
     fetch(event.request)
       .then((response) => {
-        if (response.ok) {
+        if (cacheable && response.ok) {
           const copy = response.clone();
-          caches
-            .open(HELPLINE_CACHE)
-            .then((cache) => cache.put(HELPLINE_URL, copy));
+          void caches.open(CACHE).then((cache) => cache.put(url.pathname, copy));
         }
         return response;
       })
-      .catch(() =>
-        caches.match(HELPLINE_URL).then((hit) => hit ?? Response.error()),
-      ),
+      .catch(async () => {
+        const cache = await caches.open(CACHE);
+        // The page itself if we have it; otherwise the shell, which explains
+        // what is happening and links to what IS cached.
+        return (await cache.match(url.pathname)) ?? (await cache.match("/offline")) ?? Response.error();
+      }),
   );
 });

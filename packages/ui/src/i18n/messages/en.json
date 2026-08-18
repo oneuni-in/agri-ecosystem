@@ -749,12 +749,13 @@
     },
     "offline": {
       "title": "You're offline",
-      "body": "No connection — here's what we saved for you.",
-      "helplineTitle": "Helplines that work without internet",
-      "vetHelpline": "Animal husbandry helpline",
-      "kisanHelpline": "Kisan Call Centre",
-      "lastSeenTitle": "Last seen prices",
-      "kisanHours": "6 AM – 10 PM, all week"
+      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
+      "availableTitle": "Available offline",
+      "links": {
+        "helplines": "Helpline numbers",
+        "mandi": "Last-known mandi prices",
+        "saved": "Your saved items"
+      }
     },
     "pwa": {
       "installTitle": "Install Milk.in on this phone",
@@ -1395,6 +1396,13 @@
       "error": "Could not load your coins. Please try again.",
       "loading": "Loading…",
       "notMoney": "AgriCoins are a loyalty reward, not money. They cannot be bought, cashed out or transferred."
+    },
+    "saved": {
+      "eyebrow": "Read later, with or without signal",
+      "title": "Saved items",
+      "empty": "You haven't saved anything yet.",
+      "browse": "Browse guides",
+      "offlineNote": "This page works offline — saved items stay readable without a connection."
     }
   },
   "coins": {

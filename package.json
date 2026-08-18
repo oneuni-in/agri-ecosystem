@@ -19,7 +19,8 @@
     "e2e:auth": "playwright test --config e2e/playwright.config.ts --project=desktop auth sso bff-path-traversal",
     "e2e:matrix": "playwright test --config e2e/playwright.config.ts --project=mobile-chrome --project=mobile-safari",
     "e2e:api": "node scripts/e2e-api.mjs",
-    "perf:home": "node scripts/perf-home.mjs"
+    "perf:home": "node scripts/perf-home.mjs",
+    "perf:sweep": "node scripts/perf-sweep.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

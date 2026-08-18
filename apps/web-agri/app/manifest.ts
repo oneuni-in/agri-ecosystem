@@ -1,3 +1,4 @@
+import { manifestColors } from "@agri/config/tailwind-preset";
 import type { MetadataRoute } from "next";
 
 /**
@@ -26,11 +27,12 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    // These ARE the token values (--cream page background, --brand), and a
-    // test pins them to preset.js so a token change cannot silently leave
-    // the installed app's chrome the wrong colour.
-    background_color: "#FDFBF6",
-    theme_color: "#3E7A45",
+    // Read from the preset, not copied from it. A manifest is JSON for the
+    // browser's install UI so it cannot use var(--brand) — but importing the
+    // literals means a token change moves the installed app's chrome with
+    // the site's, instead of leaving it stale until someone notices.
+    background_color: manifestColors.background,
+    theme_color: manifestColors.theme,
     lang: "en",
     dir: "ltr",
     categories: ["agriculture", "business", "news"],

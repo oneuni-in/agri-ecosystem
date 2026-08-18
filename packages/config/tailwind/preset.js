@@ -162,6 +162,21 @@ const tint = {
   fern: "#EFF6EA",
 };
 
+/**
+ * The two raw token values a PWA manifest needs.
+ *
+ * A manifest is JSON consumed by the browser's install UI, so it cannot use
+ * `var(--brand)` — it needs the literal. Exporting them HERE means the
+ * installed app's chrome is derived from the same source as the site's, and
+ * `check:hex` stays satisfied without an allowlist entry: apps/web-agri's
+ * manifest imports these rather than copying them, so a token change moves
+ * both together instead of leaving the installed app a stale colour.
+ */
+export const manifestColors = {
+  background: shared["--cream"],
+  theme: themes["theme-agri"]["--brand"],
+};
+
 export const agriPreset = {
   content: [],
   theme: {

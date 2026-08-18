@@ -200,11 +200,16 @@ GET /education/guides/{slug}
 
 ## 6. Public surfaces
 
+> **Amended 17 Aug 2026.** `/colleges/abroad` and `/colleges/abroad/[country]` are
+> removed. After this spec was written the owner scoped the institutions corpus to
+> India only, and every foreign university was deleted — those routes would render
+> zero institutions. The six `foreign_study` guides are unaffected and keep their own
+> route at `/study-abroad`.
+
 | Route | Rendering | Indexed |
 |---|---|---|
 | `/colleges` | dynamic (reads `searchParams`, server-side query) | yes |
 | `/colleges/state/[state]` | ISR, generated from `geo.states` | yes |
-| `/colleges/abroad` + `/colleges/abroad/[country]` | ISR | yes |
 | `/colleges/[slug]` | ISR | **only if `trust=verified`** |
 | `/scholarships`, `/scholarships/[slug]` | ISR | yes |
 | `/exams`, `/exams/[slug]` | ISR | yes |
@@ -220,9 +225,11 @@ thousands. SEO value is recovered by the ISR state pages (~35, generated from `g
 which are what rank for "agriculture colleges in Tamil Nadu" — the query the TN-depth corpus
 exists to answer.
 
-**Reserved-slug guard.** The static `state` and `abroad` segments sit beside `[slug]`. Any
-institution slugifying to a reserved segment is rejected by the seed contract, not
-silently shadowed.
+**Reserved-slug guard.** The static `state` segment sits beside `[slug]`. Any institution
+slugifying to a reserved segment is rejected by the seed contract, not silently shadowed.
+`abroad` stays in `RESERVED_SLUGS` even though it no longer names a route: the guard costs
+nothing, and removing a guard to match a route that was deleted is a change with risk and
+no benefit.
 
 **Trust is visible.** Verified pages carry "Verified · source · Mar 2026". `listed` pages
 open with an honest notice that the entry came from an official bulk list and has not been

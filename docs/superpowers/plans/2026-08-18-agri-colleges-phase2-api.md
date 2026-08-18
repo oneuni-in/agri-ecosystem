@@ -6,7 +6,7 @@
 
 **Architecture:** Read-only, no writes anywhere. One `SecureRouter` at `/education`, `public=True` on every route, declared in `public_routes.txt` in the same PR. The load-bearing decision is that **a `listed` or non-`active` row cannot emit a fee, a seat count or an admission route** — that suppression lives in one serializer predicate, so no handler can widen it by forgetting a filter. This is the same structural argument as `content.service._published()`.
 
-**Depends on:** Plan 1 (`docs/superpowers/plans/2026-08-17-agri-colleges-phase2-engine.md`) — models, migration `0047` and a populated database. Nothing here touches `apps/`, so this still merges independently of A-U4.
+**Depends on:** Plan 1 (`docs/superpowers/plans/2026-08-17-agri-colleges-phase2-engine.md`) — models, migration `0049` and a populated database. Nothing here touches `apps/`.
 
 **Tech Stack:** Python 3.12, FastAPI, SQLAlchemy 2 (async), pytest 8, ruff (line-length 100, `T20` bans bare `print`), mypy.
 

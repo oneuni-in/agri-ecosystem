@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Migration head is `0046_helplines_and_advisories`.** This plan adds `0047`. Verify with `ls backend/core/alembic/versions/` before writing — if another migration landed first, renumber.
+- **Migration head is `0048_coins_streak`.** This plan adds `0049`. A-U4 landed `0047_ai_assistant` and `0048_coins_streak` after this plan was first written, and the numbers here were updated on 18 Aug when that merge came in. Verify with `ls backend/core/alembic/versions/` before writing — if another migration landed since, renumber again.
 - **`app_rt` gets SELECT only** on every `education` table (spec §4 Grants). Every other schema grants INSERT/UPDATE/DELETE; this one must not. The importer runs as the `app` owner, not `app_rt`.
 - **Modules must not import each other** (`pyproject.toml`, import-linter contract "Modules must not import each other"). `modules.education` must be added to that contract's `modules` list. It may import `shared.*` only.
 - **Nothing under `apps/` is touched by this plan.** That is what lets it merge before A-U4.
@@ -28,7 +28,7 @@
 **Files:**
 - Create: `backend/core/modules/education/__init__.py`
 - Create: `backend/core/modules/education/models.py`
-- Create: `backend/core/alembic/versions/0047_education_engine.py`
+- Create: `backend/core/alembic/versions/0049_education_engine.py`
 - Modify: `pyproject.toml` (import-linter contract list)
 - Test: `backend/core/tests/test_education_models.py`
 
@@ -39,7 +39,7 @@
 - [ ] **Step 1: Confirm the migration head**
 
 Run: `ls backend/core/alembic/versions/*.py | sort | tail -3`
-Expected: `0046_helplines_and_advisories.py` is last. If not, use the next free number everywhere below instead of `0047`.
+Expected: `0048_coins_streak.py` is last. If not, use the next free number everywhere below instead of `0049`.
 
 - [ ] **Step 2: Write the failing model test**
 
@@ -116,7 +116,7 @@ Create `backend/core/modules/education/__init__.py` as an empty file.
 Create `backend/core/modules/education/models.py`. Column names come straight from the frozen CSV headers in spec §8 — the importer maps CSV column to model attribute one-to-one, so a rename here breaks it:
 
 ```python
-"""Education engine ORM models. Tables land in 0047.
+"""Education engine ORM models. Tables land in 0049.
 
 Read-only by design: `app_rt` holds SELECT and nothing else (spec section 4),
 because every row arrives from a reviewed seed commit, never from a user.
@@ -311,7 +311,7 @@ class Guide(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
 
 - [ ] **Step 5: Write the migration**
 
-Create `backend/core/alembic/versions/0047_education_engine.py`. Read `0046_helplines_and_advisories.py` first and copy its header and revision style exactly.
+Create `backend/core/alembic/versions/0049_education_engine.py`. Read `0048_coins_streak.py` first and copy its header and revision style exactly.
 
 The grant is the line to get right — **SELECT only**, unlike every other migration in the tree:
 
@@ -321,7 +321,7 @@ The grant is the line to get right — **SELECT only**, unlike every other migra
 Design notes:
 - New `education` schema. Nothing here is user-writable: every row arrives from a
   reviewed seed commit, so app_rt gets SELECT and nothing else. That is deliberate
-  and differs from 0023/0027/0038/0045/0046, which all grant DML.
+  and differs from 0023/0027/0038/0045/0046/0048, which all grant DML.
 - state_id is a real cross-schema FK to geo.states.id (spec section 4). All 36
   states are loaded, so the constraint cannot reject a valid row.
 - district_id is deliberately NOT an FK: data/geo/districts.csv is Tamil Nadu only
@@ -338,8 +338,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0047"
-down_revision: str | Sequence[str] | None = "0046"
+revision: str = "0049"
+down_revision: str | Sequence[str] | None = "0048"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -516,7 +516,7 @@ python -m alembic downgrade -1 && python -m alembic upgrade head
 
 ```bash
 cd backend/core && ruff format . && ruff check --fix . && python -m mypy . && ./.venv/Scripts/lint-imports.exe
-git add backend/core/modules/education/ backend/core/alembic/versions/0047_education_engine.py backend/core/tests/test_education_models.py pyproject.toml
+git add backend/core/modules/education/ backend/core/alembic/versions/0049_education_engine.py backend/core/tests/test_education_models.py pyproject.toml
 git commit -m "feat(education): engine schema, models and SELECT-only grants
 
 Five tables in a new education schema, mirroring the frozen CSV contract the
@@ -1450,7 +1450,7 @@ git commit -m "feat(education): freshness reporter, module notes, acceptance row
 
 ## Plan 1 exit criteria
 
-- [ ] `python -m alembic upgrade head` applies `0047`; `downgrade -1` then `upgrade head` both succeed.
+- [ ] `python -m alembic upgrade head` applies `0049`; `downgrade -1` then `upgrade head` both succeed.
 - [ ] `python -m pytest tests/test_education_models.py tests/test_education_seed_import.py tests/test_education_search_sync.py -v` passes.
 - [ ] `python -m scripts.import_education_seed --dry-run` reports ~772 institutions and writes nothing.
 - [ ] `python -m scripts.import_education_seed` imports; a rerun reports 0 created and the same count updated.

@@ -315,3 +315,32 @@ def test_unknown_tool_name_is_rejected() -> None:
     assert resolve_tool("delete_everything") is None
     assert resolve_tool("../../admin/users") is None
     assert resolve_tool("mandi_prices") is not None
+
+
+# ── 7 · W5 audit regressions ────────────────────────────────────────────────
+
+
+def test_turn_cap_is_scoped_per_user() -> None:
+    """A-U4 W5 audit finding: the per-conversation turn cap counted rows by
+    the CLIENT-SUPPLIED conversation_id alone.
+
+    That made one caller's limit depend on another caller's rows — supply an
+    id that is not yours and its turns count against you, and a cap response
+    tells you the id has reached twelve. UUIDs make it impractical to exploit
+    (hence Low, not High), but a limit check must not read another user's
+    rows at all.
+
+    Asserted against the source because the alternative is a two-user
+    integration test for a one-clause invariant; what must never regress is
+    that BOTH columns are in the predicate.
+    """
+    import inspect
+
+    from modules.ai import service
+
+    source = inspect.getsource(service._over_limit)
+    turn_query = source.split("turn_count")[1]
+    assert "Usage.user_id == user_id" in turn_query, (
+        "the per-conversation turn cap must filter on user_id as well as "
+        "conversation_id — conversation_id is client-supplied"
+    )

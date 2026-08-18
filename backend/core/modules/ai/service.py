@@ -104,8 +104,18 @@ async def _over_limit(
     if (day_count or 0) >= settings.ai_max_questions_per_day:
         return "daily"
 
+    # Scoped by user_id AND conversation_id. The conversation id is
+    # CLIENT-SUPPLIED, so counting on it alone makes one caller's limit
+    # depend on another caller's rows: someone who supplied a conversation id
+    # that was not theirs would have that conversation's turns counted
+    # against them, and could learn whether a given id had reached the cap.
+    # UUIDs make that impractical to exploit, which is why it is a Low and
+    # not a High — but a limit check has no business reading another user's
+    # rows at all. Found in the A-U4 W5 audit of W1's own code.
     turn_count = await session.scalar(
-        select(func.count()).select_from(Usage).where(Usage.conversation_id == conversation_id)
+        select(func.count())
+        .select_from(Usage)
+        .where(Usage.user_id == user_id, Usage.conversation_id == conversation_id)
     )
     if (turn_count or 0) >= settings.ai_max_turns_per_conversation:
         return "turns"

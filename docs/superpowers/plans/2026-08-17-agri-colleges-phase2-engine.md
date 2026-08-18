@@ -924,6 +924,8 @@ git commit -m "feat(education): import CLI with a dry run that rolls back"
 **Files:**
 - Create: `backend/core/modules/education/search_sync.py`
 - Modify: `backend/core/scripts/import_education_seed.py`
+- Modify: `backend/core/modules/search/worker.py` (add the `education` stream)
+- Modify: `backend/core/modules/search/indexing.py` (add the institution event types)
 - Test: `backend/core/tests/test_education_search_sync.py`
 
 **Interfaces:**
@@ -1042,12 +1044,83 @@ async def publish_institutions(rows: list[tuple[Institution, str | None]]) -> in
 
 In `scripts/import_education_seed.py`, after `await session.commit()`, select every institution with its state name and call `publish_institutions`. Publishing before the commit would announce rows that a rollback then removes.
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 5: Open the indexer to the new stream and event type**
+
+**Without this step the previous four steps publish into a void.** Two independent
+gates in `modules/search` drop these events today, and both must be opened or
+colleges never reach hub search — while every test above still passes, because
+they only assert on snapshot shape.
+
+`modules/search/worker.py` currently reads:
+
+```python
+STREAMS = ("directory",)
+```
+
+Change it to consume the education stream as well:
+
+```python
+# "education" joins here so college documents reach the index. The stream name
+# is duplicated from modules/education/search_sync.py STREAM by hand: the module
+# independence contract forbids importing it.
+STREAMS = ("directory", "education")
+```
+
+`modules/search/indexing.py` short-circuits on the event type at line ~110
+(`if event.type not in INDEXED_EVENT_TYPES: return`). Add the institution events:
+
+```python
+INDEXED_EVENT_TYPES = frozenset(
+    {
+        "business.created",
+        "business.updated",
+        "product.created",
+        "product.updated",
+        "institution.created",
+        "institution.updated",
+    }
+)
+```
+
+Check `SEARCHABLE_ATTRIBUTES` in the same file. If it names attributes that an
+institution snapshot does not carry, either add the institution fields (`name`,
+`kind`, `state`) or confirm Meilisearch tolerates absent attributes on a document
+before relying on it.
+
+- [ ] **Step 6: Write the test that would have caught the void**
+
+Append to `backend/core/tests/test_education_search_sync.py`:
+
+```python
+def test_the_indexer_actually_accepts_our_event_type() -> None:
+    """Guards the gap this step was added to close.
+
+    search_sync publishes `institution.updated` onto the `education` stream.
+    Both are gated in modules/search: the worker reads a fixed STREAMS tuple and
+    the indexer drops any event whose type is not in INDEXED_EVENT_TYPES. If
+    either forgets institutions, publishing still succeeds and nothing is ever
+    indexed -- silently.
+    """
+    from modules.search.indexing import INDEXED_EVENT_TYPES
+    from modules.search.worker import STREAMS
+
+    from modules.education.search_sync import STREAM
+
+    assert "institution.updated" in INDEXED_EVENT_TYPES
+    assert STREAM in STREAMS
+```
+
+Note this test imports two modules, which the import-linter independence
+contract forbids **for application code**. Tests are not covered by that contract
+(they are not under `modules/`), so this is legal — but confirm `lint-imports`
+still passes in the next step rather than assuming it.
+
+- [ ] **Step 7: Run the tests**
 
 Run: `cd backend/core && python -m pytest tests/test_education_search_sync.py tests/test_education_seed_import.py -v`
 Expected: all PASS.
 
-- [ ] **Step 6: Lint, type-check, commit**
+- [ ] **Step 8: Lint, type-check, commit**
 
 ```bash
 cd backend/core && ruff format . && ruff check --fix . && python -m mypy . && ./.venv/Scripts/lint-imports.exe
@@ -1063,7 +1136,14 @@ Published after commit, never before: publishing first would announce rows that
 a rollback then removes.
 
 SITES is duplicated from directory/search_sync.py by hand because the module
-independence contract forbids importing it."
+independence contract forbids importing it.
+
+modules/search is edited too, and it had to be: the worker read a fixed
+STREAMS tuple of (directory,) and the indexer dropped any event type outside
+business.*/product.*. Publishing alone would have written college events onto a
+stream nobody consumes, carrying a type the indexer discards -- and every test
+would still have passed, because they assert on snapshot shape. A test now
+pins both gates open."
 ```
 
 ---

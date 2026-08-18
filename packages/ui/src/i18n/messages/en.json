@@ -1333,6 +1333,25 @@
       "verified": "Verified",
       "viewProfile": "View profile",
       "empty": "No businesses cover {pincode} yet. Try a nearby pincode."
+    },
+    "agriAsk": {
+      "metaTitle": "Ask agri.in — farming questions answered",
+      "metaDescription": "Ask farming questions and get answers grounded in agri.in's published guides, with sources.",
+      "heading": "Ask agri.in",
+      "sub": "Answers come from agri.in's published guides, and every answer names its sources.",
+      "placeholder": "Ask about your crop, mandi prices or the weather…",
+      "send": "Ask",
+      "sending": "Thinking…",
+      "sourcesLabel": "Sources",
+      "disclaimer": "AI can make mistakes — verify critical decisions with an expert.",
+      "reviewNote": "Dosage, scheme and loan questions are not answered here; they are routed to verified data and human-reviewed sources.",
+      "soonTitle": "Not switched on yet",
+      "soonBody": "The assistant is built but stays off until its safety review is signed off. Nothing here is a placeholder for something that does not exist — the knowledge guides it will answer from are already published.",
+      "soonCta": "Browse the guides instead",
+      "errorTitle": "Something went wrong",
+      "routeCta": "Go to the verified source",
+      "emptyState": "Ask a question to get started.",
+      "loginNeeded": "Log in to ask a question."
     }
   },
   "coins": {

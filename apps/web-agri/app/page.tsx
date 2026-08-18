@@ -460,10 +460,11 @@ export default async function HomePage() {
           </div>
         </Section>
 
-        {/* §12 — Ask-AI band: ENTRY SURFACE ONLY (the assistant itself is
-            A-U4 W1, owner-gated safety sign-off). No fake input: one honest CTA
-            to the /c/experts Soon landing, with the disclaimer copy shipping
-            now per the build prompt. id="ask" anchors the bottom-nav mic. */}
+        {/* §12 — Ask-AI band. A-U4 W1 gives this a real destination: /ask,
+            which serves the chat when `agri_ai` is ON and an honest
+            not-yet state when it is OFF. One route, both states — so this
+            CTA never becomes a lie in either direction, and the flag flip
+            needs no change here. id="ask" anchors the bottom-nav mic. */}
         <section
           id="ask"
           aria-label={t("agriHome.ask.title")}
@@ -482,7 +483,7 @@ export default async function HomePage() {
               </p>
             </div>
             <Link
-              href="/c/experts"
+              href="/ask"
               prefetch={false}
               className="inline-flex min-h-[44px] items-center rounded-pill bg-accent px-[18px] text-[13.5px] font-bold text-accent-ink no-underline"
             >

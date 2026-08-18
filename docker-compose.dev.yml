@@ -110,7 +110,14 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16
+    # pgvector/pgvector:pg16, not plain postgres:16 — A-U4 W1's assistant
+    # stores its retrieval corpus in a `vector(384)` column and migration
+    # 0047 runs CREATE EXTENSION vector. Same PG major and same data
+    # directory as before, so an existing pgdata volume keeps working: the
+    # extension is additive, not a re-init. On plain postgres:16 the
+    # migration fails loudly at CREATE EXTENSION, which is the outcome we
+    # want — a vector-less deployment would retrieve nothing and still answer.
+    image: pgvector/pgvector:pg16
     # D05 observability: pg_stat_statements needs a preload; statements
     # slower than 200ms land in the container log (docker logs).
     command:

@@ -43,6 +43,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/ads/serve",
     "/ads/impressions",
     "/ads/clicks",
+    # A-U4 W1: one boolean — is the assistant switched on. The web app needs
+    # it before login to choose between the chat and the honest not-yet
+    # state, and /ai/ask cannot answer (auth runs before the flag check).
+    "/ai/status",
     "/billing/webhook/razorpay",
     "/catalog/verticals/{vertical}/schema",
     "/catalog/verticals",

@@ -19,6 +19,22 @@
  *   /saved      — items the visitor deliberately saved to read later, which
  *                 is close to a declaration that they expect to read them
  *                 somewhere without signal.
+ *   /tools     — the farm calculators, which are client-pure: they make no
+ *                 network call at all, so unlike /mandi a cached copy is not
+ *                 even stale. EMI before signing for a loan is wanted in a
+ *                 field, which is exactly where the signal is not.
+ *
+ *                 RUNTIME-cached, NOT precached, and the difference is the
+ *                 whole lesson. Precaching it looked strictly better until
+ *                 a real offline run: the HTML came back, React never
+ *                 hydrated (its chunks live under /_next/static, which this
+ *                 worker deliberately does not cache), and the page rendered
+ *                 a calculator whose inputs did nothing — showing its
+ *                 default 650000/12.5%/84 forever. A dead calculator that
+ *                 looks alive is worse than the honest /offline shell.
+ *                 Runtime-caching ties the page to a real visit, and a real
+ *                 visit is what puts its JS in the HTTP cache too, so the
+ *                 copy a device holds is one it can actually run.
  *   /offline    — the shell, shown for any OTHER navigation that fails.
  *
  * Cache policy IS the threat model (milk's D28 sw.js, same rules):
@@ -33,16 +49,20 @@
  *    after Fast Refresh, which forces reloads that abort in-flight fetches
  *    (this broke three milk e2e specs; do not "fix" it by adding them here).
  */
-const VERSION = "v2"; // bumped by A-U4 W4 — invalidates A-U3's v1 caches
+// Bumped whenever the cached SET changes, not merely when this file does:
+// v3 adds /tools. Old generations are deleted wholesale on activate, so a
+// device never serves a mix of two generations' pages.
+const VERSION = "v3";
 const CACHE = `agri-offline-${VERSION}`;
 
 /** Precached at install. /offline must be here or the shell cannot show. */
 const PRECACHE = ["/offline", "/helplines"];
 
 /** Navigations kept fresh in the cache as the visitor uses them. Not
- * precached: /saved is per-user and /mandi is large, so both are stored only
+ * precached: /saved is per-user, /mandi is large, and /tools needs its own JS
+ * in the HTTP cache to be interactive at all — so all three are stored only
  * once the visitor has actually been there. */
-const RUNTIME_CACHEABLE = new Set(["/helplines", "/mandi", "/saved"]);
+const RUNTIME_CACHEABLE = new Set(["/helplines", "/mandi", "/saved", "/tools"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

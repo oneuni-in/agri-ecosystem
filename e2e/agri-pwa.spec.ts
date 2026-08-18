@@ -25,10 +25,22 @@ test.describe("A-U4 agri PWA", () => {
   });
 
   test("exactly one service worker is registered", async ({ page }) => {
-    await page.goto(AGRI);
+    // /offline, not the home, for the reason the API-cache test below already
+    // records: the home streams a dozen Suspense boundaries and hydration
+    // finishing mid-evaluate destroys the execution context. Registrations
+    // are origin-scoped and this worker's scope is "/", so a static page
+    // answers the identical question without racing the stream.
+    await page.goto(`${AGRI}/offline`);
     await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, undefined, {
       timeout: 45_000,
     });
+    // Settle before evaluating, exactly as the API-cache test below does, and
+    // for a reason specific to `next dev`: the worker's install FETCHES
+    // /offline while the browser is sitting on /offline, so the dev server
+    // recompiles the page underneath it and HMR reloads — destroying the
+    // execution context mid-evaluate. Production has no HMR and never shows
+    // this. Waiting for the network to go quiet lets that finish first.
+    await page.waitForLoadState("networkidle");
     // Two workers on one scope fight over fetch handling and the loser's
     // cache goes quietly stale — A-U3 left room for ONE and this asserts we
     // took that room rather than adding a second.
@@ -102,6 +114,54 @@ test.describe("A-U4 agri PWA", () => {
       return found;
     });
     expect(cachedApiEntries).toEqual([]);
+    await context.close();
+  });
+
+  test("offline: /tools comes back as the real page, not the shell (AG-A12)", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // Runtime-cached, so it is held only after a real visit — which is the
+    // point: that visit is also what puts the page's JS in the HTTP cache.
+    await page.goto(`${AGRI}/tools`);
+    await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, undefined, {
+      timeout: 45_000,
+    });
+    await page.waitForLoadState("networkidle");
+
+    // A second visit, still online. The worker caches only what its own fetch
+    // handler sees, and the first navigation of a session is served BEFORE
+    // the worker controls the page — invisible to it, so it caches nothing.
+    // Without this the offline hop below falls through to /offline, which is
+    // the worker working correctly rather than a bug.
+    await page.goto(`${AGRI}/tools`);
+    await page.waitForLoadState("networkidle");
+
+    await context.setOffline(true);
+    await page.goto(`${AGRI}/tools`).catch(() => undefined);
+
+    // The real page, not the /offline shell.
+    await expect(page.getByLabel(/loan amount/i)).toBeVisible();
+    await expect(page.getByTestId("emi-result")).toBeVisible();
+
+    // WHY THIS STOPS SHORT OF COMPUTING, and where that proof lives instead.
+    //
+    // AG-A12 asks that the calculators WORK offline, and computing is the
+    // part that matters. It cannot be proven here: this harness runs
+    // `next dev`, which serves /_next/static/chunks/* with
+    // `Cache-Control: no-store, must-revalidate`. no-store forbids the
+    // browser from keeping them, so offline there is nothing to hydrate
+    // from and every input sits at its default (650000/12.5%/84 -> the
+    // ₹11,649 an earlier version of this test kept reading). That is the
+    // dev server's instruction to the browser, not a flake and not
+    // something a longer timeout or a better selector can reach.
+    //
+    // Production serves those chunks immutable, so a real visit leaves them
+    // in the HTTP cache and hydration survives the network going away. That
+    // is a different build, so it gets its own proof:
+    // `node scripts/verify-offline-tools.mjs` (docs/qa/agri-offline-tools.md).
     await context.close();
   });
 });

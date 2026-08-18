@@ -16,11 +16,13 @@ Never log event payloads (they may carry balance-adjacent or PII fields).
 
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import referrals, rules, service
+from modules.coins.models import LedgerEntry
 from modules.coins.rules import CapExceededError
 from shared.db import get_sessionmaker
 from shared.events import Event, EventConsumer
@@ -31,6 +33,63 @@ logger = get_logger(__name__)
 STREAMS = ("identity", "directory")
 GROUP = "coins"
 NAME = "coins-worker-1"
+
+
+#: Days that must carry a daily_visit entry, consecutively, to earn the bonus.
+STREAK_DAYS = 7
+
+
+async def _award_streak_if_complete(
+    session: AsyncSession, user_id: uuid.UUID, *, now: datetime
+) -> None:
+    """Award the 7-day streak bonus if today completes a streak.
+
+    Counted from the ledger rather than from a separate streak counter, and
+    that is the point: the ledger is the append-only record of what actually
+    happened, so a streak cannot drift from the visits that earned it, and
+    there is no second piece of state to keep consistent under replay.
+
+    The idempotency key is the COMPLETION DAY, which gives the three
+    behaviours the rule needs at once — a replayed event credits once
+    (UNIQUE(idempotency_key)), a user who keeps visiting earns it again
+    seven days later because the day differs, and a broken streak never
+    reaches seven and awards nothing.
+    """
+    today = now.date()
+    window_start = now - timedelta(days=STREAK_DAYS)
+    # Distinct calendar days carrying a daily_visit inside the window.
+    days = set(
+        (
+            await session.execute(
+                select(func.date(LedgerEntry.created_at))
+                .where(
+                    LedgerEntry.user_id == user_id,
+                    LedgerEntry.reason_code == "daily_visit",
+                    LedgerEntry.created_at >= window_start,
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    required = {today - timedelta(days=offset) for offset in range(STREAK_DAYS)}
+    if not required.issubset(days):
+        return
+    try:
+        await service.award(
+            session,
+            user_id=user_id,
+            rule_code="daily_visit_streak",
+            ref_id=today.isoformat(),
+            idempotency_key=f"daily_visit_streak:{user_id}:{today.isoformat()}",
+            now=now,
+        )
+    except (CapExceededError, rules.RuleNotActiveError):
+        # Both are normal outcomes, not retryable faults: the rule may be
+        # disabled by config, and a cap hit is the cap working. Neither must
+        # poison the stream.
+        return
 
 
 async def handle_event(session: AsyncSession, event: Event, *, now: datetime) -> None:
@@ -79,6 +138,9 @@ async def handle_event(session: AsyncSession, event: Event, *, now: datetime) ->
             idempotency_key=rules.deterministic_key("daily_visit", uid, day=day),
             now=now,
         )
+        # Checked AFTER the visit is recorded, so today counts toward the
+        # streak it may complete.
+        await _award_streak_if_complete(session, uid, now=now)
     elif event.type == "business.claimed":
         uid = uuid.UUID(event.payload["user_id"])
         business_id = str(event.payload["business_id"])

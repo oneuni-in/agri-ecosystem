@@ -55,6 +55,10 @@ EXPECTED_PUBLIC_ROUTES = [
     "/catalog/verticals/{vertical}/products",
     "/catalog/milk/coverage/pincodes",
     "/catalog/milk/home/{pincode}",
+    # A-U4 W2: the active earn rules (code, amount, caps). Public because
+    # the home's "Earn AgriCoins" cards render for logged-out visitors and
+    # must show the real configured amount, not the mockup's placeholder.
+    "/coins/rules",
     # A-U3 W1/W2 — the content engine's reader surface. Approved items
     # only; the gate is structural in service._published().
     "/content/feed",

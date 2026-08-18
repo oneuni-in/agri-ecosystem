@@ -27,3 +27,24 @@ class HistoryOut(BaseModel):
 
 class ReferralCodeOut(BaseModel):
     code: str
+
+
+class RuleOut(BaseModel):
+    """One active earn rule, as the earn cards render it.
+
+    `amount` is the REAL configured award, read from coins.rules — never the
+    A1 mockup's illustrative figure. A-U1 shipped those cards with a coin
+    glyph instead of a number precisely because this read did not exist yet
+    ("never invent amounts"); this is the read.
+    """
+
+    code: str
+    amount: int
+    label_key: str
+    daily_cap: int | None = None
+    weekly_cap: int | None = None
+    total_cap: int | None = None
+
+
+class RulesOut(BaseModel):
+    items: list[RuleOut]

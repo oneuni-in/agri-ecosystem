@@ -19,7 +19,11 @@ from .indexing import apply_event, ensure_indexes
 
 logger = get_logger(__name__)
 
-STREAMS = ("directory",)
+# "education" joins here so college documents reach the index. The stream
+# name is duplicated from modules/education/search_sync.py STREAM by hand:
+# the module independence contract forbids importing it, the same trade this
+# file's SITES constant already makes.
+STREAMS = ("directory", "education")
 GROUP = "search"
 NAME = "search-worker-1"
 

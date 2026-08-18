@@ -28,11 +28,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
+from modules.education.models import Institution  # noqa: E402
+from modules.education.search_sync import publish_institutions  # noqa: E402
 from modules.education.seed_import import import_bundle  # noqa: E402
 from scripts.education_seed_contract import SeedContractError  # noqa: E402
 from settings import get_settings  # noqa: E402
+from shared.geo.models import State  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -71,9 +79,38 @@ async def _main(argv: list[str]) -> int:
             else:
                 await session.commit()
                 print("committed")  # noqa: T201 - CLI output
+                await _publish_snapshots(session)
     finally:
         await engine.dispose()
     return 0
+
+
+async def _publish_snapshots(session: AsyncSession) -> None:
+    """Announce every institution to the search worker, AFTER the commit.
+
+    Publishing first would announce rows a rollback then removes -- the index
+    would hold colleges the database does not.
+
+    Every institution is published, not just the verified ones: an unverified
+    row publishes a null snapshot, which the indexer turns into a delete
+    (ADR-0007). That is how a college demoted to `listed` in a data PR stops
+    being findable instead of going stale.
+
+    A publish failure does not fail the import. The rows are committed and the
+    index is rebuildable with scripts/reindex_search.py, so raising here would
+    turn a recoverable gap into a failed run -- the same call
+    scripts/import_vendor_seed.py makes.
+    """
+    rows = (
+        await session.execute(
+            select(Institution, State.name).outerjoin(State, Institution.state_id == State.id)
+        )
+    ).all()
+    try:
+        published = await publish_institutions([(inst, state) for inst, state in rows])
+        print(f"published {published} search events")  # noqa: T201 - CLI output
+    except Exception as exc:  # noqa: BLE001 - rows are committed; the index is recoverable
+        print(f"(publish failed - run scripts.reindex_search: {exc})")  # noqa: T201 - CLI output
 
 
 def main() -> int:

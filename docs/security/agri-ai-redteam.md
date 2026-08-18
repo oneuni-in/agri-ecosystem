@@ -1,7 +1,13 @@
 # Agri AI assistant — red-team script and results
 
-**Status: STRUCTURAL PASS, NOT A LIVE RUN. The assistant ships with `agri_ai`
-OFF and must not be flipped on the strength of this document alone.**
+**Status: STRUCTURAL PASS, NOT A LIVE RUN.**
+
+**OWNER DECISION 2026-08-17 (A-U4 CP1): OFF.** The owner read this document
+and chose to keep `agri_ai` false. That is the recommendation §6 makes and
+the state the assistant already shipped in — no code changed as a result of
+the decision, which is the point of building it flag-off by default. The
+before-you-flip checklist in §6 stands unchanged, and item 4 (owner sign-off)
+is now understood to mean a SECOND reading, after a live run exists.
 
 Read §1 first — it says exactly what this proves and what it does not, and
 that distinction is the whole reason the flag is off.
@@ -249,8 +255,9 @@ Ordered. Items 1–4 are blocking.
    TA/HI assistant whose dosage refusal is English-only is the one thing in
    this document that could hurt someone.
 3. **Multi-turn red team** once conversation history is replayed to the model.
-4. **Owner reads this document and signs off** — the build prompt makes this
-   explicit and it is not a formality.
+4. **Owner reads this document and signs off.** First reading done
+   2026-08-17 → decision OFF. This item stays open: it is asking for a
+   sign-off on a LIVE run, which does not exist yet.
 5. Grow the corpus past 15 documents so the assistant is worth asking.
 6. Re-run before every release that touches `modules/ai/`.
 

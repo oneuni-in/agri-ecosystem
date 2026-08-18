@@ -122,6 +122,20 @@ const agriSeed = spawnSync(python, ["-m", "scripts.seed_e2e_agri"], {
 });
 if (agriSeed.status !== 0) process.exit(agriSeed.status ?? 1);
 
+// Phase 2: the agri-colleges corpus. The seed is committed CSV and the
+// importer is idempotent, so this is safe on repeat -- same contract as the
+// milk fixture above. Without it every /colleges route notFound()s, and both
+// the Lighthouse audit and the E2E specs would fail looking like page bugs
+// rather than a missing fixture. It runs as the table OWNER on purpose:
+// education grants app_rt SELECT only, so the importer reads
+// DATABASE_ADMIN_URL rather than the runtime URL the other seeds use.
+const educationSeed = spawnSync(python, ["-m", "scripts.import_education_seed"], {
+  cwd: core,
+  env,
+  stdio: "inherit",
+});
+if (educationSeed.status !== 0) process.exit(educationSeed.status ?? 1);
+
 const server = spawn(
   python,
   ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],

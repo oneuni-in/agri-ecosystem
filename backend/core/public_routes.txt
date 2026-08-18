@@ -126,3 +126,33 @@
 # with the one it came from. Bounded and uncursored on purpose (see the
 # route's docstring).
 /search/federated
+# /education/*: the agri-colleges vertical (spec
+# docs/superpowers/specs/2026-08-16-agri-colleges-design.md section 5).
+# Public reference data about public institutions -- the same read-only
+# class as /catalog/verticals and /market/schemes: no user data, no
+# mutation, already public at the source, and carrying the source URL
+# and verified-on date the UI renders. There is no write route at all,
+# public or private: rows arrive from a reviewed seed commit and app_rt
+# holds SELECT only on education.* (0049), so there is nothing here for
+# a handler to widen and no credentials behind one if there were.
+#
+# Two rules travel on the wire rather than living in the frontend.
+# `can_show_admission_data` is computed server-side and suppresses
+# seats, fees and admission route for any row that is not both verified
+# and active -- a listed row came from a bulk national directory and was
+# never checked against the institution's own page. And
+# /education/states publishes the state-slug vocabulary the ISR routes
+# consume, because geo.states has no slug column and deriving one on
+# both sides of this boundary is how a link 404s against its own page.
+#
+# A merged institution answers 200 with merged_into_slug rather than
+# redirecting: fetch follows 3xx by default, so an API-level redirect
+# would hand a caller the successor's JSON under the URL it requested.
+/education/institutions
+/education/institutions/{slug}
+/education/states
+/education/programmes
+/education/student-resources
+/education/student-resources/{slug}
+/education/guides
+/education/guides/{slug}

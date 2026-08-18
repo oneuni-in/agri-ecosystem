@@ -116,7 +116,8 @@ async def test_parent_and_programme_slugs_resolve_to_ids(education_geo: AsyncSes
     )
     assert child is not None and parent is not None
     assert child.parent_id == parent.id
-    assert await education_geo.scalar(select(func.count()).select_from(Programme)) > 40
+    programme_count = await education_geo.scalar(select(func.count()).select_from(Programme))
+    assert programme_count is not None and programme_count > 40
 
 
 async def test_every_institution_resolves_to_a_real_state(education_geo: AsyncSession) -> None:

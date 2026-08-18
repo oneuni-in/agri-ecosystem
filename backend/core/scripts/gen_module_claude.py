@@ -169,6 +169,29 @@ MODULES: dict[str, dict[str, str]] = {
         "- Never flip a flag outside the super_admin gate; a flag flip is a\n"
         "  business-level act.",
     },
+    "education": {
+        "purpose": "Agri-colleges vertical: institutions, programmes, exams,\n"
+        "scholarships and counselling guides. Read-only - every row arrives\n"
+        "from a reviewed seed commit, never from a user.",
+        "spec": "docs/superpowers/specs/2026-08-16-agri-colleges-design.md.",
+        "pii_note": "holds no personal data - institutions are public records",
+        "extra_never": "- Never write from the app: app_rt holds SELECT only on\n"
+        "  education.* (spec section 4). Enabling CRUD is an explicit grant\n"
+        "  change, reviewed on its own - which is why the importer connects\n"
+        "  with database_admin_url and the tests take owner_session.\n"
+        "- Never duplicate validation here. scripts/education_seed_contract.py\n"
+        "  is the single source of truth and seed_import.py imports it verbatim,\n"
+        "  so the importer cannot accept a bundle the CI gate rejects.\n"
+        "- Never render a fee, a seat count or an admission route for a row\n"
+        "  whose trust is 'listed'. Branch on trust, never on whether a field\n"
+        "  happens to be populated.\n"
+        "- Never let SITES in search_sync.py drift from directory's copy - it\n"
+        "  is hand-mirrored because the independence contract forbids the\n"
+        "  import.\n"
+        "- Never add a key to a search snapshot without checking it survives\n"
+        "  modules/search/indexing.py's _to_doc allowlist: an unlisted key is\n"
+        "  published, accepted and silently discarded.",
+    },
     "ai": {
         "purpose": "AI features: content generation at scale, assistants.",
         "spec": "docs/Execution schedule v5.MD SS4.3 (SEO page factory copy).",

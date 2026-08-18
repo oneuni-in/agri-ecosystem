@@ -220,9 +220,10 @@ async def get_institution(session: AsyncSession, slug: str) -> Institution | Non
 async def state_facets(session: AsyncSession) -> list[StateFacet]:
     """States with at least one active institution, and how many.
 
-    The join is the point: 19 states have no agri institution at all, and
-    generating an ISR page for each would publish 19 thin indexable pages with
-    nothing on them.
+    The join is the point: 5 states/UTs have no agri institution at all
+    (Andaman & Nicobar, Chandigarh, Ladakh, Lakshadweep, and Dadra & Nagar
+    Haveli and Daman & Diu), and an ISR page for each would be a thin indexable
+    page with nothing on it.
     """
     query = (
         select(State.name, func.count(Institution.id))

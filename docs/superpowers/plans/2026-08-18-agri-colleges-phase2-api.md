@@ -29,7 +29,7 @@ These are recorded here because a reader of the spec alone would not be able to 
 1. **A merged institution does not redirect at the API layer.** `GET /education/institutions/{slug}` for a `status=merged` row returns **200** with `status: "merged"` and `merged_into_slug`, and the *page* issues the 301 (spec §7). An HTTP redirect on a JSON API is a footgun: `fetch` follows redirects by default, so a client asking for `old-slug` would silently receive `new-slug`'s JSON under the URL it requested and have no way to know. Returning the pointer makes the redirect the caller's explicit act.
 2. **`?q=` is SQL `ILIKE`, not Meilisearch.** The corpus is ~772 rows against an indexed name column; Meili is for the cross-vertical hub search that Plan 1 Task 4 feeds. Routing the vertical's own filter through Meili would couple this API's availability to the search stack for no measurable gain, and violates the F1 rule (§7) by giving a dead Meili a way to break a college page.
 3. **The API owns the state-slug vocabulary.** `geo.states` has `name` and `lgd_code` but **no slug** (verified: `shared/geo/models.py:18-24`). `/colleges/state/[state]` needs a URL segment, so something must slugify. If both the Next.js route generator and the Python filter did it independently, the two would drift on the first state name with a period or an ampersand and the page would 404 against its own link. A single endpoint, `GET /education/states`, returns the slug vocabulary and the frontend consumes it — it never derives one.
-4. **`/education/states` returns only states that have at least one institution.** The data audit found 19 states with no agri institution at all. Generating ISR pages for them would publish 19 thin, empty, indexable pages — actively bad for the SEO these pages exist to earn.
+4. **`/education/states` returns only states that have at least one institution.** 5 states/UTs have no agri institution at all. Generating ISR pages for them would publish thin, empty, indexable pages — actively bad for the SEO these pages exist to earn.
 5. **List endpoints serve `status=active` only.** A browse list is a list of places a student can apply to. `closed` and `merged` rows stay reachable by direct slug — that is what keeps the 301 and the closed-banner behaviour of §7 working — but they do not appear in listings.
 6. **`?district=` resolves inside Tamil Nadu only, today.** `geo.districts` holds 38 rows, all Tamil Nadu, until D65 — so `district_id` stores an LGD code rather than an FK (Plan 1), and a district filter for any other state correctly returns nothing. This is a data gap, not a bug, and the frontend should not offer a district filter outside TN until D65 lands. Plan 3 needs to know this.
 7. **`?country=` stays even though every row is `IN`.** The column exists, the filter is three lines, and the corpus scope is an owner decision that could change. Same reasoning the spec already applied to keeping `abroad` in `RESERVED_SLUGS`.
@@ -652,9 +652,9 @@ async def get_institution(session: AsyncSession, slug: str) -> Institution | Non
 async def state_facets(session: AsyncSession) -> list[StateFacet]:
     """States with at least one active institution, and how many.
 
-    The HAVING is the point (decision 4): 19 states have no agri
+    The HAVING is the point (decision 4): 5 states/UTs have no agri
     institution at all, and generating an ISR page for each would publish
-    19 thin indexable pages with nothing on them.
+    thin indexable pages with nothing on them.
     """
     query = (
         select(State.name, func.count(Institution.id))
@@ -1460,7 +1460,7 @@ a short amendment note in the style of the §6 India-only note:
 > it in both the Next.js route generator and the Python filter would let the two drift on
 > the first name with a period or an ampersand, and the page would 404 against its own
 > link. The API publishes the vocabulary and the frontend consumes it. Only states with at
-> least one institution are returned — 19 states have none, and ISR pages for them would
+> least one institution are returned — 5 have none, and ISR pages for them would
 > be thin indexable pages with nothing on them.
 
 Also record decisions 1 (no API-level redirect) and 2 (`q=` is ILIKE, not Meili) in §7 and

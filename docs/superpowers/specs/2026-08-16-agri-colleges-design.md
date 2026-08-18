@@ -205,7 +205,7 @@ GET /education/states
 > would 404 against its own link. The API publishes the vocabulary and the
 > frontend consumes it; a contract test walks all 36 real state names asserting
 > the SQL and Python halves still agree. Only states with at least one active
-> institution are returned — 19 have none, and ISR pages for them would be thin
+> institution are returned — 5 have none (all small UTs), and ISR pages for them would be thin
 > indexable pages with nothing on them.
 >
 > **`?q=` is SQL `ILIKE`, not Meilisearch.** The corpus is ~772 rows against an

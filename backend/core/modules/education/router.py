@@ -154,8 +154,9 @@ async def get_states(session: SessionDep) -> list[StateFacet]:
     vocabulary; the frontend consumes it.
 
     Uncursored: bounded at ~36 rows by the geo dataset. Only states with at
-    least one active institution appear -- 19 have none, and ISR pages for
-    them would be thin indexable pages with nothing on them.
+    least one active institution appear -- 5 have none, all small UTs with no
+    agricultural university, and ISR pages for them would be thin indexable
+    pages with nothing on them.
     """
     return await state_facets(session)
 

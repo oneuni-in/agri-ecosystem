@@ -97,15 +97,34 @@ async def test_every_state_facet_slug_resolves_to_a_nonempty_filter(
 async def test_state_facets_exclude_states_with_no_colleges(
     corpus: AsyncSession,
 ) -> None:
-    """19 states have no agri institution at all. Publishing them would give
-    the frontend 19 thin, empty, indexable pages to generate."""
+    """Five UTs have no agri institution at all. Publishing them would give the
+    frontend that many thin, empty, indexable pages to generate.
+
+    Names the five rather than asserting a count: a count breaks every time a
+    college is added to a new state, which is a good change, while these five
+    are structural -- none of them has an agricultural university. If one ever
+    gains a college the test SHOULD fail, and the fix is to delete its name.
+
+    (An earlier draft of this work said 19 states were empty. That figure
+    predated the corpus completion and was wrong by the time it was written
+    down; this test exists so the number cannot go stale silently again.)
+    """
     facets = await state_facets(corpus)
     total_states = await corpus.scalar(select(func.count()).select_from(State))
+    published = {f.name for f in facets}
 
     assert all(f.institution_count > 0 for f in facets)
     assert total_states is not None and len(facets) < total_states, (
         "every state has colleges, which contradicts the corpus audit"
     )
+    for empty in (
+        "Andaman And Nicobar Islands",
+        "Chandigarh",
+        "Ladakh",
+        "Lakshadweep",
+        "The Dadra And Nagar Haveli And Daman And Diu",
+    ):
+        assert empty not in published, f"{empty} now has a college -- update this list"
 
 
 async def test_no_unverified_institution_anywhere_in_the_corpus_emits_a_fee(

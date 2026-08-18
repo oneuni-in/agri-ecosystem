@@ -642,6 +642,31 @@
         "private_university": "Private university",
         "affiliated_college": "Affiliated college",
         "constituent_college": "Constituent college"
+      },
+      "detailMetaDescription": "{name} in {place} — courses, admission route and the source each detail was checked against.",
+      "closedTitle": "This institution is no longer running",
+      "closedBody": "It is kept here because links to it still exist. Admission details are not shown, because they would no longer be true.",
+      "listedTitle": "Not yet checked against the college's own page",
+      "listedBody": "This entry came from an official bulk list. We have not confirmed it against the institution's own website, so fees, seat counts and admission routes are not shown.",
+      "verifiedStamp": "Verified",
+      "listedStamp": "From an official list",
+      "feesStamp": "Fees checked",
+      "partOf": "Part of",
+      "programmesTitle": "Courses offered",
+      "constituentsTitle": "Colleges under this university",
+      "officialSite": "Official website",
+      "seats": "Seats",
+      "annualFees": "Annual fees",
+      "admissionRoute": "Admission",
+      "months": "{count} months",
+      "unavailableTitle": "This page could not be loaded",
+      "unavailableBody": "The college directory is temporarily unreachable. The page still exists — please try again shortly.",
+      "backToColleges": "All colleges",
+      "levels": {
+        "diploma": "Diploma",
+        "ug": "Undergraduate",
+        "pg": "Postgraduate",
+        "phd": "PhD"
       }
     },
     "console": {

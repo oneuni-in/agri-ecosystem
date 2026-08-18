@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, Text, UniqueConstraint
@@ -59,8 +60,12 @@ class Institution(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
     )
     district_id: Mapped[int | None] = mapped_column(Integer, index=True)
     pincode: Mapped[str | None] = mapped_column(Text)
-    lat: Mapped[float | None] = mapped_column(Numeric(9, 6))
-    lng: Mapped[float | None] = mapped_column(Numeric(9, 6))
+    # Decimal, not float: Numeric round-trips as Decimal through asyncpg, and
+    # shared/geo/models.py declares its centroids the same way. A float
+    # annotation would be a lie the type checker happens not to catch until
+    # something assigns to it.
+    lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     address: Mapped[str | None] = mapped_column(Text)
     website: Mapped[str | None] = mapped_column(Text)
     contact_phone: Mapped[str | None] = mapped_column(Text)

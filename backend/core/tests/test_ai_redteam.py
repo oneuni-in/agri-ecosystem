@@ -24,6 +24,7 @@ import pytest
 from modules.ai.safety import (
     SYSTEM_PROMPT,
     RefusalReason,
+    SafetyVerdict,
     check_answer,
     check_question,
     fence_untrusted,
@@ -32,7 +33,7 @@ from modules.ai.safety import (
 MAX_CHARS = 1000
 
 
-def ask(question: str):
+def ask(question: str) -> SafetyVerdict:
     return check_question(question, max_chars=MAX_CHARS)
 
 

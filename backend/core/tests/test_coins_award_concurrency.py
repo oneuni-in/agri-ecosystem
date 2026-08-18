@@ -24,7 +24,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -147,6 +147,6 @@ async def test_numeric_cap_under_concurrency(database_url: str) -> None:
         print(f"\n[money-path] weekly_cap={cap}, {attempts} concurrent -> awarded={awarded}")  # noqa: T201
     finally:
         async with maker() as s:
-            await s.execute(Rule.__table__.delete().where(Rule.code == code))
+            await s.execute(delete(Rule).where(Rule.code == code))
             await s.commit()
         await engine.dispose()

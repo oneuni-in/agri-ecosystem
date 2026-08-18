@@ -14,13 +14,19 @@ import { getTranslations } from "next-intl/server";
  *
  * `noindex`: a crawler seeing this would index an error state as content.
  *
+ * Copy lives under `ui.agriOffline`, NOT `ui.offline`. That namespace is
+ * milk.in's — its own offline shell has used it since D28 — and this page
+ * originally overwrote it, deleting five of milk's keys and breaking its
+ * build. The i18n catalogue is SHARED across every app in the family, so a
+ * new block needs a new name, not a familiar one.
+ *
  * Deliberately STATIC — no data reads, no islands. A page that only ever
  * renders when the network is gone cannot depend on the network to render.
  */
 export const metadata: Metadata = { title: "Offline", robots: { index: false } };
 
 export default async function OfflinePage() {
-  const t = await getTranslations("ui.offline");
+  const t = await getTranslations("ui.agriOffline");
   return (
     <main className="bg-cream pb-10">
       <Wrap>

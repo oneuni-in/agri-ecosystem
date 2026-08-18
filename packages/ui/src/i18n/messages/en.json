@@ -749,13 +749,12 @@
     },
     "offline": {
       "title": "You're offline",
-      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
-      "availableTitle": "Available offline",
-      "links": {
-        "helplines": "Helpline numbers",
-        "mandi": "Last-known mandi prices",
-        "saved": "Your saved items"
-      }
+      "body": "No connection — here's what we saved for you.",
+      "helplineTitle": "Helplines that work without internet",
+      "vetHelpline": "Animal husbandry helpline",
+      "kisanHelpline": "Kisan Call Centre",
+      "lastSeenTitle": "Last seen prices",
+      "kisanHours": "6 AM – 10 PM, all week"
     },
     "pwa": {
       "installTitle": "Install Milk.in on this phone",
@@ -1403,6 +1402,16 @@
       "empty": "You haven't saved anything yet.",
       "browse": "Browse guides",
       "offlineNote": "This page works offline — saved items stay readable without a connection."
+    },
+    "agriOffline": {
+      "title": "You're offline",
+      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
+      "availableTitle": "Available offline",
+      "links": {
+        "helplines": "Helpline numbers",
+        "mandi": "Last-known mandi prices",
+        "saved": "Your saved items"
+      }
     }
   },
   "coins": {

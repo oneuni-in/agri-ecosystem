@@ -42,8 +42,16 @@ test.describe("A-U1 /categories — registry-driven grid", () => {
     page,
   }) => {
     const slugs = await registrySlugs();
-    // The registry carries exactly 36 agri verticals in this pass (AG-A13).
-    expect(slugs.length).toBe(36);
+    // The registry carries exactly 39 agri verticals (AG-A13).
+    //
+    // Was 36 when A-U1 wrote this. A-U2's migration 0042 added fisheries,
+    // nurseries and poultry and nobody re-ran this spec, so it sat stale
+    // until A-U4's close-out. Keeping an EXACT number is deliberate even
+    // though that is what went stale: the DOM-vs-registry assertion below
+    // passes happily if the registry silently empties, and this line is the
+    // only thing that would notice. Update it WITH the migration that
+    // changes the count, and say which slugs moved.
+    expect(slugs.length).toBe(39);
 
     await page.goto(`${AGRI}/categories`);
     await waitForHeaderSettled(page);

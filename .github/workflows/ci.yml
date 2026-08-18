@@ -476,6 +476,15 @@ jobs:
             sleep 2
           done
       - run: pnpm run e2e:auth
+      # agri.in's own surfaces. Added at the A-U4 close-out after finding that
+      # NOTHING ran them: agri-categories.spec.ts and agri-pwa.spec.ts carry no
+      # @matrix tag (so e2e-matrix skips them) and are not in e2e:auth's name
+      # list, so both sat written-but-never-executed. That is how the tile-count
+      # assertion stayed at 36 from A-U1 while migration 0042 took the registry
+      # to 39 — a spec nobody runs is documentation, not a gate. Runs in THIS
+      # job rather than a new one because the whole stack is already up here;
+      # the cost is this job's wall-clock, not another runner.
+      - run: pnpm run e2e:agri
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

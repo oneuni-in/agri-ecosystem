@@ -119,12 +119,19 @@ describe("education data layer", () => {
     expect(await fetchInstitution("nope")).toBeNull();
   });
 
-  it("distinguishes a 404 from a backend outage", async () => {
-    // Both yield null today, and that is fine for rendering -- but the
-    // DETAIL page must 404 on a missing slug and NOT 404 on an outage, so
-    // this pins that the two are distinguishable at this layer.
+  it("does NOT return null for a backend outage", async () => {
+    // The distinction is the point. If an outage and a missing slug both
+    // came back null, the detail page would notFound() during an incident
+    // -- and a college that exists would serve a hard 404 to Google for as
+    // long as the backend was down. "Absent" and "unreachable" are
+    // different facts and the page renders them differently.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
-    await expect(fetchInstitution("anything")).resolves.toBeNull();
+    expect(await fetchInstitution("anything")).toBe("unavailable");
+  });
+
+  it("treats a thrown fetch as unavailable, not as missing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+    expect(await fetchInstitution("anything")).toBe("unavailable");
   });
 
   it("passes filters through as query parameters, omitting empty ones", async () => {
@@ -266,15 +273,25 @@ export async function fetchInstitutions(filters: InstitutionFilters): Promise<In
   }
 }
 
-export async function fetchInstitution(slug: string): Promise<InstitutionDetail | null> {
+/** `null` means the API said 404: this slug does not exist, and the page
+ * must 404 too. `"unavailable"` means we could not ask -- a different fact,
+ * and one that must NOT become a 404, or a college that exists would serve
+ * a hard 404 to Google for the length of an incident.
+ *
+ * The list fetches can collapse both into "empty" because a list has an
+ * honest empty state either way. A detail page does not. */
+export type InstitutionResult = InstitutionDetail | null | "unavailable";
+
+export async function fetchInstitution(slug: string): Promise<InstitutionResult> {
   try {
     const res = await fetch(`${API}/education/institutions/${encodeURIComponent(slug)}`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    if (!res.ok) return "unavailable";
     return (await res.json()) as InstitutionDetail;
   } catch {
-    return null;
+    return "unavailable";
   }
 }
 
@@ -441,7 +458,13 @@ wrong is how a merged college renders a page *and* redirects:
 
 ```tsx
 const institution = await fetchInstitution(slug);
-if (!institution) notFound();
+
+// Three outcomes, not two. `null` is "the API says this slug does not
+// exist" -> a real 404. `"unavailable"` is "we could not ask" -> a
+// degraded page, never a 404: turning an incident into a hard 404 tells
+// Google a college that exists is gone, and that is expensive to undo.
+if (institution === "unavailable") return <CollegeTemporarilyUnavailable slug={slug} />;
+if (institution === null) notFound();
 
 // merged -> permanent redirect to the successor. Incoming links to renamed
 // institutions are exactly the traffic worth keeping (spec section 7). The
@@ -587,7 +610,13 @@ from `fetchGuides()` — which returns published guides only, so a draft can nev
 pre-rendered.
 
 A draft or unknown slug both `notFound()`. The API already returns 404 for both, identically
-(Plan 2 Task 3), so `fetchGuide()` returning null is the only case this page needs.
+(Plan 2 Task 3), so `null` is the only *missing* case this page needs.
+
+`fetchGuide`, `fetchResource` and every other **detail** fetch return the same three-way
+result as `fetchInstitution` — `null` for a real 404, `"unavailable"` when the API could not
+be reached. Detail routes must never turn an outage into a 404. List fetches keep collapsing
+both into empty, because a list has an honest empty state either way and a detail page does
+not.
 
 Guides render `steps` in order — each `{title, body, links}` — plus `official_links` (a flat
 list of URL strings, **not** `{label, url}` objects; checked against `guides.csv`) and the

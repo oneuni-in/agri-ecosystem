@@ -134,10 +134,12 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, Text, UniqueConstraint
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.db import Base, TimestampMixin, UUIDv7PKMixin
+from shared.geo.models import District, State
 from shared.slugs import ImmutableSlugMixin
 
 SCHEMA = "education"
@@ -157,8 +159,23 @@ class Institution(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
         ForeignKey(f"{SCHEMA}.institutions.id", ondelete="RESTRICT")
     )
     country_code: Mapped[str] = mapped_column(Text, nullable=False, default="IN")
-    state_id: Mapped[int | None] = mapped_column(Integer)
-    district_id: Mapped[int | None] = mapped_column(Integer)
+    # ASYMMETRIC ON PURPOSE, and the asymmetry is the point.
+    #
+    # state_id is a real cross-schema FK, as spec section 4 requires. All 36
+    # states are in data/geo/states.csv, so the constraint can never reject a
+    # valid row, and geo.districts already declares ForeignKey("geo.states.id")
+    # -- the cross-schema reference is the house idiom, not a new risk.
+    #
+    # district_id is NOT an FK. data/geo/districts.csv holds 38 rows, all of
+    # them Tamil Nadu (state_lgd_code 33), until D65. An FK would reject a
+    # valid Punjab college outright. So it stores the district's LGD code as
+    # a plain integer and reads join on District.lgd_code -- district
+    # filtering therefore resolves inside Tamil Nadu only today. That is a
+    # data gap, not a schema bug, and it closes when D65 loads the rest.
+    state_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("geo.states.id", ondelete="RESTRICT"), index=True
+    )
+    district_id: Mapped[int | None] = mapped_column(Integer, index=True)
     pincode: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float | None] = mapped_column(Numeric(9, 6))
     lng: Mapped[float | None] = mapped_column(Numeric(9, 6))
@@ -175,6 +192,28 @@ class Institution(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
     )
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     last_verified_at: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Relationships exist so the read API can eager-load rather than N+1 a
+    # detail page. None is lazy="selectin": a list query must not silently
+    # pay for the detail page's joins. Async SQLAlchemy raises on implicit
+    # lazy load, so a forgotten selectinload() fails loudly -- which is what
+    # we want. Plan 2's serializer reads exactly these five.
+    state: Mapped["State | None"] = relationship("State", lazy="raise")
+    district: Mapped["District | None"] = relationship("District", lazy="raise")
+    parent: Mapped["Institution | None"] = relationship(
+        "Institution", remote_side="Institution.id", foreign_keys=[parent_id],
+        back_populates="constituents", lazy="raise",
+    )
+    constituents: Mapped[list["Institution"]] = relationship(
+        "Institution", foreign_keys=[parent_id], back_populates="parent", lazy="raise",
+    )
+    merged_into: Mapped["Institution | None"] = relationship(
+        "Institution", remote_side="Institution.id", foreign_keys=[merged_into_id],
+        lazy="raise",
+    )
+    offerings: Mapped[list["InstitutionProgramme"]] = relationship(
+        "InstitutionProgramme", back_populates="institution", lazy="raise",
+    )
 
 
 class Programme(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
@@ -206,11 +245,22 @@ class InstitutionProgramme(UUIDv7PKMixin, TimestampMixin, Base):
         ForeignKey(f"{SCHEMA}.programmes.id", ondelete="RESTRICT"), nullable=False
     )
     intake_seats: Mapped[int | None] = mapped_column(Integer)
+    # Integer, though spec section 4 says Numeric. DELIBERATE: every one of
+    # the 277 fee values in the seed is whole rupees, nobody quotes paise in
+    # an annual fee, and Numeric would put a Decimal on the wire -- which the
+    # D24 covers work already had to serialize as a string to stop it
+    # arriving as a float. An int is exact, JSON-native and needs no
+    # convention. Recorded in the spec by Plan 2 Task 5.
     annual_fees_inr: Mapped[int | None] = mapped_column(Integer)
     fee_note: Mapped[str | None] = mapped_column(Text)
     admission_route: Mapped[str | None] = mapped_column(Text)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     last_verified_at: Mapped[date] = mapped_column(Date, nullable=False)
+
+    institution: Mapped["Institution"] = relationship(
+        "Institution", back_populates="offerings", lazy="raise"
+    )
+    programme: Mapped["Programme"] = relationship("Programme", lazy="raise")
 
 
 class StudentResource(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
@@ -245,11 +295,15 @@ class Guide(UUIDv7PKMixin, ImmutableSlugMixin, TimestampMixin, Base):
     title_hi: Mapped[str | None] = mapped_column(Text)
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     country_code: Mapped[str | None] = mapped_column(Text)
-    state_id: Mapped[int | None] = mapped_column(Integer)
+    state_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("geo.states.id", ondelete="RESTRICT")
+    )
     summary_en: Mapped[str | None] = mapped_column(Text)
     summary_ta: Mapped[str | None] = mapped_column(Text)
     summary_hi: Mapped[str | None] = mapped_column(Text)
     steps: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    # A flat list of URL strings, matching official_links_json in the seed
+    # (verified against guides.csv) -- NOT a list of {label, url} objects.
     official_links: Mapped[list[str] | None] = mapped_column(JSONB)
     last_verified_at: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
@@ -268,9 +322,12 @@ Design notes:
 - New `education` schema. Nothing here is user-writable: every row arrives from a
   reviewed seed commit, so app_rt gets SELECT and nothing else. That is deliberate
   and differs from 0023/0027/0038/0045/0046, which all grant DML.
-- state_id / district_id are plain integers holding geo LGD codes, not FKs. Geo
-  lives in another schema, and districts are Tamil Nadu only until D65 — a hard FK
-  would reject valid rows for the other 30 states.
+- state_id is a real cross-schema FK to geo.states.id (spec section 4). All 36
+  states are loaded, so the constraint cannot reject a valid row.
+- district_id is deliberately NOT an FK: data/geo/districts.csv is Tamil Nadu only
+  (38 rows, state 33) until D65, so a constraint would reject a valid Punjab
+  college. It holds the LGD code as a plain integer and reads join on
+  District.lgd_code. District filtering resolves inside TN only until then.
 - No enum types. kind/trust/status are Text, validated by the seed contract, which
   rejects a bad value before the importer ever sees it.
 """
@@ -307,8 +364,9 @@ def upgrade() -> None:
         sa.Column("parent_id", postgresql.UUID(as_uuid=True),
                   sa.ForeignKey("education.institutions.id", ondelete="RESTRICT")),
         sa.Column("country_code", sa.Text(), nullable=False, server_default="IN"),
-        sa.Column("state_id", sa.Integer()),
-        sa.Column("district_id", sa.Integer()),
+        sa.Column("state_id", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("geo.states.id", ondelete="RESTRICT")),
+        sa.Column("district_id", sa.Integer()),  # LGD code, not an FK -- see the docstring
         sa.Column("pincode", sa.Text()),
         sa.Column("lat", sa.Numeric(9, 6)),
         sa.Column("lng", sa.Numeric(9, 6)),
@@ -411,7 +469,8 @@ def upgrade() -> None:
         sa.Column("title_hi", sa.Text()),
         sa.Column("kind", sa.Text(), nullable=False),
         sa.Column("country_code", sa.Text()),
-        sa.Column("state_id", sa.Integer()),
+        sa.Column("state_id", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("geo.states.id", ondelete="RESTRICT")),
         sa.Column("summary_en", sa.Text()),
         sa.Column("summary_ta", sa.Text()),
         sa.Column("summary_hi", sa.Text()),
@@ -467,9 +526,14 @@ app_rt gets SELECT and nothing else, which differs from every other migration
 in the tree. Nothing here is user-writable: rows arrive only from a reviewed
 seed commit, so write access would be surface area with no use case behind it.
 
-state_id and district_id hold geo LGD codes as plain integers rather than FKs.
-Districts are Tamil Nadu only until D65, so a hard FK would reject valid rows
-for the other 30 states."
+state_id is a real cross-schema FK to geo.states.id, as spec section 4 asks:
+all 36 states are loaded, so the constraint can never reject a valid row, and
+geo.districts already FKs across schemas the same way.
+
+district_id deliberately is not one. data/geo/districts.csv is Tamil Nadu only
+-- 38 rows, all state 33 -- until D65, so an FK would reject a valid Punjab
+college. It holds the LGD code as a plain integer instead, and district
+filtering resolves inside TN only until the rest of the geo data lands."
 ```
 
 ---
@@ -503,6 +567,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.education.models import Institution, Programme
 from modules.education.seed_import import ImportReport, import_bundle
 from scripts.education_seed_contract import SeedContractError
+from shared.geo.models import District, State
 
 SEED = Path(__file__).resolve().parents[1] / "data" / "seeds" / "education"
 GEO = Path(__file__).resolve().parents[1] / "data" / "geo"
@@ -556,6 +621,51 @@ async def test_parent_and_programme_slugs_resolve_to_ids(db_session: AsyncSessio
     assert child is not None and parent is not None
     assert child.parent_id == parent.id
     assert await db_session.scalar(select(func.count()).select_from(Programme)) > 40
+
+
+async def test_every_institution_resolves_to_a_real_state(db_session: AsyncSession) -> None:
+    """state_id is an FK now, so an unresolved state is a constraint error
+    rather than a silent null -- but a null is still possible if the NAME
+    fails to match, and a corpus that imports with 772 null states would
+    look completely healthy while every state page came up empty."""
+    await import_bundle(db_session, SEED, GEO, today=TODAY)
+
+    unresolved = await db_session.scalar(
+        select(func.count())
+        .select_from(Institution)
+        .where(Institution.country_code == "IN", Institution.state_id.is_(None))
+    )
+    assert unresolved == 0, f"{unresolved} Indian institutions imported with no state"
+
+    # And the FK points somewhere real, not at a stale id.
+    assert await db_session.scalar(
+        select(func.count()).select_from(Institution).join(
+            State, Institution.state_id == State.id
+        )
+    ) > 700
+
+
+async def test_the_seed_districts_are_not_silently_dropped(
+    db_session: AsyncSession,
+) -> None:
+    """70 of the 772 rows carry a district, all Tamil Nadu, and all 70 match
+    geo.districts by name. An importer that never assigned district_id would
+    pass every other test in this file."""
+    await import_bundle(db_session, SEED, GEO, today=TODAY)
+
+    with_district = await db_session.scalar(
+        select(func.count()).select_from(Institution).where(Institution.district_id.is_not(None))
+    )
+    assert with_district >= 70, f"only {with_district} rows got a district_id"
+
+    # district_id holds an LGD code, NOT a geo.districts PK -- the join is on
+    # lgd_code. Getting this backwards yields zero rows, not an error.
+    joined = await db_session.scalar(
+        select(func.count())
+        .select_from(Institution)
+        .join(District, Institution.district_id == District.lgd_code)
+    )
+    assert joined >= 70
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -586,6 +696,7 @@ from __future__ import annotations
 
 import csv
 import json
+import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date
@@ -595,7 +706,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from scripts.education_seed_contract import load_bundle, load_geo_reference, validate
+from scripts.education_seed_contract import (
+    SeedContractError,
+    load_bundle,
+    load_geo_reference,
+    validate,
+)
+from shared.geo.models import State
 
 from .models import Guide, Institution, InstitutionProgramme, Programme, StudentResource
 
@@ -624,10 +741,33 @@ def _bool_or_none(v: str | None) -> bool | None:
     return {"true": True, "false": False}.get((v or "").strip().lower())
 
 
-def _states(geo_dir: Path) -> Iterator[tuple[int, str]]:
-    with (geo_dir / "states.csv").open(encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            yield int(row["lgd_code"]), row["name"]
+async def _state_ids(session: AsyncSession) -> dict[str, uuid.UUID]:
+    """State NAME (lowercased) -> geo.states.id.
+
+    Read from the DATABASE, not from states.csv, because state_id is a real
+    FK now and the CSV does not carry the UUID the constraint needs. This
+    couples the import to geo being loaded first -- correctly so: without
+    it every institution would silently import with a null state, and the
+    /colleges state pages would come up empty with nothing failing.
+    """
+    rows = (await session.execute(select(State.name, State.id))).all()
+    if not rows:
+        raise SeedContractError(
+            ["geo.states is empty -- run scripts/load_geo.py before importing education"]
+        )
+    return {name.strip().lower(): state_id for name, state_id in rows}
+
+
+def _district_lgd_codes(geo_dir: Path) -> dict[str, int]:
+    """District NAME (lowercased) -> LGD code, the plain integer district_id holds.
+
+    From the CSV, not the DB, because district_id is not an FK (see models.py).
+    The file is Tamil Nadu only until D65, so a college outside TN resolves to
+    None here -- which is honest: we do not know its district id, and 70 of the
+    772 seed rows carry a district at all, all of them Tamil Nadu.
+    """
+    with (geo_dir / "districts.csv").open(encoding="utf-8") as fh:
+        return {row["name"].strip().lower(): int(row["lgd_code"]) for row in csv.DictReader(fh)}
 
 
 async def import_bundle(
@@ -638,7 +778,8 @@ async def import_bundle(
     validate(bundle, geo, today=today)  # raises SeedContractError; nothing written
 
     report = ImportReport()
-    state_ids = {name.lower(): code for code, name in _states(geo_dir)}
+    state_ids = await _state_ids(session)
+    district_ids = _district_lgd_codes(geo_dir)
 
     # Pass 1: upsert institutions, leaving the self-references for pass 2.
     known = {i.slug: i for i in (await session.scalars(select(Institution))).all()}
@@ -657,7 +798,11 @@ async def import_bundle(
         obj.kind = row["kind"]
         obj.is_government = _bool_or_none(row.get("is_government"))
         obj.country_code = row.get("country_code") or "IN"
-        obj.state_id = state_ids.get((row.get("state") or "").lower())
+        obj.state_id = state_ids.get((row.get("state") or "").strip().lower())
+        # Was missing entirely before: the seed carries a district for 70 rows
+        # and every one of them resolves, so dropping it would have quietly
+        # cost the district filter its only real data.
+        obj.district_id = district_ids.get((row.get("district") or "").strip().lower())
         obj.pincode = row.get("pincode") or None
         obj.address = row.get("address") or None
         obj.website = row.get("website") or None
@@ -763,7 +908,7 @@ async def import_bundle(
         obj.title_hi = row.get("title_hi") or None
         obj.kind = row["kind"]
         obj.country_code = row.get("country_code") or None
-        obj.state_id = state_ids.get((row.get("state") or "").lower())
+        obj.state_id = state_ids.get((row.get("state") or "").strip().lower())
         obj.summary_en = row.get("summary_en") or None
         obj.summary_ta = row.get("summary_ta") or None
         obj.summary_hi = row.get("summary_hi") or None

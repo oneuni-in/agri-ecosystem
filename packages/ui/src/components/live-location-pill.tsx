@@ -80,6 +80,13 @@ async function fetchLocation(
   }
 }
 
+/** "Coimbatore · 641001" -> "641001". The phone header has room for one of
+ * those, and the pincode is the half that identifies the place precisely. */
+function shortLocLabel(full: string): string {
+  const tail = full.split("\u00b7").pop()?.trim();
+  return tail && tail.length > 0 ? tail : full;
+}
+
 export function LiveLocationPill({
   contextEndpoint = "/api/identity/location",
   profileEndpoint = "/api/identity/profile",
@@ -210,6 +217,21 @@ export function LiveLocationPill({
           }`}
         >
           📍{" "}
+          {/* Two labels, not one hidden one. Below `sm` the header cannot fit
+              "Coimbatore · 641001", and the old `max-sm:hidden` answered that
+              by hiding the label outright — so on the viewport most farmers
+              actually use, the control the ENTIRE page renders from displayed
+              nothing but a pin and a pencil. The A2 mobile reference shows the
+              bare pincode there, which fits and still answers "which place is
+              this?". `aria-label` above carries the full text in both cases. */}
+          <span className="sm:hidden">
+            {/* Derived from whatever full label we have, not from `loc` alone:
+                a guest has no location cookie, so `loc` is null and the pill
+                falls back to "Coimbatore · 641001" — which is the very string
+                that does not fit. Taking the segment after the separator gives
+                the bare pincode in both cases. */}
+            {shortLocLabel(locLabel(loc) ?? fallbackLabel ?? strings.set)}
+          </span>
           <span className="max-sm:hidden">{locLabel(loc) ?? fallbackLabel ?? strings.set}</span>{" "}
           {/* An explicit change affordance next to the pincode, not just a
               disclosure caret: the location is now what the whole page renders

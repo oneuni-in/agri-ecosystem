@@ -47,7 +47,15 @@ export function HeaderStack({
             em-box, the two lines visibly collided in EN/TA (U1 §2, "fixes the
             EN/TA overlap defect"). 1.35 on the tagline is the same headroom
             `.vern` reserves for mother-tongue text. */}
-        <div className={cn("flex flex-col", nowrap && "min-w-0 shrink")}>
+        {/* Clip the TAGLINE, never the wordmark. Both lines below are
+            `whitespace-nowrap` on purpose (see their comments), and nowrap
+            text does not shrink — so without a clip this column spilled past
+            its box at 360px and drew underneath the location pill. Adding
+            `min-w-0` clipped the spill but took ".in" off the brand with it,
+            which is a worse defect than the one being fixed. No `min-w-0`
+            means the column still floors at the wordmark's width; the
+            `truncate` on the tagline absorbs the rest. */}
+        <div className={cn("flex flex-col", nowrap && "shrink-0 sm:min-w-0 sm:shrink sm:overflow-hidden")}>
           <span className="whitespace-nowrap font-display text-[22px] font-extrabold leading-[1.1] tracking-[-0.02em]">
             {logo}
           </span>
@@ -58,10 +66,15 @@ export function HeaderStack({
               4.5:1 AA floor for 11px text (axe `color-contrast`). It stays
               the right token one step darker, on --brand-deep, which is where
               the utility strip uses it (7.0:1). --brand-soft is 7.4:1 here. */}
-          {/* nowrap on the tagline too: it is the line that carries Tamil and
-              Devanagari, and letting it wrap in a single-row header is what
-              turns a 56px bar into a 100px one on a 360px phone. */}
-          <small className="whitespace-nowrap font-body text-[11px] font-semibold leading-[1.35] tracking-normal text-brand-soft">
+          {/* Hidden below `sm`, truncated above it. This line carries Tamil
+              and Devanagari, so letting it wrap turns a 56px bar into a 100px
+              one on a 360px phone — but keeping it nowrap at that width made
+              it spill under the location pill, and squeezing it instead cost
+              the pill its pincode. It is the only decorative element in the
+              row: the wordmark identifies the site and the pill says which
+              place the page is showing, so on a phone the tagline is what
+              yields. It returns in full from 640px up. */}
+          <small className="truncate font-body text-[11px] max-sm:hidden font-semibold leading-[1.35] tracking-normal text-brand-soft">
             {tagline}
           </small>
         </div>

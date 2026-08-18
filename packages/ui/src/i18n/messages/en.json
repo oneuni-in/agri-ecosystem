@@ -992,7 +992,20 @@
         "onboardTitle": "Get your business on the map",
         "onboardBody": "Create your listing to reach buyers near you — prices, coverage and leads in one place.",
         "onboardCta": "Create your listing",
-        "onboardClaimHint": "Already listed publicly? Open your business page and choose “This is my business” to claim it."
+        "onboardClaimHint": "Already listed publicly? Open your business page and choose “This is my business” to claim it.",
+        "statViews": "Profile views",
+        "statReveals": "Contact reveals",
+        "statNewLeads": "New leads",
+        "statResponseRate": "Response rate",
+        "last7": "last 7 days",
+        "vsPrev": "vs previous 7 days",
+        "completeTitle": "Complete your listings",
+        "completeSub": "Complete listings get found more often.",
+        "needVerify": "Get verified",
+        "needCoverage": "Add delivery pincodes",
+        "needProducts": "List products",
+        "needAbout": "Add a description",
+        "allComplete": "Every listing is complete."
       },
       "listings": {
         "loadFailed": "Could not load your businesses — please try again.",

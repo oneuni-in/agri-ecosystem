@@ -15,8 +15,9 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from modules.education.models import Guide, Institution, InstitutionProgramme, Programme
 from modules.education.seed_import import ImportReport, import_bundle
@@ -35,6 +36,31 @@ async def education_geo(owner_session: AsyncSession) -> AsyncIterator[AsyncSessi
     await load_geo(owner_session, GEO)
     await owner_session.flush()
     yield owner_session
+
+
+@pytest.fixture
+async def committed_geo(admin_database_url: str) -> AsyncIterator[None]:
+    """Geo that a SEPARATE connection can see.
+
+    The CLI tests need this and the in-process tests do not: `_main` opens its
+    own engine, so anything `education_geo` wrote inside an uncommitted
+    transaction is invisible to it. Committing is the only way to hand data
+    across two connections, so the teardown puts the tables back the way the
+    freshly-migrated database had them -- empty.
+    """
+    engine = create_async_engine(admin_database_url, poolclass=NullPool)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        await load_geo(session, GEO)
+        await session.commit()
+    try:
+        yield
+    finally:
+        async with maker() as session:
+            for table in ("pincodes", "districts", "states"):
+                await session.execute(text(f"DELETE FROM geo.{table}"))
+            await session.commit()
+        await engine.dispose()
 
 
 async def test_import_loads_the_committed_bundle(education_geo: AsyncSession) -> None:
@@ -165,3 +191,69 @@ async def test_the_import_refuses_to_run_against_an_empty_geo(
     with pytest.raises(SeedContractError) as excinfo:
         await import_bundle(owner_session, SEED, GEO, today=TODAY)
     assert "geo.states is empty" in str(excinfo.value)
+
+
+async def test_cli_dry_run_writes_nothing(
+    committed_geo: None,
+    education_geo: AsyncSession,
+    admin_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The CLI must connect as the OWNER, and --dry-run must leave no trace.
+
+    DATABASE_ADMIN_URL is pointed at the test database first. Without that
+    this test would run the importer against the developer's real database,
+    which is how a test suite quietly rewrites someone's dev data.
+    """
+    from settings import get_settings
+
+    monkeypatch.setenv("DATABASE_ADMIN_URL", admin_database_url)
+    get_settings.cache_clear()
+
+    from scripts.import_education_seed import _main
+
+    assert await _main(["--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "DRY RUN" in out
+    assert "institutions" in out
+
+    # The CLI opened its own connection and rolled it back, so this session --
+    # which is a different transaction -- must see nothing.
+    assert await education_geo.scalar(select(func.count()).select_from(Institution)) == 0
+
+
+async def test_cli_reports_contract_violations_and_writes_nothing(
+    committed_geo: None,
+    education_geo: AsyncSession,
+    admin_database_url: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from settings import get_settings
+
+    monkeypatch.setenv("DATABASE_ADMIN_URL", admin_database_url)
+    get_settings.cache_clear()
+
+    for name in (
+        "institutions.csv",
+        "programmes.csv",
+        "institution_programmes.csv",
+        "student_resources.csv",
+        "guides.csv",
+    ):
+        (tmp_path / name).write_text("slug\n", encoding="utf-8")
+    (tmp_path / "institutions.csv").write_text(
+        "slug,name_en,kind,country_code,state,trust,status,source_url,last_verified_at\n"
+        "abroad,Nowhere,nonsense,IN,Atlantis,verified,active,,\n",
+        encoding="utf-8",
+    )
+
+    from scripts.import_education_seed import _main
+
+    assert await _main(["--seed-dir", str(tmp_path)]) == 1
+    out = capsys.readouterr().out
+    assert "CONTRACT VIOLATIONS" in out
+    assert "nothing imported" in out
+    assert await education_geo.scalar(select(func.count()).select_from(Institution)) == 0

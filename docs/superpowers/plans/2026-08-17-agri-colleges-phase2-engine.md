@@ -1152,7 +1152,8 @@ pins both gates open."
 
 **Files:**
 - Create: `backend/core/scripts/education_freshness.py`
-- Create: `backend/core/modules/education/CLAUDE.md`
+- Modify: `backend/core/scripts/gen_module_claude.py` (add the `education` entry, then run it)
+- Generated: `backend/core/modules/education/CLAUDE.md` (**never hand-written** — see Step 3)
 - Modify: `docs/qa/agri-acceptance-checklist.md`
 
 **Interfaces:**
@@ -1236,9 +1237,57 @@ python -m scripts.education_freshness --days 3650
 ```
 Expected: `--days 1` lists every row (stamps are 2026-08-17 or earlier); `--days 3650` lists none. That difference is the assertion.
 
-- [ ] **Step 3: Write the module CLAUDE.md**
+- [ ] **Step 3: Add education to the module-notes generator, then run it**
 
-Create `backend/core/modules/education/CLAUDE.md` covering: the module is read-only and why `app_rt` holds SELECT only; that validation lives in `scripts/education_seed_contract.py` and must never be duplicated here; that `listed` rows must never render fees, seats or an admission route; and that `SITES` in `search_sync.py` is a hand-mirrored copy that must change with directory's.
+`modules/*/CLAUDE.md` is **generated**, not written. `scripts/gen_module_claude.py`
+says so on line 3 — "Edit MODULES / TEMPLATE here and rerun; never hand-edit the
+generated files." A hand-written `modules/education/CLAUDE.md` would survive review
+and then be silently overwritten the next time anyone regenerates, taking every
+education-specific warning with it.
+
+Add an entry to the `MODULES` dict in `backend/core/scripts/gen_module_claude.py`,
+keeping the key order alphabetical-ish/consistent with its neighbours:
+
+```python
+    "education": {
+        "purpose": "Agri-colleges vertical: institutions, programmes, exams,
+"
+        "scholarships and counselling guides. Read-only - every row arrives
+"
+        "from a reviewed seed commit, never from a user.",
+        "spec": "docs/superpowers/specs/2026-08-16-agri-colleges-design.md.",
+        "pii_note": "holds no personal data - institutions are public records",
+        "extra_never": "- Never write from the app: app_rt holds SELECT only on
+"
+        "  education.* (spec section 4). Enabling CRUD is an explicit grant
+"
+        "  change, reviewed on its own.
+"
+        "- Never duplicate validation here. scripts/education_seed_contract.py
+"
+        "  is the single source of truth and seed_import.py imports it verbatim,
+"
+        "  so the importer cannot accept a bundle the CI gate rejects.
+"
+        "- Never render a fee, a seat count or an admission route for a row
+"
+        "  whose trust is 'listed'. Branch on trust, never on whether a field
+"
+        "  happens to be populated.
+"
+        "- Never let SITES in search_sync.py drift from directory's copy - it is
+"
+        "  hand-mirrored because the independence contract forbids the import.",
+    },
+```
+
+Then run it and commit **both** files:
+
+Run: `cd backend/core && python scripts/gen_module_claude.py`
+Expected: `wrote .../modules/education/CLAUDE.md` among the other module lines. The
+other modules' files must come back byte-identical — `git status` should show only
+`modules/education/CLAUDE.md` as new. If any other module's file shows as modified,
+someone hand-edited it earlier; stop and report rather than committing the reversion.
 
 - [ ] **Step 4: Add acceptance rows**
 
@@ -1248,7 +1297,7 @@ Add rows to `docs/qa/agri-acceptance-checklist.md` for: migration applies and do
 
 ```bash
 cd backend/core && ruff format . && ruff check --fix . && python -m mypy .
-git add backend/core/scripts/education_freshness.py backend/core/modules/education/CLAUDE.md docs/qa/agri-acceptance-checklist.md
+git add backend/core/scripts/education_freshness.py backend/core/scripts/gen_module_claude.py \n  backend/core/modules/education/CLAUDE.md docs/qa/agri-acceptance-checklist.md
 git commit -m "feat(education): freshness reporter, module notes, acceptance rows"
 ```
 

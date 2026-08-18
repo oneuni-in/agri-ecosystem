@@ -154,3 +154,48 @@ export function distanceLabel(distanceM: number): string | null {
     ? `${(distanceM / 1000).toFixed(1)} km`
     : null;
 }
+
+
+/** A federated hit — a search result plus the vertical whose index produced
+ * it. `sites` (on SearchHit) is which sites a business COVERS; `source_site`
+ * is where the row came from. The hub needs the second to label a card and
+ * send the visitor to the right domain. */
+export interface FederatedHit extends SearchHit {
+  source_site: string;
+}
+
+export interface FederatedPage {
+  items: FederatedHit[];
+  /** Sites that actually answered. A vertical whose index is empty or down
+   * is absent rather than silently folded in, so the UI can be honest about
+   * what it searched. */
+  searched: string[];
+}
+
+/**
+ * A-U4 W3 (D64) — cross-vertical search for the hub.
+ *
+ * agri.in is the family's hub, so a search here should be able to say "this
+ * also exists on milk.in". Deliberately bounded and uncursored: see the
+ * backend route's docstring — merging relevance across independent Meili
+ * indexes into one resumable cursor is a different problem, and depth
+ * belongs in each vertical's own search.
+ *
+ * Empty on any failure. A dead federation must cost the rail, never the
+ * agri results the visitor actually came for.
+ */
+export async function searchFederated(options: {
+  q: string;
+  pincode?: string | undefined;
+  limit?: number | undefined;
+}): Promise<FederatedPage> {
+  const params = new URLSearchParams({ q: options.q });
+  if (options.pincode) params.set("pincode", options.pincode);
+  params.set("limit", String(options.limit ?? 4));
+  return (
+    (await getJson<FederatedPage>(`/search/federated?${params}`, SEARCH_REVALIDATE)) ?? {
+      items: [],
+      searched: [],
+    }
+  );
+}

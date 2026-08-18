@@ -33,6 +33,14 @@ dependencies = [
     # bombs. Already present transitively; declared so it cannot vanish
     # under us when an upstream drops it.
     "defusedxml>=0.7",
+    # A-U4 W1 assistant. `anthropic` is the official SDK for the answer
+    # call; `fastembed` embeds LOCALLY (ONNX, CPU, ~50MB, no torch) so a
+    # visitor's question is never sent to a third party just to be turned
+    # into a vector — only the final answer call leaves our infrastructure.
+    # `pgvector` supplies the SQLAlchemy Vector type for ai.chunks.
+    "anthropic>=0.40",
+    "fastembed>=0.4",
+    "pgvector>=0.3",
 ]
 
 [project.optional-dependencies]

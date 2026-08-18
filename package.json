@@ -18,12 +18,16 @@
     "e2e": "playwright test --config e2e/playwright.config.ts --project=desktop",
     "e2e:auth": "playwright test --config e2e/playwright.config.ts --project=desktop auth sso bff-path-traversal",
     "e2e:matrix": "playwright test --config e2e/playwright.config.ts --project=mobile-chrome --project=mobile-safari",
-    "e2e:api": "node scripts/e2e-api.mjs"
+    "e2e:api": "node scripts/e2e-api.mjs",
+    "perf:home": "node scripts/perf-home.mjs",
+    "perf:sweep": "node scripts/perf-sweep.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",
     "@lhci/cli": "0.15.1",
     "@playwright/test": "1.61.1",
+    "chrome-launcher": "1.2.1",
+    "lighthouse": "12.6.1",
     "playwright": "1.61.1",
     "sharp": ">=0.35.0 <0.36",
     "turbo": "2.10.4",

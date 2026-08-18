@@ -9,11 +9,20 @@ import uuid
 from typing import Annotated
 
 from fastapi import Depends, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import referrals, service
+from modules.coins.models import Rule
 from modules.coins.reason_codes import label_key
-from modules.coins.schemas import BalanceOut, HistoryItemOut, HistoryOut, ReferralCodeOut
+from modules.coins.schemas import (
+    BalanceOut,
+    HistoryItemOut,
+    HistoryOut,
+    ReferralCodeOut,
+    RuleOut,
+    RulesOut,
+)
 from shared.db import get_session
 from shared.pagination import DEFAULT_PAGE_SIZE
 from shared.security import SecureRouter
@@ -28,6 +37,35 @@ def _principal_user_id(request: Request) -> uuid.UUID:
     user_id = principal.user_id
     assert isinstance(user_id, uuid.UUID)  # narrow Starlette state's Any for mypy
     return user_id
+
+
+# public=True: an earn rule's amount is a published fact about the product,
+# not user data — the home's "Earn AgriCoins" cards render for logged-out
+# visitors, so gating this would leave them showing a coin glyph where a
+# number belongs (the A-U1 deviation this endpoint exists to close).
+# It returns rule codes, amounts and caps. No balance, no identity, no
+# reference to the caller at all.
+@router.get("/rules", public=True)
+async def get_rules(session: SessionDep) -> RulesOut:
+    rows = (
+        await session.execute(select(Rule).where(Rule.active.is_(True)).order_by(Rule.code))
+    ).scalars()
+    return RulesOut(
+        items=[
+            RuleOut(
+                code=r.code,
+                amount=r.amount,
+                label_key=label_key(r.code),
+                daily_cap=r.daily_cap,
+                weekly_cap=r.weekly_cap,
+                total_cap=r.total_cap,
+            )
+            for r in rows
+            # Burn/adjust reasons are not earn rules and must never render as
+            # something a visitor can do to gain coins.
+            if r.amount > 0
+        ]
+    )
 
 
 @router.get("/balance")

@@ -31,6 +31,12 @@ importers:
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
+      chrome-launcher:
+        specifier: 1.2.1
+        version: 1.2.1
+      lighthouse:
+        specifier: 12.6.1
+        version: 12.6.1
       playwright:
         specifier: 1.61.1
         version: 1.61.1
@@ -4826,7 +4832,7 @@ snapshots:
       express: 4.22.2
       inquirer: 6.5.2
       isomorphic-fetch: 3.0.0
-      lighthouse: 12.6.1(supports-color@10.2.2)
+      lighthouse: 12.6.1
       lighthouse-logger: 1.2.0
       open: 7.4.2
       proxy-agent: 6.5.0
@@ -4848,7 +4854,7 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
       isomorphic-fetch: 3.0.0
       js-yaml: 3.15.1
-      lighthouse: 12.6.1(supports-color@10.2.2)
+      lighthouse: 12.6.1
       tree-kill: 1.2.2
     transitivePeerDependencies:
       - bare-abort-controller
@@ -5063,10 +5069,10 @@ snapshots:
     dependencies:
       playwright: 1.61.1
 
-  '@puppeteer/browsers@2.13.2(supports-color@10.2.2)':
+  '@puppeteer/browsers@2.13.2':
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
-      extract-zip: 2.0.1(supports-color@10.2.2)
+      extract-zip: 2.0.1
       progress: 2.0.3
       proxy-agent: 6.5.0
       semver: 7.8.5
@@ -6658,7 +6664,7 @@ snapshots:
       iconv-lite: 0.4.24
       tmp: 0.2.7
 
-  extract-zip@2.0.1(supports-color@10.2.2):
+  extract-zip@2.0.1:
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       get-stream: 5.2.0
@@ -7060,7 +7066,7 @@ snapshots:
 
   lighthouse-stack-packs@1.12.2: {}
 
-  lighthouse@12.6.1(supports-color@10.2.2):
+  lighthouse@12.6.1:
     dependencies:
       '@paulirish/trace_engine': 0.0.53
       '@sentry/node': 7.120.4
@@ -7081,7 +7087,7 @@ snapshots:
       metaviewport-parser: 0.3.0
       open: 8.4.2
       parse-cache-control: 1.0.1
-      puppeteer-core: 24.43.1(supports-color@10.2.2)
+      puppeteer-core: 24.43.1
       robots-parser: 3.0.1
       semver: 5.7.2
       speedline-core: 1.4.3
@@ -7594,9 +7600,9 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  puppeteer-core@24.43.1(supports-color@10.2.2):
+  puppeteer-core@24.43.1:
     dependencies:
-      '@puppeteer/browsers': 2.13.2(supports-color@10.2.2)
+      '@puppeteer/browsers': 2.13.2
       chromium-bidi: 14.0.0(devtools-protocol@0.0.1608973)
       debug: 4.4.3(supports-color@10.2.2)
       devtools-protocol: 0.0.1608973

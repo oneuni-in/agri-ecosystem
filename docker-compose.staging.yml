@@ -134,7 +134,14 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:16
+    # pgvector/pgvector:pg16 — migration 0047 runs CREATE EXTENSION
+    # vector. Same PG major, additive extension, existing volume fine.
+    # NOTE for whoever first applies this to a volume that already has
+    # data: the pgvector image ships a different glibc, so Postgres
+    # warns about a collation-version mismatch — run REINDEX DATABASE
+    # then ALTER DATABASE ... REFRESH COLLATION VERSION once, on every
+    # database including template1, or CREATE DATABASE starts failing.
+    image: pgvector/pgvector:pg16
     # D05 observability: mirror of docker-compose.dev.yml postgres command
     command:
       - postgres

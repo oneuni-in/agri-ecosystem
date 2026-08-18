@@ -567,7 +567,21 @@
       "loadMore": "Load more",
       "referralTitle": "Your referral code",
       "referralHint": "You earn coins once your friend signs up and completes their profile — not just for sharing the link.",
-      "referralShare": "Share this link"
+      "referralShare": "Share this link",
+      "reason": {
+        "signup_complete": "Signed up",
+        "profile_100": "Completed your profile",
+        "daily_visit": "Daily visit",
+        "daily_visit_streak": "7-day streak bonus",
+        "referral_referrer": "Referral reward",
+        "referral_referee": "Joined with a referral code",
+        "review_approved": "Review published",
+        "business_claim": "Claimed a business",
+        "redeem": "Redeemed",
+        "manual_adjust": "Adjustment",
+        "compensation": "Compensation",
+        "unknown": "Coin activity"
+      }
     },
     "notifications": {
       "bell": "Notifications",
@@ -575,7 +589,16 @@
       "empty": "You're all caught up.",
       "markAllRead": "Mark all read",
       "markRead": "Mark read",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "push": {
+        "title": "Alerts on this device",
+        "body": "Get mandi price and weather alerts as notifications, even when agri.in is closed.",
+        "on": "Turn on alerts",
+        "off": "Turn off alerts",
+        "working": "Working…",
+        "deniedBody": "Notifications are blocked for agri.in in this browser. You can re-enable them in your browser's site settings.",
+        "iosBody": "On iPhone and iPad, add agri.in to your Home Screen first — Safari only allows notifications from an installed app."
+      }
     },
     "dairyCategories": {
       "veterinarian": {
@@ -1318,7 +1341,9 @@
       "kinds": {
         "business": "Business",
         "product": "Product"
-      }
+      },
+      "federatedTitle": "Also in the agri.in family",
+      "federatedSub": "Matching businesses on our other sites."
     },
     "directoryPage": {
       "metaTitle": "Agri businesses near you · agri.in",
@@ -1333,6 +1358,60 @@
       "verified": "Verified",
       "viewProfile": "View profile",
       "empty": "No businesses cover {pincode} yet. Try a nearby pincode."
+    },
+    "agriAsk": {
+      "metaTitle": "Ask agri.in — farming questions answered",
+      "metaDescription": "Ask farming questions and get answers grounded in agri.in's published guides, with sources.",
+      "heading": "Ask agri.in",
+      "sub": "Answers come from agri.in's published guides, and every answer names its sources.",
+      "placeholder": "Ask about your crop, mandi prices or the weather…",
+      "send": "Ask",
+      "sending": "Thinking…",
+      "sourcesLabel": "Sources",
+      "disclaimer": "AI can make mistakes — verify critical decisions with an expert.",
+      "reviewNote": "Dosage, scheme and loan questions are not answered here; they are routed to verified data and human-reviewed sources.",
+      "soonTitle": "Not switched on yet",
+      "soonBody": "The assistant is built but stays off until its safety review is signed off. Nothing here is a placeholder for something that does not exist — the knowledge guides it will answer from are already published.",
+      "soonCta": "Browse the guides instead",
+      "errorTitle": "Something went wrong",
+      "routeCta": "Go to the verified source",
+      "emptyState": "Ask a question to get started.",
+      "loginNeeded": "Log in to ask a question."
+    },
+    "agriCoins": {
+      "eyebrow": "One wallet across agri.in, milk.in and theorganic.in",
+      "heading": "AgriCoins",
+      "sub": "Earn coins for using agri.in. Your balance is the same everywhere in the family.",
+      "balanceLabel": "Your balance",
+      "historyTitle": "Recent activity",
+      "historyEmpty": "No coin activity yet.",
+      "loadMore": "Load more",
+      "referralTitle": "Refer a farmer",
+      "referralSub": "Share your code. You both earn when they verify their number.",
+      "copyCode": "Copy code",
+      "copied": "Copied",
+      "shareWhatsapp": "Share on WhatsApp",
+      "shareText": "Join agri.in — mandi prices, weather and schemes for farmers. Use my code:",
+      "error": "Could not load your coins. Please try again.",
+      "loading": "Loading…",
+      "notMoney": "AgriCoins are a loyalty reward, not money. They cannot be bought, cashed out or transferred."
+    },
+    "saved": {
+      "eyebrow": "Read later, with or without signal",
+      "title": "Saved items",
+      "empty": "You haven't saved anything yet.",
+      "browse": "Browse guides",
+      "offlineNote": "This page works offline — saved items stay readable without a connection."
+    },
+    "agriOffline": {
+      "title": "You're offline",
+      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
+      "availableTitle": "Available offline",
+      "links": {
+        "helplines": "Helpline numbers",
+        "mandi": "Last-known mandi prices",
+        "saved": "Your saved items"
+      }
     }
   },
   "coins": {

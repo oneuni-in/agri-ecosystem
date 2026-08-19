@@ -38,12 +38,17 @@ async function registrySlugs(): Promise<string[]> {
 }
 
 test.describe("A-U1 /categories — registry-driven grid", () => {
-  test("tile count equals the registry count (36 today), tiles come from data", async ({
+  test("tile count equals the registry count, tiles come from data", async ({
     page,
   }) => {
     const slugs = await registrySlugs();
-    // The registry carries exactly 36 agri verticals in this pass (AG-A13).
-    expect(slugs.length).toBe(36);
+    // Was `toBe(36)`. The count is not the property under test -- "the grid
+    // comes from the registry rather than from hardcoded markup" is, and the
+    // toHaveCount(slugs.length) below is what proves it. The literal only ever
+    // proved that someone counted once, and it broke the moment a 37th
+    // vertical arrived (agri-colleges, migration 0050). Moved, not weakened:
+    // the floor still catches a registry that has collapsed or failed to load.
+    expect(slugs.length).toBeGreaterThanOrEqual(36);
 
     await page.goto(`${AGRI}/categories`);
     await waitForHeaderSettled(page);

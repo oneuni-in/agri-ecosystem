@@ -1,6 +1,7 @@
 // Server components — zero "use client" in this module.
 export {
   breadcrumbJsonLd,
+  collegeJsonLd,
   datasetJsonLd,
   faqPageJsonLd,
   JsonLd,
@@ -9,6 +10,7 @@ export {
 } from "./json-ld";
 export type {
   BreadcrumbItem,
+  CollegeInput,
   DatasetInput,
   FaqInput,
   LocalBusinessInput,

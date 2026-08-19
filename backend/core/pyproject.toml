@@ -138,6 +138,7 @@ modules = [
     "modules.billing",
     "modules.ai",
     "modules.ops",
+    "modules.education",
 ]
 
 [[tool.importlinter.contracts]]

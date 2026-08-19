@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { educationSitemapEntries } from "@/lib/education-sitemap";
 import { fetchCommodities } from "@/lib/mandi";
 
 /**
@@ -18,7 +19,10 @@ import { fetchCommodities } from "@/lib/mandi";
 const SITE = "https://agri.in";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const commodities = await fetchCommodities();
+  const [commodities, education] = await Promise.all([
+    fetchCommodities(),
+    educationSitemapEntries(),
+  ]);
 
   return [
     { url: `${SITE}/`, changeFrequency: "daily", priority: 1 },
@@ -37,6 +41,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // The newest ingested day, not the build time: an honest
       // lastModified is the one the data carries.
       ...(c.as_of ? { lastModified: new Date(c.as_of) } : {}),
+    })),
+    // Phase 2 — the agri-colleges vertical. VERIFIED, ACTIVE institutions
+    // only: a `listed` page is noindex, and advertising a self-noindexed page
+    // to Google is the same failure this file's comment already warns about
+    // for empty commodities. See lib/education-sitemap.ts, which walks the
+    // cursor rather than taking one page of 20 out of 772.
+    ...education.map((entry) => ({
+      url: `${SITE}${entry.path}`,
+      // A college changes when a seed PR changes it -- weeks, not days.
+      changeFrequency: "monthly" as const,
+      priority: entry.path.includes("/", 1) ? 0.6 : 0.8,
+      ...(entry.lastModified ? { lastModified: new Date(entry.lastModified) } : {}),
     })),
   ];
 }

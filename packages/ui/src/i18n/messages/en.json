@@ -1,5 +1,116 @@
 {
   "ui": {
+    "actions": {
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "compare": "Compare"
+    },
+    "admin": {
+      "users": {
+        "title": "Users",
+        "searchLabel": "Search users",
+        "searchPlaceholder": "@handle or last 4 digits of phone",
+        "search": "Search",
+        "empty": "No users match",
+        "loadMore": "Load more",
+        "phoneEnding": "Phone ending {last4}",
+        "status": {
+          "active": "Active",
+          "suspended": "Suspended",
+          "deleted": "Deleted"
+        },
+        "roles": "Roles",
+        "addRole": "Add role",
+        "removeRole": "Remove {role}",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate",
+        "confirmSuspend": "Suspend {agriId}? All their sessions on every app are signed out immediately.",
+        "confirmReactivate": "Reactivate {agriId}? Suspension is lifted; they must sign in again.",
+        "cancel": "Cancel",
+        "suspended": "User suspended",
+        "reactivated": "User reactivated",
+        "roleAdded": "Role added",
+        "roleRemoved": "Role removed",
+        "completion": "Profile completion",
+        "location": "Location",
+        "language": "Language",
+        "interests": "Interests",
+        "error": "That didn't work — try again"
+      },
+      "businesses": {
+        "title": "Businesses",
+        "hint": "Look up a business by its public slug to review or enforce it.",
+        "searchLabel": "Business slug",
+        "searchPlaceholder": "e.g. anbu-milk-farm",
+        "search": "Look up",
+        "empty": "No business with that slug.",
+        "error": "Something went wrong — try again.",
+        "status": {
+          "active": "Active",
+          "suspended": "Suspended",
+          "disabled": "Disabled"
+        },
+        "reasonShown": "Enforcement reason",
+        "suspend": "Suspend",
+        "disable": "Disable",
+        "reinstate": "Reinstate",
+        "confirm_suspend": "Suspend {name}?",
+        "confirm_suspend_body": "Delisted everywhere (browse, search, ads); the public profile shows an unavailable page. The owner keeps dashboard access and sees the reason below.",
+        "confirm_disable": "Disable {name}?",
+        "confirm_disable_body": "Hard-off: the owner's dashboard access is locked, all serving stops and active ad campaigns are paused (no automatic refunds — handle manually).",
+        "confirm_reinstate": "Reinstate {name}?",
+        "confirm_reinstate_body": "Restores the state this business was in before the last enforcement action.",
+        "reasonLabel": "Reason (required, shown to the owner and logged)",
+        "noteLabel": "Note (optional, logged)",
+        "reasonRequired": "A reason is required.",
+        "suspendDone": "Business suspended.",
+        "disableDone": "Business disabled.",
+        "reinstateDone": "Business reinstated.",
+        "working": "Working...",
+        "cancel": "Cancel",
+        "logTitle": "Enforcement log",
+        "logEmpty": "No enforcement actions yet.",
+        "byActor": "by {actor}",
+        "loadMore": "Load more"
+      }
+    },
+    "agriAsk": {
+      "metaTitle": "Ask agri.in — farming questions answered",
+      "metaDescription": "Ask farming questions and get answers grounded in agri.in's published guides, with sources.",
+      "heading": "Ask agri.in",
+      "sub": "Answers come from agri.in's published guides, and every answer names its sources.",
+      "placeholder": "Ask about your crop, mandi prices or the weather…",
+      "send": "Ask",
+      "sending": "Thinking…",
+      "sourcesLabel": "Sources",
+      "disclaimer": "AI can make mistakes — verify critical decisions with an expert.",
+      "reviewNote": "Dosage, scheme and loan questions are not answered here; they are routed to verified data and human-reviewed sources.",
+      "soonTitle": "Not switched on yet",
+      "soonBody": "The assistant is built but stays off until its safety review is signed off. Nothing here is a placeholder for something that does not exist — the knowledge guides it will answer from are already published.",
+      "soonCta": "Browse the guides instead",
+      "errorTitle": "Something went wrong",
+      "routeCta": "Go to the verified source",
+      "emptyState": "Ask a question to get started.",
+      "loginNeeded": "Log in to ask a question."
+    },
+    "agriCoins": {
+      "eyebrow": "One wallet across agri.in, milk.in and theorganic.in",
+      "heading": "AgriCoins",
+      "sub": "Earn coins for using agri.in. Your balance is the same everywhere in the family.",
+      "balanceLabel": "Your balance",
+      "historyTitle": "Recent activity",
+      "historyEmpty": "No coin activity yet.",
+      "loadMore": "Load more",
+      "referralTitle": "Refer a farmer",
+      "referralSub": "Share your code. You both earn when they verify their number.",
+      "copyCode": "Copy code",
+      "copied": "Copied",
+      "shareWhatsapp": "Share on WhatsApp",
+      "shareText": "Join agri.in — mandi prices, weather and schemes for farmers. Use my code:",
+      "error": "Could not load your coins. Please try again.",
+      "loading": "Loading…",
+      "notMoney": "AgriCoins are a loyalty reward, not money. They cannot be bought, cashed out or transferred."
+    },
     "agriHome": {
       "reviewNote": "TODO review: Tamil beyond the A1 reference and all Hindi below are machine-assisted — needs native review",
       "brandTagline": "உழவர் · किसान · all of Indian agriculture",
@@ -332,66 +443,15 @@
         "sourceStamp": "{source} · {date}"
       }
     },
-    "search": {
-      "placeholder": "Search anything… tractor, seeds, loan, scheme",
-      "hint": "🎤 Press the mic and speak in Tamil, Hindi or English — no typing needed",
-      "micLabel": "Speak to search",
-      "camLabel": "Search by photo",
-      "inputLabel": "Search",
-      "results": {
-        "empty": "No results — try a different search",
-        "kindBusiness": "Business",
-        "kindProduct": "Product",
-        "verified": "✔ Verified",
-        "loadMore": "Load more"
+    "agriOffline": {
+      "title": "You're offline",
+      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
+      "availableTitle": "Available offline",
+      "links": {
+        "helplines": "Helpline numbers",
+        "mandi": "Last-known mandi prices",
+        "saved": "Your saved items"
       }
-    },
-    "pincode": {
-      "title": "Milk near you — all options, one place",
-      "subtitle": "All milk in your area · brands, local vendors, farm-fresh delivery",
-      "find": "Find milk",
-      "gps": "📍 Or use my location",
-      "inputLabel": "Enter pincode"
-    },
-    "location": {
-      "set": "Set location",
-      "title": "Set your location",
-      "close": "Close",
-      "apply": "Apply",
-      "gps": "📍 Use my location",
-      "pincodeLabel": "Enter pincode",
-      "find": "Find"
-    },
-    "nav": {
-      "home": "Home",
-      "categories": "Categories",
-      "askAi": "Ask AI",
-      "alerts": "Alerts",
-      "profile": "Profile"
-    },
-    "actions": {
-      "call": "Call",
-      "whatsapp": "WhatsApp",
-      "compare": "Compare"
-    },
-    "badges": {
-      "verified": "✔ Verified",
-      "certVerified": "✔ Cert verified",
-      "sponsored": "★ Sponsored"
-    },
-    "product": {
-      "whereToBuy": "Where to buy 📍"
-    },
-    "helpline": {
-      "title": "Kisan Call Centre — free help in your language",
-      "sub": "6 AM – 10 PM · toll free",
-      "call": "Call 1800-180-1551"
-    },
-    "today": {
-      "title": "Today"
-    },
-    "lang": {
-      "label": "🌐 EN · த · हि"
     },
     "auth": {
       "phone": {
@@ -480,6 +540,29 @@
       },
       "login": "Login"
     },
+    "badges": {
+      "verified": "✔ Verified",
+      "certVerified": "✔ Cert verified",
+      "sponsored": "★ Sponsored"
+    },
+    "brandPage": {
+      "products": "Products",
+      "vendorProducts": "Milk products",
+      "deliveryArea": "Delivery area",
+      "branches": "Branches & delivery hours",
+      "typeVendor": "Milk vendor",
+      "typeShop": "Brand / shop",
+      "morePincodes": "+ {count} more",
+      "shopsNearYou": "Shops near you",
+      "pincodeLabel": "Your pincode",
+      "find": "Find shops",
+      "empty": "No shops found near {pincode}.",
+      "kmAway": "{km} km away",
+      "about": "About",
+      "onSince": "On Milk.in since {date}",
+      "unavailableTitle": "This listing is unavailable",
+      "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
+    },
     "categories": {
       "seeds": "Seeds",
       "tractors": "Tractors",
@@ -487,78 +570,18 @@
       "mandi": "Mandi prices",
       "vet": "Vet doctor"
     },
-    "admin": {
-      "users": {
-        "title": "Users",
-        "searchLabel": "Search users",
-        "searchPlaceholder": "@handle or last 4 digits of phone",
-        "search": "Search",
-        "empty": "No users match",
-        "loadMore": "Load more",
-        "phoneEnding": "Phone ending {last4}",
-        "status": {
-          "active": "Active",
-          "suspended": "Suspended",
-          "deleted": "Deleted"
-        },
-        "roles": "Roles",
-        "addRole": "Add role",
-        "removeRole": "Remove {role}",
-        "suspend": "Suspend",
-        "reactivate": "Reactivate",
-        "confirmSuspend": "Suspend {agriId}? All their sessions on every app are signed out immediately.",
-        "confirmReactivate": "Reactivate {agriId}? Suspension is lifted; they must sign in again.",
-        "cancel": "Cancel",
-        "suspended": "User suspended",
-        "reactivated": "User reactivated",
-        "roleAdded": "Role added",
-        "roleRemoved": "Role removed",
-        "completion": "Profile completion",
-        "location": "Location",
-        "language": "Language",
-        "interests": "Interests",
-        "error": "That didn't work — try again"
-      },
-      "businesses": {
-        "title": "Businesses",
-        "hint": "Look up a business by its public slug to review or enforce it.",
-        "searchLabel": "Business slug",
-        "searchPlaceholder": "e.g. anbu-milk-farm",
-        "search": "Look up",
-        "empty": "No business with that slug.",
-        "error": "Something went wrong — try again.",
-        "status": {
-          "active": "Active",
-          "suspended": "Suspended",
-          "disabled": "Disabled"
-        },
-        "reasonShown": "Enforcement reason",
-        "suspend": "Suspend",
-        "disable": "Disable",
-        "reinstate": "Reinstate",
-        "confirm_suspend": "Suspend {name}?",
-        "confirm_suspend_body": "Delisted everywhere (browse, search, ads); the public profile shows an unavailable page. The owner keeps dashboard access and sees the reason below.",
-        "confirm_disable": "Disable {name}?",
-        "confirm_disable_body": "Hard-off: the owner's dashboard access is locked, all serving stops and active ad campaigns are paused (no automatic refunds — handle manually).",
-        "confirm_reinstate": "Reinstate {name}?",
-        "confirm_reinstate_body": "Restores the state this business was in before the last enforcement action.",
-        "reasonLabel": "Reason (required, shown to the owner and logged)",
-        "noteLabel": "Note (optional, logged)",
-        "reasonRequired": "A reason is required.",
-        "suspendDone": "Business suspended.",
-        "disableDone": "Business disabled.",
-        "reinstateDone": "Business reinstated.",
-        "working": "Working...",
-        "cancel": "Cancel",
-        "logTitle": "Enforcement log",
-        "logEmpty": "No enforcement actions yet.",
-        "byActor": "by {actor}",
-        "loadMore": "Load more"
-      }
+    "categoryBar": {
+      "label": "Dairy categories",
+      "all": "All milk",
+      "homeDelivery": "🚚 Home delivery",
+      "organic": "🌿 Organic"
     },
-    "profileNudge": {
-      "title": "Complete your profile — {score}%",
-      "cta": "Complete now"
+    "categoryBrowse": {
+      "heading": "{category} in {place}",
+      "empty": "Nothing listed here yet — check back soon.",
+      "allMilk": "All milk",
+      "rowLabel": "Dairy categories",
+      "genericDescription": "Find {name} near you — verified listings, prices and contact on Milk.in."
     },
     "coins": {
       "title": "AgriCoins",
@@ -583,392 +606,103 @@
         "unknown": "Coin activity"
       }
     },
-    "notifications": {
-      "bell": "Notifications",
-      "title": "Notifications",
-      "empty": "You're all caught up.",
-      "markAllRead": "Mark all read",
-      "markRead": "Mark read",
-      "loadMore": "Load more",
-      "push": {
-        "title": "Alerts on this device",
-        "body": "Get mandi price and weather alerts as notifications, even when agri.in is closed.",
-        "on": "Turn on alerts",
-        "off": "Turn off alerts",
-        "working": "Working…",
-        "deniedBody": "Notifications are blocked for agri.in in this browser. You can re-enable them in your browser's site settings.",
-        "iosBody": "On iPhone and iPad, add agri.in to your Home Screen first — Safari only allows notifications from an installed app."
-      }
-    },
-    "dairyCategories": {
-      "veterinarian": {
-        "name": "Veterinarians",
-        "description": "Find veterinary clinics for your cattle — vaccinations, treatment and farm visits."
+    "colleges": {
+      "metaTitle": "Agriculture colleges in India",
+      "metaDescription": "Agricultural universities, ICAR institutes and affiliated colleges across India, with the source and date each entry was checked.",
+      "eyebrow": "Study agriculture",
+      "crumb": "Colleges",
+      "crumbHome": "Home",
+      "title": "Agriculture colleges in India",
+      "sub": "Universities, ICAR institutes and colleges. Every entry says where it came from and when it was last checked.",
+      "filterLabel": "Filter colleges",
+      "all": "All",
+      "government": "Government",
+      "private": "Private",
+      "verifiedOnly": "Verified only",
+      "searchLabel": "Search colleges by name",
+      "searchPlaceholder": "Search by name",
+      "searchSubmit": "Search",
+      "verified": "Verified",
+      "listed": "Listed",
+      "established": "Est.",
+      "emptyTitle": "No colleges match these filters",
+      "emptyBody": "Try removing a filter, or browse by state below.",
+      "clearFilters": "Clear filters",
+      "byStateTitle": "Browse by state",
+      "byStateSub": "Only states with colleges in our records are listed.",
+      "stateTitle": "Agriculture colleges in {state}",
+      "stateSub": "{count} colleges recorded in {state}, verified entries first.",
+      "stateMetaTitle": "Agriculture colleges in {state}",
+      "stateMetaDescription": "{count} agricultural universities, institutes and colleges in {state}, each with its source and the date it was checked.",
+      "kinds": {
+        "central_agri_university": "Central agricultural university",
+        "state_agri_university": "State agricultural university",
+        "deemed_university": "Deemed university",
+        "icar_institute": "ICAR institute",
+        "private_university": "Private university",
+        "affiliated_college": "Affiliated college",
+        "constituent_college": "Constituent college"
       },
-      "feedSupplier": {
-        "name": "Cattle Feed Suppliers",
-        "description": "Shops selling cattle feed, fodder and supplements near you."
+      "detailMetaDescription": "{name} in {place} — courses, admission route and the source each detail was checked against.",
+      "closedTitle": "This institution is no longer running",
+      "closedBody": "It is kept here because links to it still exist. Admission details are not shown, because they would no longer be true.",
+      "listedTitle": "Not yet checked against the college's own page",
+      "listedBody": "This entry came from an official bulk list. We have not confirmed it against the institution's own website, so fees, seat counts and admission routes are not shown.",
+      "verifiedStamp": "Verified",
+      "listedStamp": "From an official list",
+      "feesStamp": "Fees checked",
+      "partOf": "Part of",
+      "programmesTitle": "Courses offered",
+      "constituentsTitle": "Colleges under this university",
+      "officialSite": "Official website",
+      "seats": "Seats",
+      "annualFees": "Annual fees",
+      "admissionRoute": "Admission",
+      "months": "{count} months",
+      "unavailableTitle": "This page could not be loaded",
+      "unavailableBody": "The college directory is temporarily unreachable. The page still exists — please try again shortly.",
+      "backToColleges": "All colleges",
+      "levels": {
+        "diploma": "Diploma",
+        "ug": "Undergraduate",
+        "pg": "Postgraduate",
+        "phd": "PhD"
       },
-      "dairyFarm": {
-        "name": "Dairy Farms",
-        "description": "Local dairy farms producing fresh milk in your area."
+      "checkedOn": "Checked",
+      "opens": "Opens",
+      "closes": "Closes",
+      "session": "Session",
+      "provider": "Offered by",
+      "eligibility": "Who can apply",
+      "benefit": "What you get",
+      "officialLink": "Apply on the official site",
+      "officialLinks": "Official links",
+      "scholarshipsCrumb": "Scholarships",
+      "scholarshipsTitle": "Agriculture scholarships",
+      "scholarshipsSub": "Scholarships for agricultural study in India, each linking to the official portal that awards it.",
+      "scholarshipsMetaTitle": "Agriculture scholarships in India",
+      "scholarshipsMetaDescription": "Scholarships for agricultural study in India, with eligibility, benefit and the official portal for each.",
+      "examsCrumb": "Exams",
+      "examsTitle": "Agriculture entrance and recruitment exams",
+      "examsSub": "Entrance exams for admission, recruitment exams for agriculture jobs, and the language tests studying abroad needs.",
+      "examsMetaTitle": "Agriculture entrance and recruitment exams",
+      "examsMetaDescription": "ICAR AIEEA, state entrance exams, NABARD and IBPS AFO recruitment, and language tests — with the official portal for each.",
+      "examCategories": {
+        "entrance": "Entrance exams",
+        "recruitment": "Recruitment exams",
+        "language_test": "Language tests",
+        "other": "Other exams"
       },
-      "cooperative": {
-        "name": "Milk Cooperatives",
-        "description": "Milk cooperative societies collecting and selling milk locally."
-      },
-      "browseCta": "Find near your pincode"
-    },
-    "recommended": {
-      "heading": "Recommended"
-    },
-    "categoryBrowse": {
-      "heading": "{category} in {place}",
-      "empty": "Nothing listed here yet — check back soon.",
-      "allMilk": "All milk",
-      "rowLabel": "Dairy categories",
-      "genericDescription": "Find {name} near you — verified listings, prices and contact on Milk.in."
-    },
-    "results": {
-      "title": "Milk in {place}",
-      "localVendors": "Local vendors",
-      "brandsNearby": "Brands & shops nearby",
-      "showMap": "🗺 Show map",
-      "hideMap": "Hide map",
-      "postNeed": "🥛 Post my need — vendors here reply to you",
-      "filteredEmptyAll": "No milk listed here yet —",
-      "filteredEmpty": "No {type} milk listed here yet —",
-      "seeAll": "see all",
-      "noVendorsTitle": "No milk vendors in {place} yet",
-      "noVendorsBody": "Be the first to know when a dairy lists here.",
-      "outTitle": "We're live in Tamil Nadu right now",
-      "outBody": "{pincode} isn't in our coverage yet — more areas coming soon. Leave your number and we'll reach out the moment milk vendors arrive."
-    },
-    "notify": {
-      "placeholder": "Phone or email (optional)",
-      "contactLabel": "Contact for notification",
-      "button": "Notify me",
-      "done": "🎉 Thanks — we'll tell you the moment milk vendors reach {place}.",
-      "error": "Something went wrong — please try again."
-    },
-    "needs": {
-      "title": "🥛 Post my need",
-      "intro": "Tell vendors near you what milk you need — everyone covering your pincode gets it and replies here.",
-      "milkTypeLegend": "Milk type",
-      "types": {
-        "cow": "Cow",
-        "buffalo": "Buffalo",
-        "goat": "Goat",
-        "mixed": "Mixed"
-      },
-      "qtyLabel": "Litres per delivery",
-      "less": "Less milk",
-      "more": "More milk",
-      "scheduleLegend": "How often",
-      "schedules": {
-        "daily": "Daily",
-        "alternateDays": "Alternate days",
-        "weekly": "Weekly"
-      },
-      "timeLegend": "Delivery time",
-      "times": {
-        "morning": "Morning",
-        "evening": "Evening",
-        "any": "Any time"
-      },
-      "pincodeLabel": "Pincode",
-      "noteLabel": "Anything else?",
-      "optional": "(optional)",
-      "voiceLabel": "Voice note",
-      "voiceDenied": "Microphone unavailable — the form works fine without it.",
-      "voiceStop": "⏹ Stop",
-      "voiceRecord": "⏺ Record",
-      "voiceReRecord": "⏺ Record again",
-      "voiceRemove": "🗑 Remove",
-      "loading": "Loading...",
-      "sending": "Sending...",
-      "submit": "Post my need",
-      "continueOtp": "📱 Continue with phone · OTP",
-      "draftKept": "Your details stay filled in — verify your phone with a one-time code and we post it.",
-      "errorLimit": "Daily limit reached — please try again tomorrow.",
-      "errorInvalid": "Please check the details you entered.",
-      "errorGeneric": "Could not post — please try again.",
-      "doneTitle": "🎉 Sent to {count, plural, one {# vendor} other {# vendors}} near you",
-      "doneVoiceFailed": "(Your voice note could not be attached — the need itself was sent.)",
-      "doneTrack": "They will reply here — track everything in one place.",
-      "seeMyNeeds": "See my needs",
-      "noCoverageTitle": "No vendors here yet — we'll tell them you're waiting",
-      "noCoverageBody": "No milk vendor covers {pincode} on Milk.in yet. We record the demand and prioritise onboarding vendors where people are waiting.",
-      "noCoverageNoted": "🎉 Noted — we'll be in touch as vendors join.",
-      "noCoverageNotify": "Tell me when vendors join",
-      "changePincode": "← Change pincode",
-      "myTitle": "My needs",
-      "loginBody": "Login with your phone to see your posted needs.",
-      "loadError": "Could not load your needs — please refresh.",
-      "emptyTitle": "No needs posted yet",
-      "emptyBody": "Tell vendors near you what milk you need — everyone covering your pincode gets it.",
-      "postCta": "Post my need",
-      "sentTo": "sent to {count, plural, one {# vendor} other {# vendors}}",
-      "status": {
-        "open": "Open",
-        "fulfilled": "Fulfilled",
-        "closed": "Closed",
-        "new": "New",
-        "responded": "Responded"
-      },
-      "accept": "✅ Accept",
-      "markFulfilled": "✅ Mark fulfilled",
-      "closeNeed": "✖ Close",
-      "loadMore": "Load more",
-      "actionError": "Could not update — please refresh and try again."
-    },
-    "brandPage": {
-      "products": "Products",
-      "vendorProducts": "Milk products",
-      "deliveryArea": "Delivery area",
-      "branches": "Branches & delivery hours",
-      "typeVendor": "Milk vendor",
-      "typeShop": "Brand / shop",
-      "morePincodes": "+ {count} more",
-      "shopsNearYou": "Shops near you",
-      "pincodeLabel": "Your pincode",
-      "find": "Find shops",
-      "empty": "No shops found near {pincode}.",
-      "kmAway": "{km} km away",
-      "about": "About",
-      "onSince": "On Milk.in since {date}",
-      "unavailableTitle": "This listing is unavailable",
-      "unavailableBody": "The listing you're looking for has been taken down or is temporarily unavailable."
-    },
-    "productPage": {
-      "nearYou": "{name} near you",
-      "description": "Find {name} from verified dairy brands, local vendors and farms near you across Tamil Nadu."
-    },
-    "localeSwitcher": {
-      "label": "Language"
-    },
-    "offline": {
-      "title": "You're offline",
-      "body": "No connection — here's what we saved for you.",
-      "helplineTitle": "Helplines that work without internet",
-      "vetHelpline": "Animal husbandry helpline",
-      "kisanHelpline": "Kisan Call Centre",
-      "lastSeenTitle": "Last seen prices",
-      "kisanHours": "6 AM – 10 PM, all week"
-    },
-    "pwa": {
-      "installTitle": "Install Milk.in on this phone",
-      "installCta": "Install",
-      "iosHint": "Tap Share, then 'Add to Home Screen'.",
-      "dismiss": "Dismiss"
-    },
-    "pushAlerts": {
-      "title": "Lead & reply alerts",
-      "body": "Get a notification when a vendor replies — even with the app closed.",
-      "enable": "Turn on",
-      "disable": "Turn off",
-      "blocked": "Notifications are blocked in browser settings.",
-      "iosInstallFirst": "Install Milk.in first (Share → Add to Home Screen), then enable alerts here."
-    },
-    "lowData": {
-      "label": "Data saver",
-      "on": "ON",
-      "off": "OFF"
-    },
-    "report": {
-      "trigger": "Report this listing",
-      "title": "Report listing",
-      "description": "Tell us what's wrong. Reports go to the Milk.in team and are never shown publicly.",
-      "reasonLabel": "Reason",
-      "reasonRequired": "Please choose a reason.",
-      "reasons": {
-        "fake_listing": "Fake or duplicate listing",
-        "wrong_info": "Wrong or outdated information",
-        "abusive": "Abusive content or behaviour",
-        "fraud_scam": "Fraud or scam",
-        "other": "Something else"
-      },
-      "detailLabel": "Details (optional)",
-      "detailLabelRequired": "Details (required)",
-      "detailRequired": "Please add details for this reason.",
-      "submit": "Submit report",
-      "submitting": "Submitting...",
-      "done": "Thanks — our team will review this report.",
-      "alreadyReported": "You already have a report open for this listing.",
-      "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
-      "error": "Could not submit — please try again.",
-      "loginCta": "Login to report this listing"
-    },
-    "utility": {
-      "advertise": "Advertise",
-      "hotline": "Post need on WhatsApp: {number}",
-      "listBusiness": "List your business",
-      "tagline": "Every milk near you",
-      "brandTagline": "every milk near you"
-    },
-    "categoryBar": {
-      "label": "Dairy categories",
-      "all": "All milk",
-      "homeDelivery": "🚚 Home delivery",
-      "organic": "🌿 Organic"
-    },
-    "heroAd": {
-      "prev": "Previous ad",
-      "next": "Next ad"
-    },
-    "home": {
-      "ticker": {
-        "today": "Today in {pincode}",
-        "sellers": "{count} sellers found in {pincode}"
-      },
-      "types": {
-        "title": "Milk type",
-        "all": "All"
-      },
-      "trust": {
-        "title": "How to know it is really organic",
-        "npop": {
-          "name": "India Organic (NPOP)",
-          "sub": "Govt of India certified"
-        },
-        "pgs": {
-          "name": "PGS-India Green",
-          "sub": "Farmer-group certified"
-        },
-        "usda": {
-          "name": "USDA Organic",
-          "sub": "For export-grade products"
-        },
-        "verify": {
-          "name": "We verify every certificate",
-          "sub": "Document checked before badge is shown"
-        }
-      },
-      "products": {
-        "title": "Certified products",
-        "seeAll": "See all"
-      },
-      "vendors": {
-        "title": "Local vendors",
-        "showMap": "Show map",
-        "verified": "Verified vendor",
-        "recommended": "Recommended",
-        "delivers": "Delivers",
-        "covers": "Covers {pincodes}",
-        "empty": "No vendors listed in {pincode} yet - post your need and they will contact you."
-      },
-      "brands": {
-        "title": "Brands available in {pincode}",
-        "all": "All brands",
-        "nearest": "Nearest shops",
-        "shops": "{count} shops near you"
-      },
-      "services": {
-        "title": "Dairy services"
-      },
-      "stats": {
-        "verifiedVendors": "verified vendors",
-        "coveredPincodes": "pincodes covered",
-        "sellers": "sellers near you",
-        "reviews": "reviews written"
-      },
-      "how": {
-        "title": "How it works",
-        "s1": {
-          "t": "Enter your pincode",
-          "d": "See every milk option near you - brands and local vendors"
-        },
-        "s2": {
-          "t": "Compare and choose",
-          "d": "Prices, distance, ratings, verified badge - you decide"
-        },
-        "s3": {
-          "t": "Call or WhatsApp direct",
-          "d": "Talk to the vendor. No middlemen, no commission - ever"
-        }
-      },
-      "reviews": {
-        "title": "What people say",
-        "coinsNudge": "Write a review, earn 5 AgriCoins"
-      },
-      "popular": {
-        "title": "Popular near you",
-        "milkIn": "Milk in {place}"
-      },
-      "cta": {
-        "needTitle": "Need daily milk? Tell us once.",
-        "needSub": "“1 litre cow milk, every morning, {pincode}” - nearby vendors contact YOU. Speak it or type it.",
-        "needCta": "Post my need",
-        "listTitle": "Dairy vendor or brand?",
-        "listSub": "List free - buyers in your pincodes find you. Advertise from {price} to reach more.",
-        "listCta": "List my business",
-        "howTo": "How to apply"
-      },
-      "advertise": {
-        "title": "Reach milk buyers in your pincode",
-        "sub": "Advertise from {price}",
-        "cta": "Advertise",
-        "perWeek": "/week"
-      },
-      "alerts": {
-        "title": "Get price alerts for {pincode}",
-        "sub": "Milk price changes and new vendors near you - free notifications",
-        "cta": "Turn on",
-        "dismiss": "Not now"
-      },
-      "myNeed": {
-        "label": "Your need:",
-        "litres": "{qty}L",
-        "schedule": {
-          "daily": "daily",
-          "alternate_days": "alternate days",
-          "weekly": "weekly"
-        },
-        "responded": "{count, plural, =0 {no vendors have replied yet} one {# vendor responded} other {# vendors responded}}",
-        "view": "View →"
-      },
-      "app": {
-        "title": "Get milk.in on your phone",
-        "sub": "Installs in one tap - works offline, loads light on 3G, price alerts by notification. No app store needed.",
-        "cta": "Install app"
-      },
-      "faq": {
-        "title": "Common questions",
-        "q1": "Is milk.in free to use?",
-        "a1": "Yes - searching, comparing, and contacting vendors is completely free. We never add commission to any price.",
-        "q2": "Does milk.in sell or deliver milk?",
-        "a2": "No. We list every option near you - brands and local vendors - and you deal with them directly. We list, you choose, we never sell.",
-        "q3": "What does the Verified badge mean?",
-        "a3": "Our team has checked the business documents before the badge is shown. Verification can never be bought - and paid placements are always marked Sponsored.",
-        "q4": "How do I list my dairy business?",
-        "a4": "Tap List my business, verify with OTP, add your pincodes and products. Listing is free; advertising is optional."
-      },
-      "family": {
-        "title": "Our family - one login works everywhere",
-        "milk": "All milk options in your pincode",
-        "organic": "Certified organic brands and products",
-        "coins": "Your rewards",
-        "soon": "Coming soon"
-      },
-      "footer": {
-        "about": "Every milk option near you - brands, local vendors, farm-fresh. Part of the Agri.in family.",
-        "neutrality": "We list, you choose - we never sell.",
-        "categories": "Categories",
-        "cities": "Cities",
-        "forVendors": "For vendors",
-        "company": "Company",
-        "allCategories": "All categories",
-        "allCities": "All Tamil Nadu",
-        "listFree": "List your business - free",
-        "advertise": "Advertise",
-        "console": "Vendor console",
-        "verification": "How verification works",
-        "aboutUs": "About - Agri.in family",
-        "contact": "Contact us",
-        "privacy": "Privacy policy",
-        "terms": "Terms of use",
-        "legal": "© {year} Oneuni Agri Platform Pvt Ltd - milk.in lists businesses, we never sell or deliver"
-      }
+      "counsellingCrumb": "Counselling",
+      "counsellingTitle": "Agriculture admission counselling",
+      "counsellingSub": "How admission works in each state, round by round, with the date each guide was last checked.",
+      "counsellingMetaTitle": "Agriculture admission counselling by state",
+      "counsellingMetaDescription": "State-by-state agriculture admission counselling: rounds, documents and official portals.",
+      "studyAbroadCrumb": "Study abroad",
+      "studyAbroadTitle": "Studying agriculture abroad",
+      "studyAbroadSub": "What applying from India involves, country by country, from the official study-in portals.",
+      "studyAbroadMetaTitle": "Study agriculture abroad — country guides",
+      "studyAbroadMetaDescription": "Applying to study agriculture abroad from India: requirements, visas and official portals, country by country."
     },
     "console": {
       "heading": "Business console",
@@ -1209,6 +943,507 @@
         "openCenter": "Open notification center"
       }
     },
+    "dairyCategories": {
+      "veterinarian": {
+        "name": "Veterinarians",
+        "description": "Find veterinary clinics for your cattle — vaccinations, treatment and farm visits."
+      },
+      "feedSupplier": {
+        "name": "Cattle Feed Suppliers",
+        "description": "Shops selling cattle feed, fodder and supplements near you."
+      },
+      "dairyFarm": {
+        "name": "Dairy Farms",
+        "description": "Local dairy farms producing fresh milk in your area."
+      },
+      "cooperative": {
+        "name": "Milk Cooperatives",
+        "description": "Milk cooperative societies collecting and selling milk locally."
+      },
+      "browseCta": "Find near your pincode"
+    },
+    "directoryPage": {
+      "metaTitle": "Agri businesses near you · agri.in",
+      "metaDescription": "Browse verified agri businesses — machinery, nurseries, feed, veterinary and soil testing — by category and pincode.",
+      "crumbHome": "Home",
+      "crumb": "Directory",
+      "eyebrow": "DIRECTORY · BY CATEGORY × PINCODE",
+      "title": "Agri businesses covering {pincode}",
+      "sub": "Nearest first. Contact details live on each business page, never in this list.",
+      "filterLabel": "Filter by category",
+      "all": "All",
+      "verified": "Verified",
+      "viewProfile": "View profile",
+      "empty": "No businesses cover {pincode} yet. Try a nearby pincode."
+    },
+    "helpline": {
+      "title": "Kisan Call Centre — free help in your language",
+      "sub": "6 AM – 10 PM · toll free",
+      "call": "Call 1800-180-1551"
+    },
+    "helplinesPage": {
+      "metaTitle": "Farm helpline numbers — works offline · agri.in",
+      "metaDescription": "Kisan Call Centre and other verified farm helpline numbers. This page keeps working with no network — tap to call.",
+      "crumbHome": "Home",
+      "crumb": "Helplines",
+      "eyebrow": "HELPLINES · WORKS OFFLINE",
+      "title": "Helpline numbers",
+      "sub": "Tap a number to call. Each one shows the official source it was checked against and when.",
+      "verifiedStamp": "✓ {domain} · checked {date}",
+      "offlineNote": "Once you have opened this page on your phone, it stays available with the network off. Calling needs signal, but finding the number does not."
+    },
+    "heroAd": {
+      "prev": "Previous ad",
+      "next": "Next ad"
+    },
+    "home": {
+      "ticker": {
+        "today": "Today in {pincode}",
+        "sellers": "{count} sellers found in {pincode}"
+      },
+      "types": {
+        "title": "Milk type",
+        "all": "All"
+      },
+      "trust": {
+        "title": "How to know it is really organic",
+        "npop": {
+          "name": "India Organic (NPOP)",
+          "sub": "Govt of India certified"
+        },
+        "pgs": {
+          "name": "PGS-India Green",
+          "sub": "Farmer-group certified"
+        },
+        "usda": {
+          "name": "USDA Organic",
+          "sub": "For export-grade products"
+        },
+        "verify": {
+          "name": "We verify every certificate",
+          "sub": "Document checked before badge is shown"
+        }
+      },
+      "products": {
+        "title": "Certified products",
+        "seeAll": "See all"
+      },
+      "vendors": {
+        "title": "Local vendors",
+        "showMap": "Show map",
+        "verified": "Verified vendor",
+        "recommended": "Recommended",
+        "delivers": "Delivers",
+        "covers": "Covers {pincodes}",
+        "empty": "No vendors listed in {pincode} yet - post your need and they will contact you."
+      },
+      "brands": {
+        "title": "Brands available in {pincode}",
+        "all": "All brands",
+        "nearest": "Nearest shops",
+        "shops": "{count} shops near you"
+      },
+      "services": {
+        "title": "Dairy services"
+      },
+      "stats": {
+        "verifiedVendors": "verified vendors",
+        "coveredPincodes": "pincodes covered",
+        "sellers": "sellers near you",
+        "reviews": "reviews written"
+      },
+      "how": {
+        "title": "How it works",
+        "s1": {
+          "t": "Enter your pincode",
+          "d": "See every milk option near you - brands and local vendors"
+        },
+        "s2": {
+          "t": "Compare and choose",
+          "d": "Prices, distance, ratings, verified badge - you decide"
+        },
+        "s3": {
+          "t": "Call or WhatsApp direct",
+          "d": "Talk to the vendor. No middlemen, no commission - ever"
+        }
+      },
+      "reviews": {
+        "title": "What people say",
+        "coinsNudge": "Write a review, earn 5 AgriCoins"
+      },
+      "popular": {
+        "title": "Popular near you",
+        "milkIn": "Milk in {place}"
+      },
+      "cta": {
+        "needTitle": "Need daily milk? Tell us once.",
+        "needSub": "“1 litre cow milk, every morning, {pincode}” - nearby vendors contact YOU. Speak it or type it.",
+        "needCta": "Post my need",
+        "listTitle": "Dairy vendor or brand?",
+        "listSub": "List free - buyers in your pincodes find you. Advertise from {price} to reach more.",
+        "listCta": "List my business",
+        "howTo": "How to apply"
+      },
+      "advertise": {
+        "title": "Reach milk buyers in your pincode",
+        "sub": "Advertise from {price}",
+        "cta": "Advertise",
+        "perWeek": "/week"
+      },
+      "alerts": {
+        "title": "Get price alerts for {pincode}",
+        "sub": "Milk price changes and new vendors near you - free notifications",
+        "cta": "Turn on",
+        "dismiss": "Not now"
+      },
+      "myNeed": {
+        "label": "Your need:",
+        "litres": "{qty}L",
+        "schedule": {
+          "daily": "daily",
+          "alternate_days": "alternate days",
+          "weekly": "weekly"
+        },
+        "responded": "{count, plural, =0 {no vendors have replied yet} one {# vendor responded} other {# vendors responded}}",
+        "view": "View →"
+      },
+      "app": {
+        "title": "Get milk.in on your phone",
+        "sub": "Installs in one tap - works offline, loads light on 3G, price alerts by notification. No app store needed.",
+        "cta": "Install app"
+      },
+      "faq": {
+        "title": "Common questions",
+        "q1": "Is milk.in free to use?",
+        "a1": "Yes - searching, comparing, and contacting vendors is completely free. We never add commission to any price.",
+        "q2": "Does milk.in sell or deliver milk?",
+        "a2": "No. We list every option near you - brands and local vendors - and you deal with them directly. We list, you choose, we never sell.",
+        "q3": "What does the Verified badge mean?",
+        "a3": "Our team has checked the business documents before the badge is shown. Verification can never be bought - and paid placements are always marked Sponsored.",
+        "q4": "How do I list my dairy business?",
+        "a4": "Tap List my business, verify with OTP, add your pincodes and products. Listing is free; advertising is optional."
+      },
+      "family": {
+        "title": "Our family - one login works everywhere",
+        "milk": "All milk options in your pincode",
+        "organic": "Certified organic brands and products",
+        "coins": "Your rewards",
+        "soon": "Coming soon"
+      },
+      "footer": {
+        "about": "Every milk option near you - brands, local vendors, farm-fresh. Part of the Agri.in family.",
+        "neutrality": "We list, you choose - we never sell.",
+        "categories": "Categories",
+        "cities": "Cities",
+        "forVendors": "For vendors",
+        "company": "Company",
+        "allCategories": "All categories",
+        "allCities": "All Tamil Nadu",
+        "listFree": "List your business - free",
+        "advertise": "Advertise",
+        "console": "Vendor console",
+        "verification": "How verification works",
+        "aboutUs": "About - Agri.in family",
+        "contact": "Contact us",
+        "privacy": "Privacy policy",
+        "terms": "Terms of use",
+        "legal": "© {year} Oneuni Agri Platform Pvt Ltd - milk.in lists businesses, we never sell or deliver"
+      }
+    },
+    "knowledge": {
+      "metaTitle": "Knowledge & news — guides, advisories and video · agri.in",
+      "metaDescription": "Farming guides, pest advisories, curated video and agriculture news from named sources. Every item reviewed by a person before it appears.",
+      "crumbHome": "Home",
+      "crumb": "Knowledge",
+      "eyebrow": "KNOWLEDGE & NEWS · EN | TA | HI",
+      "title": "Know more, grow more",
+      "sub": "Guides, advisories, video and news — every item carries its source and the date its publisher put it out.",
+      "filterLabel": "Filter by type",
+      "all": "All",
+      "kinds": {
+        "article": "News",
+        "video": "Video",
+        "guide": "Guide",
+        "advisory": "Advisory"
+      },
+      "languages": {
+        "en": "English",
+        "ta": "Tamil",
+        "hi": "Hindi"
+      },
+      "noneOfKind": "Nothing of this type has been published yet.",
+      "durationLabel": "{duration} watch",
+      "readAtSource": "Read it at {source}",
+      "save": "Save",
+      "saved": "Saved"
+    },
+    "lang": {
+      "label": "🌐 EN · த · हि"
+    },
+    "localeSwitcher": {
+      "label": "Language"
+    },
+    "location": {
+      "set": "Set location",
+      "title": "Set your location",
+      "close": "Close",
+      "apply": "Apply",
+      "gps": "📍 Use my location",
+      "pincodeLabel": "Enter pincode",
+      "find": "Find"
+    },
+    "lowData": {
+      "label": "Data saver",
+      "on": "ON",
+      "off": "OFF"
+    },
+    "nav": {
+      "home": "Home",
+      "categories": "Categories",
+      "askAi": "Ask AI",
+      "alerts": "Alerts",
+      "profile": "Profile"
+    },
+    "needs": {
+      "title": "🥛 Post my need",
+      "intro": "Tell vendors near you what milk you need — everyone covering your pincode gets it and replies here.",
+      "milkTypeLegend": "Milk type",
+      "types": {
+        "cow": "Cow",
+        "buffalo": "Buffalo",
+        "goat": "Goat",
+        "mixed": "Mixed"
+      },
+      "qtyLabel": "Litres per delivery",
+      "less": "Less milk",
+      "more": "More milk",
+      "scheduleLegend": "How often",
+      "schedules": {
+        "daily": "Daily",
+        "alternateDays": "Alternate days",
+        "weekly": "Weekly"
+      },
+      "timeLegend": "Delivery time",
+      "times": {
+        "morning": "Morning",
+        "evening": "Evening",
+        "any": "Any time"
+      },
+      "pincodeLabel": "Pincode",
+      "noteLabel": "Anything else?",
+      "optional": "(optional)",
+      "voiceLabel": "Voice note",
+      "voiceDenied": "Microphone unavailable — the form works fine without it.",
+      "voiceStop": "⏹ Stop",
+      "voiceRecord": "⏺ Record",
+      "voiceReRecord": "⏺ Record again",
+      "voiceRemove": "🗑 Remove",
+      "loading": "Loading...",
+      "sending": "Sending...",
+      "submit": "Post my need",
+      "continueOtp": "📱 Continue with phone · OTP",
+      "draftKept": "Your details stay filled in — verify your phone with a one-time code and we post it.",
+      "errorLimit": "Daily limit reached — please try again tomorrow.",
+      "errorInvalid": "Please check the details you entered.",
+      "errorGeneric": "Could not post — please try again.",
+      "doneTitle": "🎉 Sent to {count, plural, one {# vendor} other {# vendors}} near you",
+      "doneVoiceFailed": "(Your voice note could not be attached — the need itself was sent.)",
+      "doneTrack": "They will reply here — track everything in one place.",
+      "seeMyNeeds": "See my needs",
+      "noCoverageTitle": "No vendors here yet — we'll tell them you're waiting",
+      "noCoverageBody": "No milk vendor covers {pincode} on Milk.in yet. We record the demand and prioritise onboarding vendors where people are waiting.",
+      "noCoverageNoted": "🎉 Noted — we'll be in touch as vendors join.",
+      "noCoverageNotify": "Tell me when vendors join",
+      "changePincode": "← Change pincode",
+      "myTitle": "My needs",
+      "loginBody": "Login with your phone to see your posted needs.",
+      "loadError": "Could not load your needs — please refresh.",
+      "emptyTitle": "No needs posted yet",
+      "emptyBody": "Tell vendors near you what milk you need — everyone covering your pincode gets it.",
+      "postCta": "Post my need",
+      "sentTo": "sent to {count, plural, one {# vendor} other {# vendors}}",
+      "status": {
+        "open": "Open",
+        "fulfilled": "Fulfilled",
+        "closed": "Closed",
+        "new": "New",
+        "responded": "Responded"
+      },
+      "accept": "✅ Accept",
+      "markFulfilled": "✅ Mark fulfilled",
+      "closeNeed": "✖ Close",
+      "loadMore": "Load more",
+      "actionError": "Could not update — please refresh and try again."
+    },
+    "notifications": {
+      "bell": "Notifications",
+      "title": "Notifications",
+      "empty": "You're all caught up.",
+      "markAllRead": "Mark all read",
+      "markRead": "Mark read",
+      "loadMore": "Load more",
+      "push": {
+        "title": "Alerts on this device",
+        "body": "Get mandi price and weather alerts as notifications, even when agri.in is closed.",
+        "on": "Turn on alerts",
+        "off": "Turn off alerts",
+        "working": "Working…",
+        "deniedBody": "Notifications are blocked for agri.in in this browser. You can re-enable them in your browser's site settings.",
+        "iosBody": "On iPhone and iPad, add agri.in to your Home Screen first — Safari only allows notifications from an installed app."
+      }
+    },
+    "notify": {
+      "placeholder": "Phone or email (optional)",
+      "contactLabel": "Contact for notification",
+      "button": "Notify me",
+      "done": "🎉 Thanks — we'll tell you the moment milk vendors reach {place}.",
+      "error": "Something went wrong — please try again."
+    },
+    "offline": {
+      "title": "You're offline",
+      "body": "No connection — here's what we saved for you.",
+      "helplineTitle": "Helplines that work without internet",
+      "vetHelpline": "Animal husbandry helpline",
+      "kisanHelpline": "Kisan Call Centre",
+      "lastSeenTitle": "Last seen prices",
+      "kisanHours": "6 AM – 10 PM, all week"
+    },
+    "pincode": {
+      "title": "Milk near you — all options, one place",
+      "subtitle": "All milk in your area · brands, local vendors, farm-fresh delivery",
+      "find": "Find milk",
+      "gps": "📍 Or use my location",
+      "inputLabel": "Enter pincode"
+    },
+    "product": {
+      "whereToBuy": "Where to buy 📍"
+    },
+    "productPage": {
+      "nearYou": "{name} near you",
+      "description": "Find {name} from verified dairy brands, local vendors and farms near you across Tamil Nadu."
+    },
+    "profileNudge": {
+      "title": "Complete your profile — {score}%",
+      "cta": "Complete now"
+    },
+    "pushAlerts": {
+      "title": "Lead & reply alerts",
+      "body": "Get a notification when a vendor replies — even with the app closed.",
+      "enable": "Turn on",
+      "disable": "Turn off",
+      "blocked": "Notifications are blocked in browser settings.",
+      "iosInstallFirst": "Install Milk.in first (Share → Add to Home Screen), then enable alerts here."
+    },
+    "pwa": {
+      "installTitle": "Install Milk.in on this phone",
+      "installCta": "Install",
+      "iosHint": "Tap Share, then 'Add to Home Screen'.",
+      "dismiss": "Dismiss"
+    },
+    "recommended": {
+      "heading": "Recommended"
+    },
+    "report": {
+      "trigger": "Report this listing",
+      "title": "Report listing",
+      "description": "Tell us what's wrong. Reports go to the Milk.in team and are never shown publicly.",
+      "reasonLabel": "Reason",
+      "reasonRequired": "Please choose a reason.",
+      "reasons": {
+        "fake_listing": "Fake or duplicate listing",
+        "wrong_info": "Wrong or outdated information",
+        "abusive": "Abusive content or behaviour",
+        "fraud_scam": "Fraud or scam",
+        "other": "Something else"
+      },
+      "detailLabel": "Details (optional)",
+      "detailLabelRequired": "Details (required)",
+      "detailRequired": "Please add details for this reason.",
+      "submit": "Submit report",
+      "submitting": "Submitting...",
+      "done": "Thanks — our team will review this report.",
+      "alreadyReported": "You already have a report open for this listing.",
+      "capExceeded": "You've reached today's report limit. Please try again tomorrow.",
+      "error": "Could not submit — please try again.",
+      "loginCta": "Login to report this listing"
+    },
+    "results": {
+      "title": "Milk in {place}",
+      "localVendors": "Local vendors",
+      "brandsNearby": "Brands & shops nearby",
+      "showMap": "🗺 Show map",
+      "hideMap": "Hide map",
+      "postNeed": "🥛 Post my need — vendors here reply to you",
+      "filteredEmptyAll": "No milk listed here yet —",
+      "filteredEmpty": "No {type} milk listed here yet —",
+      "seeAll": "see all",
+      "noVendorsTitle": "No milk vendors in {place} yet",
+      "noVendorsBody": "Be the first to know when a dairy lists here.",
+      "outTitle": "We're live in Tamil Nadu right now",
+      "outBody": "{pincode} isn't in our coverage yet — more areas coming soon. Leave your number and we'll reach out the moment milk vendors arrive."
+    },
+    "saved": {
+      "eyebrow": "Read later, with or without signal",
+      "title": "Saved items",
+      "empty": "You haven't saved anything yet.",
+      "browse": "Browse guides",
+      "offlineNote": "This page works offline — saved items stay readable without a connection."
+    },
+    "schemes": {
+      "metaTitle": "Government schemes for farmers · agri.in",
+      "metaDescription": "Central and Tamil Nadu farm schemes, each with the official source it was checked against and the date. Links go to the government portal.",
+      "crumbHome": "Home",
+      "crumb": "Schemes",
+      "eyebrow": "GOVERNMENT SCHEMES · EN | TA | HI",
+      "title": "Schemes you can apply for",
+      "sub": "Each card says which official site it was checked against, and when. Apply on the government portal — we never take an application.",
+      "deadlinesTitle": "Dates worth knowing",
+      "levels": {
+        "central": "Central",
+        "state": "State"
+      },
+      "verifiedStamp": "✓ Verified against {domain} · {date}",
+      "eligibilityNote": "This page tells you a scheme exists and where to apply. It does not check whether you qualify — that needs your land records and your own details, and it is not something we will guess at."
+    },
+    "search": {
+      "placeholder": "Search anything… tractor, seeds, loan, scheme",
+      "hint": "🎤 Press the mic and speak in Tamil, Hindi or English — no typing needed",
+      "micLabel": "Speak to search",
+      "camLabel": "Search by photo",
+      "inputLabel": "Search",
+      "results": {
+        "empty": "No results — try a different search",
+        "kindBusiness": "Business",
+        "kindProduct": "Product",
+        "verified": "✔ Verified",
+        "loadMore": "Load more"
+      }
+    },
+    "searchPage": {
+      "metaTitle": "Search · agri.in",
+      "metaTitleQuery": "{q} · search · agri.in",
+      "crumbHome": "Home",
+      "crumb": "Search",
+      "eyebrow": "SEARCH · BUSINESSES & PRODUCTS",
+      "title": "Search agri.in",
+      "titleQuery": "Results for “{q}”",
+      "inputLabel": "Search agri.in",
+      "placeholder": "Seeds, tractor, soil testing…",
+      "cta": "Search",
+      "resultCount": "{count, plural, =0 {No results} one {1 result} other {# results}} near {pincode}",
+      "promptForQuery": "Type what you need — businesses and products across agri.in.",
+      "noResults": "Nothing matched “{q}”. Try a shorter word, or browse the directory.",
+      "verified": "Verified",
+      "kinds": {
+        "business": "Business",
+        "product": "Product"
+      },
+      "federatedTitle": "Also in the agri.in family",
+      "federatedSub": "Matching businesses on our other sites."
+    },
+    "today": {
+      "title": "Today"
+    },
     "tools": {
       "reviewNote": "TODO review: Tamil and Hindi below are machine-assisted — needs native review",
       "metaTitle": "Farm calculators — Agri.in",
@@ -1269,149 +1504,12 @@
         "resultTanks": "≈ {tanks} tanks per acre at {volume} L/acre spray volume"
       }
     },
-    "knowledge": {
-      "metaTitle": "Knowledge & news — guides, advisories and video · agri.in",
-      "metaDescription": "Farming guides, pest advisories, curated video and agriculture news from named sources. Every item reviewed by a person before it appears.",
-      "crumbHome": "Home",
-      "crumb": "Knowledge",
-      "eyebrow": "KNOWLEDGE & NEWS · EN | TA | HI",
-      "title": "Know more, grow more",
-      "sub": "Guides, advisories, video and news — every item carries its source and the date its publisher put it out.",
-      "filterLabel": "Filter by type",
-      "all": "All",
-      "kinds": {
-        "article": "News",
-        "video": "Video",
-        "guide": "Guide",
-        "advisory": "Advisory"
-      },
-      "languages": {
-        "en": "English",
-        "ta": "Tamil",
-        "hi": "Hindi"
-      },
-      "noneOfKind": "Nothing of this type has been published yet.",
-      "durationLabel": "{duration} watch",
-      "readAtSource": "Read it at {source}",
-      "save": "Save",
-      "saved": "Saved"
-    },
-    "schemes": {
-      "metaTitle": "Government schemes for farmers · agri.in",
-      "metaDescription": "Central and Tamil Nadu farm schemes, each with the official source it was checked against and the date. Links go to the government portal.",
-      "crumbHome": "Home",
-      "crumb": "Schemes",
-      "eyebrow": "GOVERNMENT SCHEMES · EN | TA | HI",
-      "title": "Schemes you can apply for",
-      "sub": "Each card says which official site it was checked against, and when. Apply on the government portal — we never take an application.",
-      "deadlinesTitle": "Dates worth knowing",
-      "levels": {
-        "central": "Central",
-        "state": "State"
-      },
-      "verifiedStamp": "✓ Verified against {domain} · {date}",
-      "eligibilityNote": "This page tells you a scheme exists and where to apply. It does not check whether you qualify — that needs your land records and your own details, and it is not something we will guess at."
-    },
-    "helplinesPage": {
-      "metaTitle": "Farm helpline numbers — works offline · agri.in",
-      "metaDescription": "Kisan Call Centre and other verified farm helpline numbers. This page keeps working with no network — tap to call.",
-      "crumbHome": "Home",
-      "crumb": "Helplines",
-      "eyebrow": "HELPLINES · WORKS OFFLINE",
-      "title": "Helpline numbers",
-      "sub": "Tap a number to call. Each one shows the official source it was checked against and when.",
-      "verifiedStamp": "✓ {domain} · checked {date}",
-      "offlineNote": "Once you have opened this page on your phone, it stays available with the network off. Calling needs signal, but finding the number does not."
-    },
-    "searchPage": {
-      "metaTitle": "Search · agri.in",
-      "metaTitleQuery": "{q} · search · agri.in",
-      "crumbHome": "Home",
-      "crumb": "Search",
-      "eyebrow": "SEARCH · BUSINESSES & PRODUCTS",
-      "title": "Search agri.in",
-      "titleQuery": "Results for “{q}”",
-      "inputLabel": "Search agri.in",
-      "placeholder": "Seeds, tractor, soil testing…",
-      "cta": "Search",
-      "resultCount": "{count, plural, =0 {No results} one {1 result} other {# results}} near {pincode}",
-      "promptForQuery": "Type what you need — businesses and products across agri.in.",
-      "noResults": "Nothing matched “{q}”. Try a shorter word, or browse the directory.",
-      "verified": "Verified",
-      "kinds": {
-        "business": "Business",
-        "product": "Product"
-      },
-      "federatedTitle": "Also in the agri.in family",
-      "federatedSub": "Matching businesses on our other sites."
-    },
-    "directoryPage": {
-      "metaTitle": "Agri businesses near you · agri.in",
-      "metaDescription": "Browse verified agri businesses — machinery, nurseries, feed, veterinary and soil testing — by category and pincode.",
-      "crumbHome": "Home",
-      "crumb": "Directory",
-      "eyebrow": "DIRECTORY · BY CATEGORY × PINCODE",
-      "title": "Agri businesses covering {pincode}",
-      "sub": "Nearest first. Contact details live on each business page, never in this list.",
-      "filterLabel": "Filter by category",
-      "all": "All",
-      "verified": "Verified",
-      "viewProfile": "View profile",
-      "empty": "No businesses cover {pincode} yet. Try a nearby pincode."
-    },
-    "agriAsk": {
-      "metaTitle": "Ask agri.in — farming questions answered",
-      "metaDescription": "Ask farming questions and get answers grounded in agri.in's published guides, with sources.",
-      "heading": "Ask agri.in",
-      "sub": "Answers come from agri.in's published guides, and every answer names its sources.",
-      "placeholder": "Ask about your crop, mandi prices or the weather…",
-      "send": "Ask",
-      "sending": "Thinking…",
-      "sourcesLabel": "Sources",
-      "disclaimer": "AI can make mistakes — verify critical decisions with an expert.",
-      "reviewNote": "Dosage, scheme and loan questions are not answered here; they are routed to verified data and human-reviewed sources.",
-      "soonTitle": "Not switched on yet",
-      "soonBody": "The assistant is built but stays off until its safety review is signed off. Nothing here is a placeholder for something that does not exist — the knowledge guides it will answer from are already published.",
-      "soonCta": "Browse the guides instead",
-      "errorTitle": "Something went wrong",
-      "routeCta": "Go to the verified source",
-      "emptyState": "Ask a question to get started.",
-      "loginNeeded": "Log in to ask a question."
-    },
-    "agriCoins": {
-      "eyebrow": "One wallet across agri.in, milk.in and theorganic.in",
-      "heading": "AgriCoins",
-      "sub": "Earn coins for using agri.in. Your balance is the same everywhere in the family.",
-      "balanceLabel": "Your balance",
-      "historyTitle": "Recent activity",
-      "historyEmpty": "No coin activity yet.",
-      "loadMore": "Load more",
-      "referralTitle": "Refer a farmer",
-      "referralSub": "Share your code. You both earn when they verify their number.",
-      "copyCode": "Copy code",
-      "copied": "Copied",
-      "shareWhatsapp": "Share on WhatsApp",
-      "shareText": "Join agri.in — mandi prices, weather and schemes for farmers. Use my code:",
-      "error": "Could not load your coins. Please try again.",
-      "loading": "Loading…",
-      "notMoney": "AgriCoins are a loyalty reward, not money. They cannot be bought, cashed out or transferred."
-    },
-    "saved": {
-      "eyebrow": "Read later, with or without signal",
-      "title": "Saved items",
-      "empty": "You haven't saved anything yet.",
-      "browse": "Browse guides",
-      "offlineNote": "This page works offline — saved items stay readable without a connection."
-    },
-    "agriOffline": {
-      "title": "You're offline",
-      "body": "agri.in needs a connection for most pages, but a few are saved on this device and work without one.",
-      "availableTitle": "Available offline",
-      "links": {
-        "helplines": "Helpline numbers",
-        "mandi": "Last-known mandi prices",
-        "saved": "Your saved items"
-      }
+    "utility": {
+      "advertise": "Advertise",
+      "hotline": "Post need on WhatsApp: {number}",
+      "listBusiness": "List your business",
+      "tagline": "Every milk near you",
+      "brandTagline": "every milk near you"
     }
   },
   "coins": {

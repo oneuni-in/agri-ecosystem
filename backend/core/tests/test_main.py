@@ -69,6 +69,18 @@ EXPECTED_PUBLIC_ROUTES = [
     "/directory/covers/{pincode}",
     "/directory/businesses/{slug}/nearby-branches",
     "/directory/businesses/{slug}/view",
+    # Phase 2: the agri-colleges vertical. Read-only reference data about
+    # public institutions -- the same class as /catalog/verticals and
+    # /market/schemes. app_rt holds SELECT only on education.*, so there is
+    # no write route to declare and none to forget.
+    "/education/institutions",
+    "/education/institutions/{slug}",
+    "/education/states",
+    "/education/programmes",
+    "/education/student-resources",
+    "/education/student-resources/{slug}",
+    "/education/guides",
+    "/education/guides/{slug}",
     "/authorize",
     "/token",
     "/oauth/revoke",

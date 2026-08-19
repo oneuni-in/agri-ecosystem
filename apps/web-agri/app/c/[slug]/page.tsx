@@ -41,6 +41,7 @@ const LIVE_ROUTES: Record<string, string> = {
   "agri-news": "/",
   knowledge: "/",
   helplines: "/",
+  "agri-colleges": "/colleges",
 };
 
 async function findVertical(slug: string): Promise<VerticalItem | undefined> {

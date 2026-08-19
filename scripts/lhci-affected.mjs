@@ -54,9 +54,16 @@ const EXTRA_URLS = {
   //   /schemes    404s when the E5 dataset is empty
   //   /helplines  404s when the helpline dataset is empty
   //   /directory  renders its empty state with no coverage data
+  //   /colleges   renders an empty grid when the education corpus is absent
   // /search is deliberately EXCLUDED: it is noindex, it needs a ?q= to
   // render anything, and auditing a query page's empty state would gate
   // on a shell.
+  //
+  // Adding a URL HERE is only half the job: this list decides what gets
+  // COLLECTED, and lighthouserc.cjs's assertMatrix decides what gets GATED.
+  // A URL in one and not the other is audited, scored, and then asserted
+  // about by nothing -- exactly the state /categories and /tools were in
+  // until A-U3 noticed (see the comment at lighthouserc.cjs:141).
   "web-agri": [
     "/categories",
     "/tools",
@@ -64,6 +71,7 @@ const EXTRA_URLS = {
     "/directory",
     "/schemes",
     "/helplines",
+    "/colleges",
   ],
 };
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";

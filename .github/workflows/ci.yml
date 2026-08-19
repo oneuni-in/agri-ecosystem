@@ -12,11 +12,17 @@
 # Removing or weakening a job is a visible diff in a protected workflow file.
 name: ci
 
+# Every PR triggers this ONE workflow. No paths filter: the old split
+# (paths-ignore here, a stub twin on `paths:` for docs-only PRs) double-fired
+# on any PR touching both code and docs - ANY-match semantics on both sides -
+# and the twin's instant green stubs raced the real jobs under identical
+# check names. Observed 2026-08-19: `gh pr checks` showing 11 pass while the
+# real e2e-auth run was red. Instead, the `changes` job below decides, and
+# every heavy job skips on docs-only PRs; GitHub reports a skipped job as
+# Success for required checks, which is the behaviour the twin existed to
+# fake.
 on:
   pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -30,7 +36,33 @@ env:
 
 jobs:
   # A: pnpm lint + typecheck + vitest + build, turbo-cached (<10 min warm rule)
+  # Decides whether anything outside docs/** and *.md changed. Every heavy
+  # job needs this and skips when code == 'false'; conventional-commits runs
+  # unconditionally (a docs PR's title must parse too - under the twin it
+  # was never checked at all on docs-only PRs).
+  changes:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if git diff --name-only "$BASE"...HEAD | grep -vE '^docs/|\.md$' | grep -q .; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "non-docs changes present - full pipeline runs"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "docs-only change - heavy jobs will skip (and report Success)"
+          fi
+
   web:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
@@ -89,6 +121,8 @@ jobs:
 
   # Non-negotiable 4: raw hex in apps/ or packages/ui fails CI (tokens only)
   design-tokens:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
@@ -102,6 +136,8 @@ jobs:
   # live in the test suite) + alembic up/down/up vs a real Postgres
   # (non-negotiable 3: irreversible migration fails CI)
   backend:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     defaults:
@@ -170,6 +206,8 @@ jobs:
   # backend job's <10-min budget; it's a separate required check so a slow
   # storm run never trips the backend job's timeout.
   backend-storm:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     defaults:
@@ -221,6 +259,8 @@ jobs:
   # Dockerfile or a docker-compose.dev.yml drifted out of sync with
   # pyproject.toml is invisible here until someone hits it in dev or staging.
   docker-build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
@@ -234,6 +274,8 @@ jobs:
   # factory and diffs the live SecureRouter registry against the committed
   # backend/core/public_routes.txt.
   public-routes:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     defaults:
@@ -251,6 +293,8 @@ jobs:
 
   # A: gitleaks (full history, redacted output) + dependency audits (fail high)
   security:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     env:
@@ -293,6 +337,8 @@ jobs:
   # pincode box — and they are dynamic SSR reading covers(), so without a
   # backend they render notFound() and cannot be gated at all.
   lighthouse:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     # 25, raised from 15 in A-U4. The job was cancelled at 15m09s having just
     # printed "Checking assertions against 12 URL(s), 60 total run(s)" — it
@@ -401,6 +447,8 @@ jobs:
   # (uvicorn + migrated Postgres + Redis) behind web-id's rewrites, driven by
   # Playwright. OTP codes come from the flag-gated mock peek route.
   e2e-auth:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # Scoped to its NAME: `pnpm run e2e` had silently become the whole
     # desktop suite (92 tests after U1) and this job burnt its entire
     # ceiling every PR push — 35 minutes of private-repo Actions time per
@@ -522,6 +570,8 @@ jobs:
   # e2e-auth rather than lengthening it so runtime stays bounded and a failure
   # names the device instead of hiding in one long serial run.
   e2e-matrix:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # 45, raised from 35 (which was raised from 20): the suite itself is
     # ~9min locally, CI adds browser installs + migrations + the seed, and
     # the suite has grown with every UI pass (U1 took the job from ~13min to

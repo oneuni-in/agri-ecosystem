@@ -2,6 +2,7 @@
 // NO "use client" anywhere under src/seo/.
 import type {
   BreadcrumbList,
+  CollegeOrUniversity,
   Dataset,
   FAQPage,
   LocalBusiness,
@@ -147,5 +148,75 @@ export function datasetJsonLd(input: DatasetInput): WithContext<Dataset> {
     description: input.description,
     url: input.url,
     ...(input.license !== undefined && { license: input.license }),
+  };
+}
+
+
+export interface CollegeInput {
+  name: string;
+  url: string;
+  /** Optional throughout below the name and URL: the corpus records an address
+   * for some institutions and not others, and schema.org markup asserting a
+   * postal address we do not have is a claim, not a blank. */
+  telephone?: string;
+  email?: string;
+  website?: string;
+  foundingDate?: string;
+  address?: {
+    streetAddress?: string;
+    locality?: string;
+    region?: string;
+    postalCode?: string;
+  };
+  geo?: { latitude: number; longitude: number };
+}
+
+/**
+ * `CollegeOrUniversity` + `PostalAddress` for an agri-colleges detail page.
+ *
+ * RENDER THIS ON VERIFIED PAGES ONLY. A `listed` row came from a bulk national
+ * directory and was never checked against the institution's own page; marking
+ * one up as a CollegeOrUniversity with an address nobody confirmed is exactly
+ * the kind of claim that earns a manual action. The caller decides — this
+ * builder cannot know the trust level, so the rule lives at the call site and
+ * is stated there too.
+ *
+ * There is deliberately no builder for scholarships or exams: schema.org has
+ * no honest type for either, and marking one up as something it is not invites
+ * the same problem (spec §6).
+ */
+export function collegeJsonLd(input: CollegeInput): WithContext<CollegeOrUniversity> {
+  const address = input.address;
+  const hasAddress =
+    address !== undefined &&
+    (address.streetAddress ?? address.locality ?? address.region ?? address.postalCode) !==
+      undefined;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollegeOrUniversity",
+    name: input.name,
+    url: input.url,
+    ...(input.telephone !== undefined && { telephone: input.telephone }),
+    ...(input.email !== undefined && { email: input.email }),
+    ...(input.website !== undefined && { sameAs: input.website }),
+    ...(input.foundingDate !== undefined && { foundingDate: input.foundingDate }),
+    ...(hasAddress && {
+      address: {
+        "@type": "PostalAddress" as const,
+        ...(address.streetAddress !== undefined && { streetAddress: address.streetAddress }),
+        ...(address.locality !== undefined && { addressLocality: address.locality }),
+        ...(address.region !== undefined && { addressRegion: address.region }),
+        ...(address.postalCode !== undefined && { postalCode: address.postalCode }),
+        addressCountry: "IN",
+      },
+    }),
+    ...(input.geo && {
+      geo: {
+        "@type": "GeoCoordinates" as const,
+        latitude: input.geo.latitude,
+        longitude: input.geo.longitude,
+      },
+    }),
   };
 }

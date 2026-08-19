@@ -28,6 +28,11 @@ INDEXED_EVENT_TYPES = frozenset(
         "business.updated",
         "product.created",
         "product.updated",
+        # Phase 2: agri-colleges. Without these two, education events land on
+        # a stream this worker now reads and are then dropped here -- the
+        # producer succeeds either way, so nothing would have failed.
+        "institution.created",
+        "institution.updated",
     }
 )
 

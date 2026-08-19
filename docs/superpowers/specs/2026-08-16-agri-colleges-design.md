@@ -194,17 +194,47 @@ GET /education/student-resources   ?kind= &category= &scope=
 GET /education/student-resources/{slug}
 GET /education/guides              ?kind= &country= &state=
 GET /education/guides/{slug}
+GET /education/states
 ```
+
+> **Amended 18 Aug 2026.** `GET /education/states` added — eight routes, not
+> seven. `geo.states` carries `name` and `lgd_code` but **no slug column**, so the
+> `/colleges/state/[state]` segment has to be derived from the state name.
+> Deriving it in both the Next.js route generator and the Python filter would let
+> the two drift on the first name with a period or an ampersand, and the page
+> would 404 against its own link. The API publishes the vocabulary and the
+> frontend consumes it; a contract test walks all 36 real state names asserting
+> the SQL and Python halves still agree. Only states with at least one active
+> institution are returned — 5 have none (all small UTs), and ISR pages for them would be thin
+> indexable pages with nothing on them.
+>
+> **`?q=` is SQL `ILIKE`, not Meilisearch.** The corpus is ~772 rows against an
+> indexed name column; Meili serves the cross-vertical hub search that the fat
+> events feed. Routing this filter through the search stack would couple the
+> API's availability to Meili for no measurable gain, and hand a dead search
+> stack a way to break a college page — which §7's F1 rule forbids.
+>
+> **`?district=` resolves inside Tamil Nadu only** until D65. `data/geo/districts.csv`
+> holds 38 rows, all Tamil Nadu, so `institutions.district_id` stores the LGD code
+> rather than an FK — a constraint would reject a valid Punjab college. A district
+> filter elsewhere correctly returns nothing, and the surfaces must not offer the
+> control outside TN: "no colleges here" and "we do not have that data" read the
+> same to a student and mean opposite things.
 
 ---
 
 ## 6. Public surfaces
 
+> **Amended 17 Aug 2026.** `/colleges/abroad` and `/colleges/abroad/[country]` are
+> removed. After this spec was written the owner scoped the institutions corpus to
+> India only, and every foreign university was deleted — those routes would render
+> zero institutions. The six `foreign_study` guides are unaffected and keep their own
+> route at `/study-abroad`.
+
 | Route | Rendering | Indexed |
 |---|---|---|
 | `/colleges` | dynamic (reads `searchParams`, server-side query) | yes |
 | `/colleges/state/[state]` | ISR, generated from `geo.states` | yes |
-| `/colleges/abroad` + `/colleges/abroad/[country]` | ISR | yes |
 | `/colleges/[slug]` | ISR | **only if `trust=verified`** |
 | `/scholarships`, `/scholarships/[slug]` | ISR | yes |
 | `/exams`, `/exams/[slug]` | ISR | yes |
@@ -220,9 +250,11 @@ thousands. SEO value is recovered by the ISR state pages (~35, generated from `g
 which are what rank for "agriculture colleges in Tamil Nadu" — the query the TN-depth corpus
 exists to answer.
 
-**Reserved-slug guard.** The static `state` and `abroad` segments sit beside `[slug]`. Any
-institution slugifying to a reserved segment is rejected by the seed contract, not
-silently shadowed.
+**Reserved-slug guard.** The static `state` segment sits beside `[slug]`. Any institution
+slugifying to a reserved segment is rejected by the seed contract, not silently shadowed.
+`abroad` stays in `RESERVED_SLUGS` even though it no longer names a route: the guard costs
+nothing, and removing a guard to match a route that was deleted is a change with risk and
+no benefit.
 
 **Trust is visible.** Verified pages carry "Verified · source · Mar 2026". `listed` pages
 open with an honest notice that the entry came from an official bulk list and has not been
@@ -253,7 +285,12 @@ names flagged for owner review in the PR, as 0037 did.
   absent or shows its empty state.
 - Unknown slug → real 404, never a soft page.
 - `status=merged` → **301 to `merged_into_id`**. Incoming links to renamed institutions are
-  exactly the traffic worth keeping.
+  exactly the traffic worth keeping. **Amended 18 Aug 2026 — the 301 is the PAGE's, not
+  the API's.** `GET /education/institutions/{slug}` answers **200** with `status: "merged"`
+  and `merged_into_slug`, and the page turns that into the redirect. An HTTP redirect on a
+  JSON API is a footgun: `fetch` follows 3xx by default, so a client asking for `old-slug`
+  would silently receive `new-slug`'s JSON under the URL it requested, with no signal that
+  it happened. Returning the pointer makes the redirect the caller's explicit act.
 - `status=closed` → renders informatively with a prominent closed banner, `noindex`,
   HTTP 200, **no admission data**. A dead page still saying "apply here" is the harmful case.
 - Guide with `status=draft` → 404 on the public route.
@@ -383,9 +420,10 @@ proven `import_vendor_seed` loader:
 
 ### Known assertions to move
 
-`backend/core/tests/test_geo.py:24` asserts `counts.states == 1`. D8 makes that 36. The
-assertion is **moved, not weakened**: it compares the loaded count against the row count of
-`data/geo/states.csv`, which is what it was actually trying to prove.
+~~`backend/core/tests/test_geo.py:24` asserts `counts.states == 1`.~~ **Done — D8 landed it.**
+`test_geo.py:31` now reads `assert counts.states == _csv_rows(DATA_DIR / "states.csv")`,
+which is exactly the move this item asked for. Verified 18 Aug 2026 and struck rather than
+left as work that looks outstanding.
 
 
 `e2e/agri-categories.spec.ts:46` hardcodes `expect(slugs.length).toBe(36)`, and `AG-A13` in

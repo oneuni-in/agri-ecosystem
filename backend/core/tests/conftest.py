@@ -170,6 +170,33 @@ async def db_session(database_url: str, _scratch_tables_ready: None) -> AsyncIte
 
 
 @pytest.fixture
+async def owner_session(
+    admin_database_url: str, _scratch_tables_ready: None
+) -> AsyncIterator[AsyncSession]:
+    """Like db_session, but connected as the table OWNER rather than app_rt.
+
+    Needed by any suite whose schema is read-only at runtime. `education`
+    grants app_rt SELECT and nothing else (0049, spec section 4), so a test
+    that seeds a college through db_session gets `permission denied` -- the
+    grant working exactly as designed. Those rows arrive from the importer,
+    which runs as the owner, and so must the fixtures that stand in for it.
+
+    Read-path assertions should still use db_session: proving a query works
+    under the app's real runtime identity is the point of having two roles.
+    """
+    engine = create_async_engine(admin_database_url, poolclass=NullPool)
+    async with engine.connect() as conn:
+        outer = await conn.begin()
+        maker = async_sessionmaker(
+            bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint"
+        )
+        async with maker() as session:
+            yield session
+        await outer.rollback()
+    await engine.dispose()
+
+
+@pytest.fixture
 async def otp_redis(redis_client: Redis, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Redis]:
     """Point shared.cache.get_redis at the flushed test redis DB (OTP suites)."""
     url = get_settings().redis_url.rsplit("/", 1)[0] + f"/{TEST_REDIS_DB}"

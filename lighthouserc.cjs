@@ -145,7 +145,7 @@ module.exports = {
           // holding; nothing would have failed had they regressed.
           // AG-A34 asks that the floor HOLD here, which means asserting it.
           matchingUrlPattern:
-            "^https?://[^/]+:3002/(categories|tools|knowledge|directory|schemes|helplines)$",
+            "^https?://[^/]+:3002/(categories|tools|knowledge|directory|schemes|helplines|colleges)$",
           assertions: {
             "categories:performance": [
               "error",

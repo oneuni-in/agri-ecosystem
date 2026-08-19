@@ -37,6 +37,7 @@ from modules.directory.reviews_admin_router import reply_admin_router as review_
 from modules.directory.reviews_router import router as reviews_router
 from modules.directory.router import router as directory_router
 from modules.directory.service import BusinessDisabledError
+from modules.education.router import router as education_router
 from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.location_router import location_router as identity_location_router
 from modules.identity.lookups import notify_contact
@@ -94,6 +95,7 @@ MODULE_ROUTERS = [
     directory_admin_router,
     directory_router,
     directory_claims_router,
+    education_router,
     identity_admin_router,
     identity_router,
     identity_oauth_router,

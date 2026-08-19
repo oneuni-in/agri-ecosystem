@@ -37,7 +37,13 @@ export function HeaderStack({
       <div
         className={cn(
           "mx-auto flex max-w-[1140px] items-center gap-3 px-4 pb-1 pt-3 text-white",
-          nowrap ? "flex-nowrap max-md:gap-2" : "flex-wrap",
+          // max-sm:flex-wrap is the Linux release valve: glyphs there measure
+          // wider than the Windows fonts this was styled against (a recorded
+          // U1 trap), and a nowrap row whose children cannot shrink widens
+          // the DOCUMENT - which is exactly D29's overflow assertion. On a
+          // width where everything fits, wrap never engages and the row is
+          // identical to before.
+          nowrap ? "flex-nowrap max-md:gap-2 max-sm:flex-wrap" : "flex-wrap",
         )}
       >
         {/* Brand lockup. Two stacked lines with their OWN line-heights — the
@@ -80,6 +86,18 @@ export function HeaderStack({
         </div>
         {location}
         <div className={cn("ml-auto flex items-center gap-2", nowrap && "shrink-0")}>{right}</div>
+        {/* The tagline's phone position: its own full-width line under the
+            row. Hiding it below sm (the first fix for the pill collision)
+            silently removed the mother-tongue line - உழவர் · किसान - from
+            every phone, which is the audience it exists for. As a wrapped
+            row it costs ~15px of header and truncates instead of widening
+            the page. sm+ keeps the in-column copy; this one is display:none
+            there, so screen readers only ever meet one. */}
+        {nowrap && tagline ? (
+          <small className="w-full min-w-0 truncate pb-0.5 font-body text-[11px] font-semibold leading-[1.35] tracking-normal text-brand-soft sm:hidden">
+            {tagline}
+          </small>
+        ) : null}
       </div>
       {children}
     </header>

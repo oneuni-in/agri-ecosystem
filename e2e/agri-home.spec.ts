@@ -46,7 +46,21 @@ function pgDatabase(): string {
 }
 
 function sql(query: string): string {
-  // execFileSync + argv array: no shell, no interpolation surface.
+  // Two transports, because the two environments genuinely differ and the
+  // first CI run of this suite proved it: `docker exec agri-dev-postgres-1`
+  // failed every flag flip with "No such container" - that name exists only
+  // on the dev laptop's compose stack. CI runs postgres as a service
+  // container and exports DATABASE_ADMIN_URL, and ubuntu runners ship a
+  // host psql; the laptop has the container but not a host psql. So: when an
+  // admin URL is present, use host psql against it; otherwise fall back to
+  // the dev container. execFileSync + argv arrays in both arms - no shell,
+  // no interpolation surface.
+  const adminUrl = process.env.DATABASE_ADMIN_URL;
+  if (adminUrl) {
+    return execFileSync("psql", [adminUrl.replace("+asyncpg", ""), "-tAc", query])
+      .toString()
+      .trim();
+  }
   return execFileSync("docker", [
     "exec",
     "agri-dev-postgres-1",

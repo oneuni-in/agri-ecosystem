@@ -408,7 +408,16 @@ jobs:
     # bff-path-traversal, 10 tests) is what D09/D10/D30 gate here; every
     # other spec keeps its CI coverage in e2e-matrix's device projects.
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    timeout-minutes: 15
+    # 30, not 15 — WALL-CLOCK, not a health threshold. The job ran ~4m as
+    # auth+sso+bff alone; the a-u4 close-out added the agri suite here
+    # (pnpm run e2e:agri — the specs no job was executing), and the first PR
+    # run was cancelled at 15m19s, two seconds into overtime. Same trap as
+    # the lighthouse job (killed at 15m09s, raised to 25): a cancelled job
+    # reports neither pass nor fail. The minutes-burn note above predates the
+    # repo going public; hosted-runner minutes are free now, and the agri
+    # suite lives here precisely to reuse this job's booted stack instead of
+    # paying a second boot in a new job.
+    timeout-minutes: 30
     services:
       postgres:
         # pgvector/pgvector:pg16, not plain postgres:16 — migration 0047

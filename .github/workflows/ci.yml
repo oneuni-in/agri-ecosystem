@@ -517,22 +517,25 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Bounded + retried, because on 2026-08-19 this exact step hung THREE
-      # jobs to their wall-clock: apt stalled fetching noble-security from the
-      # Azure Ubuntu mirror and produced nothing for 14-44 minutes until the
-      # job was cancelled. A cancelled job reports neither pass nor fail, and
-      # the log tail (teardown noise) points everywhere but here. The hang is
-      # per-connection, so a killed attempt followed by a fresh one succeeds;
-      # 7 minutes is roomy for a healthy install (chromium: ~2m).
-      - name: Install Playwright browsers (bounded, one retry)
+      # Two steps, not a bash retry loop. The first bounded-retry design
+      # (timeout 420 + loop) failed its very next run: the Azure mirror was
+      # drip-feeding at ~160KB/s, webkit's ~43 apt packages could not finish
+      # inside 7 minutes, and killing apt mid-dpkg left the lock held - the
+      # in-loop retry then died in 8s on "could not get lock". So: a native
+      # step timeout (covers the total-silence hang that ate three jobs on
+      # 2026-08-19), continue-on-error so the job survives it, and a retry
+      # step that repairs dpkg state before trying again.
+      - name: Install Playwright browsers
+        id: pwauth
+        continue-on-error: true
+        timeout-minutes: 10
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Install Playwright browsers (retry after mirror stall)
+        if: steps.pwauth.outcome == 'failure'
+        timeout-minutes: 10
         run: |
-          for attempt in 1 2; do
-            if timeout 420 pnpm exec playwright install chromium --with-deps; then
-              exit 0
-            fi
-            echo "::warning::playwright install attempt $attempt failed or hung; retrying"
-          done
-          exit 1
+          sudo dpkg --configure -a || true
+          pnpm exec playwright install chromium --with-deps
       # D16 claim evidence and D17 product media upload through shared.storage,
       # which is MinIO-backed. Without it _store_evidence 500s and the claim
       # journey fails with a generic "something went wrong" that says nothing
@@ -634,22 +637,25 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # webkit as well as chromium - mobile-safari is the whole point of this job
-      # Bounded + retried, because on 2026-08-19 this exact step hung THREE
-      # jobs to their wall-clock: apt stalled fetching noble-security from the
-      # Azure Ubuntu mirror and produced nothing for 14-44 minutes until the
-      # job was cancelled. A cancelled job reports neither pass nor fail, and
-      # the log tail (teardown noise) points everywhere but here. The hang is
-      # per-connection, so a killed attempt followed by a fresh one succeeds;
-      # 7 minutes is roomy for a healthy install (chromium webkit: ~2m).
-      - name: Install Playwright browsers (bounded, one retry)
+      # Two steps, not a bash retry loop. The first bounded-retry design
+      # (timeout 420 + loop) failed its very next run: the Azure mirror was
+      # drip-feeding at ~160KB/s, webkit's ~43 apt packages could not finish
+      # inside 7 minutes, and killing apt mid-dpkg left the lock held - the
+      # in-loop retry then died in 8s on "could not get lock". So: a native
+      # step timeout (covers the total-silence hang that ate three jobs on
+      # 2026-08-19), continue-on-error so the job survives it, and a retry
+      # step that repairs dpkg state before trying again.
+      - name: Install Playwright browsers
+        id: pwmatrix
+        continue-on-error: true
+        timeout-minutes: 14
+        run: pnpm exec playwright install chromium webkit --with-deps
+      - name: Install Playwright browsers (retry after mirror stall)
+        if: steps.pwmatrix.outcome == 'failure'
+        timeout-minutes: 14
         run: |
-          for attempt in 1 2; do
-            if timeout 420 pnpm exec playwright install chromium webkit --with-deps; then
-              exit 0
-            fi
-            echo "::warning::playwright install attempt $attempt failed or hung; retrying"
-          done
-          exit 1
+          sudo dpkg --configure -a || true
+          pnpm exec playwright install chromium webkit --with-deps
       # D16 claim evidence and D17 product media upload through shared.storage,
       # which is MinIO-backed. Without it _store_evidence 500s and the claim
       # journey fails with a generic "something went wrong" that says nothing

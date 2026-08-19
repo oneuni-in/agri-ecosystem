@@ -72,6 +72,74 @@ async function inboxStats(
   }
 }
 
+/** One business's engagement numbers over `days`, owner-scoped (404s for
+ * anyone else, same IDOR contract as every vendor read). */
+interface Analytics {
+  views: number;
+  reveals: number;
+  leads: number;
+  responded: number;
+  leadTotal: number;
+}
+
+async function businessAnalytics(
+  token: string,
+  businessId: string,
+  days: number,
+): Promise<Analytics | null> {
+  try {
+    const response = await fetch(
+      `${API}/directory/businesses/${businessId}/analytics?days=${days}`,
+      { headers: { authorization: `Bearer ${token}` }, cache: "no-store" },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      views?: { total?: number };
+      reveals?: { total?: number };
+      leads?: { total?: number };
+      response?: { total?: number; responded?: number };
+    };
+    return {
+      views: body.views?.total ?? 0,
+      reveals: body.reveals?.total ?? 0,
+      leads: body.leads?.total ?? 0,
+      responded: body.response?.responded ?? 0,
+      leadTotal: body.response?.total ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Sum a window across every owned business, or null if ANY of them failed.
+ * A partial sum is a smaller number that looks like a real one — the same
+ * rule the lead tiles below already follow. */
+function sumAll(rows: (Analytics | null)[]): Analytics | null {
+  if (rows.some((row) => row === null)) return null;
+  return (rows as Analytics[]).reduce(
+    (acc, row) => ({
+      views: acc.views + row.views,
+      reveals: acc.reveals + row.reveals,
+      leads: acc.leads + row.leads,
+      responded: acc.responded + row.responded,
+      leadTotal: acc.leadTotal + row.leadTotal,
+    }),
+    { views: 0, reveals: 0, leads: 0, responded: 0, leadTotal: 0 },
+  );
+}
+
+/** "+18% vs previous 7 days", or null when there is nothing to compare
+ * against. NOT a sparkline: the analytics endpoint returns totals and a
+ * by-pincode split, never a per-day series, so the reference's little bar
+ * charts have no data behind them and are left out rather than drawn from
+ * numbers that do not exist. */
+function delta(now: number, before: number, label: string): string | null {
+  if (before <= 0) return null;
+  const pct = Math.round(((now - before) / before) * 100);
+  if (pct === 0) return `— ${label}`;
+  return `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% ${label}`;
+}
+
 function statusChip(business: OwnedBusiness, t: (key: string) => string) {
   if (business.status === "active")
     return <StateChip tone="ok">{t("dashboard.statusActive")}</StateChip>;
@@ -113,14 +181,40 @@ export default async function BusinessDashboardPage() {
   }
 
   const token = await auth.getAccessToken();
-  const [[showBilling, showAds], stats] = await Promise.all([
+  const [[showBilling, showAds], stats, recentRows, priorRows] = await Promise.all([
     Promise.all([billingVisible(), adsVisible()]),
     Promise.all(
       owned.map((business) =>
         token ? inboxStats(token, business.id) : Promise.resolve(null),
       ),
     ),
+    // Two windows so "vs previous 7 days" is measured, not asserted: the
+    // 14-day total minus the 7-day total IS the week before.
+    Promise.all(
+      owned.map((business) =>
+        token ? businessAnalytics(token, business.id, 7) : Promise.resolve(null),
+      ),
+    ),
+    Promise.all(
+      owned.map((business) =>
+        token ? businessAnalytics(token, business.id, 14) : Promise.resolve(null),
+      ),
+    ),
   ]);
+  const recent = sumAll(recentRows);
+  const fortnight = sumAll(priorRows);
+  const prior =
+    recent && fortnight
+      ? {
+          views: fortnight.views - recent.views,
+          reveals: fortnight.reveals - recent.reveals,
+          leads: fortnight.leads - recent.leads,
+        }
+      : null;
+  const responseRate =
+    recent && recent.leadTotal > 0
+      ? Math.round((recent.responded / recent.leadTotal) * 100)
+      : null;
   const statValues = stats.filter(
     (entry): entry is { total: number; responded: number } => entry !== null,
   );
@@ -176,6 +270,59 @@ export default async function BusinessDashboardPage() {
           />
         ) : null}
       </ConsoleStatRow>
+
+      {/* The A3 reference's engagement row. Real figures from the owner-only
+          analytics read, summed across every business this account owns.
+          Rendered only when ALL of them reported. */}
+      {recent ? (
+        <ConsoleStatRow label={t("dashboard.last7")}>
+          <ConsoleStatTile
+            value={String(recent.views)}
+            label={t("dashboard.statViews")}
+            hint={delta(recent.views, prior?.views ?? 0, t("dashboard.vsPrev")) ?? t("dashboard.last7")}
+          />
+          <ConsoleStatTile
+            value={String(recent.reveals)}
+            label={t("dashboard.statReveals")}
+            hint={
+              delta(recent.reveals, prior?.reveals ?? 0, t("dashboard.vsPrev")) ??
+              t("dashboard.last7")
+            }
+          />
+          <ConsoleStatTile
+            value={String(recent.leads)}
+            label={t("dashboard.statNewLeads")}
+            hint={delta(recent.leads, prior?.leads ?? 0, t("dashboard.vsPrev")) ?? t("dashboard.last7")}
+          />
+          {responseRate !== null ? (
+            <ConsoleStatTile
+              value={`${responseRate}%`}
+              label={t("dashboard.statResponseRate")}
+              hint={t("dashboard.last7")}
+            />
+          ) : null}
+        </ConsoleStatRow>
+      ) : null}
+
+      {/* Listing health, from the reference's right rail. Only the checks the
+          owner list actually answers — verification. Coverage, products and
+          description live on the per-business detail read and would cost one
+          request each, so they are not guessed at here. */}
+      {owned.some((business) => business.verification_status !== "verified") ? (
+        <ConsolePanel title={t("dashboard.completeTitle")} className="mt-4">
+          <p className="mb-2 text-[12.5px] text-sub">{t("dashboard.completeSub")}</p>
+          <ul className="grid gap-1.5">
+            {owned
+              .filter((business) => business.verification_status !== "verified")
+              .map((business) => (
+                <li key={business.id} className="text-[13px] text-ink">
+                  <span className="font-semibold">{business.name}</span>{" "}
+                  <span className="text-sub">— {t("dashboard.needVerify")}</span>
+                </li>
+              ))}
+          </ul>
+        </ConsolePanel>
+      ) : null}
 
       <ConsolePanel title={t("dashboard.yourBusinesses")} className="mt-4">
         <ConsoleTable

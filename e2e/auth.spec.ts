@@ -16,7 +16,12 @@ test.describe("D09 auth flows", () => {
 
     // language picker, then devices
     await page.getByRole("button", { name: /tamil/i }).click();
-    await expect(page).toHaveURL(/\/devices/);
+    // 20s, not the 5s default: this is the suite's FIRST navigation to
+    // /devices, and under dev-JIT that means compiling the route on demand.
+    // A local trace of the 5s failure shows POST /auth/language -> 200 and
+    // the push issued - the page was simply still compiling. Same class as
+    // completeLoginUi's hydration allowance.
+    await expect(page).toHaveURL(/\/devices/, { timeout: 20_000 });
     await expect(page.getByText(`@${handle}`)).toBeVisible();
     await expect(page.getByText(/this device|இந்த சாதனம்/i)).toBeVisible();
   });
@@ -40,7 +45,7 @@ test.describe("D09 auth flows", () => {
     await page.goto("/login");
     await page.getByLabel(/mobile number/i).fill(phone);
     await page.getByRole("button", { name: /send otp/i }).click();
-    await expect(page.getByText(/6-digit code/i)).toBeVisible();
+    await expect(page.getByText(/6-digit (code|OTP)/i)).toBeVisible();
     const real = await peekOtp(`+91${phone}`);
     const wrong = real === "000000" ? "111111" : "000000";
 

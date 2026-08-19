@@ -51,7 +51,7 @@ export async function completeLoginUi(page: Page, phone: string): Promise<void> 
     await expect(send).toBeEnabled({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   await send.click();
-  await expect(page.getByText(/6-digit code/i)).toBeVisible();
+  await expect(page.getByText(/6-digit (code|OTP)/i)).toBeVisible();
   await fillOtp(page, await peekOtp(`+91${phone}`));
 }
 

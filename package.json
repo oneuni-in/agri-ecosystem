@@ -18,6 +18,7 @@
     "e2e": "playwright test --config e2e/playwright.config.ts --project=desktop",
     "e2e:auth": "playwright test --config e2e/playwright.config.ts --project=desktop auth sso bff-path-traversal",
     "e2e:matrix": "playwright test --config e2e/playwright.config.ts --project=mobile-chrome --project=mobile-safari",
+    "e2e:agri": "node -e \"require('fs').rmSync('apps/web-agri/.next/cache/fetch-cache',{recursive:true,force:true})\" && playwright test --config e2e/playwright.config.ts --project=desktop agri-home agri-categories agri-pwa",
     "e2e:api": "node scripts/e2e-api.mjs",
     "perf:home": "node scripts/perf-home.mjs",
     "perf:sweep": "node scripts/perf-sweep.mjs"

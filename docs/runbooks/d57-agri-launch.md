@@ -105,6 +105,41 @@ None of these can be done by an agent, and none has a workaround:
 
 ---
 
+## 4b · Build from a CLEAN cache, or you ship stale prices
+
+Found in the live-Chrome walkthrough on 2026-08-18, on a production build.
+
+`/mandi` rendered **3 commodities dated 2026-08-15** while
+`GET /market/commodities` returned **6, all as_of 2026-08-17**. Deleting
+`apps/web-agri/.next/cache/fetch-cache` and restarting produced all six at the
+correct date immediately.
+
+The mechanism, and why it is a deploy concern rather than a code bug:
+
+- `/mandi` and `/mandi/[commodity]` declare `export const revalidate = 3600`,
+  so they are ISR — **prerendered at build time**.
+- `next build` resolves their fetches through `.next/cache/fetch-cache`. If
+  that cache carries old entries, the build **bakes stale data into the
+  prerendered HTML**.
+- ISR then serves that stale page for a full hour before regenerating.
+
+So a build that reuses a warm `.next/cache` can ship a mandi page that is days
+old and missing more than half its commodities, and nothing about the build
+output or the running app says so. Prices are the point of this page; a farmer
+comparing a two-day-old rate against today's is worse served than one shown
+nothing.
+
+**Before the launch build:**
+
+```
+rm -rf apps/web-agri/.next/cache        # or build in a clean container
+pnpm --filter @agri/web-agri build
+curl -s localhost:3002/mandi | grep -o '2026-[0-9-]*' | sort -u   # sanity-check the date
+```
+
+CI builds in a fresh runner and is not exposed to this. A local or
+cache-reusing deploy is.
+
 ## 5 · Launch sequence
 
 ```

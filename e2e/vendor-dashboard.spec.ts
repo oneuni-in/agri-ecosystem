@@ -31,7 +31,7 @@ async function completeLoginResilient(page: Page, phone: string): Promise<void> 
     await expect(send).toBeEnabled({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   await send.click();
-  await expect(page.getByText(/6-digit code/i)).toBeVisible();
+  await expect(page.getByText(/6-digit (code|OTP)/i)).toBeVisible();
   await fillOtp(page, await peekOtp(`+91${phone}`));
   // fresh phones are always new users (progressive account): skip the handle
   // step, pick a language - that finish()es into the authorize resume.

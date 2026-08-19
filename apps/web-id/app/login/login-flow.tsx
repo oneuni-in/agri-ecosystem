@@ -11,6 +11,13 @@ type Step = "phone" | "otp" | "handle" | "language";
 
 const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
 
+/** The rail in the A2 reference is not decoration - it is THIS array. The
+ * flow has always had four steps; the screen simply never said so, which is
+ * why "enter your number" felt open-ended on the one screen where a farmer is
+ * deciding whether to trust us at all. Order matters: it is the order
+ * `finish()` walks. */
+const STEP_ORDER: Step[] = ["phone", "otp", "handle", "language"];
+
 function safeNext(raw: string | undefined): string | null {
   // resume only ever returns to our own /authorize - anything else is dropped
   return raw && raw.startsWith("/authorize?") ? raw : null;
@@ -142,6 +149,44 @@ export function LoginFlow({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-center gap-4 px-4 py-8">
+      {/* Brand lockup. This screen is CONSUMED by agri.in, milk.in and
+          theorganic.in alike, so it has to say whose login it is and that the
+          one account covers all three - otherwise arriving here from a bounce
+          looks like being handed off to a stranger. */}
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <span
+          aria-hidden="true"
+          className="flex h-[52px] w-[52px] items-center justify-center rounded-icon bg-brand text-[26px]"
+        >
+          🌱
+        </span>
+        <h1 className="font-display text-[19px] font-extrabold leading-tight text-ink">
+          {t("brandTitle")}
+        </h1>
+        <p className="text-[12px] text-muted">{t("brandSites")}</p>
+      </div>
+
+      {/* Where you are in the four steps. Hidden while gated: there is no
+          progress through a flow that is closed. */}
+      {!gated && (
+        <ol aria-label={t("stepsLabel")} className="flex items-center gap-1.5">
+          {STEP_ORDER.map((name, index) => {
+            const current = STEP_ORDER.indexOf(step);
+            const done = index < current;
+            const here = index === current;
+            return (
+              <li
+                key={name}
+                aria-current={here ? "step" : undefined}
+                className={`h-1 flex-1 rounded-full ${
+                  done || here ? "bg-brand" : "bg-cream-line"
+                }`}
+              />
+            );
+          })}
+        </ol>
+      )}
+
       <Card className="p-6">
         {/* The D30 launch gate wins over every step: signup is closed until
             DLT approval lands, so there is no partial flow worth showing. */}
@@ -165,16 +210,27 @@ export function LoginFlow({
             <label className="text-sm font-bold text-ink" htmlFor="phone">
               {t("phone.label")}
             </label>
-            <input
-              id="phone"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel"
-              maxLength={10}
-              value={phone}
-              onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
-              className="min-h-[44px] rounded-btn border border-line bg-card px-3.5 text-lg font-bold tracking-[.05em] text-ink"
-            />
+            {/* The +91 sits OUTSIDE the field, as in the reference. Inside it
+                is one more thing to delete on a phone keyboard; beside it, the
+                field holds exactly the ten digits a person knows by heart. */}
+            <div className="flex items-stretch gap-2">
+              <span
+                aria-hidden="true"
+                className="flex min-h-[44px] flex-none items-center rounded-btn border border-line bg-cream px-3 text-lg font-bold text-sub"
+              >
+                {t("countryCode")}
+              </span>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                maxLength={10}
+                value={phone}
+                onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
+                className="min-h-[44px] w-full min-w-0 rounded-btn border border-line bg-card px-3.5 text-lg font-bold tracking-[.05em] text-ink"
+              />
+            </div>
             {error && (
               <p role="alert" className="text-sm text-sub">
                 {error}
@@ -289,6 +345,12 @@ export function LoginFlow({
           </>
         )}
       </Card>
+
+      {/* DPDP notice. Plain text, not links: agri.in has no /terms or /privacy
+          route yet, and its own footer renders these as text for the same
+          reason. A link that 404s on the consent line of a login screen is
+          worse than no link. Wire them up when the pages exist. */}
+      <p className="text-center text-[11.5px] leading-[1.55] text-muted">{t("terms")}</p>
     </main>
   );
 }

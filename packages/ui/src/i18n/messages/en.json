@@ -478,7 +478,12 @@
         "title": "Login coming shortly",
         "body": "We're finishing SMS verification with our provider. The rest of Milk.in works without an account."
       },
-      "login": "Login"
+      "login": "Login",
+      "brandTitle": "One AgriID for everything",
+      "brandSites": "agri.in · milk.in · theorganic.in",
+      "stepsLabel": "Sign-in progress",
+      "countryCode": "+91",
+      "terms": "By continuing you agree to our Terms and Privacy policy (DPDP Act 2023). OTP limits apply per number, IP and device."
     },
     "categories": {
       "seeds": "Seeds",

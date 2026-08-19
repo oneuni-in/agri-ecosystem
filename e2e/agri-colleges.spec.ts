@@ -13,7 +13,11 @@ import { AGRI, API } from "./helpers";
  * than flaky.
  */
 async function visit(page: import("@playwright/test").Page, path: string) {
-  await page.goto(`${AGRI}${path}`, { waitUntil: "domcontentloaded" });
+  // "load", not "domcontentloaded": a streamed RSC page fires DCL while the
+  // body is still arriving, and CI's trace snapshot proved it -- the failure
+  // screenshot showed every article present milliseconds after a count()
+  // returned 0. "load" waits for the stream to close.
+  await page.goto(`${AGRI}${path}`, { waitUntil: "load" });
   await page.waitForLoadState("networkidle").catch(() => {});
 }
 
@@ -51,12 +55,16 @@ test.describe("Phase 2 agri-colleges", { tag: "@matrix" }, () => {
   test("/colleges lists colleges and filters server-side", async ({ page }) => {
     await visit(page, "/colleges");
     await expect(page.locator("h1")).toContainText(/colleges/i);
+    // toBeVisible auto-retries; a bare count() reads instantly and races the
+    // stream (the CI failure mode this spec shipped with).
+    await expect(page.locator("article").first()).toBeVisible();
     const all = await page.locator("article").count();
     expect(all).toBeGreaterThan(0);
 
     // Government-only is a plain link, so this also proves the filter works
     // with no JS involved in producing the result.
     await visit(page, "/colleges?gov=true");
+    await expect(page.locator("article").first()).toBeVisible();
     const gov = await page.locator("article").count();
     expect(gov).toBeGreaterThan(0);
     expect(gov).toBeLessThanOrEqual(all);
@@ -70,7 +78,7 @@ test.describe("Phase 2 agri-colleges", { tag: "@matrix" }, () => {
     const first = states[0]!;
     await visit(page, `/colleges/state/${first.slug}`);
     await expect(page.locator("h1")).toContainText(first.name);
-    expect(await page.locator("article").count()).toBeGreaterThan(0);
+    await expect(page.locator("article").first()).toBeVisible();
 
     const missing = await req.get(`${AGRI}/colleges/state/atlantis`);
     expect(missing.status()).toBe(404);
@@ -97,7 +105,12 @@ test.describe("Phase 2 agri-colleges", { tag: "@matrix" }, () => {
     test.skip(!row, "no verified rows in the seeded corpus");
 
     await visit(page, `/colleges/${row!.slug}`);
-    const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
+    const ldScripts = page.locator('script[type="application/ld+json"]');
+    // toHaveCount auto-retries where allTextContents reads instantly -- and a
+    // late navigation (silent-SSO bounce, dev-server replace) destroyed the
+    // context mid-read in CI. Wait for both blocks, THEN read.
+    await expect(ldScripts).toHaveCount(2);
+    const ld = await ldScripts.allTextContents();
     expect(ld.join(" ")).toContain("CollegeOrUniversity");
     expect(ld.join(" ")).toContain("BreadcrumbList");
     // Indexable: no robots meta at all, or one that does not say noindex.
@@ -119,7 +132,7 @@ test.describe("Phase 2 agri-colleges", { tag: "@matrix" }, () => {
     test.skip(guides.length === 0, "no counselling guides seeded");
 
     await visit(page, "/counselling");
-    expect(await page.locator("article").count()).toBeGreaterThan(0);
+    await expect(page.locator("article").first()).toBeVisible();
 
     await visit(page, `/guides/${guides[0]!.slug}`);
     // An ordered list, because counselling rounds happen in sequence and a

@@ -158,7 +158,7 @@ export function LoginFlow({
           aria-hidden="true"
           className="flex h-[52px] w-[52px] items-center justify-center rounded-icon bg-brand text-[26px]"
         >
-          🌱
+          🌾
         </span>
         <h1 className="font-display text-[19px] font-extrabold leading-tight text-ink">
           {t("brandTitle")}
@@ -259,6 +259,17 @@ export function LoginFlow({
                 {error}
               </p>
             )}
+            {/* An explicit verify, as in the reference. OtpInput still
+                auto-submits on the sixth digit - this is for everyone whose
+                autofill drops the code in without firing that, and for anyone
+                who simply expects a button to press. */}
+            <Button
+              variant="brand"
+              onClick={() => void verifyAndLogin(code)}
+              disabled={busy || code.length !== 6}
+            >
+              {t("otp.verify")}
+            </Button>
             <Button
               variant="ghost"
               onClick={() => void requestOtp()}
@@ -266,6 +277,11 @@ export function LoginFlow({
             >
               {cooldown > 0 ? t("otp.resendIn", { seconds: cooldown }) : t("otp.resend")}
             </Button>
+            {/* The reference puts this next to Resend, and it earns the space:
+                a farmer whose number is on DND simply never receives the SMS,
+                and without being told, they retry until the daily cap locks
+                them out of their own account. */}
+            <p className="text-[11.5px] leading-[1.5] text-muted">{t("otp.dndHint")}</p>
           </div>
         )}
 

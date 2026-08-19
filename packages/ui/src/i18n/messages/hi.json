@@ -409,7 +409,8 @@
         "resendIn": "{seconds} सेकंड में फिर से भेजें",
         "wrong": "कोड गलत है — फिर कोशिश करें",
         "locked": "बहुत अधिक प्रयास। नया कोड मांगें।",
-        "inputLabel": "OTP अंक"
+        "inputLabel": "OTP अंक",
+        "dndHint": "Didn't get it? Check DND, or try voice OTP."
       },
       "handle": {
         "title": "अपना @handle चुनें",

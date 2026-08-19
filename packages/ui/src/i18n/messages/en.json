@@ -395,21 +395,22 @@
     },
     "auth": {
       "phone": {
-        "title": "Sign in to AgriID",
-        "subtitle": "One login for agri, milk and organic",
+        "title": "Login or create account",
+        "subtitle": "Mobile number only — no password, no email needed. எண்ணை உள்ளிடுங்கள்.",
         "label": "Mobile number",
         "cta": "Send OTP",
         "invalid": "Enter a valid 10-digit mobile number"
       },
       "otp": {
-        "title": "Enter the 6-digit code",
+        "title": "Enter the 6-digit OTP sent by SMS",
         "sentTo": "Code sent to {phone}",
         "verify": "Verify",
         "resend": "Resend code",
         "resendIn": "Resend in {seconds}s",
         "wrong": "That code didn't work — try again",
         "locked": "Too many attempts. Request a new code.",
-        "inputLabel": "OTP digit"
+        "inputLabel": "OTP digit",
+        "dndHint": "Didn't get it? Check DND, or try voice OTP."
       },
       "handle": {
         "title": "Pick your @handle",
@@ -480,7 +481,7 @@
       },
       "login": "Login",
       "brandTitle": "One AgriID for everything",
-      "brandSites": "agri.in · milk.in · theorganic.in",
+      "brandSites": "agri.in · milk.in · theorganic.in — ஒரே கணக்கு",
       "stepsLabel": "Sign-in progress",
       "countryCode": "+91",
       "terms": "By continuing you agree to our Terms and Privacy policy (DPDP Act 2023). OTP limits apply per number, IP and device."

@@ -409,7 +409,8 @@
         "resendIn": "{seconds} விநாடிகளில் மீண்டும் அனுப்பலாம்",
         "wrong": "குறியீடு தவறு — மீண்டும் முயற்சிக்கவும்",
         "locked": "அதிக முயற்சிகள். புதிய குறியீட்டைக் கேளுங்கள்.",
-        "inputLabel": "OTP இலக்கம்"
+        "inputLabel": "OTP இலக்கம்",
+        "dndHint": "Didn't get it? Check DND, or try voice OTP."
       },
       "handle": {
         "title": "உங்கள் @handle-ஐத் தேர்வு செய்யவும்",

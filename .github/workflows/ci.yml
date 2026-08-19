@@ -408,15 +408,16 @@ jobs:
     # bff-path-traversal, 10 tests) is what D09/D10/D30 gate here; every
     # other spec keeps its CI coverage in e2e-matrix's device projects.
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    # 30, not 15 — WALL-CLOCK, not a health threshold. The job ran ~4m as
-    # auth+sso+bff alone; the a-u4 close-out added the agri suite here
-    # (pnpm run e2e:agri — the specs no job was executing), and the first PR
-    # run was cancelled at 15m19s, two seconds into overtime. Same trap as
-    # the lighthouse job (killed at 15m09s, raised to 25): a cancelled job
-    # reports neither pass nor fail. The minutes-burn note above predates the
-    # repo going public; hosted-runner minutes are free now, and the agri
-    # suite lives here precisely to reuse this job's booted stack instead of
-    # paying a second boot in a new job.
+    # 30 — WALL-CLOCK headroom, not a health threshold: ~4m of auth+sso+bff
+    # plus the a-u4 agri suite (pnpm run e2e:agri, the specs no job was
+    # executing). CORRECTION for the record: the 15m19s cancellation that
+    # prompted the raise turned out to be the Azure apt-mirror hang in the
+    # browser-install step (see that step's comment), NOT the suite outgrowing
+    # 15 minutes - the suite had never started. The raise stays because the
+    # job genuinely carries more work now, but the install retry is the fix.
+    # The minutes-burn note above predates the repo going public;
+    # hosted-runner minutes are free now, and the agri suite lives here to
+    # reuse this job's booted stack instead of paying a second boot.
     timeout-minutes: 30
     services:
       postgres:
@@ -468,7 +469,22 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
+      # Bounded + retried, because on 2026-08-19 this exact step hung THREE
+      # jobs to their wall-clock: apt stalled fetching noble-security from the
+      # Azure Ubuntu mirror and produced nothing for 14-44 minutes until the
+      # job was cancelled. A cancelled job reports neither pass nor fail, and
+      # the log tail (teardown noise) points everywhere but here. The hang is
+      # per-connection, so a killed attempt followed by a fresh one succeeds;
+      # 7 minutes is roomy for a healthy install (chromium: ~2m).
+      - name: Install Playwright browsers (bounded, one retry)
+        run: |
+          for attempt in 1 2; do
+            if timeout 420 pnpm exec playwright install chromium --with-deps; then
+              exit 0
+            fi
+            echo "::warning::playwright install attempt $attempt failed or hung; retrying"
+          done
+          exit 1
       # D16 claim evidence and D17 product media upload through shared.storage,
       # which is MinIO-backed. Without it _store_evidence 500s and the claim
       # journey fails with a generic "something went wrong" that says nothing
@@ -568,7 +584,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # webkit as well as chromium - mobile-safari is the whole point of this job
-      - run: pnpm exec playwright install chromium webkit --with-deps
+      # Bounded + retried, because on 2026-08-19 this exact step hung THREE
+      # jobs to their wall-clock: apt stalled fetching noble-security from the
+      # Azure Ubuntu mirror and produced nothing for 14-44 minutes until the
+      # job was cancelled. A cancelled job reports neither pass nor fail, and
+      # the log tail (teardown noise) points everywhere but here. The hang is
+      # per-connection, so a killed attempt followed by a fresh one succeeds;
+      # 7 minutes is roomy for a healthy install (chromium webkit: ~2m).
+      - name: Install Playwright browsers (bounded, one retry)
+        run: |
+          for attempt in 1 2; do
+            if timeout 420 pnpm exec playwright install chromium webkit --with-deps; then
+              exit 0
+            fi
+            echo "::warning::playwright install attempt $attempt failed or hung; retrying"
+          done
+          exit 1
       # D16 claim evidence and D17 product media upload through shared.storage,
       # which is MinIO-backed. Without it _store_evidence 500s and the claim
       # journey fails with a generic "something went wrong" that says nothing

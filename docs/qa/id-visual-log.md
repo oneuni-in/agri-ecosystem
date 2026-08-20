@@ -67,3 +67,49 @@ app that is). It has no counterpart in the reference, so its proofs are
 live-only. Content is deliberately narrow: what we store, what we never do,
 what you control, your DPDP rights, and why sign-in is rate-limited — the last
 of which preserves the one fact the dropped `terms` line carried.
+
+---
+
+## P2 · `/login` — OTP step (verify-only)
+
+Proofs: `p2-otp-fresh`, `p2-otp-wrong`, `p2-otp-locked` (× live/ref × 1280/390).
+The reference has no distinct wrong-code drawing, so `p2-otp-wrong`'s ref half
+is the same `otp` state — the comparison there is against the shipped copy,
+not a mockup.
+
+**Every state was reached through the real API**, never by posing the UI:
+
+- *fresh* — a real `POST /auth/otp/request` on an unused number; the resend
+  button shows the real 30 s first-rung cooldown from `otp_limits`.
+- *wrong code* — six wrong digits, which `OtpInput` auto-submits; the server
+  returned the real 400 and the UI showed "That code didn't work — try again".
+- *locked (429)* — the phone's real daily-issue counter
+  (`otp:day:phone:<e164>` in Redis) was set to its cap of 5, then a genuine
+  request tripped the genuine throttle. The 429 is the server's, not a posed
+  state. This deliberately costs **no** IP quota: `assert_issue_allowed`
+  raises on the phone cap *before* it bumps the IP counter.
+
+Self-check: no overflow at 390/768/1280; console clean on load. The
+wrong-code step logs one browser-level 400 — that is the browser reporting an
+expected non-2xx from a deliberate wrong entry, not a page defect.
+
+### findings — the diff was NOT none
+
+| # | Finding | Severity |
+|---|---|---|
+| **P2-Q1** | **The 429 copy tells the farmer to do the thing that is blocked.** Live renders "Too many attempts. **Request a new code.**" — but requesting a new code is precisely what the throttle just refused, so following the instruction fails again and burns another attempt. The reference's copy is the correct shape: "hit the OTP limit for now. Wait **14 minutes** — the code you already received still works until it expires." | **highest of this pass so far.** Misleading advice on a rate-limited credential screen. |
+| **P2-Q2** | **The wait time is available and unused.** `OtpRateLimited` carries `retry_after` and `router.py` already sends it as a `Retry-After` header. The client never sees it: `lib/api.ts`'s `parse()` builds `ApiError` from the JSON body only and discards headers. Surfacing it is a small, contained change (read the header into `ApiError`, add a "wait {n} minutes" string). | Small fix, real gain — it is what makes P2-Q1's copy fixable. |
+| **P2-Q3** | **The rate-limit message has no error treatment.** It renders as `text-sm text-sub`, the same weight and colour as the DPDP sentence beneath it, so a block reads as a footnote. The reference gives it a bordered danger box. | Visual, but on the one state where the user must notice. |
+| **P2-Q4** | **No "change number" affordance.** The reference's OTP sub-line carries "· change number". Live has none: a farmer who mistyped a digit can only reload the page. The reference marks this step SHIPPED, so this is an ADD hiding inside a SHIP mark rather than a regression. | Real usability gap; small to add. |
+
+I did **not** fix any of these. The prompt scopes P2 to verify-only and says a
+surfaced delta is a finding — widening it into a build task is my call to
+propose, not to take. P2-Q1 + P2-Q2 are one small change together and I'd
+recommend doing them before launch; they are on the D57 flow.
+
+### kept
+
+| # | Delta | Why the live page is right |
+|---|---|---|
+| P2-K1 | Resend is a full-width ghost **button** live; the reference draws a text row ("Didn't get it?" · "Resend in 0:23"). | The button is a real 48 px target on the screen where a farmer on a bad SMS route taps most. The reference's text link is below the tap-target floor the rest of this app holds itself to. |
+| P2-K2 | Live shows the cooldown as "Resend in 30s"; the reference shows "0:23" mm:ss. | Cosmetic; the live figure is the true remaining value from the same ladder. Recorded only so the pair does not look unexplained. |

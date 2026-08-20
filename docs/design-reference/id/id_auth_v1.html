@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>id.agri.in — account creation reference (A7 v1)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   AGRIID ACCOUNT CREATION — A7 DESIGN REFERENCE (v1, CODE-VERIFIED)
+
+   One flow, one app: apps/web-id (id.agri.in). Login and signup are
+   the SAME four steps — a phone number either resumes an account or
+   creates one; the farmer never chooses between two doors.
+
+   FILING: docs/design-reference/id/ — web-id serves all three
+   verticals, same rule as the admin console. Not under agri/.
+
+   SHIPPED (login-flow.tsx, read 20 Aug): phone → otp → handle →
+   language · 30 s resend cooldown mirroring otp_limits · 429 →
+   "locked" copy · 503 signup_unavailable → gated screen (D30 gate,
+   "not a user mistake") · handle check + suggestions from
+   /auth/handle/suggest · pre-auth locale switcher above every step
+   (AG-A63) · step rail · safe ?next= resume to /authorize only.
+
+   ADD (this reference's proposals):
+   · DONE screen — the flow currently ends by silently redirecting;
+     the +100 signup coins and "works on all three sites" deserve
+     one screen before the redirect.
+   · Referral banner — ?ref= is already captured in searchParams;
+     show who invited you and both rewards (+250 / +100).
+   · DPDP consent line at the phone step — one sentence, no checkbox
+     theatre: what we store, what we never do.
+   · Trust strip under the card — free · no OTP charges · TA/HI/EN.
+   FIX: none in the auth flow. The SIGNED-IN pages added later carry
+   one — /devices renders OAuth client ids as row labels (see that
+   page's fix card).
+
+   Dark bar on top is REFERENCE CHROME, not product UI.
+   ============================================================ */
+:root{
+  --ag:#3E7A45; --ag-deep:#2C5A33; --ag-soft:#EAF3E4; --ag-soft-2:#BFDCBA;
+  --ag-accent:#E9A61C; --ag-accent-ink:#4A2E00;
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --paper:#FDFBF6; --paper-border:#EDE6D6; --paper-deep:#F4F0E6;
+  --up:#1E7A34; --down:#B5541C;
+  --danger:#9C2B2B; --danger-bg:#FBEDED; --danger-border:#EBC9C9;
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+h1,h2{font-family:var(--font-display)}
+:focus-visible{outline:3px solid var(--ag);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+.hide{display:none!important}
+
+.st{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-radius:5px;padding:2px 7px;white-space:nowrap}
+.st-ship{background:#DDF2E4;color:#0F6E42}
+.st-gap{background:#FDF6E7;color:#7A5510;border:1px solid #EBD8A8}
+
+/* reference chrome */
+.ref-bar{background:#1D2A20;color:#C7D3C2;font-size:11px;position:sticky;top:0;z-index:80}
+.ref-bar .in2{display:flex;align-items:center;gap:6px;padding:7px 16px;overflow-x:auto;scrollbar-width:none}
+.ref-bar .in2::-webkit-scrollbar{display:none}
+.ref-bar .tag{font-family:ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;color:#8A9B6E;white-space:nowrap;margin-right:6px}
+.ref-bar button{white-space:nowrap;border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:3px 11px;color:#C7D3C2;background:none;font-size:11px}
+.ref-bar .on{background:var(--ag);border-color:var(--ag);color:#fff}
+
+/* page scaffold: one centered card, id.agri.in owns no other chrome */
+.stage{min-height:calc(100vh - 34px);display:flex;flex-direction:column;align-items:center;padding:34px 16px 40px;
+  background:
+    radial-gradient(700px 300px at 15% -5%, rgba(62,122,69,.07), transparent 60%),
+    radial-gradient(600px 280px at 90% 0%, rgba(233,166,28,.07), transparent 55%);}
+.idbrand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.idbrand .mark{width:38px;height:38px;border-radius:11px;background:var(--ag);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(44,90,51,.25)}
+.idbrand b{font-family:var(--font-display);font-size:20px}
+.idbrand b span{color:var(--ag)}
+.idbrand small{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.onefor{font-size:11.5px;color:var(--sub);margin-bottom:16px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:center}
+.onefor .p{border:1px solid var(--paper-border);background:#fff;border-radius:99px;padding:2px 10px;font-size:11px}
+
+/* pre-auth locale switcher — SHIPPED, sits ABOVE every step (AG-A63) */
+.locales{display:flex;gap:6px;margin-bottom:14px}
+.locales button{border:1px solid var(--paper-border);background:#fff;border-radius:99px;padding:4px 13px;font-size:12px;color:var(--sub)}
+.locales button.on{background:var(--ag);border-color:var(--ag);color:#fff}
+
+/* step rail — SHIPPED (the A2 rail, now real) */
+.rail{display:flex;align-items:center;gap:6px;margin-bottom:14px}
+.rail i{width:26px;height:4px;border-radius:99px;background:var(--paper-deep);font-style:normal;transition:background .3s ease}
+.rail i.done{background:var(--ag-soft-2)}
+.rail i.cur{background:var(--ag)}
+.rail small{font-size:10.5px;color:var(--muted);margin-left:6px}
+
+/* the card */
+.card{width:100%;max-width:420px;background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:24px 22px;box-shadow:0 10px 34px rgba(44,90,51,.07);animation:cardin .4s cubic-bezier(.2,.7,.3,1) both}
+@keyframes cardin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.card{opacity:1;transform:none}}
+.card h1{font-size:19px;font-weight:600;margin-bottom:4px}
+.card .sub{font-size:12.5px;color:var(--sub);margin-bottom:16px;line-height:1.55}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11.5px;font-weight:500;color:var(--sub);margin-bottom:5px}
+.field input{width:100%;font-family:inherit;font-size:15px;border:1.5px solid var(--paper-border);border-radius:11px;padding:12px 13px;background:var(--paper);color:var(--ink);transition:border-color .15s ease}
+.field input:focus{border-color:var(--ag);outline:none;background:#fff}
+.phonewrap{display:flex;gap:8px}
+.phonewrap .cc{flex-shrink:0;width:74px;text-align:center;font-weight:500}
+.btn{display:flex;width:100%;align-items:center;justify-content:center;gap:7px;font-weight:600;border-radius:12px;min-height:48px;font-size:14.5px;transition:transform .12s ease,filter .15s ease}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--ag);color:#fff}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-ghost{background:#fff;color:var(--ag-deep);border:1px solid var(--paper-border);font-weight:500}
+.fine{font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
+.fine b{color:var(--sub)}
+.err{background:var(--danger-bg);border:1px solid var(--danger-border);color:#6E2222;border-radius:10px;padding:9px 12px;font-size:12px;margin-bottom:12px;line-height:1.5}
+
+/* OTP boxes */
+.otp{display:flex;gap:8px;margin:6px 0 14px}
+.otp b{flex:1;height:52px;border:1.5px solid var(--paper-border);border-radius:11px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;font-family:var(--font-display)}
+.otp b.f{border-color:var(--ag);background:#fff;animation:cursor 1.1s step-end infinite}
+@keyframes cursor{0%,100%{box-shadow:inset 0 -3px 0 -1px var(--ag)}50%{box-shadow:none}}
+.resend{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub)}
+.resend .cd{font-family:ui-monospace,monospace;color:var(--muted)}
+.resend a{color:var(--ag);font-weight:500}
+
+/* handle */
+.handlewrap{position:relative}
+.handlewrap .at{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:500}
+.handlewrap input{padding-left:30px}
+.hstate{font-size:11.5px;margin-top:6px}
+.hstate.ok{color:var(--up)}
+.hstate.bad{color:var(--danger)}
+.sugg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sugg button{border:1px solid var(--paper-border);background:var(--paper);border-radius:99px;padding:4px 12px;font-size:12px;color:var(--ag-deep)}
+.sugg button:hover{border-color:var(--ag-soft-2);background:var(--ag-soft)}
+
+/* language tiles */
+.langs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:14px}
+.langs button{border:1.5px solid var(--paper-border);background:var(--paper);border-radius:13px;padding:15px 8px;font-size:13px;transition:border-color .15s,background .15s}
+.langs button b{display:block;font-family:var(--font-display);font-size:17px;margin-bottom:2px}
+.langs button.on{border-color:var(--ag);background:var(--ag-soft)}
+
+/* done screen */
+.doneburst{width:66px;height:66px;border-radius:50%;background:var(--ag-soft);display:flex;align-items:center;justify-content:center;font-size:30px;margin:2px auto 12px;animation:pop .5s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion: reduce){.doneburst{transform:scale(1);opacity:1}}
+.coinline{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#FEF9EE,#FDF3DC);border:1px solid #EAD9AC;border-radius:12px;padding:11px 13px;margin-bottom:12px}
+.coinline b{font-family:var(--font-display);font-size:19px;color:#854F0B}
+.coinline small{font-size:11px;color:var(--sub);line-height:1.4}
+.sites{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.sites a{border:1px solid var(--paper-border);border-radius:11px;padding:10px 6px;text-align:center;font-size:11px;background:var(--paper)}
+.sites a b{display:block;font-size:12.5px}
+
+/* referral banner — ADD (?ref= already captured) */
+.refban{display:flex;gap:10px;align-items:center;background:#E8F7EE;border:1px solid #BFE7CE;border-radius:12px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#0F6E42;line-height:1.45}
+.refban .av{width:32px;height:32px;border-radius:50%;background:var(--ag-accent);color:var(--ag-deep);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0}
+
+/* gated screen */
+.gatebox{text-align:center;padding:8px 0}
+.gatebox .em{font-size:34px}
+.gatebox h1{margin:8px 0 6px}
+
+/* trust strip — ADD */
+.trust{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px;font-size:11px;color:var(--muted)}
+.trust span{display:flex;gap:5px;align-items:center}
+
+/* signed-in pages: wider card + shared rows */
+.card.wide{max-width:520px}
+.sect{border:1px solid var(--paper-border);border-radius:12px;padding:13px 14px;margin-bottom:11px;background:var(--paper)}
+.sect .hd2{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sect .hd2 b{font-size:13px;font-weight:600;flex:1}
+.sect .hint2{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px}
+.pbar{height:7px;border-radius:99px;background:var(--paper-deep);overflow:hidden;margin-top:7px}
+.pbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--ag),var(--ag-accent));width:var(--w,0%);transition:width .9s cubic-bezier(.2,.7,.2,1)}
+@media (prefers-reduced-motion: reduce){.pbar i{transition:none}}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips .c{border:1px solid var(--paper-border);background:#fff;border-radius:99px;padding:4px 11px;font-size:12px;display:inline-flex;gap:5px;align-items:center}
+.chips .c i{font-style:normal;color:var(--muted);cursor:pointer}
+.vrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--paper-border);font-size:12.5px}
+.vrow:last-child{border-bottom:0}
+.vrow small{color:var(--muted);font-size:10.5px;display:block}
+.vrow .tx{flex:1}
+.sw{width:38px;height:21px;border-radius:99px;background:#D9D2C2;position:relative;flex-shrink:0;cursor:pointer}
+.sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .18s ease}
+.sw.on{background:var(--ag)}
+.sw.on::after{left:19.5px}
+.dev{display:flex;gap:10px;align-items:center;border:1px solid var(--paper-border);border-radius:12px;background:#fff;padding:11px 12px;margin-bottom:8px}
+.dev .ic2{font-size:19px;flex-shrink:0}
+.dev .tx{flex:1;min-width:0}
+.dev .tx b{font-size:12.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dev .tx small{font-size:10.5px;color:var(--muted);display:block;line-height:1.4}
+.sitep{font-size:9.5px;font-weight:700;border-radius:99px;padding:1px 8px}
+.sp-agri{background:#E7F1E5;color:#2C5A33}
+.sp-milk{background:#E6EEF9;color:#254C86}
+.sp-org{background:#EAF6EC;color:#256B3C}
+.sp-id{background:var(--paper-deep);color:var(--muted)}
+.sp-adm{background:#E7EEF2;color:#2F4858}
+.btn-sm2{min-height:32px;font-size:11.5px;border-radius:9px;padding:5px 11px;width:auto;display:inline-flex}
+.btn-dgr{background:#fff;color:var(--danger);border:1px solid var(--danger-border)}
+
+/* annotations under the card */
+.notes{width:100%;max-width:420px;margin-top:18px;font-size:11.5px;color:var(--sub);line-height:1.55}
+.notes .n{display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid var(--paper-border);border-radius:11px;padding:9px 12px;margin-bottom:7px}
+.notes .n .st{margin-top:1px}
+
+@media(max-width:420px){.card{padding:20px 16px}.langs{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="ref-bar">
+  <div class="in2">
+    <span class="tag">A7 · AGRIID · id.agri.in</span>
+    <button data-s="phone" class="on">1 · Phone</button>
+    <button data-s="otp">2 · OTP</button>
+    <button data-s="handle">3 · Handle</button>
+    <button data-s="language">4 · Language</button>
+    <button data-s="done">Done <span style="font-size:8px;color:var(--ag-accent)">NEW</span></button>
+    <button data-s="gated">Gated (503)</button>
+    <button data-s="locked">Locked (429)</button>
+    <span class="tag" style="margin-left:8px">SIGNED IN</span>
+    <button data-s="profile">Profile</button>
+    <button data-s="devices">Devices</button>
+  </div>
+</div>
+
+<div class="stage">
+
+  <div class="idbrand">
+    <span class="mark">🌾</span>
+    <div><b>Agri<span>ID</span></b><small>one login · agri.in · milk.in · theorganic.in</small></div>
+  </div>
+  <div class="onefor">
+    <span class="p">🌾 agri.in</span><span class="p">🥛 milk.in</span><span class="p">🌿 theorganic.in</span>
+  </div>
+
+  <!-- SHIPPED: pre-auth locale switcher above every step (AG-A63) -->
+  <div class="locales" data-not="gated profile devices">
+    <button>English</button><button class="on">தமிழ்</button><button>हिन्दी</button>
+  </div>
+
+  <!-- SHIPPED: the step rail (STEP_ORDER in login-flow.tsx). Hidden while gated. -->
+  <div class="rail" data-not="gated done profile devices" aria-label="Step 1 of 4">
+    <i class="cur" data-r="phone"></i><i data-r="otp"></i><i data-r="handle"></i><i data-r="language"></i>
+    <small data-railtext>Step 1 of 4</small>
+  </div>
+
+  <!-- ================= STEP · PHONE ================= -->
+  <div class="card" data-step="phone">
+    <!-- ADD: referral banner when ?ref= is present (param already captured) -->
+    <div class="refban"><span class="av">M</span>
+      <div><b>Murugesan invited you</b> — finish signing up and you get <b>+100 AgriCoins</b>;
+        he gets +250 when you verify.</div></div>
+    <h1>வணக்கம் · Welcome</h1>
+    <p class="sub">Enter your mobile number. If you have an AgriID we'll sign you in;
+      if not we'll create one — same four steps either way.</p>
+    <div class="field">
+      <label>Mobile number</label>
+      <div class="phonewrap">
+        <input class="cc" value="+91" readonly>
+        <input inputmode="numeric" placeholder="98765 43210" value="98765 43210">
+      </div>
+    </div>
+    <button class="btn btn-primary">Get OTP →</button>
+    <!-- ADD: one-sentence DPDP line, no checkbox theatre -->
+    <p class="fine">We store your number <b>encrypted</b>, use it only for login and the alerts you
+      ask for, and never sell it or reveal it without your consent — <a href="#" style="color:var(--ag)">how your data is handled</a>.</p>
+  </div>
+
+  <!-- ================= STEP · OTP ================= -->
+  <div class="card hide" data-step="otp">
+    <h1>Enter the code</h1>
+    <p class="sub">Sent by SMS to <b>+91 98765 43210</b> · <a href="#" style="color:var(--ag)">change number</a></p>
+    <div class="otp"><b>4</b><b>7</b><b class="f"></b><b></b><b></b><b></b></div>
+    <button class="btn btn-primary">Verify</button>
+    <div class="resend" style="margin-top:12px">
+      <span>Didn't get it?</span>
+      <span class="cd">Resend in 0:23</span>
+    </div>
+    <p class="fine">The resend timer mirrors the server's real cooldown (<b>otp_limits</b>, 30 s first
+      rung) — the UI never promises a resend the API would refuse.</p>
+  </div>
+
+  <!-- ================= STATE · LOCKED (429) ================= -->
+  <div class="card hide" data-step="locked">
+    <h1>Too many attempts</h1>
+    <div class="err">That number has hit the OTP limit for now. Wait <b>14 minutes</b> and try
+      again — the code you already received still works until it expires.</div>
+    <p class="sub">Wrong-code and rate-limit are different messages on purpose: a farmer who
+      mistyped should never read copy that sounds like an accusation.</p>
+    <button class="btn btn-ghost">← Back</button>
+  </div>
+
+  <!-- ================= STEP · HANDLE =================
+       Rules are CODE, not copy — identity/handles.py (D06.B):
+       · normalize: strip spaces + leading @, lowercase
+       · reserved blocklist checked FIRST (so "api" reports reserved, not too-short)
+       · then ^[a-z0-9_]{4,20}$
+       · uniqueness = DB constraint · ONE free change ever (agri_id_changed_once) -->
+  <div class="card hide" data-step="handle">
+    <h1>Pick your @handle</h1>
+    <p class="sub">Your public name on all three sites — on your reviews, your questions, and
+      your referral link <b class="mono" style="font-family:ui-monospace,monospace;font-size:12px">agri.in/r/&lt;handle&gt;</b>.
+      Your phone number stays private; the handle is what everyone else sees.</p>
+    <div class="field">
+      <label>Handle <span style="float:right;font-weight:400;color:var(--muted)">4–20 · a–z 0–9 _</span></label>
+      <div class="handlewrap"><span class="at">@</span><input value="murugesan"></div>
+      <div class="hstate bad">✗ @murugesan is taken — try one of these:</div>
+      <div class="sugg">
+        <button>@murugesan_annur</button><button>@murugesan641</button><button>@murugesan_p</button>
+      </div>
+    </div>
+    <button class="btn btn-primary">Continue →</button>
+    <p class="fine"><b>Choose carefully — you can change it once, ever.</b> After that one change
+      the handle is permanent, so names people saved and links you shared keep working.</p>
+
+    <!-- validation states — each maps to a HandleError code or the OK path -->
+    <div style="border-top:1px solid var(--paper-border);margin-top:14px;padding-top:12px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">
+        Every state, with its server code</div>
+      <div class="hstate" style="color:var(--muted)">⏳ checking… <span style="float:right;font-family:ui-monospace,monospace;font-size:10px">/auth/handle/check</span></div>
+      <div class="hstate ok">✓ @murugesan_annur is available <span style="float:right;font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">ok</span></div>
+      <div class="hstate bad">✗ @murugesan is taken <span style="float:right;font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">taken → suggest</span></div>
+      <div class="hstate bad">✗ Handles are 4–20 characters of a–z, 0–9 and _ <span style="float:right;font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">invalid_format</span></div>
+      <div class="hstate bad">✗ @aavin is reserved <span style="float:right;font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">reserved</span></div>
+      <p class="fine" style="margin-top:8px">Typing <b>@Murugesan</b> or “ murugesan ” is fine —
+        the server normalizes case, spaces and the @ before checking. Reserved names (admin,
+        agri, support, <b>aavin, amul</b>…) are blocked first, so brand-squatting a short name
+        reports “reserved”, never “too short”. The blocklist is a text file — extend it freely
+        as brands join.</p>
+    </div>
+  </div>
+
+  <!-- ================= STEP · LANGUAGE ================= -->
+  <div class="card hide" data-step="language">
+    <h1>Your language</h1>
+    <p class="sub">Everything — pages, alerts, the morning mandi summary — arrives in this
+      language. Change it any time.</p>
+    <div class="langs">
+      <button class="on"><b>த</b>தமிழ்</button>
+      <button><b>A</b>English</button>
+      <button><b>हि</b>हिन्दी</button>
+    </div>
+    <button class="btn btn-primary">Finish →</button>
+  </div>
+
+  <!-- ================= SCREEN · DONE (ADD) ================= -->
+  <div class="card hide" data-step="done">
+    <div class="doneburst">✅</div>
+    <h1 style="text-align:center">Your AgriID is ready</h1>
+    <p class="sub" style="text-align:center">@murugesan_annur · +91 98••••••10</p>
+    <div class="coinline"><span style="font-size:22px">🪙</span>
+      <div><b>+100 AgriCoins</b><br><small>signup bonus · one balance on every site · never cash,
+        never transferable</small></div></div>
+    <div class="sites">
+      <a href="#"><b>🌾 agri.in</b>mandi · weather · dealers</a>
+      <a href="#"><b>🥛 milk.in</b>milk vendors · cattle</a>
+      <a href="#"><b>🌿 theorganic.in</b>certified organic</a>
+    </div>
+    <button class="btn btn-primary">Continue to agri.in →</button>
+    <p class="fine" style="text-align:center">The flow currently redirects silently
+      (<b>router.push('/devices')</b> or the ?next= resume). This screen goes in front of that
+      redirect — three seconds that name the reward and the family before handing over.</p>
+  </div>
+
+  <!-- ================= STATE · GATED (503) ================= -->
+  <div class="card hide" data-step="gated">
+    <div class="gatebox">
+      <span class="em">🌱</span>
+      <h1>Sign-ups open soon</h1>
+      <p class="sub">New accounts aren't open just yet. Everything free — prices, weather,
+        schemes, helplines — works without one. Leave your number and we'll send one SMS
+        when sign-ups open. Nothing else, ever.</p>
+      <div class="field"><div class="phonewrap">
+        <input class="cc" value="+91" readonly><input inputmode="numeric" placeholder="Your number">
+      </div></div>
+      <button class="btn btn-primary">Notify me</button>
+      <p class="fine">This is the shipped 503 <b>signup_unavailable</b> state (D30 launch gate).
+        The code's own comment: it's "not a user mistake" — so it never renders as an error, and
+        the phone field never says "invalid number".</p>
+    </div>
+  </div>
+
+  <!-- ================= PAGE · PROFILE (/account) ================= -->
+  <div class="card wide hide" data-step="profile">
+    <h1>Your profile</h1>
+    <p class="sub">@murugesan_annur · <b>AG-0000002</b> · member since Jul 2026
+      <span class="st st-gap" style="margin-left:6px">add · handle shown here</span></p>
+
+    <div class="sect">
+      <div class="hd2"><b>Profile 78% complete</b><span class="st st-ship">ship</span>
+        <span style="font-size:11px;color:#854F0B;font-weight:600">🪙 +200 at 100%</span></div>
+      <div class="pbar"><i style="--w:78%"></i></div>
+      <p class="hint2" style="margin:7px 0 0">Missing: profile photo, one more interest.
+        <span class="st st-gap">add</span> — the shipped bar shows the % but not <i>what's
+        missing</i> or the +200 <span style="font-family:ui-monospace,monospace">profile_100</span>
+        reward waiting at the end.</p>
+    </div>
+
+    <div class="sect">
+      <div class="hd2"><b>@handle</b><span class="st st-gap">add · whole block</span></div>
+      <p class="hint2">The shipped /account has name, location, language, interests and photo —
+        but not the handle, which is the one identity field this app owns. Shown with its rule:</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="handlewrap" style="flex:1"><span class="at">@</span><input value="murugesan_annur" readonly style="background:#fff"></div>
+        <button class="btn btn-ghost btn-sm2">Change</button>
+      </div>
+      <p class="hint2" style="margin:7px 0 0"><b>One change ever</b> — you haven't used yours.
+        After it, the handle is permanent.</p>
+    </div>
+
+    <!-- ================ ROLE-BASED DETAILS (ADD) ================
+         Farmer → structured FARM PROFILE, stored on identity (same owner
+         as interests: one farm, read by all three verticals — cattle feed
+         milk.in, crops feed agri.in advisories, certification feeds
+         theorganic.in). Business → NO data collected here: the directory
+         listing owns shop details; we route to the existing claim flow.
+         Everything optional, every field names what it unlocks. -->
+    <div class="sect" style="border-color:#EBD8A8;background:#FFFDF8">
+      <div class="hd2"><b>What describes you?</b><span class="st st-gap">add · whole section</span></div>
+      <div class="chips" style="margin-bottom:10px">
+        <button class="c" data-fprole="farmer" style="border-color:var(--ag);background:var(--ag-soft)">🧑‍🌾 I farm</button>
+        <button class="c" data-fprole="business">🏪 I run a shop / business</button>
+        <button class="c" data-fprole="none">👀 Just exploring</button>
+      </div>
+
+      <!-- FARMER → farm profile -->
+      <div data-fp="farmer">
+        <p class="hint2">All optional — answer what you like, edit any time. Each field makes the
+          sites smarter <b>for you</b>; none of it is ever public or shown to sellers.</p>
+        <div class="vrow"><span class="tx">Land<small>unlocks: scheme matches (many are per-hectare), seed &amp; fertilizer dose calculators pre-filled</small></span>
+          <span style="display:flex;gap:6px">
+            <input style="width:64px;font-family:inherit;font-size:13px;border:1.5px solid var(--paper-border);border-radius:9px;padding:7px 9px;background:#fff" value="3.5">
+            <select style="font-family:inherit;font-size:12px;border:1.5px solid var(--paper-border);border-radius:9px;background:#fff;padding:0 6px"><option>acres</option><option>hectares</option></select>
+          </span></div>
+        <div class="vrow"><span class="tx">Owned / leased<small>some schemes need ownership; leased land has its own</small></span>
+          <span class="chips"><button class="c" style="border-color:var(--ag);background:var(--ag-soft)">Owned</button><button class="c">Leased</button><button class="c">Both</button></span></div>
+        <div class="vrow"><span class="tx">Cattle<small>unlocks: feed &amp; fodder quantities, vet reminders, milk.in vendor matches</small></span>
+          <span class="chips"><button class="c">−</button><b style="min-width:26px;text-align:center">4</b><button class="c">+</button></span></div>
+        <div class="vrow"><span class="tx">Sheep / goats<small>deworming calendar, shearing &amp; market-day alerts</small></span>
+          <span class="chips"><button class="c">−</button><b style="min-width:26px;text-align:center">12</b><button class="c">+</button></span></div>
+        <div class="vrow"><span class="tx">Poultry<small>feed calculators, disease advisories for your flock size</small></span>
+          <span class="chips"><button class="c">−</button><b style="min-width:26px;text-align:center">0</b><button class="c">+</button></span></div>
+        <div class="vrow"><span class="tx">Irrigation<small>spray windows &amp; drip subsidies differ by source</small></span>
+          <span class="chips"><button class="c" style="border-color:var(--ag);background:var(--ag-soft)">Borewell</button><button class="c">Canal</button><button class="c">Rain-fed</button></span></div>
+        <p class="hint2" style="margin:8px 0 0"><b>Privacy:</b> farm details are never public,
+          never sold, never shown to a seller without your per-enquiry consent — and they're in
+          your DPDP export below. Crops themselves stay in <b>Interests</b> above (one list,
+          not two).</p>
+      </div>
+
+      <!-- BUSINESS → route to the directory, collect nothing here -->
+      <div data-fp="business" class="hide">
+        <p class="hint2"><b>Your shop's details live on its directory listing, not on your
+          personal AgriID</b> — category, timings, photos, GST, verification all belong there,
+          where customers see them and where the claim flow already verifies them.</p>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm2">Find &amp; claim my shop</button>
+          <button class="btn btn-ghost btn-sm2">Add a new business</button>
+        </div>
+        <p class="hint2" style="margin:8px 0 0">Already claimed: <b>AgroMart Agencies</b> ✓ —
+          manage it from the business console. You can be a farmer <i>and</i> run a shop;
+          pick both above and both sections show.</p>
+      </div>
+
+      <div data-fp="none" class="hide">
+        <p class="hint2">No problem — everything works without this. The section stays here
+          for whenever the answer changes.</p>
+      </div>
+    </div>
+
+    <div class="sect">
+      <div class="hd2"><b>Name · Location · Language · Interests · Photo</b><span class="st st-ship">ship</span></div>
+      <p class="hint2">All five shipped and right: pincode → district autofill (“636810 →
+        Dharmapuri, Tamil Nadu”), EN/TA/HI tiles, up to 10 interest chips, photo upload.
+        Unchanged — build sessions keep them as is.</p>
+      <div class="chips">
+        <span class="c">paddy <i>×</i></span><span class="c">tomato <i>×</i></span>
+        <span class="c">dairy cattle <i>×</i></span><span class="c" style="border-style:dashed;color:var(--muted)">+ add (7 left)</span>
+      </div>
+      <p class="hint2" style="margin:8px 0 0"><span class="st st-gap">add</span> Interests should
+        say what they do: “used to pick your Today strip, advisories and event suggestions —
+        never shown publicly unless you tick it below.”</p>
+      <p class="hint2" style="margin:6px 0 0"><span class="st st-fix" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)">fix</span>
+        Three small ones from the live page: <b>one save model</b> — Name has a Save button while
+        language/toggles apply instantly; make everything instant-apply with a “saved ✓” flash ·
+        the seeded <b>“sample”</b> interest chip is fixture data on a real profile — remove ·
+        <b>photo shows “✓” with no thumbnail</b> — if a photo exists, render it.</p>
+    </div>
+
+    <div class="sect">
+      <div class="hd2"><b>What others can see</b><span class="st st-ship">ship</span></div>
+      <p class="hint2">“Your phone number is never public” — shipped, correct, and the most
+        important sentence on the page. Per-field toggles below it.</p>
+      <div class="vrow"><span class="tx">Name<small>on reviews and answers</small></span><span class="sw on"></span></div>
+      <div class="vrow"><span class="tx">Location<small>district only — never the pincode</small></span><span class="sw on"></span></div>
+      <div class="vrow"><span class="tx">Interests<small>helps sellers answer you better</small></span><span class="sw"></span></div>
+      <div class="vrow"><span class="tx">Photo</span><span class="sw on"></span></div>
+      <p class="hint2" style="margin:8px 0 0"><span class="st st-gap">add</span> “District only —
+        never the pincode” on the location row: the shipped checkbox says “Location” without
+        saying how much of it, and that is the difference between a district and a doorstep.</p>
+    </div>
+
+    <div class="sect">
+      <div class="hd2"><b>Your data (DPDP 2023)</b><span class="st st-gap">add · block</span></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm2">⬇ Download my data</button>
+        <button class="btn btn-ghost btn-sm2">🔍 Contact-reveal log</button>
+        <button class="btn btn-dgr btn-sm2">Delete my AgriID</button>
+      </div>
+      <p class="hint2" style="margin:8px 0 0">Identity-wide rights live HERE, on the identity
+        app — the vertical dashboards (A5) link to this block, not the reverse. Backend endpoints
+        are the open D56 item.</p>
+    </div>
+
+    <a href="#" style="font-size:12px;color:var(--ag);font-weight:500">Manage devices →</a>
+  </div>
+
+  <!-- ================= PAGE · DEVICES (/devices) ================= -->
+  <div class="card wide hide" data-step="devices">
+    <h1>Where you're signed in</h1>
+    <p class="sub">@murugesan_annur · sessions across the whole family, grouped by site.</p>
+
+    <div class="sect" style="background:var(--danger-bg);border-color:var(--danger-border)">
+      <div class="hd2"><b style="color:#6E2222">Fix — the shipped list is unreadable</b><span class="st st-fix" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)">fix</span></div>
+      <p class="hint2" style="color:#6E2222">Today every row reads “web / web” or “web-admin /
+        web-admin” — the OAuth client id printed twice, with no time, no place, no way to tell
+        eight dev-login rows apart. A session row must answer: <b>which site, what device, where,
+        when.</b> And an always-visible rename input on every row is clutter — rename is one
+        action behind the pencil.</p>
+    </div>
+
+    <div class="dev"><span class="ic2">📱</span>
+      <div class="tx"><b><span class="sitep sp-agri">agri.in</span> Android · Chrome
+        <span class="st st-ship" style="font-size:8px">this device</span></b>
+        <small>Coimbatore · active now</small></div>
+      <button class="btn btn-ghost btn-sm2">✎</button>
+    </div>
+    <div class="dev"><span class="ic2">💻</span>
+      <div class="tx"><b><span class="sitep sp-milk">milk.in</span> Windows · Chrome</b>
+        <small>Coimbatore · 3 h ago · signed in via AgriID</small></div>
+      <button class="btn btn-ghost btn-sm2">✎</button>
+      <button class="btn btn-dgr btn-sm2">Sign out</button>
+    </div>
+    <div class="dev"><span class="ic2">📲</span>
+      <div class="tx"><b><span class="sitep sp-org">theorganic.in</span> Installed app (PWA)</b>
+        <small>Annur · yesterday</small></div>
+      <button class="btn btn-ghost btn-sm2">✎</button>
+      <button class="btn btn-dgr btn-sm2">Sign out</button>
+    </div>
+    <div class="dev" style="opacity:.65"><span class="ic2">💻</span>
+      <div class="tx"><b><span class="sitep sp-id">id.agri.in</span> Windows · Chrome</b>
+        <small>Coimbatore · 12 days ago — stale sessions collapse into “2 older sessions” after 30 d</small></div>
+      <button class="btn btn-dgr btn-sm2">Sign out</button>
+    </div>
+
+    <div class="sect" style="margin-top:11px">
+      <div class="hd2"><b>Sign out everywhere</b><span class="st st-ship">ship</span></div>
+      <p class="hint2">Keeps this device, ends every other session on every site — backed by the
+        tested backchannel logout. <span class="st st-gap">add</span> a confirm naming the count:
+        “End 3 other sessions?” — one click on a shared phone shouldn't be silent.</p>
+      <button class="btn btn-dgr btn-sm2" style="width:100%;justify-content:center">Sign out everywhere else</button>
+    </div>
+
+    <p class="fine">Renaming (“Home laptop”) is shipped and kept — one tap on ✎, not a
+      permanent input. Every sign-out here is the same backchannel logout milk.in already
+      exercises; no new session machinery.</p>
+  </div>
+
+  <!-- ADD: trust strip -->
+  <div class="trust" data-not="gated profile devices">
+    <span>✓ Free forever</span><span>✓ No OTP charges</span><span>✓ தமிழ் · हिन्दी · English</span><span>✓ DPDP 2023</span>
+  </div>
+
+  <div class="notes">
+    <div class="n"><span class="st st-ship">ship</span><div>Steps, rail, cooldown, 429/503 states,
+      handle suggestions and the pre-auth locale switcher all exist in
+      <b>apps/web-id/app/login/login-flow.tsx</b>. This file documents them; build sessions must
+      not rebuild them.</div></div>
+    <div class="n"><span class="st st-gap">add</span><div>Done screen · referral banner (the
+      <b>?ref=</b> param is captured but invisible) · DPDP sentence on the phone step · trust
+      strip. Four small additions, no flow changes.</div></div>
+    <div class="n"><span class="st st-ship">ship</span><div>Login and signup share one path by
+      design — never add a "Create account" / "Sign in" fork. The phone number is the fork.</div></div>
+  </div>
+
+</div>
+
+<script>
+const RAIL = ['phone','otp','handle','language'];
+document.querySelectorAll('.sw').forEach(s => s.onclick = () => s.classList.toggle('on'));
+/* role-based details demo: farmer / business / none */
+document.querySelectorAll('[data-fprole]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-fprole]').forEach(x => {
+    const on = x === b;
+    x.style.borderColor = on ? 'var(--ag)' : 'var(--paper-border)';
+    x.style.background = on ? 'var(--ag-soft)' : '#fff';
+  });
+  document.querySelectorAll('[data-fp]').forEach(p =>
+    p.classList.toggle('hide', p.dataset.fp !== b.dataset.fprole));
+});
+function show(s){
+  document.querySelectorAll('[data-step]').forEach(c => c.classList.toggle('hide', c.dataset.step !== s));
+  document.querySelectorAll('.ref-bar [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  document.querySelectorAll('[data-not]').forEach(el =>
+    el.classList.toggle('hide', el.dataset.not.split(' ').includes(s)));
+  const idx = RAIL.indexOf(s === 'locked' ? 'otp' : s);
+  document.querySelectorAll('.rail [data-r]').forEach((i, n) => {
+    i.classList.toggle('done', idx > -1 && n < idx);
+    i.classList.toggle('cur', n === idx);
+  });
+  const rt = document.querySelector('[data-railtext]');
+  if (rt && idx > -1) rt.textContent = 'Step ' + (idx + 1) + ' of 4';
+  /* re-trigger card entrance */
+  const card = document.querySelector('[data-step="' + s + '"]');
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+}
+document.querySelectorAll('.ref-bar [data-s]').forEach(b => b.onclick = () => show(b.dataset.s));
+document.querySelectorAll('.locales button, .langs button').forEach(b => b.onclick = () => {
+  b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+});
+show('phone');
+</script>
+</body>
+</html>

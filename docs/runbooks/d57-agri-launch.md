@@ -94,6 +94,13 @@ None of these can be done by an agent, and none has a workaround:
 1. **`AUTH_SESSION_SECRET`** in the production environment. Without it every
    authed page 500s — `/coins`, `/saved`, `/account/*`. Public pages are
    unaffected, which is exactly why this is easy to miss until someone logs in.
+   **Where, concretely:** `secrets/staging.env` (SOPS-encrypted per
+   docs/runbooks/secrets.md) — NOT a GitHub Actions secret; CI never needs it
+   and the pipeline is only the courier that decrypts the file on the VPS.
+   Generate with `openssl rand -base64 48`. The compose now delivers the file
+   to the web services (`env_file:` on all five — before 2026-08-20 they had
+   no environment at all, so the value could not have reached them however
+   carefully it was set).
 2. **`NEXT_PUBLIC_VAPID_PUBLIC_KEY` at BUILD time** if push should work on day
    one. It is inlined, not read at runtime, so setting it after the build does
    nothing. Without it the push card renders nothing — honest, but no

@@ -8,14 +8,64 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Page-level hardening, the same safe subset web-agri and web-milk already
+  // ship. Deliberately NOT a full policy: no script-src/style-src, so nothing
+  // inline breaks, and the full img-src allowlist stays the tracked
+  // fast-follow. What these three do buy:
+  //   object-src 'none'    - no <object>/<embed> plugin surface
+  //   base-uri 'self'      - injected <base> cannot repoint relative URLs
+  //   frame-ancestors 'self' - clickjacking: nobody else may frame these pages
+  //
+  // frame-ancestors is safe here: silent SSO is redirect-based
+  // (/api/auth/login?silent=1 -> prompt=none -> redirect back), NOT a hidden
+  // iframe, so nothing legitimate frames the identity provider.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+          },
+        ],
+      },
+    ];
+  },
   reactStrictMode: true,
   // D09: the session cookie must be first-party on id.agri.in. In dev the
   // Next server proxies the FastAPI backend so browser, UI and API share one
   // origin; in prod the reverse proxy does the same job at id.agri.in.
+  //
+  // ONE PREFIX PER SURFACE THIS APP ACTUALLY CALLS, never a catch-all.
+  //
+  // `/api/id/:path*` used to forward EVERY backend path, which published the
+  // whole API at id.agri.in: /metrics (OTP issuance volumes, SMS spend in INR,
+  // billing-webhook rejection counts), /health/deep (which internal dependency
+  // is down), every /admin/* route and the Razorpay webhook. Authorization
+  // still held on each of them, so this was exposed surface rather than a
+  // bypass - but none of it is anything this app asks for.
+  //
+  // The three below cover every call in the app: lib/api.ts's 14 paths are all
+  // /auth/* or /identity/*, and the notification bell uses /notify/*. Adding a
+  // surface here is a deliberate edit, which is the point.
+  //
+  // NOT affected by this list, and worth knowing before changing it:
+  //   - /authorize is its own entry below (the browser's OAuth redirect).
+  //   - /token, /oauth/revoke and JWKS never come through here at all. Every
+  //     app reaches those directly via `idInternalOrigin` (= API_BASE_URL),
+  //     server to server. Sign-in across milk/agri/organic/admin does not
+  //     depend on this rewrite.
+  //
+  // PROD CAVEAT: the note above says a reverse proxy does this job at
+  // id.agri.in. Where that is true, THIS FILE IS NOT THE ENFORCEMENT POINT
+  // and the same allowlist has to exist at the proxy.
   async rewrites() {
     const api = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
     return [
-      { source: "/api/id/:path*", destination: `${api}/:path*` },
+      { source: "/api/id/auth/:path*", destination: `${api}/auth/:path*` },
+      { source: "/api/id/identity/:path*", destination: `${api}/identity/:path*` },
+      { source: "/api/id/notify/:path*", destination: `${api}/notify/:path*` },
       { source: "/authorize", destination: `${api}/authorize` },
     ];
   },

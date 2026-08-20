@@ -8,6 +8,29 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Page-level hardening, the same safe subset web-agri and web-milk already
+  // ship. Deliberately NOT a full policy: no script-src/style-src, so nothing
+  // inline breaks, and the full img-src allowlist stays the tracked
+  // fast-follow. What these three do buy:
+  //   object-src 'none'    - no <object>/<embed> plugin surface
+  //   base-uri 'self'      - injected <base> cannot repoint relative URLs
+  //   frame-ancestors 'self' - clickjacking: nobody else may frame these pages
+  //
+  // The third storefront; milk and agri already send this, and a
+  // vertical that does not is the odd one out rather than a special case.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+          },
+        ],
+      },
+    ];
+  },
   reactStrictMode: true,
   // Next 15 streams metadata into <body> on dynamically rendered pages;
   // Lighthouse's SEO audits only read <head>. Bots on this list get the

@@ -44,3 +44,44 @@ test.describe("Next.js front-door normalization neutralizes dot-segment traversa
     expect(body.detail).toBe("unauthenticated");
   });
 });
+
+// web-id (port 3003) proxies the backend so the session cookie stays
+// first-party on id.agri.in. That rewrite used to be `/api/id/:path*` -> the
+// WHOLE API, which published /metrics (OTP volumes, SMS spend), /health/deep,
+// every /admin/* route and the Razorpay webhook at a public origin.
+// Authorization still held on each, so this was exposed surface rather than a
+// bypass, but none of it is anything web-id asks for. It is an allowlist now.
+const ID_ORIGIN = "http://localhost:3003";
+
+test.describe("web-id proxies only the surfaces it uses", () => {
+  for (const path of [
+    "/api/id/metrics",
+    "/api/id/health/deep",
+    "/api/id/admin/users",
+    "/api/id/billing/webhook/razorpay",
+    "/api/id/directory/businesses",
+  ]) {
+    test(`${path} is not forwarded`, async ({ request }) => {
+      const res = await request.get(`${ID_ORIGIN}${path}`);
+      // Next's own 404: no rewrite matches, so the backend is never reached
+      expect(res.status()).toBe(404);
+    });
+  }
+
+  test("the surfaces it does use still reach the backend", async ({ request }) => {
+    // /auth/* is allowlisted, so this is answered by FastAPI rather than by
+    // Next. A 404 here would mean the allowlist is too narrow; anything else
+    // (405 for a GET on a POST route, 401, 422) proves it forwarded.
+    const res = await request.get(`${ID_ORIGIN}/api/id/auth/otp/request`);
+    expect(res.status()).not.toBe(404);
+  });
+});
+
+test.describe("clickjacking protection on the identity origin", () => {
+  test("web-id sends frame-ancestors", async ({ request }) => {
+    const res = await request.get(`${ID_ORIGIN}/`);
+    const csp = res.headers()["content-security-policy"] ?? "";
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("object-src 'none'");
+  });
+});

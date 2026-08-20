@@ -490,7 +490,9 @@
         "subtitle": "Mobile number only — no password, no email needed. எண்ணை உள்ளிடுங்கள்.",
         "label": "Mobile number",
         "cta": "Send OTP",
-        "invalid": "Enter a valid 10-digit mobile number"
+        "invalid": "Enter a valid 10-digit mobile number",
+        "dpdp": "We store your number to sign you in, use it only for that and the alerts you ask for, and never show it publicly, sell it, or reveal it to anyone without your consent.",
+        "dpdpLink": "How your data is handled"
       },
       "otp": {
         "title": "Enter the 6-digit OTP sent by SMS",
@@ -575,7 +577,33 @@
       "brandSites": "agri.in · milk.in · theorganic.in — ஒரே கணக்கு",
       "stepsLabel": "Sign-in progress",
       "countryCode": "+91",
-      "terms": "By continuing you agree to our Terms and Privacy policy (DPDP Act 2023). OTP limits apply per number, IP and device."
+      "terms": "By continuing you agree to our Terms and Privacy policy (DPDP Act 2023). OTP limits apply per number, IP and device.",
+      "referral": {
+        "title": "You were invited",
+        "body": "Finish signing up and complete your profile — you get {referee} AgriCoins, and whoever invited you gets {referrer}."
+      },
+      "trust": {
+        "free": "Free forever",
+        "noCharges": "No OTP charges",
+        "languages": "தமிழ் · हिन्दी · English",
+        "dpdp": "DPDP 2023"
+      },
+      "privacy": {
+        "title": "How your data is handled",
+        "intro": "AgriID is the single login for agri.in, milk.in and theorganic.in. This page says plainly what we keep, what we do with it, and what you can ask us to do. It is written to the Digital Personal Data Protection Act, 2023.",
+        "storeTitle": "What we store",
+        "storeBody": "Your mobile number, the @handle you pick, and whatever you choose to add to your profile — name, pincode (which fills in your district), language, interests and a photo. We also keep a record of the devices you are signed in on, so you can see them and sign any of them out.",
+        "neverTitle": "What we never do",
+        "neverBody": "Your mobile number is never shown publicly, never sold, and never passed to a business unless you choose to share it with them. When you do share it, that reveal is recorded so you can see exactly who received it and when.",
+        "choicesTitle": "What you control",
+        "choicesBody": "Every profile field has a visibility switch, and your location is only ever shared as a district — never the pincode itself. You can change your language, sign out of any device, or leave fields empty; everything free on all three sites works without an account at all.",
+        "rightsTitle": "Your rights",
+        "rightsBody": "You can ask for a copy of your data, ask us to delete your AgriID, and see the log of every time your contact details were revealed. All three live on your profile page.",
+        "otpTitle": "Sign-in limits",
+        "otpBody": "OTP requests are limited per number, per IP address and per device. This is what stops someone else running up SMS on your number; it is also why repeated attempts ask you to wait.",
+        "profileLink": "Go to your profile",
+        "backLink": "Back to sign in"
+      }
     },
     "badges": {
       "verified": "✔ Verified",

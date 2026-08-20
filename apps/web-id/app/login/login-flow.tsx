@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, postJson } from "../../lib/api";
+import { RULE_REFEREE, RULE_REFERRER, type RuleAmounts } from "../../lib/coins";
 
 import { LoginLocaleSwitcher } from "./locale-switcher";
 
@@ -27,8 +28,10 @@ function safeNext(raw: string | undefined): string | null {
 
 export function LoginFlow({
   searchParamsPromise,
+  ruleAmounts,
 }: {
   searchParamsPromise: Promise<{ next?: string; ref?: string }>;
+  ruleAmounts: RuleAmounts;
 }) {
   const { next, ref } = use(searchParamsPromise);
   const t = useTranslations("ui.auth");
@@ -45,6 +48,13 @@ export function LoginFlow({
   const [handleState, setHandleState] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const verifying = useRef(false);
+
+  // The banner exists to name a reward, so it renders only when it can name
+  // BOTH halves. A partial banner ("you get some coins") is worse than none,
+  // and a hardcoded fallback is the thing this pass is forbidden to do.
+  const refereeCoins = ruleAmounts[RULE_REFEREE];
+  const referrerCoins = ruleAmounts[RULE_REFERRER];
+  const showReferral = Boolean(ref) && refereeCoins !== undefined && referrerCoins !== undefined;
 
   const coolingDown = cooldown > 0;
   useEffect(() => {
@@ -150,7 +160,7 @@ export function LoginFlow({
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-center gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[540px] flex-col items-center justify-center gap-4 px-4 py-8">
       {/* AG-A63: pre-auth locale switcher, above every step. The language
           STEP below persists a choice to the ACCOUNT after login; this only
           changes what THIS browser renders, right now, so a Tamil-first user
@@ -177,7 +187,10 @@ export function LoginFlow({
       {/* Where you are in the four steps. Hidden while gated: there is no
           progress through a flow that is closed. */}
       {!gated && (
-        <ol aria-label={t("stepsLabel")} className="flex items-center gap-1.5">
+        <ol
+          aria-label={t("stepsLabel")}
+          className="flex w-full max-w-[420px] items-center gap-1.5"
+        >
           {STEP_ORDER.map((name, index) => {
             const current = STEP_ORDER.indexOf(step);
             const done = index < current;
@@ -195,7 +208,7 @@ export function LoginFlow({
         </ol>
       )}
 
-      <Card className="p-6">
+      <Card className="w-full max-w-[420px] p-6">
         {/* The D30 launch gate wins over every step: signup is closed until
             DLT approval lands, so there is no partial flow worth showing. */}
         {gated ? (
@@ -213,6 +226,30 @@ export function LoginFlow({
               void requestOtp();
             }}
           >
+            {/* Referral banner. `?ref=` has always been captured and passed to
+                /auth/login as referral_code; until now it was invisible, so an
+                invitation that promised coins arrived at a screen mentioning
+                none. Deliberately UNNAMED here: resolving a code to the
+                inviter's handle before sign-in would publish a code -> handle
+                oracle on a public route. The name arrives on the done screen,
+                once there is a session to gate it behind.
+
+                The TIMING in the copy is the engine's, not the mockup's. A7
+                says "+100 when you sign up"; referrals.py delays BOTH rewards
+                to the referee's profile_100 event on purpose - that delay is
+                the anti-farm design. Promising coins at signup would promise
+                something no code path pays. */}
+            {showReferral && (
+              <div className="flex items-start gap-2.5 rounded-btn border border-line bg-brand-soft px-3 py-2.5">
+                <span aria-hidden="true" className="text-[18px] leading-none">
+                  🎁
+                </span>
+                <p className="text-[12.5px] leading-[1.5] text-brand-deep">
+                  <b className="font-bold">{t("referral.title")}</b>{" "}
+                  {t("referral.body", { referee: refereeCoins, referrer: referrerCoins })}
+                </p>
+              </div>
+            )}
             <h1 className="font-display text-xl font-bold text-ink">{t("phone.title")}</h1>
             <p className="text-sm text-sub">{t("phone.subtitle")}</p>
             <label className="text-sm font-bold text-ink" htmlFor="phone">
@@ -247,6 +284,24 @@ export function LoginFlow({
             <Button variant="brand" type="submit" disabled={busy || phone.length !== 10}>
               {t("phone.cta")}
             </Button>
+            {/* DPDP consent, one sentence, no checkbox. It replaces the generic
+                "you agree to our Terms and Privacy policy" line that used to
+                sit below the card: boilerplate nobody reads is not consent,
+                and the A7 ADD asks for what we store and what we never do, in
+                plain words.
+
+                ON THE WORDING: the reference says "we store your number
+                ENCRYPTED". identity.users.phone is a plain Text column - it is
+                NOT encrypted at rest - so that claim is absent here. A false
+                privacy promise on the consent line of a DPDP launch gate is
+                not a copy nit. Encrypting the column is a real backlog item;
+                until it exists this says only what is true. */}
+            <p className="text-[11.5px] leading-[1.55] text-muted">
+              {t("phone.dpdp")}{" "}
+              <a className="text-brand underline" href="/privacy">
+                {t("phone.dpdpLink")}
+              </a>
+            </p>
           </form>
         )}
 
@@ -370,11 +425,26 @@ export function LoginFlow({
         )}
       </Card>
 
-      {/* DPDP notice. Plain text, not links: agri.in has no /terms or /privacy
-          route yet, and its own footer renders these as text for the same
-          reason. A link that 404s on the consent line of a login screen is
-          worse than no link. Wire them up when the pages exist. */}
-      <p className="text-center text-[11.5px] leading-[1.55] text-muted">{t("terms")}</p>
+      {/* Trust strip. Four facts a farmer deciding whether to hand over a
+          phone number is actually weighing, and all four are true today. It
+          takes the place of the old generic terms line, whose job (the DPDP
+          link) moved INTO the card, under the CTA, where consent belongs.
+          Hidden while gated: "free forever" under a closed sign-up reads as
+          an advertisement for something you cannot have. */}
+      {!gated && (
+        <ul className="flex w-full flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[11px] text-muted">
+          {[t("trust.free"), t("trust.noCharges"), t("trust.languages"), t("trust.dpdp")].map(
+            (fact) => (
+              <li key={fact} className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-up">
+                  ✓
+                </span>
+                {fact}
+              </li>
+            ),
+          )}
+        </ul>
+      )}
     </main>
   );
 }

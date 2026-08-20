@@ -254,6 +254,18 @@ Ordered. Items 1–4 are blocking.
    Hindi, or gate the assistant to English until they exist. Shipping a
    TA/HI assistant whose dosage refusal is English-only is the one thing in
    this document that could hurt someone.
+   **[A-U4b C4, 2026-08-20: CLOSED for the safety half.** TA/HI patterns
+   shipped for all three regulated domains, input and output side (the
+   answer-side dosage check reuses the same set); suite is now 108 tests
+   incl. per-language precision/collision guards. One structural finding
+   worth keeping: `\b` silently never matches after Indic matras, so the
+   Indic patterns anchor with `(?:^|\s)` guards instead — a literally
+   mirrored set would have compiled and caught nothing. **What this does
+   NOT close:** `_DOMAIN_TERMS` (§3.3) is still English-only, so a
+   legitimate pure-Tamil/Hindi question is refused OUT_OF_SCOPE rather
+   than answered. Safe, not usable — closing the scope vocabulary is the
+   remaining TA/HI pre-flip item. New TA/HI test strings await native
+   review (AG-A24 precedent).]
 3. **Multi-turn red team** once conversation history is replayed to the model.
 4. **Owner reads this document and signs off.** First reading done
    2026-08-17 → decision OFF. This item stays open: it is asking for a

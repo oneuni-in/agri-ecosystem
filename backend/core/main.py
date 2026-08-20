@@ -50,6 +50,7 @@ from modules.identity.router import router as identity_router
 from modules.identity.session_auth import resolve_principal
 from modules.identity.session_router import session_router as identity_session_router
 from modules.leads.router import router as leads_router
+from modules.market_data.admin_router import admin_router as market_admin_router
 from modules.market_data.router import router as market_data_router
 from modules.notify.router import router as notify_router
 from modules.notify.worker import run_worker
@@ -106,6 +107,7 @@ MODULE_ROUTERS = [
     leads_router,
     leads_engine_router,
     needs_router,
+    market_admin_router,
     market_data_router,
     notify_router,
     ops_admin_router,

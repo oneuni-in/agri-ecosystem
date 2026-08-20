@@ -97,7 +97,12 @@ interface TodayShape {
   stub: boolean;
   weather: { source: string };
   severe_alert: unknown | null;
-  mandi: { source: string; as_of: string; commodities: unknown[] };
+  mandi: {
+    source: string;
+    as_of: string;
+    next_pull_hour_ist: number;
+    commodities: unknown[];
+  };
   schemes: {
     items: { verified_against: string; verified_on: string }[];
     deadlines: { chip: string }[];
@@ -276,6 +281,19 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
         .getByText(`${today.mandi.source} · updated ${today.mandi.as_of}`)
         .first(),
     ).toBeVisible();
+    // O1 (AG-A70): the stamp's second line says the data is a once-a-day
+    // snapshot and when it refreshes — the hour FROM the payload
+    // (next_pull_hour_ist), never a literal. The LiveDot is gone from this
+    // stamp: a pulsing dot over a daily dataset implied real-time.
+    const pullHour = today.mandi.next_pull_hour_ist;
+    const hourLabel = `${pullHour % 12 === 0 ? 12 : pullHour % 12} ${pullHour < 12 ? "AM" : "PM"}`;
+    const stamp = page.getByTestId("mandi-stamp");
+    await expect(stamp).toContainText(`updated once a day, around ${hourLabel} IST`);
+    await expect(stamp).toContainText(`next update after ${hourLabel} IST`);
+    // §6b ticker carries the compact cadence phrase alongside the source.
+    await expect(page.getByTestId("mandi-ticker")).toContainText(
+      `once-daily · ~${hourLabel} IST`,
+    );
     // §8 meta stamp: WeatherBlock.source verbatim — "Open-Meteo", or the
     // stale "Open-Meteo · as of …" form during an upstream outage.
     expect(today.weather.source).toContain("Open-Meteo");
@@ -339,6 +357,14 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
           '[data-testid="mandi-card"] svg polyline',
         ),
       );
+      // A spark is one polyline per CONTIGUOUS run of days now (A-U4b):
+      // a hole in the data splits the line, so a card may hold several.
+      const cards = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-testid="mandi-card"]'),
+      );
+      const cardsMissingSpark = cards.filter(
+        (card) => card.querySelectorAll("svg polyline").length === 0,
+      ).length;
       const offsets = polylines.map(
         (pl) => getComputedStyle(pl).strokeDashoffset,
       );
@@ -360,6 +386,7 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
       );
       return {
         polylineCount: polylines.length,
+        cardsMissingSpark,
         offsets,
         hiddenSparks,
         tileCount: tiles.length,
@@ -367,7 +394,13 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
         laneAnimation: lane ? getComputedStyle(lane).animationName : "missing",
       };
     });
-    expect(sweep.polylineCount).toBe(expectedCards);
+    // >= not ===: a gap in a card's series renders as multiple polylines
+    // (one per contiguous segment); the dash sweep above covers them ALL.
+    expect(sweep.polylineCount).toBeGreaterThanOrEqual(expectedCards);
+    expect(
+      sweep.cardsMissingSpark,
+      "every mandi card must render at least one sparkline segment",
+    ).toBe(0);
     expect(
       sweep.hiddenSparks,
       `sparklines must render fully drawn under reduced motion (offsets: ${sweep.offsets.join(", ")})`,
@@ -467,21 +500,17 @@ test.describe("A-U1 production no-secret guest render", () => {
 });
 
 test.describe("A-U2 price alerts — the logged-in round-trip (AG-A16)", () => {
-  // UNRESOLVED — deliberately not green, and not deleted either.
-  //
-  // The click leaves NO request at /market/alerts in the API access log at
-  // all, so the POST never leaves the browser. `toBeDisabled()` passed only
-  // because the card disables during its "saving" state as well as "done",
-  // so the assertion was satisfied before anything had happened. Whether the
-  // cause is the BFF refusing the private path, the session not reaching the
-  // card's same-origin fetch, or this test racing silent SSO, I do not know
-  // — and three attempts in, guessing again is thrashing, not debugging.
-  //
-  // fixme so it stays visible and CI stays honest: AG-A16's backend half IS
-  // covered (tests/test_market_alerts.py, including dispatch_due_alerts
-  // after an ingest); the browser round-trip is not, and must not be
-  // recorded as though it were.
-  test.fixme("subscribing from the home card lands a real subscription", async ({
+  // RESOLVED (A-U4b C2, 2026-08-20). The product was never broken — the SPEC
+  // raced its own POST. The card disables synchronously on "saving", so the
+  // old `toBeDisabled()` passed before the request had gone anywhere; the
+  // spec then read the subscription list while the POST was still in flight
+  // (the BFF route compiles on its first-ever dev hit — whole seconds) and
+  // found 0 rows. Test teardown aborted the in-flight request, which is why
+  // the API access log never recorded it (browser trace: POST with response
+  // status -1). Both login paths — interactive redirect and silent SSO —
+  // were verified live to land a 201 through the BFF. The fix is the
+  // waitForResponse sync point below; there is nothing to fix in the app.
+  test("subscribing from the home card lands a real subscription", async ({
     page,
   }) => {
     // AG-A16 asks that the subscription ROUND-TRIPS. The backend half has
@@ -523,10 +552,30 @@ test.describe("A-U2 price alerts — the logged-in round-trip (AG-A16)", () => {
     await expect(page.getByTestId("mandi-alert-signin")).toHaveCount(0);
     const cta = page.getByTestId("mandi-alert-cta");
     await expect(cta).toBeVisible();
-    await cta.click();
 
-    // The card disables itself only on a 2xx (201 created, or 200 if they
-    // already followed this pincode — the backend is idempotent).
+    // THE SYNC POINT IS THE RESPONSE, NOT THE DISABLED STATE. The card
+    // disables synchronously on click ("saving") as well as on success
+    // ("done"), so `toBeDisabled()` is satisfied while the POST is still in
+    // flight — and in dev the BFF route compiles on its first-ever hit, which
+    // takes whole seconds. This spec's original failure was exactly that
+    // race: it read the subscription list while its own POST was mid-air,
+    // found 0 rows, and the test teardown then aborted the request — which
+    // is why the API access log never saw it (the AG-A16/C2 diagnosis,
+    // 2026-08-20: browser trace shows the POST with response status -1).
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes("/api/market/alerts") &&
+          res.request().method() === "POST",
+        { timeout: 30_000 },
+      ),
+      cta.click(),
+    ]);
+    // 201 created, or 200 if they already followed this pincode — the
+    // backend is idempotent, so both mean "you are subscribed".
+    expect([200, 201], "the subscribe POST must succeed").toContain(
+      response.status(),
+    );
     await expect(cta).toBeDisabled();
 
     // The DOM saying "done" is the card's claim. This is the check: ask the

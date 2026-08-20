@@ -4,6 +4,7 @@ Never log payloads - they carry contact intents (PII-dense)."""
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import leads_service
 from modules.directory import service as directory_service
+from modules.directory.activity import record_activity
 from modules.directory.leads_models import Inquiry, InquiryResponse
 from modules.directory.leads_schemas import (
     ContactPayloadIn,
@@ -130,6 +132,19 @@ async def create_inquiry(
             "business_id": str(routed.id),
             "vars": {"business_name": routed.name, "inquiry_type": inquiry.type},
         }
+    # Live feed (O11): NOTHING about the sender; business fields only when the
+    # business is publicly visible (active + not soft-deleted, ORM-filtered).
+    feed_business = await session.scalar(
+        select(Business).where(Business.id == routed.id, Business.status == "active")
+    )
+    await record_activity(
+        session,
+        kind="lead_sent",
+        source_id=inquiry.id,
+        occurred_at=datetime.now(UTC),
+        business_name=feed_business.name if feed_business else None,
+        business_slug=feed_business.slug if feed_business else None,
+    )
     await session.commit()  # commit BEFORE announcing (repo-wide event ordering rule)
     if event_payload is not None:
         await _publish_best_effort("lead.created", event_payload)

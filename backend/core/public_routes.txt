@@ -156,3 +156,11 @@
 /education/student-resources/{slug}
 /education/guides
 /education/guides/{slug}
+# /directory/feed/live (A-U4b O11): the "Live on agri.in" marquee feed,
+# gated by agri_live_feed (404 when off - the frontend never reads flags).
+# Every field is already public elsewhere (active business name/slug,
+# approved review rating) or coarse (district/state); the backing table has
+# no user id, name, pincode or contact COLUMN, so nothing personal can be
+# served here even by mistake. Fixed 24h-window + limit read, no cursor to
+# walk, rate-limited like every public route.
+/directory/feed/live

@@ -283,6 +283,8 @@ async def test_mandi_block_reflects_ingested_rows(
     assert commodity.price == 24.0  # 2400/qtl -> 24.00/kg
     assert commodity.change == 1.0  # 24.00 - 23.00
     assert commodity.series_30d == [23.0, 24.0]  # oldest first
+    # One arrival date per point, so a renderer can see the window's holes.
+    assert commodity.series_days == ["2026-08-14", "2026-08-15"]
     # The feed publishes no arrivals column, so this is null, not invented.
     assert commodity.arrivals_qtl is None
 
@@ -328,6 +330,8 @@ async def test_one_commodity_never_splices_two_markets(
     assert commodity.market == "Coimbatore market"  # freshest wins
     # Pollachi's 90.0/kg must not appear in Coimbatore's line.
     assert commodity.series_30d == [23.0, 24.0]
+    # Nor its 13 Aug date in Coimbatore's day list.
+    assert commodity.series_days == ["2026-08-14", "2026-08-15"]
 
 
 async def test_series_is_bounded_to_the_thirty_day_window(
@@ -359,6 +363,7 @@ async def test_series_is_bounded_to_the_thirty_day_window(
     assert block is not None
     # The June point is >30 days before the newest day, so it is out.
     assert block.commodities[0].series_30d == [24.0]
+    assert block.commodities[0].series_days == ["2026-08-15"]  # June date out too
     assert block.commodities[0].range_low == 24.0
 
 

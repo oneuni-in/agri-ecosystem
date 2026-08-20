@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sparkPoints } from "./agri-home-patterns";
+import { sparkPoints, sparkSegments } from "./agri-home-patterns";
 import { formatCount } from "./count-up";
 
 describe("sparkPoints", () => {
@@ -22,6 +22,47 @@ describe("sparkPoints", () => {
   it("handles empty and single-value series", () => {
     expect(sparkPoints([])).toBe("");
     expect(sparkPoints([42])).toBe("0,13");
+  });
+});
+
+describe("sparkSegments", () => {
+  it("draws contiguous days as ONE segment, spaced exactly like sparkPoints", () => {
+    const days = ["2026-08-14", "2026-08-15", "2026-08-16"];
+    expect(sparkSegments([1, 2, 3], days)).toEqual([sparkPoints([1, 2, 3])]);
+  });
+
+  it("breaks the line over a hole (18–19 Aug 2026 never gets data)", () => {
+    // 17 Aug → 20 Aug is a 3-day jump: two segments, no line through it.
+    const days = ["2026-08-16", "2026-08-17", "2026-08-20"];
+    expect(sparkSegments([10, 20, 30], days)).toEqual(["0,23 27.5,13", "110,3"]);
+  });
+
+  it("positions x proportionally to the actual dates, not the index", () => {
+    // 14 → 15 is 1/6 of the 6-day span: x=18.3, not the even 55.
+    const days = ["2026-08-14", "2026-08-15", "2026-08-20"];
+    expect(sparkSegments([10, 20, 30], days)).toEqual(["0,23 18.3,13", "110,3"]);
+  });
+
+  it("draws a flat series as the centre line", () => {
+    const days = ["2026-08-14", "2026-08-15", "2026-08-16"];
+    expect(sparkSegments([23, 23, 23], days)).toEqual(["0,13 55,13 110,13"]);
+  });
+
+  it("falls back to one sparkPoints segment on unusable days input", () => {
+    // Length mismatch, garbage dates, non-increasing dates: never throw —
+    // this renders on the public home.
+    expect(sparkSegments([1, 2, 3], ["2026-08-14"])).toEqual([sparkPoints([1, 2, 3])]);
+    expect(sparkSegments([1, 2], ["not-a-date", "2026-08-15"])).toEqual([
+      sparkPoints([1, 2]),
+    ]);
+    expect(sparkSegments([1, 2], ["2026-08-15", "2026-08-14"])).toEqual([
+      sparkPoints([1, 2]),
+    ]);
+  });
+
+  it("handles empty and single-value series like sparkPoints", () => {
+    expect(sparkSegments([], [])).toEqual([]);
+    expect(sparkSegments([42], ["2026-08-15"])).toEqual(["0,13"]);
   });
 });
 

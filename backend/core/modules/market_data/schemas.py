@@ -13,9 +13,12 @@ codes and stamps are locale-neutral; the UI formats them.
 
 from __future__ import annotations
 
-from datetime import date
+import uuid
+from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from settings import get_settings
 
 
 class TranslatedText(BaseModel):
@@ -74,6 +77,12 @@ class MandiCommodity(BaseModel):
     price: float
     change: float  # signed day-over-day delta; 0 = flat
     series_30d: list[float]  # oldest first; sparkline input
+    # ISO arrival dates, one per series_30d point (same order, same length).
+    # They exist so a renderer can show the 30-day window's holes — 18–19
+    # Aug 2026 is a permanent one (ADR-0012) — instead of drawing
+    # evenly-spaced points that interpolate a gap away. Additive on
+    # purpose: series_30d keeps its shape and the Today contract stays v2.
+    series_days: list[str]
     range_low: float
     range_high: float
     modal: float | None = None
@@ -85,6 +94,14 @@ class MandiBlock(BaseModel):
     market: str
     as_of: str  # "6:00 AM" display stamp; NEVER hardcoded in the UI
     source: str  # "Agmarknet"
+    # A-U4b O1: prices come from ONE Agmarknet pull a day (the scheduler
+    # fires at settings.mandi_pull_hour_ist), and the UI renders "updated
+    # daily around H pm IST" from THIS field, never a frontend literal —
+    # the page's 60 s cache does not make a daily snapshot real-time.
+    # default_factory rather than a service-side literal so the router's
+    # empty "no data for this area yet" block carries the cadence too:
+    # the pull schedule is a property of the pipeline, not of the data.
+    next_pull_hour_ist: int = Field(default_factory=lambda: get_settings().mandi_pull_hour_ist)
     commodities: list[MandiCommodity]
 
 
@@ -179,6 +196,9 @@ class MarketPrice(BaseModel):
     price: float
     change: float
     series_30d: list[float]
+    # ISO arrival dates paired with series_30d (same rule as MandiCommodity:
+    # the dates make the window's holes visible to a renderer; additive).
+    series_days: list[str]
     range_low: float
     range_high: float
     modal: float | None = None
@@ -192,5 +212,33 @@ class CommodityDetail(BaseModel):
     unit: str
     source: str
     as_of: str
+    # Same O1 rule as MandiBlock: the commodity pages stamp "updated once
+    # a day around H pm IST" from data, never a frontend literal.
+    next_pull_hour_ist: int = Field(default_factory=lambda: get_settings().mandi_pull_hour_ist)
     note: TranslatedText | None = None  # MSP overlay, when verified
     markets: list[MarketPrice]
+
+
+# ── A-U4b C1: ingest-health admin read (admin_router.py) ─────────────
+# NOT public contract: an admin-console shape, mirrored nowhere in
+# packages/types. One row of market.ingest_runs, verbatim.
+
+
+class IngestRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source: str
+    started_at: datetime
+    finished_at: datetime | None
+    outcome: str
+    fetched: int
+    written: int
+    quarantined: int
+    newest_arrival_date: date | None
+    error: str | None
+
+
+class IngestRunPage(BaseModel):
+    items: list[IngestRunOut]
+    next_cursor: str | None = None

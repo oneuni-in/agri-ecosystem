@@ -390,3 +390,27 @@ class BusinessAnalyticsOut(BaseModel):
     reveals: AnalyticsSectionOut
     leads: AnalyticsSectionOut
     response: AnalyticsResponseOut
+
+
+class LiveFeedItemOut(BaseModel):
+    """One "Live on agri.in" feed item (A-U4b O11).
+
+    PRIVACY CONTRACT: every field here is either already public elsewhere
+    (approved reviews are public, active businesses are listed with their
+    name and slug) or coarse by design (district/state - never a pincode).
+    NO field identifies a person: there is no user id, no author, no
+    contact detail - and none CAN appear, because the backing table
+    (directory.activity, migration 0051) has no such columns. Adding a
+    field here requires re-checking that contract."""
+
+    kind: Literal["need_posted", "business_joined", "review_approved", "lead_sent"]
+    occurred_at: datetime  # serialized ISO-8601
+    district: str | None
+    state: str | None
+    business_name: str | None
+    business_slug: str | None
+    rating: int | None
+
+
+class LiveFeedOut(BaseModel):
+    items: list[LiveFeedItemOut]

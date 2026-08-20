@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.market_data import open_meteo, service
 from modules.market_data.agmarknet import parse_record
 from modules.market_data.ingest import ingest_records
+from settings import get_settings
 from shared.flags import FeatureFlag, reset_flag_cache
 
 from .d26_helpers import api  # noqa: F401 — the shared client fixture
@@ -108,9 +109,15 @@ async def test_flag_on_serves_the_frozen_contract(
     # count someone typed. The two rows come from the real feed capture.
     assert body["mandi"]["source"] == "Agmarknet"
     assert body["mandi"]["as_of"] == "2026-08-15"  # newest ingested day
+    # O1 (AG-A70): the once-a-day pull cadence travels IN the payload so
+    # the UI can say "updated daily around H pm IST" without a frontend
+    # literal — asserted against the setting that drives the scheduler.
+    assert body["mandi"]["next_pull_hour_ist"] == get_settings().mandi_pull_hour_ist
     assert [c["slug"] for c in body["mandi"]["commodities"]] == ["paddy"]
     for c in body["mandi"]["commodities"]:
         assert len(c["series_30d"]) >= 2  # sparkline needs a line
+        # Additive gap-marker field: one ISO date per series point.
+        assert len(c["series_days"]) == len(c["series_30d"])
         assert {"en", "ta", "hi"} <= set(c["name"])
         assert c["price"] == 24.0  # 2400/qtl, converted once
 

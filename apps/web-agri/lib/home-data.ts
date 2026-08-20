@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { HOME_HERO_SLOT, serveAds } from "./ads";
 import { fetchKnowledgeSection } from "./content";
+import { fetchLiveFeed } from "./feed";
 import { fetchHelplines } from "./helplines";
 import {
   fetchDirectoryRow,
@@ -31,6 +32,7 @@ import {
  * truth moves, not a knob turned until the number looked good:
  *   - mandi + weather (`todayFor`) ....... 60 s   — prices move intraday
  *   - directory / reviews ................ 300 s  — a business's row is stable
+ *   - live feed (`liveFeedFor`) .......... 300 s  — a marquee of recent activity
  *   - editorial content .................. 300 s  — changes on human approval
  *   - vertical registry .................. 3600 s — changes on a migration
  *   - helplines .......................... 86400 s — changes on the order of years
@@ -71,6 +73,17 @@ export const directoryFor = cache(async (pincode: string) =>
 export const reviewSignalsFor = cache(async (pincode: string) =>
   fetchReviewSignals(await directoryFor(pincode), 2),
 );
+
+/**
+ * §13b live-activity marquee — O11 (AG-A69). A marquee of recent activity,
+ * not a live wire: 5 minutes is the declared staleness, matching the other
+ * community reads (directory / reviews) — activity worth showing survives a
+ * 5-minute-old render, and the section label says "recent", never "now".
+ * While the `agri_live_feed` flag is OFF (it is, at D57) the endpoint 404s,
+ * `fetchLiveFeed` degrades to null and the section is absent — the flag-off
+ * 404 costs nothing beyond one cached miss per window.
+ */
+export const liveFeedFor = cache(async () => fetchLiveFeed({ revalidate: 300 }));
 
 /** §11 knowledge cards + news rail — one call, deduped against itself upstream
  * so a story cannot appear twice. */

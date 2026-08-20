@@ -15,6 +15,7 @@ import { ApiError, getJson } from "@/lib/api";
 import { ModerationQueue, type ModItem } from "@/components/moderation-queue";
 
 import { FlagsPanel } from "./flags-panel";
+import { IngestHealthPanel } from "./ingest-health-panel";
 import { PincodeTiersPanel } from "./pincode-tiers-panel";
 
 const TYPES = [
@@ -229,6 +230,7 @@ export function OpsManager() {
       />
       <FlagsPanel />
       <PincodeTiersPanel />
+      <IngestHealthPanel />
     </main>
   );
 }

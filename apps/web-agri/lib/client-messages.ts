@@ -37,4 +37,5 @@ export const ROOT_CLIENT_NAMESPACES = [
   "notifications",
   "localeSwitcher",
   "agriHome.alert",
+  "agriHome.install",
 ] as const;

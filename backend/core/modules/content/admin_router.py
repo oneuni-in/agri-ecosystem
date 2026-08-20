@@ -17,16 +17,26 @@ import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.audit import audit
 from shared.authz import require_permission, resolve_actor
 from shared.db import get_session
-from shared.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, InvalidCursorError
+from shared.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, InvalidCursorError, paginate
 from shared.security import SecureRouter
 
-from .schemas import ItemIn, ModerationIn, QueueCard, QueuePage, to_queue_card
+from .models import IngestRun
+from .schemas import (
+    IngestRunOut,
+    IngestRunPage,
+    ItemIn,
+    ModerationIn,
+    QueueCard,
+    QueuePage,
+    to_queue_card,
+)
 from .service import create_item, list_queue, set_moderation
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -49,6 +59,27 @@ async def get_queue(
         raise HTTPException(status_code=422, detail="invalid_cursor") from None
     return QueuePage(
         items=[to_queue_card(item) for item in page.items], next_cursor=page.next_cursor
+    )
+
+
+@admin_router.get("/ingest-runs", dependencies=[require_permission("content.read")])
+async def list_ingest_runs(
+    session: SessionDep,
+    cursor: Annotated[str | None, Query(max_length=64)] = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+) -> IngestRunPage:
+    """The RSS worker's pull attempts, newest first (A-U4b C1). The run
+    ledger exists so "no new articles" and "the worker never fired" leave
+    different traces — this is where a human sees the difference."""
+    try:
+        page = await paginate(
+            session, select(IngestRun), cursor=cursor, limit=limit, descending=True
+        )
+    except InvalidCursorError:
+        raise HTTPException(status_code=422, detail="invalid_cursor") from None
+    return IngestRunPage(
+        items=[IngestRunOut.model_validate(run) for run in page.items],
+        next_cursor=page.next_cursor,
     )
 
 

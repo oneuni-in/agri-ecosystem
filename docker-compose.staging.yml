@@ -67,12 +67,26 @@ services:
   # The daily Agmarknet pull. Not a convenience job: the source serves only
   # the live day, so a day this container does not run is permanently absent
   # from the price series and no later job can recover it (ADR-0012).
-  # Deliberately NOT in docker-compose.dev.yml — one polite reader against a
-  # public government API, and the key is rate-limited.
+  # Also wired in docker-compose.dev.yml since PR #89 — "staging will run it
+  # eventually" was quietly losing a day every 24h until staging exists.
   mandi-cron:
     image: ghcr.io/oneuni-in/agri-api:${TAG:-dev}
     env_file: secrets/staging.env
     command: ["python", "-m", "scripts.mandi_scheduler"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # A-U4b O3: the daily curated-RSS pull for the content engine.
+  # scripts/content_pull.py existed and nothing ran it — the same failure
+  # class as AG-A25. RSS keeps back-items so a missed day is usually
+  # recoverable, but a feed nobody pulls is a dead section. No API key
+  # needed: the sources are public feeds read politely once a day.
+  content-cron:
+    image: ghcr.io/oneuni-in/agri-api:${TAG:-dev}
+    env_file: secrets/staging.env
+    command: ["python", "-m", "scripts.content_scheduler"]
     depends_on:
       postgres:
         condition: service_healthy

@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.directory import leads_service, needs_service
+from modules.directory import activity, leads_service, needs_service
 from modules.directory.leads_models import Inquiry, InquiryResponse, Need
 from modules.directory.leads_schemas import ResponseOut
 from modules.directory.models import Business
@@ -119,6 +119,17 @@ async def create_need(request: Request, body: NeedCreateIn, session: SessionDep)
                     "vars": {"business_name": vendor.name, "inquiry_type": "milk_subscription"},
                 }
             )
+    # Live feed (O11): PARENT need id only (one posted need = one row); the
+    # pincode is resolved to coarse district/state and NEVER stored.
+    district, state = await activity.location_for_pincode(session, body.pincode)
+    await activity.record_activity(
+        session,
+        kind="need_posted",
+        source_id=need.id,
+        occurred_at=datetime.now(UTC),
+        district=district,
+        state=state,
+    )
     out = _need_out(need, routed_count=len(vendors))
     await session.commit()  # commit BEFORE announcing (repo-wide event ordering rule)
     for event_payload in events:

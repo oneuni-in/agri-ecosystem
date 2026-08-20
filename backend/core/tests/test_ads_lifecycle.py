@@ -14,6 +14,11 @@ from modules.ads.models import Campaign, Creative
 
 pytestmark = pytest.mark.asyncio
 
+# Frozen, and every request_checkout call must pass `today=TODAY` — the
+# seam exists precisely so these tests cannot depend on the wall clock.
+# Three calls skipped it and the suite became a calendar bomb: FLIGHT_END is
+# TODAY+14 = Aug 19, so on Aug 20 the flight_over guard fired ahead of the
+# condition under test and no_creatives failed on every branch at once.
 TODAY = date(2026, 8, 5)
 FLIGHT_START = TODAY - timedelta(days=1)
 FLIGHT_END = TODAY + timedelta(days=14)
@@ -110,7 +115,7 @@ async def test_request_checkout_non_draft_raises_not_payable(db_session: AsyncSe
     await _creative(db_session, campaign, "approved")
 
     with pytest.raises(lifecycle.LifecycleError) as exc_info:
-        await lifecycle.request_checkout(db_session, campaign)
+        await lifecycle.request_checkout(db_session, campaign, today=TODAY)
     assert exc_info.value.code == "not_payable"
 
 
@@ -124,7 +129,7 @@ async def test_request_checkout_unpriced_raises_not_priced(db_session: AsyncSess
     await _creative(db_session, campaign, "pending")
 
     with pytest.raises(lifecycle.LifecycleError) as exc_info:
-        await lifecycle.request_checkout(db_session, campaign)
+        await lifecycle.request_checkout(db_session, campaign, today=TODAY)
     assert exc_info.value.code == "not_priced"
 
 
@@ -134,7 +139,7 @@ async def test_request_checkout_no_creatives_raises_no_creatives(db_session: Asy
     await db_session.flush()
 
     with pytest.raises(lifecycle.LifecycleError) as exc_info:
-        await lifecycle.request_checkout(db_session, campaign)
+        await lifecycle.request_checkout(db_session, campaign, today=TODAY)
     assert exc_info.value.code == "no_creatives"
 
 

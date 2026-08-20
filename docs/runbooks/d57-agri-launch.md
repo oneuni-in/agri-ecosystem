@@ -102,6 +102,23 @@ None of these can be done by an agent, and none has a workaround:
 4. **Decide the burn side of coins.** `redeem()` exists with no route and no
    catalog, so coins currently only accumulate. That is a shippable state, but
    it should be a decision rather than an oversight.
+5. **Rotate `app_rt`, and fill the application secrets.** Migration 0013
+   creates the runtime database role with the password `app_rt`, which is
+   published in this repository; every secret in the new "application secrets"
+   block of `secrets/staging.env.example` (`OTP_PEPPER`, the two beacon
+   secrets, the MinIO keys) likewise ships with a working dev default. On the
+   database, once per environment:
+
+   ```sql
+   ALTER ROLE app_rt PASSWORD '<the value that goes in DATABASE_URL>';
+   ```
+
+   `shared/startup_checks.py` refuses to boot with `APP_ENV=prod` while any of
+   them is still the published value, and the error names every offending
+   variable at once — so this is now self-enforcing rather than a step someone
+   has to remember. It is listed here because a failed boot at launch is a
+   worse way to discover it than a checklist. Note `OTP_PEPPER` invalidates
+   in-flight OTPs when it changes: set it before traffic, not during.
 
 ---
 

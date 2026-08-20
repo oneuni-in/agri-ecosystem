@@ -185,3 +185,58 @@ Zero app changes, as scoped. Three findings:
 | **P4-Q1** | **The subtitle is missing.** The reference says "Everything — pages, alerts, the morning mandi summary — arrives in this language. **Change it any time.**" Live shows the heading and the tiles alone. Both halves of that sentence do work: the first says what the choice actually controls (not just this screen), and the second removes the fear of getting it wrong — which is exactly the fear a one-tap-commits screen creates. | The single most worthwhile addition on this step. |
 | **P4-Q2** | **No selected state, and no confirm.** Live commits the moment a tile is tapped, so no tile ever renders as chosen and there is no Finish button; the reference shows a highlighted tile plus a separate "Finish →". One tap is fewer taps, and I would keep that — but combined with P4-Q1's absence, a farmer who taps Hindi by accident gets no signal about what just happened or that it is reversible. | Keep one-tap; the reassurance belongs in copy, not an extra button. |
 | P4-Q3 | Tiles render the shared `CategoryTile` (emoji + tint square + name + vernacular); the reference draws letter glyphs (`த` / `A` / `हि`). | Component-level, shipped, and consistent with the rest of the family. Recorded, not a defect. |
+
+---
+
+## P5 · done screen (new state)
+
+Proofs: `p5-done` (× live/ref × 1280/390). Captured from a **real** signup
+driven end to end — OTP requested, code read from the mock driver, handle
+picked, Tamil chosen — arriving at `?ref=5KJN7H2R`, a real referral code
+belonging to `@dummy`. The inviter line on the proof is a live resolution
+through the new endpoint, not a posed string.
+
+Self-check: 780 px at 2× DPR (no overflow), console clean.
+
+### behaviour verified, not just drawn
+
+A screenshot cannot show any of this, so each was driven and asserted:
+
+| Guarantee | Evidence |
+|---|---|
+| Reduced motion leaves the burst complete | `opacity: 1`, `transform: none`, `animation-name: none`, 64×64, visible — the final state, not a removed element |
+| Auto-continue fires | countdown ran out unattended → landed on `/devices` |
+| A safe `?next=` still resumes | `?next=/authorize?...` → the Continue button landed on `/authorize` |
+| The redirect is the *same* redirect | `git diff` shows **no** changed line touching `safeNext(`, `window.location.assign` or `router.push` — the four-line body matched as unchanged context when it moved from `finish()` into `performRedirect()`. `safeNext` itself is untouched, so the unsafe-`next` drop is unchanged by construction. |
+
+### decisions inside this screen
+
+| # | Decision | Why |
+|---|---|---|
+| P5-D1 | **The coins line renders only for an actual signup.** A returning login reaches this screen too (both paths call `finish("done")`), and for them the heading reads "You are signed in" with no bonus line. | `signup_complete` is once-ever. Announcing "+100 signup bonus" to someone who signed up last year promises coins the ledger will never pay. |
+| P5-D2 | **The inviter is named here, not on the phone step.** Resolved through the new private `GET /coins/referral/resolve`. | The pre-auth banner cannot name anyone without publishing a code→handle oracle (P1-K2). Behind a session, the same walk costs a login and a rate-limit budget. The endpoint returns the handle **only**, comes through `shared.lookups` (coins may not read `identity.users` — import-linter contract), declines to name you to yourself, and answers `{handle: null}` rather than 404 for an unknown code so it cannot be used to test whether a code exists. |
+| P5-D3 | **Auto-continue is a visible countdown on the button**, not a silent timer. Pressing the button skips the wait. | An unannounced redirect reads as a crash. The countdown also makes the 6 s legible as a choice rather than a stall. |
+| P5-D4 | The amount comes from `signup_complete` in the rules table; the block is absent if the rule is missing. | Same rule as the referral banner — no invented figures, no fallback. |
+
+### fixed
+
+| # | What was wrong | Fix |
+|---|---|---|
+| P5-F1 | The ✅ rendered as the literal text `✅`. JSX **text children** are not string literals, so escape sequences in them are not interpreted — the site icons were fine because those live in a real string literal inside `SITES`. | Real glyphs in the JSX text. Caught on the first capture. |
+| P5-F2 | At 390 in Tamil, the site-strip taglines ran straight over their card borders into the neighbouring tile. Tamil and Hindi taglines are single long words with no break opportunity, so the grid column could not wrap them. | `break-words` on the tagline. Note this never showed up in the page-level overflow check — the page width stayed at exactly 780 px throughout; only the *card* was overrun. A width assertion is not a layout check. |
+
+### flagged — for CP1
+
+| # | Observation | Note |
+|---|---|---|
+| P5-Q1 | **The notification bell strip now appears on the done screen** (with a "1" badge — the signup notification). The reference draws this screen with no chrome at all. | It is the P1-F2 gate working as written: the session cookie exists by now, so the strip renders. It is honest, but a green bar with an unread badge above "Your AgriID is ready" is chrome the reference deliberately does not have. Cleanest fix is to keep the login route chrome-free regardless of session, which needs the strip moved out of the root layout. Your call. |
+| P5-Q2 | **Returning users also get this screen**, with a 6 s countdown, on every login. | The prompt says the screen renders after `finish("done")`, and both paths call it — so I built it that way. But it does add an interstitial to the common path. Skipping straight through for returning users is a one-line change if you'd prefer it. |
+
+### testing note
+
+The dev IP's daily OTP counter (`otp:day:ip:172.19.0.1`, cap 20) was exhausted
+by this pass's capture runs and **reset once** in Redis to continue. Recorded
+because it is real throttle state that was cleared: it is local-only abuse
+protection in front of a mock SMS driver, no message was ever sent, and no
+product behaviour was altered — the 429 proof in P2 was captured against the
+genuine phone-cap throttle before this.

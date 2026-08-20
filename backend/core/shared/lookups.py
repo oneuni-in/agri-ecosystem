@@ -76,6 +76,13 @@ CampaignPaymentHook = Callable[[AsyncSession, uuid.UUID, str], Awaitable[None]]
 # fully refunded). Unregistered/fail-closed -> None, same as every other
 # resolver here - the caller falls back to its own derived estimate.
 CampaignChargedResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[int | None]]
+# ID-U1: user_id -> public @handle. Identity owns agri_id and every other
+# module that needs to NAME a user has to come through here; coins is the
+# first caller (the login referral banner names the inviter) and the DPDP
+# export is the next. Returns the handle only - never the phone, never the
+# uuid, never a profile field - so a caller cannot use this seam to widen
+# what it knows about someone.
+HandleResolver = Callable[[AsyncSession, uuid.UUID], Awaitable[str | None]]
 
 _business_resolver: BusinessResolver | None = None
 _owned_businesses_resolver: OwnedBusinessesResolver | None = None
@@ -85,6 +92,7 @@ _campaign_pauser: CampaignPauser | None = None
 _campaign_billing_resolver: CampaignBillingResolver | None = None
 _campaign_payment_hook: CampaignPaymentHook | None = None
 _campaign_charged_resolver: CampaignChargedResolver | None = None
+_handle_resolver: HandleResolver | None = None
 
 
 def register_business_resolver(resolver: BusinessResolver) -> None:
@@ -127,10 +135,17 @@ def register_campaign_charged_resolver(resolver: CampaignChargedResolver) -> Non
     _campaign_charged_resolver = resolver
 
 
+def register_handle_resolver(resolver: HandleResolver) -> None:
+    global _handle_resolver
+    _handle_resolver = resolver
+
+
 def reset_lookup_resolvers() -> None:
     global _business_resolver, _owned_businesses_resolver, _contact_resolver
     global _servable_resolver, _campaign_pauser
     global _campaign_billing_resolver, _campaign_payment_hook, _campaign_charged_resolver
+    global _handle_resolver
+    _handle_resolver = None
     _business_resolver = None
     _owned_businesses_resolver = None
     _contact_resolver = None
@@ -139,6 +154,15 @@ def reset_lookup_resolvers() -> None:
     _campaign_billing_resolver = None
     _campaign_payment_hook = None
     _campaign_charged_resolver = None
+
+
+async def resolve_handle(session: AsyncSession, user_id: uuid.UUID) -> str | None:
+    """The user's public @handle, or None when unregistered/unknown. Fail
+    closed like every other resolver here: a caller that cannot name someone
+    renders without the name, never with a placeholder."""
+    if _handle_resolver is None:
+        return None
+    return await _handle_resolver(session, user_id)
 
 
 async def resolve_business(session: AsyncSession, business_id: uuid.UUID) -> BusinessRef | None:

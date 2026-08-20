@@ -29,6 +29,17 @@ class ReferralCodeOut(BaseModel):
     code: str
 
 
+class ReferrerOut(BaseModel):
+    """Who a referral code belongs to, for the login done screen.
+
+    The handle and nothing else - no user id, no join date, no counts. `None`
+    means "we will not name them": an unknown code, a code belonging to a
+    suspended account, or your own code. The caller renders the banner
+    without a name rather than with a placeholder."""
+
+    handle: str | None
+
+
 class RuleOut(BaseModel):
     """One active earn rule, as the earn cards render it.
 

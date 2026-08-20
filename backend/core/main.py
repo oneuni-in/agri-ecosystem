@@ -40,7 +40,7 @@ from modules.directory.service import BusinessDisabledError
 from modules.education.router import router as education_router
 from modules.identity.admin_router import admin_router as identity_admin_router
 from modules.identity.location_router import location_router as identity_location_router
-from modules.identity.lookups import notify_contact
+from modules.identity.lookups import notify_contact, public_handle
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.oauth_router import oauth_router as identity_oauth_router
 from modules.identity.profile_router import profile_router as identity_profile_router
@@ -66,6 +66,7 @@ from shared.lookups import (
     register_campaign_pauser,
     register_campaign_payment_hook,
     register_contact_resolver,
+    register_handle_resolver,
     register_owned_businesses_resolver,
     register_servable_resolver,
 )
@@ -210,6 +211,10 @@ def create_app() -> FastAPI:
     register_business_resolver(business_ref)
     register_owned_businesses_resolver(owned_business_refs)
     register_contact_resolver(notify_contact)
+    # ID-U1: identity owns agri_id, so every module that needs to NAME a user
+    # asks through this seam rather than reading identity.users. Coins is the
+    # first caller (the login referral banner names the inviter).
+    register_handle_resolver(public_handle)
     # M1.5: directory answers serve-time status (ads consume it - the M3
     # seam); ads pause an advertiser's campaigns when directory disables it.
     register_servable_resolver(business_is_servable)

@@ -6,11 +6,21 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, postJson } from "../../lib/api";
-import { RULE_REFEREE, RULE_REFERRER, type RuleAmounts } from "../../lib/coins";
+import {
+  RULE_REFEREE,
+  RULE_REFERRER,
+  RULE_SIGNUP,
+  type RuleAmounts,
+} from "../../lib/coins";
 
 import { LoginLocaleSwitcher } from "./locale-switcher";
 
-type Step = "phone" | "otp" | "handle" | "language";
+type Step = "phone" | "otp" | "handle" | "language" | "done";
+
+/** How long the done screen waits before taking the farmer where they were
+ * already going. Long enough to read the reward line, short enough that a
+ * phone put down mid-signup still lands somewhere useful. */
+const DONE_AUTO_CONTINUE_SECONDS = 6;
 
 const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
 
@@ -20,6 +30,19 @@ const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
  * deciding whether to trust us at all. Order matters: it is the order
  * `finish()` walks. */
 const STEP_ORDER: Step[] = ["phone", "otp", "handle", "language"];
+
+/** The reference's masked form: enough of the number to recognise it as
+ * yours, not enough for someone reading over a shoulder to write down. */
+function maskPhone(digits: string): string {
+  if (digits.length !== 10) return "";
+  return `+91 ${digits.slice(0, 2)}\u2022\u2022\u2022\u2022\u2022\u2022${digits.slice(-2)}`;
+}
+
+const SITES = [
+  { host: "agri.in", icon: "\ud83c\udf3e", tagKey: "done.agriTag" },
+  { host: "milk.in", icon: "\ud83e\udd5b", tagKey: "done.milkTag" },
+  { host: "theorganic.in", icon: "\ud83c\udf3f", tagKey: "done.organicTag" },
+] as const;
 
 function safeNext(raw: string | undefined): string | null {
   // resume only ever returns to our own /authorize - anything else is dropped
@@ -47,6 +70,10 @@ export function LoginFlow({
   const [handle, setHandle] = useState("");
   const [handleState, setHandleState] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [agriId, setAgriId] = useState<string | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [inviter, setInviter] = useState<string | null>(null);
+  const [autoIn, setAutoIn] = useState(DONE_AUTO_CONTINUE_SECONDS);
   const verifying = useRef(false);
 
   // The banner exists to name a reward, so it renders only when it can name
@@ -54,7 +81,30 @@ export function LoginFlow({
   // and a hardcoded fallback is the thing this pass is forbidden to do.
   const refereeCoins = ruleAmounts[RULE_REFEREE];
   const referrerCoins = ruleAmounts[RULE_REFERRER];
+  const signupCoins = ruleAmounts[RULE_SIGNUP];
   const showReferral = Boolean(ref) && refereeCoins !== undefined && referrerCoins !== undefined;
+
+  // Name the inviter only now, with a session in hand. /coins/referral/resolve
+  // is private precisely so this cannot happen on the phone step. Best-effort:
+  // no name simply means no line.
+  const onDone = step === "done";
+  useEffect(() => {
+    if (!onDone || !ref) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const body = await getJson(
+          `/coins/referral/resolve?code=${encodeURIComponent(ref)}`,
+        );
+        if (!cancelled) setInviter((body.handle as string | null) ?? null);
+      } catch {
+        if (!cancelled) setInviter(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onDone, ref]);
 
   const coolingDown = cooldown > 0;
   useEffect(() => {
@@ -63,15 +113,17 @@ export function LoginFlow({
     return () => clearInterval(timer);
   }, [coolingDown]);
 
-  const finish = (nextStep: Step | "done") => {
-    if (nextStep !== "done") {
-      setStep(nextStep);
-      return;
-    }
+  /** The redirect this flow has always performed, lifted out of finish()
+   * UNCHANGED so the done screen's button and its auto-continue both land
+   * exactly where the flow used to go on its own: same safeNext check, same
+   * /devices fallback. */
+  const performRedirect = () => {
     const resume = safeNext(next);
     if (resume) window.location.assign(resume);
     else router.push("/devices");
   };
+
+  const finish = (nextStep: Step) => setStep(nextStep);
 
   const requestOtp = async () => {
     setBusy(true);
@@ -112,6 +164,8 @@ export function LoginFlow({
         otp_proof: verified.otp_proof,
         ...(ref ? { referral_code: ref } : {}),
       });
+      setAgriId(login.agri_id as string);
+      setIsNewUser(Boolean(login.is_new_user));
       if (login.is_new_user) {
         const suggested = await getJson("/auth/handle/suggest");
         setSuggestions(suggested.suggestions as string[]);
@@ -148,7 +202,8 @@ export function LoginFlow({
   const saveHandle = async () => {
     setBusy(true);
     try {
-      await postJson("/auth/handle", { handle });
+      const saved = await postJson("/auth/handle", { handle });
+      setAgriId(saved.agri_id as string);
       finish("language");
     } catch (err) {
       setHandleState(err instanceof ApiError ? err.detail : "invalid_format");
@@ -156,6 +211,19 @@ export function LoginFlow({
       setBusy(false);
     }
   };
+
+  // Auto-continue: a farmer who puts the phone down mid-signup still lands
+  // where they were going. Shown as a countdown ON the button, never a silent
+  // hijack - and pressing it skips the wait.
+  useEffect(() => {
+    if (!onDone) return;
+    if (autoIn <= 0) {
+      performRedirect();
+      return;
+    }
+    const timer = setTimeout(() => setAutoIn((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [onDone, autoIn]);
 
   const chooseLanguage = async (locale: "en" | "ta" | "hi") => {
     await postJson("/auth/language", { language: locale });
@@ -192,7 +260,10 @@ export function LoginFlow({
 
       {/* Where you are in the four steps. Hidden while gated: there is no
           progress through a flow that is closed. */}
-      {!gated && (
+      {/* The rail measures the four SIGNUP steps. "done" is past all of them,
+          so it hides rather than rendering four bars with nothing current —
+          the reference hides it on this screen for the same reason. */}
+      {!gated && step !== "done" && (
         <ol
           aria-label={t("stepsLabel")}
           className="flex w-full max-w-[420px] items-center gap-1.5"
@@ -450,6 +521,71 @@ export function LoginFlow({
                 /account afterwards would be telling someone about a door that
                 has already shut. */}
             <p className="text-[11.5px] leading-[1.55] text-muted">{t("handle.oneChange")}</p>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="flex flex-col gap-3">
+            {/* motion-reduce keeps the burst at its FINAL state - visible,
+                full size - rather than removing it. The A-U1 contract:
+                reduced motion means no animation, never missing content. */}
+            <span
+              aria-hidden="true"
+              className="mx-auto flex h-16 w-16 animate-pop items-center justify-center rounded-full bg-brand-soft text-[30px] motion-reduce:animate-none"
+            >
+              ✅
+            </span>
+            <h1 className="text-center font-display text-xl font-bold text-ink">
+              {isNewUser ? t("done.title") : t("done.titleReturning")}
+            </h1>
+            <p className="text-center text-sm text-sub">
+              {agriId ? `@${agriId} \u00b7 ` : ""}
+              {maskPhone(phone)}
+            </p>
+            {inviter && (
+              <p className="text-center text-[12.5px] text-brand-deep">
+                {t("done.invitedBy", { handle: inviter })}
+              </p>
+            )}
+            {/* Signup coins only for an actual signup: a returning login has
+                no bonus to announce, and saying otherwise would promise coins
+                the ledger will never pay. Amount from the rules table, or the
+                line is absent entirely. */}
+            {isNewUser && signupCoins !== undefined && (
+              <div className="flex items-center gap-2.5 rounded-btn border border-alert-line bg-coins-bg px-3 py-2.5">
+                <span aria-hidden="true" className="text-[22px]">
+                  🪙
+                </span>
+                <div>
+                  <b className="font-display text-lg text-coins-fg">
+                    {t("done.coinsAmount", { amount: signupCoins })}
+                  </b>
+                  <p className="text-[11px] leading-[1.4] text-sub">{t("done.coinsNote")}</p>
+                </div>
+              </div>
+            )}
+            <ul aria-label={t("done.sitesLabel")} className="grid grid-cols-3 gap-2">
+              {SITES.map((site) => (
+                <li
+                  key={site.host}
+                  className="rounded-btn border border-line bg-cream px-1.5 py-2.5 text-center"
+                >
+                  <b className="block text-[12.5px] text-ink">
+                    {site.icon} {site.host}
+                  </b>
+                  {/* break-words is load-bearing, not defensive: Tamil and
+                      Hindi taglines are single long words with no break
+                      opportunity, and at 390 they ran straight over the card
+                      border into the neighbouring tile. */}
+                  <span className="block break-words text-[11px] leading-[1.3] text-muted">
+                    {t(site.tagKey)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Button variant="brand" onClick={performRedirect}>
+              {autoIn > 0 ? t("done.continueIn", { seconds: autoIn }) : t("done.continue")}
+            </Button>
           </div>
         )}
 

@@ -607,6 +607,19 @@
         "otpBody": "OTP requests are limited per number, per IP address and per device. This is what stops someone else running up SMS on your number; it is also why repeated attempts ask you to wait.",
         "profileLink": "Go to your profile",
         "backLink": "Back to sign in"
+      },
+      "done": {
+        "title": "Your AgriID is ready",
+        "titleReturning": "You are signed in",
+        "coinsAmount": "+{amount} AgriCoins",
+        "coinsNote": "signup bonus · one balance on every site · never cash, never transferable",
+        "invitedBy": "Invited by @{handle}",
+        "continue": "Continue",
+        "continueIn": "Continuing in {seconds}s",
+        "sitesLabel": "Your AgriID works on all three",
+        "agriTag": "mandi · weather · dealers",
+        "milkTag": "milk vendors · cattle",
+        "organicTag": "certified organic"
       }
     },
     "badges": {

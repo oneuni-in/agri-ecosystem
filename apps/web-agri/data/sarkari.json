@@ -5,42 +5,156 @@
       "url": "https://pmkisan.gov.in/BeneficiaryStatus_New.aspx",
       "domain": "pmkisan.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "🏛️"
+      "icon": "🏛️",
+      "detail": {
+        "what": {
+          "en": "PM-Kisan (Pradhan Mantri Kisan Samman Nidhi) is a Government of India income-support scheme: eligible landholding farmer families receive ₹6,000 per year in three instalments, paid directly into the farmer's bank account. This page is the scheme's official beneficiary-status check.",
+          "ta": "பிஎம்-கிசான் (பிரதம மந்திரி கிசான் சம்மான் நிதி) இந்திய அரசின் வருமான ஆதரவுத் திட்டம்: தகுதியுள்ள நிலம் வைத்திருக்கும் விவசாயக் குடும்பங்களுக்கு ஆண்டுக்கு ₹6,000 மூன்று தவணைகளாக நேரடியாக வங்கிக் கணக்கில் வழங்கப்படுகிறது. இந்தப் பக்கம் திட்டத்தின் அதிகாரப்பூர்வ பயனாளர் நிலை சரிபார்ப்பு.",
+          "hi": "पीएम-किसान (प्रधानमंत्री किसान सम्मान निधि) भारत सरकार की आय-सहायता योजना है: पात्र भूमिधारक किसान परिवारों को ₹6,000 प्रति वर्ष तीन किस्तों में सीधे बैंक खाते में मिलते हैं। यह पृष्ठ योजना की आधिकारिक लाभार्थी-स्थिति जांच है।"
+        },
+        "eligibility": {
+          "en": "Landholding farmer families whose names are in the land records, subject to the exclusion categories in the scheme's published guidelines (for example, income-tax payers are excluded). The official portal is the authority on individual eligibility.",
+          "ta": "நில ஆவணங்களில் பெயர் உள்ள, நிலம் வைத்திருக்கும் விவசாயக் குடும்பங்கள் — திட்டத்தின் வெளியிடப்பட்ட வழிகாட்டுதல்களில் உள்ள விலக்கு வகைகளுக்கு உட்பட்டு (எடுத்துக்காட்டாக, வருமான வரி செலுத்துவோர் விலக்கு). தனிநபர் தகுதிக்கு அதிகாரப்பூர்வ போர்டலே இறுதி.",
+          "hi": "भूमि रिकॉर्ड में दर्ज नाम वाले भूमिधारक किसान परिवार — योजना के प्रकाशित दिशानिर्देशों की अपवर्जन श्रेणियों के अधीन (उदाहरण के लिए, आयकर देने वाले पात्र नहीं हैं)। व्यक्तिगत पात्रता पर आधिकारिक पोर्टल ही अंतिम है।"
+        },
+        "documents": {
+          "en": "As per the scheme's published guidelines: Aadhaar, a bank account and your land details for registration, with Aadhaar eKYC mandatory for instalments. For a status check, the portal asks for the details you registered with.",
+          "ta": "திட்ட வழிகாட்டுதல்களின்படி: பதிவுக்கு ஆதார், வங்கிக் கணக்கு மற்றும் நில விவரங்கள்; தவணைகளுக்கு ஆதார் eKYC கட்டாயம். நிலை சரிபார்க்க, நீங்கள் பதிவு செய்த விவரங்களை போர்டல் கேட்கும்.",
+          "hi": "योजना के दिशानिर्देशों के अनुसार: पंजीकरण के लिए आधार, बैंक खाता और भूमि विवरण; किस्तों के लिए आधार eKYC अनिवार्य है। स्थिति जांच के लिए पोर्टल वही विवरण मांगता है जिनसे आपने पंजीकरण किया था।"
+        },
+        "source": "pmkisan.gov.in",
+        "last_verified": "2026-08-20"
+      }
     },
     {
       "key": "patta",
       "url": "https://eservices.tn.gov.in/eservicesnew/index.html",
       "domain": "eservices.tn.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "📜"
+      "icon": "📜",
+      "detail": {
+        "what": {
+          "en": "The Tamil Nadu e-Services portal of the state's revenue administration lets you view and download land record extracts — Patta, Chitta and A-Register — for land in Tamil Nadu. It is a record-viewing service, not a benefit scheme.",
+          "ta": "தமிழ்நாடு வருவாய் நிர்வாகத்தின் இ-சேவைகள் போர்டலில் தமிழ்நாட்டில் உள்ள நிலங்களுக்கான பட்டா, சிட்டா, A-பதிவேடு போன்ற நில ஆவண நகல்களை பார்க்கவும் பதிவிறக்கவும் முடியும். இது ஆவணம் பார்க்கும் சேவை; நலத்திட்டம் அல்ல.",
+          "hi": "तमिलनाडु राजस्व प्रशासन के ई-सेवा पोर्टल पर तमिलनाडु की भूमि के रिकॉर्ड — पट्टा, चिट्टा और A-रजिस्टर — देखे और डाउनलोड किए जा सकते हैं। यह रिकॉर्ड देखने की सेवा है, कोई लाभ योजना नहीं।"
+        },
+        "eligibility": {
+          "en": "Open to anyone; it covers land parcels located in Tamil Nadu. You only need the land's details to look up an extract.",
+          "ta": "யார் வேண்டுமானாலும் பயன்படுத்தலாம்; தமிழ்நாட்டில் உள்ள நிலங்களுக்கு மட்டும். நகல் பார்க்க நில விவரங்கள் மட்டுமே தேவை.",
+          "hi": "कोई भी उपयोग कर सकता है; यह केवल तमिलनाडु में स्थित भूमि के लिए है। रिकॉर्ड देखने के लिए बस भूमि का विवरण चाहिए।"
+        },
+        "documents": {
+          "en": "No documents are needed to view a record. Keep the land's details ready: district, taluk, village and survey number (or Patta number).",
+          "ta": "ஆவணம் பார்க்க எந்த ஆவணமும் தேவையில்லை. நில விவரங்களை தயாராக வைத்திருங்கள்: மாவட்டம், வட்டம், கிராமம் மற்றும் சர்வே எண் (அல்லது பட்டா எண்).",
+          "hi": "रिकॉर्ड देखने के लिए किसी दस्तावेज़ की ज़रूरत नहीं। भूमि का विवरण तैयार रखें: ज़िला, तालुक, गांव और सर्वे नंबर (या पट्टा नंबर)।"
+        },
+        "source": "eservices.tn.gov.in",
+        "last_verified": "2026-08-20"
+      }
     },
     {
       "key": "pmfby",
       "url": "https://pmfby.gov.in/",
       "domain": "pmfby.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "☂️"
+      "icon": "☂️",
+      "detail": {
+        "what": {
+          "en": "Pradhan Mantri Fasal Bima Yojana is the Government of India's crop insurance scheme: notified crops in notified areas are covered against yield losses from natural causes, from sowing through post-harvest, with the farmer paying a small share of the premium as per the scheme's published guidelines. This is the official portal, including policy and claim status.",
+          "ta": "பிரதம மந்திரி ஃபசல் பீமா யோஜனா இந்திய அரசின் பயிர் காப்பீட்டுத் திட்டம்: அறிவிக்கப்பட்ட பகுதிகளில் அறிவிக்கப்பட்ட பயிர்களுக்கு, விதைப்பு முதல் அறுவடைக்குப் பின் வரை, இயற்கை காரணங்களால் ஏற்படும் மகசூல் இழப்புக்கு காப்பீடு; திட்ட வழிகாட்டுதல்களின்படி பிரீமியத்தில் ஒரு சிறு பங்கை மட்டும் விவசாயி செலுத்துகிறார். இது அதிகாரப்பூர்வ போர்டல் — பாலிசி & கோரிக்கை நிலையும் இங்கே.",
+          "hi": "प्रधानमंत्री फसल बीमा योजना भारत सरकार की फसल बीमा योजना है: अधिसूचित क्षेत्रों में अधिसूचित फसलों को बुवाई से कटाई-बाद तक प्राकृतिक कारणों से उपज हानि पर बीमा मिलता है; योजना के प्रकाशित दिशानिर्देशों के अनुसार किसान प्रीमियम का छोटा हिस्सा ही देता है। यह आधिकारिक पोर्टल है — पॉलिसी व क्लेम स्थिति भी यहीं।"
+        },
+        "eligibility": {
+          "en": "Farmers growing notified crops in notified areas, including tenant farmers and sharecroppers with an insurable interest, as per the scheme's guidelines. Enrolment is voluntary and runs through banks, CSCs or the portal within each season's cut-off dates.",
+          "ta": "அறிவிக்கப்பட்ட பகுதிகளில் அறிவிக்கப்பட்ட பயிர்களை பயிரிடும் விவசாயிகள் — திட்ட வழிகாட்டுதல்களின்படி குத்தகை விவசாயிகளும் அடங்குவர். சேர்க்கை தன்னார்வமானது; ஒவ்வொரு பருவத்தின் கடைசி தேதிக்குள் வங்கிகள், CSC அல்லது போர்டல் வழியாக.",
+          "hi": "अधिसूचित क्षेत्रों में अधिसूचित फसलें उगाने वाले किसान — योजना के दिशानिर्देशों के अनुसार बटाईदार व किरायेदार किसान भी शामिल। नामांकन स्वैच्छिक है; हर मौसम की अंतिम तिथि तक बैंक, CSC या पोर्टल से।"
+        },
+        "documents": {
+          "en": "As per the portal's enrolment requirements: bank account details, land records or a cultivation/tenancy document, and identity proof. Report crop loss within 72 hours — helpline 14447 or the official Crop Insurance app.",
+          "ta": "போர்டலின் சேர்க்கை தேவைகளின்படி: வங்கிக் கணக்கு விவரங்கள், நில ஆவணங்கள் அல்லது சாகுபடி/குத்தகை ஆவணம், அடையாள சான்று. பயிர் சேதத்தை 72 மணி நேரத்திற்குள் தெரிவிக்கவும் — உதவி எண் 14447 அல்லது அதிகாரப்பூர்வ Crop Insurance ஆப்.",
+          "hi": "पोर्टल की नामांकन आवश्यकताओं के अनुसार: बैंक खाता विवरण, भूमि रिकॉर्ड या खेती/किरायेदारी दस्तावेज़, और पहचान प्रमाण। फसल क्षति 72 घंटे में बताएं — हेल्पलाइन 14447 या आधिकारिक Crop Insurance ऐप।"
+        },
+        "source": "pmfby.gov.in",
+        "last_verified": "2026-08-20"
+      }
     },
     {
       "key": "agristack",
       "url": "https://agristack.gov.in/",
       "domain": "agristack.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "🪪"
+      "icon": "🪪",
+      "detail": {
+        "what": {
+          "en": "AgriStack is the Government of India's digital agriculture initiative. Its Farmer Registry issues a Farmer ID — a digital identity linked to your land records — meant to simplify access to schemes and benefits. This is the official portal for registration and enrolment status.",
+          "ta": "AgriStack இந்திய அரசின் டிஜிட்டல் வேளாண் முயற்சி. அதன் உழவர் பதிவேடு, உங்கள் நில ஆவணங்களுடன் இணைக்கப்பட்ட டிஜிட்டல் அடையாளமான உழவர் ID-ஐ வழங்குகிறது — திட்டங்களும் சலுகைகளும் எளிதாக கிடைக்க. பதிவு & சேர்க்கை நிலைக்கான அதிகாரப்பூர்வ போர்டல் இது.",
+          "hi": "AgriStack भारत सरकार की डिजिटल कृषि पहल है। इसकी किसान रजिस्ट्री किसान ID जारी करती है — भूमि रिकॉर्ड से जुड़ी डिजिटल पहचान — ताकि योजनाओं और लाभों तक पहुंच आसान हो। पंजीकरण व नामांकन स्थिति का आधिकारिक पोर्टल यही है।"
+        },
+        "eligibility": {
+          "en": "Farmers whose details appear in their state's land records. The registry is rolling out state by state, so availability depends on your state, as per the official portal.",
+          "ta": "மாநில நில ஆவணங்களில் விவரம் உள்ள விவசாயிகள். பதிவேடு மாநிலம் வாரியாக படிப்படியாக அமல்படுத்தப்படுகிறது; உங்கள் மாநிலத்தின் நிலையை அதிகாரப்பூர்வ போர்டலில் பார்க்கவும்.",
+          "hi": "वे किसान जिनका विवरण राज्य के भूमि रिकॉर्ड में है। रजिस्ट्री राज्य-दर-राज्य लागू हो रही है; अपने राज्य की स्थिति आधिकारिक पोर्टल पर देखें।"
+        },
+        "documents": {
+          "en": "As per the portal's enrolment flow: Aadhaar with an Aadhaar-linked mobile number (for OTP) and your land record details.",
+          "ta": "போர்டலின் சேர்க்கை படிநிலைகளின்படி: ஆதார், ஆதாருடன் இணைக்கப்பட்ட மொபைல் எண் (OTP-க்கு) மற்றும் நில ஆவண விவரங்கள்.",
+          "hi": "पोर्टल की नामांकन प्रक्रिया के अनुसार: आधार, आधार से जुड़ा मोबाइल नंबर (OTP के लिए) और भूमि रिकॉर्ड विवरण।"
+        },
+        "source": "agristack.gov.in",
+        "last_verified": "2026-08-20"
+      }
     },
     {
       "key": "shc",
       "url": "https://soilhealth.dac.gov.in/",
       "domain": "soilhealth.dac.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "🧫"
+      "icon": "🧫",
+      "detail": {
+        "what": {
+          "en": "The Soil Health Card scheme gives farmers a soil-test report for their holding: the soil's nutrient status and fertilizer recommendations based on it. Cards are issued against soil samples collected through the state agriculture department. Download your card from this official portal.",
+          "ta": "மண் வள அட்டைத் திட்டம் உங்கள் நிலத்திற்கான மண் பரிசோதனை அறிக்கையை வழங்குகிறது: மண்ணின் ஊட்டச்சத்து நிலை மற்றும் அதன் அடிப்படையிலான உர பரிந்துரைகள். மாநில வேளாண் துறை சேகரிக்கும் மண் மாதிரிகளின் அடிப்படையில் அட்டை வழங்கப்படுகிறது. உங்கள் அட்டையை இந்த அதிகாரப்பூர்வ போர்டலில் பதிவிறக்கலாம்.",
+          "hi": "मृदा स्वास्थ्य कार्ड योजना किसानों को उनकी ज़मीन की मिट्टी-जांच रिपोर्ट देती है: मिट्टी की पोषक स्थिति और उसके आधार पर उर्वरक सिफारिशें। कार्ड राज्य कृषि विभाग द्वारा लिए गए मिट्टी के नमूनों के आधार पर बनता है। अपना कार्ड इस आधिकारिक पोर्टल से डाउनलोड करें।"
+        },
+        "eligibility": {
+          "en": "All farmers. Samples are collected and tested through the state agriculture department, and the card is issued for the sampled holding.",
+          "ta": "அனைத்து விவசாயிகளும். மாதிரிகள் மாநில வேளாண் துறை மூலம் சேகரிக்கப்பட்டு பரிசோதிக்கப்படுகின்றன; மாதிரி எடுத்த நிலத்திற்கே அட்டை வழங்கப்படும்.",
+          "hi": "सभी किसान। नमूने राज्य कृषि विभाग के माध्यम से लिए और जांचे जाते हैं; कार्ड उसी ज़मीन के लिए बनता है जिसका नमूना लिया गया।"
+        },
+        "documents": {
+          "en": "No documents are needed to download a card — the portal asks for the details linked to your sample, or a login with your registered mobile number. Your card's values feed agri.in's fertilizer calculator.",
+          "ta": "அட்டை பதிவிறக்க ஆவணங்கள் தேவையில்லை — உங்கள் மாதிரியுடன் இணைந்த விவரங்களை, அல்லது பதிவு செய்த மொபைல் எண்ணுடன் உள்நுழைவை போர்டல் கேட்கும். அட்டையின் மதிப்புகளை agri.in உரக் கணிப்பானில் பயன்படுத்தலாம்.",
+          "hi": "कार्ड डाउनलोड करने के लिए दस्तावेज़ नहीं चाहिए — पोर्टल नमूने से जुड़े विवरण या पंजीकृत मोबाइल से लॉगिन मांगता है। कार्ड के मान agri.in के उर्वरक कैलकुलेटर में काम आते हैं।"
+        },
+        "source": "soilhealth.dac.gov.in",
+        "last_verified": "2026-08-20"
+      }
     },
     {
       "key": "enam",
       "url": "https://enam.gov.in/web/",
       "domain": "enam.gov.in",
       "verified_on": "2026-08-15",
-      "icon": "🏪"
+      "icon": "🏪",
+      "detail": {
+        "what": {
+          "en": "eNAM (National Agriculture Market) is the Government of India's pan-India electronic trading platform that networks regulated APMC mandis. Registered farmers can sell produce through online bidding in eNAM-integrated mandis. This is the official portal for registration.",
+          "ta": "eNAM (தேசிய வேளாண் சந்தை) இந்திய அரசின் அகில இந்திய மின்னணு வர்த்தக தளம்; ஒழுங்குபடுத்தப்பட்ட APMC மண்டிகளை இணைக்கிறது. பதிவு செய்த விவசாயிகள் eNAM-இணைந்த மண்டிகளில் ஆன்லைன் ஏலம் மூலம் விற்கலாம். பதிவுக்கான அதிகாரப்பூர்வ போர்டல் இது.",
+          "hi": "eNAM (राष्ट्रीय कृषि बाज़ार) भारत सरकार का अखिल-भारतीय इलेक्ट्रॉनिक ट्रेडिंग प्लेटफ़ॉर्म है, जो विनियमित APMC मंडियों को जोड़ता है। पंजीकृत किसान eNAM-जुड़ी मंडियों में ऑनलाइन बोली से उपज बेच सकते हैं। पंजीकरण का आधिकारिक पोर्टल यही है।"
+        },
+        "eligibility": {
+          "en": "Any farmer can register free of cost. Selling happens through mandis integrated with eNAM, so check that a mandi near you is on the network.",
+          "ta": "எந்த விவசாயியும் இலவசமாக பதிவு செய்யலாம். விற்பனை eNAM-இணைந்த மண்டிகள் வழியே நடக்கும்; உங்களுக்கு அருகிலுள்ள மண்டி இணைப்பில் உள்ளதா என பார்க்கவும்.",
+          "hi": "कोई भी किसान मुफ़्त पंजीकरण कर सकता है। बिक्री eNAM से जुड़ी मंडियों के ज़रिए होती है; देखें कि आपके पास की मंडी नेटवर्क में है या नहीं।"
+        },
+        "documents": {
+          "en": "As per the portal's registration form: bank account details (passbook copy or cancelled cheque) for online payment, and an identity document.",
+          "ta": "போர்டலின் பதிவு படிவத்தின்படி: ஆன்லைன் பணப்பரிமாற்றத்திற்கு வங்கிக் கணக்கு விவரங்கள் (பாஸ்புக் நகல் அல்லது ரத்து செய்யப்பட்ட காசோலை) மற்றும் அடையாள ஆவணம்.",
+          "hi": "पोर्टल के पंजीकरण फ़ॉर्म के अनुसार: ऑनलाइन भुगतान के लिए बैंक खाता विवरण (पासबुक कॉपी या रद्द चेक) और एक पहचान दस्तावेज़।"
+        },
+        "source": "enam.gov.in",
+        "last_verified": "2026-08-20"
+      }
     }
   ]
 }

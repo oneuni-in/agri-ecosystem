@@ -392,6 +392,15 @@
         "enam": {
           "title": "eNAM registration",
           "sub": "Sell in regulated e-markets — how to enrol"
+        },
+        "detail": {
+          "what": "What it is",
+          "eligibility": "Who is eligible",
+          "documents": "Documents needed",
+          "source": "Source: {domain} · ✓ {date}",
+          "go": "Open {domain} ↗",
+          "close": "Close",
+          "dpdp": "Details open on the official government portal — agri.in never sees or stores your records."
         }
       },
       "toolsRow": {

@@ -14,13 +14,14 @@ import {
 } from "@agri/ui";
 import { buildMetadata, canonicalUrl } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { SARKARI_LINKS } from "@/data/sarkari";
 import { resolveHomePincode } from "@/lib/home";
+import { pickSarkariText } from "@/lib/sarkari";
 
 import { HeaderLocation } from "./header-location";
 import {
@@ -54,6 +55,7 @@ import {
 } from "./home-skeletons";
 import { InstallBand } from "./install-band";
 import { MandiAlertCard } from "./mandi-alert-card";
+import { SarkariHub } from "./sarkari-hub";
 
 const SITE = "https://agri.in";
 
@@ -149,10 +151,14 @@ function BelowFold({ children }: { children: React.ReactNode }) {
  *     `cache()` dedupe holds and boundaries cannot fan out duplicate calls.
  */
 export default async function HomePage() {
-  // The ONLY await in the shell. `getTranslations` is an in-process catalogue
-  // read; the pincode comes from a cookie. No engine is touched here, which is
-  // what lets the shell flush before any of them answer.
-  const [t, cookieStore] = await Promise.all([getTranslations("ui"), cookies()]);
+  // The ONLY await in the shell. `getTranslations`/`getLocale` are in-process
+  // catalogue reads; the pincode comes from a cookie. No engine is touched
+  // here, which is what lets the shell flush before any of them answer.
+  const [t, locale, cookieStore] = await Promise.all([
+    getTranslations("ui"),
+    getLocale(),
+    cookies(),
+  ]);
   const pincode = resolveHomePincode(cookieStore.get(LOC_COOKIE)?.value);
 
   const faq = (["1", "2", "3", "4", "5", "6"] as const).map((n) => ({
@@ -291,7 +297,12 @@ export default async function HomePage() {
             deep links to OFFICIAL portals only (data/sarkari.ts, checked by
             scripts/check-sarkari-links.mjs — AG-A11). We link, we never fetch
             or store anyone's records (DPDP). Domain + verified stamp render
-            from the data file, so no boundary is needed. */}
+            from the data file, so no boundary is needed. AG-A61: the cards
+            are a small below-fold island — with JS a plain click opens a
+            detail dialog (E5 copy from the data file) and leaving agri.in is
+            a deliberate second click; without JS the anchors navigate exactly
+            as before. Every string is resolved HERE and passed down, so no
+            catalog namespace ships to the client. */}
         <section
           aria-label={t("agriHome.sarkari.title")}
           className="pb-2 pt-[22px] [content-visibility:auto] [contain-intrinsic-size:auto_600px]"
@@ -300,36 +311,32 @@ export default async function HomePage() {
           <h2 className="mb-3.5 font-display text-xl font-extrabold">
             {t("agriHome.sarkari.title")}
           </h2>
-          <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-3">
-            {SARKARI_LINKS.map((link) => (
-              <a
-                key={link.key}
-                data-testid="sarkari-link"
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-[11px] rounded-card border border-cream-line bg-card px-3.5 py-3 no-underline transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-brand-soft text-base"
-                >
-                  {link.icon}
-                </span>
-                <span className="min-w-0">
-                  <b className="block text-[12.5px] font-medium text-ink">
-                    {t(`agriHome.sarkari.${link.key}.title`)}
-                  </b>
-                  <small className="mt-px block text-[10px] leading-normal text-muted">
-                    {t(`agriHome.sarkari.${link.key}.sub`)}
-                  </small>
-                  <span className="mt-[3px] inline-block text-[9.5px] font-medium text-brand">
-                    {link.domain} ↗ · ✓ {link.verified_on}
-                  </span>
-                </span>
-              </a>
-            ))}
-          </div>
+          <SarkariHub
+            labels={{
+              what: t("agriHome.sarkari.detail.what"),
+              eligibility: t("agriHome.sarkari.detail.eligibility"),
+              documents: t("agriHome.sarkari.detail.documents"),
+              close: t("agriHome.sarkari.detail.close"),
+              dpdp: t("agriHome.sarkari.detail.dpdp"),
+            }}
+            cards={SARKARI_LINKS.map((link) => ({
+              key: link.key,
+              url: link.url,
+              domain: link.domain,
+              verified_on: link.verified_on,
+              icon: link.icon,
+              title: t(`agriHome.sarkari.${link.key}.title`),
+              sub: t(`agriHome.sarkari.${link.key}.sub`),
+              what: pickSarkariText(link.detail.what, locale),
+              eligibility: pickSarkariText(link.detail.eligibility, locale),
+              documents: pickSarkariText(link.detail.documents, locale),
+              sourceLine: t("agriHome.sarkari.detail.source", {
+                domain: link.detail.source,
+                date: link.detail.last_verified,
+              }),
+              goLabel: t("agriHome.sarkari.detail.go", { domain: link.domain }),
+            }))}
+          />
         </section>
 
         {/* §10 — directory row: businesses covering the visitor's pincode,

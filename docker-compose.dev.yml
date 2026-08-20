@@ -89,6 +89,35 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # A-U4b O3: the thing that actually pulls the curated RSS feeds.
+  # scripts/content_pull.py existed and nothing ran it — the same failure
+  # class as AG-A25, one module over. RSS keeps back-items so a missed day
+  # is usually recoverable, but a feed nobody pulls is a dead section that
+  # still renders its last approved item as if the world stopped. Needs no
+  # API key: the sources are public feeds read politely once a day.
+  content-cron:
+    build: ./backend/core
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql+asyncpg://app_rt:app_rt@postgres:5432/agri
+      REDIS_URL: redis://redis:6379/0
+      # Without this the scheduler's stdout sits in Python's buffer and
+      # `docker logs` shows nothing until the process exits — on a job that
+      # sleeps for hours between pulls, that reads exactly like a hung
+      # container. This job's failure mode is a silently un-pulled feed, so
+      # being able to see it start and fire is the point.
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./backend/core:/app
+    working_dir: /app
+    command: ["python", "-m", "scripts.content_scheduler"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   search-worker:
     build: ./backend/core
     environment:

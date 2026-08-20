@@ -32,6 +32,7 @@ import {
   HeroAd,
   HelplineBand,
   KnowledgeBlock,
+  LiveFeedStrip,
   MandiBlock,
   ReviewsStrip,
   SchemesBlock,
@@ -512,8 +513,15 @@ export default async function HomePage() {
           </Suspense>
         </BelowFold>
 
-        {/* §13b live activity feed: agri_live_feed flag is OFF and no feed
-            endpoint exists → ABSENT (events are never fabricated). */}
+        {/* §13b live activity feed: rendered from the real feed read
+            (GET /directory/feed/live). agri_live_feed flag OFF → 404 → null →
+            ABSENT (events are never fabricated). Fallback null: an
+            absent-by-default section must not reserve space. */}
+        <BelowFold>
+          <Suspense fallback={null}>
+            <LiveFeedStrip />
+          </Suspense>
+        </BelowFold>
 
         {/* §14 — stats band, REAL numbers only. */}
         <BelowFold>

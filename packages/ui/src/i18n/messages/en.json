@@ -341,6 +341,13 @@
         "share": "Share {name} price on WhatsApp",
         "empty": "No market data for this area yet"
       },
+      "liveFeed": {
+        "label": "Live on agri.in — recent activity",
+        "needPosted": "{hasDistrict, select, yes {A need was posted in {district}} other {A need was posted}}",
+        "businessJoined": "{name} joined agri.in",
+        "reviewApproved": "{hasName, select, yes {New review for {name}} other {New review}}{hasRating, select, yes { · ★{rating}} other {}}",
+        "leadSent": "A farmer contacted {name}"
+      },
       "calendar": {
         "eyebrow": "Season guide · {zone}",
         "title": "Kharif calendar · பருவநிலை காலண்டர்",

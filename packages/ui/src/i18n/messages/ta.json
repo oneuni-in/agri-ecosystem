@@ -341,6 +341,13 @@
         "share": "{name} விலையை WhatsApp-ல் பகிர",
         "empty": "இந்தப் பகுதிக்கு இன்னும் சந்தை விவரம் இல்லை"
       },
+      "liveFeed": {
+        "label": "agri.in-ல் நேரலை — சமீபத்திய செயல்பாடு",
+        "needPosted": "{hasDistrict, select, yes {{district}-ல் ஒரு தேவை பதிவிடப்பட்டது} other {ஒரு தேவை பதிவிடப்பட்டது}}",
+        "businessJoined": "{name} agri.in-ல் இணைந்தது",
+        "reviewApproved": "{hasName, select, yes {{name}-க்கு புதிய மதிப்புரை} other {புதிய மதிப்புரை}}{hasRating, select, yes { · ★{rating}} other {}}",
+        "leadSent": "ஒரு விவசாயி {name}-ஐ தொடர்பு கொண்டார்"
+      },
       "calendar": {
         "eyebrow": "பருவ வழிகாட்டி · {zone}",
         "title": "பருவநிலை காலண்டர்",

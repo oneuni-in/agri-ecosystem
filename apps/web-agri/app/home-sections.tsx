@@ -37,11 +37,13 @@ import { istHourLabel, nextPullDay } from "@/lib/mandi";
 import { formatDuration, pick as pickContent, type ContentKind } from "@/lib/content";
 import { helplineStamp } from "@/lib/helplines";
 import { HOME_HERO_SLOT } from "@/lib/ads";
+import { phrasesFor } from "@/lib/feed";
 import {
   directoryFor,
   helplinesForHome,
   heroAdsFor,
   knowledgeForHome,
+  liveFeedFor,
   reviewSignalsFor,
   todayFor,
   verticalsForHome,
@@ -1028,6 +1030,50 @@ export async function ReviewsStrip({ pincode }: { pincode: string }) {
  *  - the webinar card has no rule at all (events are Stage D) and carries
  *    the Soon treatment instead of a number — see EARN_CARDS.
  */
+/* ── §13b · "Live on agri.in" activity marquee ─────────────────────────────── */
+
+/**
+ * O11 (AG-A69, owner date 2026-08-20) — real platform events only, from
+ * `GET /directory/feed/live`. EMPTY MEANS ABSENT: a null payload (the
+ * `agri_live_feed` flag is OFF at D57, so the endpoint 404s), an empty
+ * items array, or a feed whose every row was skipped all render NOTHING —
+ * the strip is never recycled from older events and never padded with
+ * invented ones. Events are never fabricated.
+ *
+ * NO timestamps in the lane: the page is cached (5 min declared window in
+ * `lib/home-data.ts` + ISR realities), so a relative "2 min ago" baked into
+ * cached HTML lies — the mandi ISR-today lesson (O1). The label says
+ * "recent activity" instead. NO counts: an unmeasured count is the
+ * reference mockup's fabrication.
+ *
+ * Plain-text spans, no links, deliberately: `Marquee` duplicates its
+ * children into an `aria-hidden` lane for the seamless loop, and an <a>
+ * inside that copy would still be keyboard-focusable — a hidden tab stop
+ * per item, which the composite does not (and should not) tabIndex away.
+ * The mandi ticker (§6b) set the precedent: marquee lanes are spans.
+ * `business_slug` stays on the wire for the day the strip grows a
+ * non-duplicated rendering.
+ */
+export async function LiveFeedStrip() {
+  const [feed, t] = await Promise.all([liveFeedFor(), getTranslations("ui")]);
+  const phrases = phrasesFor(feed);
+  if (!feed || feed.items.length === 0 || phrases.length === 0) return null;
+
+  return (
+    <Marquee
+      data-testid="live-feed"
+      label={t("agriHome.liveFeed.label")}
+      className="mt-5"
+    >
+      {phrases.map((phrase, i) => (
+        <span key={i} className={i === 0 ? "pl-4" : undefined}>
+          {t(`agriHome.liveFeed.${phrase.key}`, phrase.args)}
+        </span>
+      ))}
+    </Marquee>
+  );
+}
+
 export async function EarnCoins() {
   const [rules, t] = await Promise.all([fetchEarnRules(), getTranslations("ui")]);
 

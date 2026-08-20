@@ -10,7 +10,16 @@ from decimal import Decimal
 from typing import Any
 
 import uuid6
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, Text, UniqueConstraint, text
+from sqlalchemy import (
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    SmallInteger,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -165,6 +174,35 @@ class ProfileView(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         postgresql.TIMESTAMP(timezone=True), nullable=False
     )
+
+
+class Activity(UUIDv7PKMixin, TimestampMixin, Base):
+    """ "Live on agri.in" feed row (A-U4b O11) - mirrors migration 0051.
+
+    THE PRIVACY CONTRACT IS THE SCHEMA: no user id, no person's name, no
+    pincode, no phone/email column exists, so scrubbing is by construction,
+    not by filtering. The only identifying fields are a business's public
+    name/slug, nullable so hooks omit them when the business is not
+    publicly visible. UNIQUE(kind, source_id) is the house DB-proven
+    idempotency idiom - one row per domain happening, ever."""
+
+    __tablename__ = "activity"
+    __table_args__ = (
+        UniqueConstraint("kind", "source_id", name="uq_directory_activity_kind_source"),
+        Index("ix_directory_activity_occurred_at", text("occurred_at DESC")),
+        {"schema": "directory"},
+    )
+
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
+    district: Mapped[str | None] = mapped_column(Text, nullable=True)
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)
+    business_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    business_slug: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
 
 claim_status_enum = postgresql.ENUM(

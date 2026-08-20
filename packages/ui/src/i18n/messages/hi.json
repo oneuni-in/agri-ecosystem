@@ -341,6 +341,13 @@
         "share": "{name} का भाव WhatsApp पर साझा करें",
         "empty": "इस क्षेत्र के लिए अभी बाज़ार डेटा नहीं है"
       },
+      "liveFeed": {
+        "label": "agri.in पर लाइव — हाल की गतिविधि",
+        "needPosted": "{hasDistrict, select, yes {{district} में एक ज़रूरत पोस्ट हुई} other {एक ज़रूरत पोस्ट हुई}}",
+        "businessJoined": "{name} agri.in से जुड़ा",
+        "reviewApproved": "{hasName, select, yes {{name} के लिए नई समीक्षा} other {नई समीक्षा}}{hasRating, select, yes { · ★{rating}} other {}}",
+        "leadSent": "एक किसान ने {name} से संपर्क किया"
+      },
       "calendar": {
         "eyebrow": "मौसम गाइड · {zone}",
         "title": "खरीफ कैलेंडर",

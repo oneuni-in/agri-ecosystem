@@ -249,6 +249,13 @@
         "error": "Could not save — try again",
         "signin": "Sign in to get alerts"
       },
+      "install": {
+        "title": "Get agri.in on your phone",
+        "sub": "One-tap install — helplines and your last-known mandi prices stay ready offline. No app store needed.",
+        "cta": "Install app",
+        "ios": "To install on iPhone: tap Share, then 'Add to Home Screen' — helplines and your last-known mandi prices stay ready offline.",
+        "dismiss": "Dismiss"
+      },
       "faq": {
         "title": "Common questions",
         "q1": "Is agri.in free for farmers?",

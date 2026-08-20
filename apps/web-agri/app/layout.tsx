@@ -31,6 +31,7 @@ const CLIENT_NAMESPACES = [
   "location",
   "localeSwitcher",
   "agriHome.alert", // MandiAlertCard island
+  "agriHome.install", // §19 InstallBand island (AG-A66)
 ] as const;
 
 function pickClientMessages(all: Record<string, unknown>): Record<string, unknown> {

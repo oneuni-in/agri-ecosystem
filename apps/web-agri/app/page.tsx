@@ -52,6 +52,7 @@ import {
   StatsSkeleton,
   WeatherSkeleton,
 } from "./home-skeletons";
+import { InstallBand } from "./install-band";
 import { MandiAlertCard } from "./mandi-alert-card";
 
 const SITE = "https://agri.in";
@@ -614,7 +615,14 @@ export default async function HomePage() {
           <MandiAlertCard pincode={pincode} />
         </div>
 
-        {/* §19 PWA band: arrives with W4's PWA pass. */}
+        {/* §19 — PWA install band (AG-A66). A client island that renders
+            NOTHING until the browser proves an install path: a held
+            `beforeinstallprompt` → real Install button; iOS Safari →
+            Add-to-Home-Screen instruction; already installed / unsupported →
+            absent. The reference's QR is dropped (see install-band.tsx). */}
+        <BelowFold>
+          <InstallBand />
+        </BelowFold>
 
         {/* §20 — FAQ; the same strings are emitted as FAQPage JSON-LD above. */}
         <Section

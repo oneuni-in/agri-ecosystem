@@ -1,6 +1,8 @@
 import { parseServeResponse, type ServedAd, serveQuery } from "@agri/ui";
 import { headers } from "next/headers";
 
+import { forwardedClientIp } from "@/lib/client-ip";
+
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export const SPONSORED_LISTING_SLOT = "milk_sponsored_listing";
@@ -8,11 +10,13 @@ export const SPONSORED_LISTING_SLOT = "milk_sponsored_listing";
 /**
  * Server-side sponsored-listing fetch (M3.B): the page injects these at the
  * render layer, so organic payloads/cursors/JSON-LD stay byte-identical and
- * there is zero CLS (cards are in the SSR HTML). Client identity (freq caps,
- * viewer_hash) survives the server hop by forwarding x-forwarded-for +
- * user-agent (D26 relay-forwarding precedent; the backend honours XFF only
- * when trust_forwarded_for is set). Any failure degrades to no ads — a list
- * page must never break because ads did.
+ * there is zero CLS (cards are in the SSR HTML). Client identity survives the
+ * server hop via lib/client-ip + user-agent — never the inbound
+ * x-forwarded-for, which page JavaScript can set. /ads/serve is a
+ * SecureRouter route, so this address is its rate-limit bucket; note the
+ * viewer_hash itself is still derived from the socket address in
+ * modules/ads/router.py::_viewer, which is a separate open question. Any
+ * failure degrades to no ads — a list page must never break because ads did.
  */
 export async function fetchSponsoredListings(ctx: {
   pincode?: string | null;
@@ -31,9 +35,9 @@ export async function fetchSponsoredListings(ctx: {
  * begin downloading until hydration had run, called /ads/serve and rendered
  * the <img>. Serving it here removes that whole leg.
  *
- * Same identity-forwarding contract as the listings above: without the
- * viewer's IP and user-agent the backend would hash every server render into
- * one viewer and the frequency caps would be meaningless.
+ * Same identity-forwarding contract as the listings above, and the same
+ * caveat: the address is only present where a trusted edge is declared, so
+ * without one every server render shares a rate-limit bucket.
  */
 export async function serveAds(
   slotKey: string,
@@ -43,8 +47,8 @@ export async function serveAds(
   try {
     const h = await headers();
     const fwd: Record<string, string> = { "user-agent": h.get("user-agent") ?? "" };
-    const xff = h.get("x-forwarded-for");
-    if (xff) fwd["x-forwarded-for"] = xff;
+    const clientIp = forwardedClientIp(h);
+    if (clientIp) fwd["x-forwarded-for"] = clientIp;
     const res = await fetch(`${API}/ads/serve?${serveQuery(slotKey, { ...ctx, count })}`, {
       cache: "no-store",
       headers: fwd,

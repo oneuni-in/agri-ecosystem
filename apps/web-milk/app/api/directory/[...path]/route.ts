@@ -13,6 +13,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { forwardedClientIp } from "@/lib/client-ip";
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const NULL_BODY_STATUSES = new Set([204, 205, 304]);
@@ -58,13 +59,17 @@ async function forward(
   if (token) headers.authorization = `Bearer ${token}`;
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
-  // Forward the real client identity (mirrors /api/view's relay pattern -
-  // D26/D27 final-review fix): the backend's rate limiter keys on
-  // client_ip + path (SecureRouter's Depends(rate_limit) is unconditional,
-  // public or private), so without this every caller through this proxy
-  // collapses into the Next server's own single shared bucket.
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) headers["x-forwarded-for"] = forwardedFor;
+  // Forward the visitor's address (mirrors /api/view's relay pattern): the
+  // backend's rate limiter keys on client_ip + path (SecureRouter's
+  // Depends(rate_limit) is unconditional, public or private), so without this
+  // every caller through this proxy collapses into the Next server's own
+  // single shared bucket.
+  //
+  // It comes from lib/client-ip and NOT from the inbound x-forwarded-for.
+  // Forwarding that header let the caller pick its own rate-limit key, which
+  // made the limit advisory - the exact thing this block exists to enforce.
+  const clientIp = forwardedClientIp(req.headers);
+  if (clientIp) headers["x-forwarded-for"] = clientIp;
   const userAgent = req.headers.get("user-agent");
   if (userAgent) headers["user-agent"] = userAgent;
   const upstream = await fetch(url, {

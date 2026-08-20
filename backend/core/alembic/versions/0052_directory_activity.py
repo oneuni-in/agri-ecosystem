@@ -50,8 +50,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 from shared.migrations import pk_column, timestamp_columns
 
-revision: str = "0051"
-down_revision: str | None = "0050"
+revision: str = "0052"
+down_revision: str | None = "0051"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

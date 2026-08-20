@@ -113,3 +113,59 @@ recommend doing them before launch; they are on the D57 flow.
 |---|---|---|
 | P2-K1 | Resend is a full-width ghost **button** live; the reference draws a text row ("Didn't get it?" · "Resend in 0:23"). | The button is a real 48 px target on the screen where a farmer on a bad SMS route taps most. The reference's text link is below the tap-target floor the rest of this app holds itself to. |
 | P2-K2 | Live shows the cooldown as "Resend in 30s"; the reference shows "0:23" mm:ss. | Cosmetic; the live figure is the true remaining value from the same ladder. Recorded only so the pair does not look unexplained. |
+
+---
+
+## P3 · `/login` — handle step
+
+Proofs: `p3-handle-{fresh,checking,available,taken,invalid,reserved}`
+(× live/ref × 1280/390). The reference draws one handle card listing all its
+states together, so each live state's ref half is that same card.
+
+**Every state came from the real `/auth/handle/check`**, which is a private
+endpoint — so each capture run performs a real signup (OTP requested, code
+read from the mock driver's log line) to have a session at all. Verified
+server verdicts:
+
+| State | Typed | Server said | Rendered |
+|---|---|---|---|
+| reserved | `aavin` | `reserved` | "@aavin is reserved" |
+| taken | `annai` | `taken` | "@annai is taken — try one of these:" |
+| invalid_format | `ab@xy` | `invalid_format` | "4–20 characters: a–z, 0–9 and _" |
+| ok | `green_field_1280` | `ok` | "@green_field_1280 is available" |
+| checking | — | (in flight) | "Checking…" |
+
+`reserved` says *reserved* and nothing else — no reason, no neighbouring
+entries, no hint at the list's contents. The blocklist is a brand-squatting
+defence and enumerating it would defeat it.
+
+Self-check: 390 captures are exactly 780 px wide at 2× DPR — no horizontal
+overflow. Console clean.
+
+### built
+
+Rules line beside the label (`4–20 · a–z 0–9 _`), read *before* typing rather
+than earned by breaking them · the `@` rendered inside the field · all five
+states each pinned to a server code and coloured by outcome · the
+one-change-ever warning with its reason, placed at **pick time**.
+
+The warning's placement is the substantive choice. `set_handle` flips
+`agri_id_changed_once`, so **this pick *is* the one change** — telling a
+farmer about it later, on `/account`, would be describing a door that already
+shut. (This is also why the A7 profile card's "you haven't used yours" is
+wrong for anyone who picked at signup; see P7.)
+
+### fixed
+
+| # | What was wrong | Fix |
+|---|---|---|
+| P3-F1 | My first cut put the `@` in a sibling box beside the input. The design system's focus ring (`:focus-visible`, 3 px accent, marked "never remove") belongs to the *input*, so on focus it painted straight over the `@` and cut the glyph in half. Caught in the first snapshot. | The `@` moved *inside* the field as an absolutely-positioned, `pointer-events-none` prefix with the input padded past it — which is exactly how the reference builds `.handlewrap`. Ring intact, glyph intact. |
+| P3-F2 | Suggestion chips rendered under an **available** handle, contradicting the line right above them: the farmer was told the name was theirs and then offered three alternatives to it. | Chips hide on `available`. They belong to a rejection — the taken message ends "try one of these:" and these are the these. |
+
+### flagged — for CP1
+
+| # | Observation | Why I did not change it |
+|---|---|---|
+| P3-Q1 | **`checkHandle` fires one request per keystroke.** There is no debounce, so typing a 12-character handle issues ~9 authenticated checks. Harmless at dev volume, wasteful at launch, and it is what makes the "checking" flicker visible at all. | Debouncing means restructuring the shipped check, which the prompt scopes out of this pass. Small, self-contained fast-follow. |
+| P3-Q2 | **Handle subtitle is thinner than the reference's.** A7 explains that the handle is what appears on reviews and questions, shows the referral link shape `agri.in/r/<handle>`, and says the phone number stays private. Live says only "Your public name across the family of apps". | Shipped copy, unmarked. The reference's version is better and I'd take it, but replacing shipped strings is your call. |
+| P3-Q3 | **`already_changed` renders the invalid-format copy.** `saveHandle` maps any non-matching detail to `invalidFormat`, so a 409 `already_changed` would tell the user their handle has bad characters. Unreachable at signup (the first pick is always allowed) — but reachable from `/account`'s Change button. | Belongs to P7, where the Change path is actually built; noted so it is not discovered twice. |

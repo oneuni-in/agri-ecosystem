@@ -509,13 +509,17 @@
         "title": "Pick your @handle",
         "subtitle": "Your public name across the family of apps",
         "placeholder": "your_handle",
-        "available": "Available",
-        "taken": "Already taken",
-        "reserved": "This name is reserved",
+        "available": "@{handle} is available",
+        "taken": "@{handle} is taken — try one of these:",
+        "reserved": "@{handle} is reserved",
         "invalidFormat": "4–20 characters: a–z, 0–9 and _",
         "suggestions": "Suggestions",
         "save": "Save handle",
-        "skip": "Skip for now"
+        "skip": "Skip for now",
+        "label": "Handle",
+        "rules": "4–20 · a–z 0–9 _",
+        "checking": "Checking…",
+        "oneChange": "Choose carefully — you can change it once, ever. After that it is permanent, so names people saved and links you shared keep working."
       },
       "language": {
         "title": "Choose your language",

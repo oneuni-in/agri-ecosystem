@@ -135,6 +135,12 @@ export function LoginFlow({
       setHandleState(null);
       return;
     }
+    // "checking" is the fifth state the A7 reference names, and the only one
+    // with no server code behind it - it is the window while /auth/handle/check
+    // is in flight. Without it the line under the field simply held the PREVIOUS
+    // verdict while a new one was being fetched, so a taken handle still read
+    // "available" for as long as the request took.
+    setHandleState("checking");
     const result = await getJson(`/auth/handle/check?h=${encodeURIComponent(candidate)}`);
     setHandleState(result.ok ? "available" : (result.code as string));
   };
@@ -352,23 +358,71 @@ export function LoginFlow({
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("handle.title")}</h1>
             <p className="text-sm text-sub">{t("handle.subtitle")}</p>
-            <input
-              aria-label={t("handle.title")}
-              value={handle}
-              placeholder={t("handle.placeholder")}
-              onChange={(event) => void checkHandle(event.target.value.toLowerCase())}
-              className="min-h-[44px] rounded-btn border border-line bg-card px-3.5 text-lg font-bold text-ink"
-            />
+            {/* The rules sit BESIDE the label, not in an error you have to earn
+                by breaking them: "4-20 · a-z 0-9 _" read before typing costs
+                nothing, and read after a rejection costs a retry. */}
+            <div className="flex items-baseline justify-between gap-2">
+              <label className="text-sm font-bold text-ink" htmlFor="handle">
+                {t("handle.label")}
+              </label>
+              <span className="text-[11.5px] text-muted">{t("handle.rules")}</span>
+            </div>
+            {/* The @ is rendered, never typed: handles.py normalizes a leading
+                @ away anyway, so showing it here just tells the truth about
+                what the name will look like everywhere else. */}
+            <div className="relative">
+              {/* Positioned INSIDE the field, as the reference builds it, not
+                  as a sibling box: the focus ring is the design system's
+                  "never remove" 3px accent outline and it belongs to the
+                  input. A wrapped layout let that ring paint straight over
+                  the @, cutting the glyph in half whenever the field had
+                  focus. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-lg font-bold text-muted"
+              >
+                @
+              </span>
+              <input
+                id="handle"
+                value={handle}
+                placeholder={t("handle.placeholder")}
+                onChange={(event) => void checkHandle(event.target.value.toLowerCase())}
+                className="min-h-[44px] w-full min-w-0 rounded-btn border border-line bg-card py-2 pl-8 pr-3.5 text-lg font-bold text-ink"
+              />
+            </div>
+            {/* Five states, each pinned to what the server actually answered.
+                `reserved` says only "reserved" - never why, never what else is
+                on the list: the blocklist is a brand-squatting defence and
+                enumerating it defeats it. */}
             {handleState && (
-              <p role="status" className="text-sm text-sub">
-                {handleState === "available" && t("handle.available")}
-                {handleState === "taken" && t("handle.taken")}
-                {handleState === "reserved" && t("handle.reserved")}
+              <p
+                role="status"
+                className={`text-sm ${
+                  handleState === "available"
+                    ? "text-up"
+                    : handleState === "checking"
+                      ? "text-muted"
+                      : "text-down"
+                }`}
+              >
+                {handleState === "checking" && t("handle.checking")}
+                {handleState === "available" && t("handle.available", { handle })}
+                {handleState === "taken" && t("handle.taken", { handle })}
+                {handleState === "reserved" && t("handle.reserved", { handle })}
                 {(handleState === "invalid_format" || handleState === "already_changed") &&
                   t("handle.invalidFormat")}
               </p>
             )}
-            <div className="flex flex-wrap gap-1.5" aria-label={t("handle.suggestions")}>
+            {/* Suggestions are an ANSWER to a rejection - the taken message
+                ends "try one of these:" and these are the these. Under an
+                available handle they contradicted the line above them,
+                offering alternatives to a name the farmer had just been told
+                they could have. */}
+            <div
+              className={`flex flex-wrap gap-1.5 ${handleState === "available" ? "hidden" : ""}`}
+              aria-label={t("handle.suggestions")}
+            >
               {suggestions.map((name) => (
                 <button
                   key={name}
@@ -390,6 +444,12 @@ export function LoginFlow({
             <Button variant="ghost" onClick={() => finish("language")}>
               {t("handle.skip")}
             </Button>
+            {/* Stated HERE, at pick time, because this pick IS the one change:
+                set_handle flips agri_id_changed_once, so a farmer who chooses
+                carelessly now has already spent the allowance. Saying it on
+                /account afterwards would be telling someone about a door that
+                has already shut. */}
+            <p className="text-[11.5px] leading-[1.55] text-muted">{t("handle.oneChange")}</p>
           </div>
         )}
 

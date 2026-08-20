@@ -13,6 +13,7 @@ import { getTranslations } from "next-intl/server";
 
 import { fetchHelplines } from "@/lib/helplines";
 
+import { BrandLink } from "./brand-link";
 import { HeaderLocation } from "./header-location";
 import { AgriLocaleSwitcher } from "./locale-switcher";
 
@@ -83,7 +84,9 @@ export async function SiteHeader() {
       <HeaderStack
         flat
         nowrap
-        logo="agri.in"
+        // AG-A64: the wordmark links home everywhere except on `/` itself,
+        // where BrandLink renders it as today's plain text (no self-link).
+        logo={<BrandLink>agri.in</BrandLink>}
         tagline={t("agriHome.brandTagline")}
         location={<HeaderLocation />}
         right={

@@ -5,6 +5,13 @@ import { cn } from "../lib/cn";
 /**
  * Header stack: gradient header → topbar (logo+tagline · pills · coins ·
  * avatar) → searchband (or PincodeHero as children).
+ *
+ * The `logo` slot accepts either plain text or a link node (AG-A64). This
+ * package stays routing-free — each APP passes its own `<Link href="/">`
+ * (or plain text on the home page, where a self-link is banned). The slot's
+ * wrapping `<span>` carries the wordmark typography; a nested `<a>` is
+ * phrasing content inside it and inherits the styles, so link-vs-text needs
+ * no markup change here.
  */
 export function HeaderStack({
   logo,

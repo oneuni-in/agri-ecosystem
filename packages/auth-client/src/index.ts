@@ -43,24 +43,34 @@ export interface AgriAuth {
  *   - GET /me -> 401 {user:null}: to the client, "auth capability absent"
  *     and "no session" are the same guest state (never 500 the guest page -
  *     the milk §2b lesson).
+ *   - GET /login?silent=1&probe=1 -> 200 {reachable:false}: the probe's own
+ *     contract is "would a silent redirect get anywhere?", and with no auth
+ *     config the answer is simply no. It is a background fetch useAgriUser
+ *     fires on EVERY guest page view, and browsers log any 4xx/5xx resource
+ *     as a console error - answering it 503 traded three 500s for one 503
+ *     and still failed AG-A1's clean-console bar (measured on the first
+ *     secretless prod boot, 2026-08-20). The operator alarm is not lost:
+ *     the server-side error line below still fires per request.
  *   - every other auth route -> 503 {error:"auth_not_configured"}: the auth
  *     capability itself is down until an operator intervenes. That is a
  *     server-side, deployment-scoped condition - 503 Service Unavailable -
  *     not a client error (4xx would blame the caller) and not a missing
- *     route (404 would lie to monitoring about what is wrong).
+ *     route (404 would lie to monitoring about what is wrong). An
+ *     INTERACTIVE login attempt deliberately stays loud.
  */
 function authNotConfigured(req: Request, error: unknown): Response {
   console.error(
     `[auth-client] auth handlers hit before config could resolve - is AUTH_SESSION_SECRET set? (${String(error)})`,
   );
-  const me = new URL(req.url).pathname.split("/").at(-1) === "me";
-  return new Response(
-    JSON.stringify(me ? { user: null } : { error: "auth_not_configured" }),
-    {
-      status: me ? 401 : 503,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-    },
-  );
+  const url = new URL(req.url);
+  const probe =
+    url.searchParams.get("silent") === "1" && url.searchParams.get("probe") === "1";
+  const me = url.pathname.split("/").at(-1) === "me";
+  const body = probe ? { reachable: false } : me ? { user: null } : { error: "auth_not_configured" };
+  return new Response(JSON.stringify(body), {
+    status: probe ? 200 : me ? 401 : 503,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
 }
 
 export function createAgriAuth(config: AgriAuthConfig): AgriAuth {

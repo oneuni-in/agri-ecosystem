@@ -56,6 +56,19 @@ describe("createAgriAuth - secretless prod handlers degrade to typed errors (A-U
     expect(log).toHaveBeenCalledWith(expect.stringContaining("AUTH_SESSION_SECRET"));
   });
 
+  it("the silent-SSO probe answers 200 {reachable:false} - it fires on every guest view and a 5xx would console-error each one", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const auth = createAgriAuth(BASE);
+    const res = await auth.handlers.GET(
+      new Request("http://localhost:3000/api/auth/login?silent=1&probe=1&next=%2F"),
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ reachable: false });
+    // the operator alarm still fires server-side even for the quiet probe
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("AUTH_SESSION_SECRET"));
+  });
+
   it("GET /api/auth/me answers 401 {user:null} - guests never see a 500", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.spyOn(console, "error").mockImplementation(() => {});

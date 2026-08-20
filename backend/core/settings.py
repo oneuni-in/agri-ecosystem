@@ -252,6 +252,17 @@ class Settings(BaseSettings):
     # waiting for tomorrow.
     mandi_pull_retry_minutes: int = 45
     mandi_pull_retries: int = 3
+    # Hour (IST, 24h) the content-cron container wakes to pull the curated
+    # RSS feeds. Morning, not evening: news accumulates overnight, so a
+    # 6 AM pull catches it before the morning traffic. Unlike Agmarknet a
+    # missed slot is usually recoverable (feeds carry a rolling window),
+    # so the hour is convenience, not correctness.
+    content_pull_hour_ist: int = 6
+    # Same-day retry. content_pull.run_pull exits non-zero only when EVERY
+    # source failed — which smells like our side, not three unrelated
+    # publishers — so retrying within the day is cheap and usually enough.
+    content_pull_retry_minutes: int = 30
+    content_pull_retries: int = 3
 
     # --- A-U4 W1: the agri AI assistant ---------------------------------
     # Empty by default and NEVER committed. The service refuses to answer

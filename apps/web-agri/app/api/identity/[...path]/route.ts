@@ -25,7 +25,15 @@ async function forward(
   if (path.some((segment) => segment === ".." || segment === "." || segment === "")) {
     return NextResponse.json({ detail: "invalid_path" }, { status: 400 });
   }
-  const token = await auth.getAccessToken(); // null for guests - fine
+  // getAccessToken() can THROW, not just return null: config resolution is
+  // lazy, so on a secretless prod boot the AUTH_SESSION_SECRET guard fires
+  // here - upstream of the null-token tolerance below - and used to 500 this
+  // public-class read on the guest page (A-U4b C3, the milk §2b lesson:
+  // secretless prod boot = guest, never 500). For this guest-capable proxy an
+  // unresolvable auth config IS "no token", so degrade to an unauthenticated
+  // forward; the loud operator-facing failure lives at /api/auth/*
+  // (auth_not_configured + server log), not in every guest's console.
+  const token = await auth.getAccessToken().catch(() => null); // null for guests - fine
   const url = new URL(`${API}/identity/${path.map(encodeURIComponent).join("/")}`);
   url.search = req.nextUrl.search;
   const upstream = await fetch(url, {

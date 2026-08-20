@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import analytics, leads_service, reports_service, search_sync, service
 from modules.directory import covers as covers_module
+from modules.directory.activity import recent_activity, record_activity
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, BusinessCoverage, Category
@@ -51,6 +52,8 @@ from modules.directory.schemas import (
     CoverageOut,
     CoversItemOut,
     CoversOut,
+    LiveFeedItemOut,
+    LiveFeedOut,
     NearbyBranchesOut,
     NearbyBranchOut,
     PincodeCountOut,
@@ -66,6 +69,7 @@ from modules.directory.schemas import (
 from shared.audit import audit
 from shared.db import get_session
 from shared.events import publish
+from shared.flags import flag_enabled
 from shared.geo.service import district_for_pincode
 from shared.lookups import pause_campaigns_for_business
 from shared.pagination import DEFAULT_PAGE_SIZE, InvalidCursorError
@@ -612,6 +616,17 @@ async def reveal_branch_contact(
             "business_id": str(business.id),
             "vars": {"business_name": business.name, "inquiry_type": "contact"},
         }
+    if inquiry is not None:
+        # Live feed (O11): NOTHING about the revealer; the business was
+        # already checked publicly visible (status=='active') above.
+        await record_activity(
+            session,
+            kind="lead_sent",
+            source_id=inquiry.id,
+            occurred_at=datetime.now(UTC),
+            business_name=business.name,
+            business_slug=business.slug,
+        )
     await session.commit()
     if event_payload is not None:
         await _publish_best_effort("lead.created", event_payload)
@@ -688,3 +703,36 @@ async def record_profile_view(
     )
     await session.commit()
     return ViewBeaconOut(status="ok")
+
+
+# public=True: read-only feed of already-public/coarse facts (see
+# schemas.LiveFeedItemOut's privacy contract); registered in
+# backend/core/public_routes.txt in this same PR.
+@router.get("/feed/live", public=True)
+async def live_feed(session: SessionDep) -> LiveFeedOut:
+    """ "Live on agri.in" marquee feed (A-U4b O11).
+
+    Deliberately NOT cursor-paginated: this is a fixed window+limit read -
+    a marquee renders the last N happenings of the past 24h and there is
+    no page 2 to walk, so a cursor would be ceremony (and a scraping
+    surface). No pagination of any kind: a bounded LIMIT and nothing else.
+    """
+    # Flag consumed at the API boundary (A-U1 contract): the frontend never
+    # reads flags — an absent endpoint IS the off state.
+    if not await flag_enabled("agri_live_feed", session=session):
+        raise HTTPException(status_code=404, detail="feature_disabled")
+    rows = await recent_activity(session)
+    return LiveFeedOut(
+        items=[
+            LiveFeedItemOut(
+                kind=row.kind,  # type: ignore[arg-type]
+                occurred_at=row.occurred_at,
+                district=row.district,
+                state=row.state,
+                business_name=row.business_name,
+                business_slug=row.business_slug,
+                rating=row.rating,
+            )
+            for row in rows
+        ]
+    )

@@ -277,6 +277,7 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         # a series with one point renders no line, which is correct on
         # day one of ingestion rather than a fabricated trend.
         series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+        series_days = [day.isoformat() for day in days]
         prices = series
 
         previous = per_day[days[-2]] if len(days) > 1 else None
@@ -296,6 +297,7 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
                 price=per_kg(newest.modal_price_qtl),
                 change=change,
                 series_30d=series,
+                series_days=series_days,
                 range_low=min(prices),
                 range_high=max(prices),
                 modal=per_kg(newest.modal_price_qtl),
@@ -311,6 +313,12 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         market=market_name,
         as_of=latest_date.isoformat() if latest_date else "",
         source="Agmarknet",
+        # O1: the UI renders "updated daily around H pm IST" from this
+        # field — the once-a-day cadence travels IN the payload, never as
+        # a frontend literal (the schema's default reads the same setting;
+        # passing it here keeps the source of the number visible where the
+        # block is built).
+        next_pull_hour_ist=get_settings().mandi_pull_hour_ist,
         commodities=commodities,
     )
 
@@ -472,6 +480,7 @@ def _daily_points(rows: list[PriceRow]) -> tuple[list[date], dict[date, PriceRow
 def _market_price(market: Market, rows: list[PriceRow]) -> MarketPrice:
     days, per_day = _daily_points(rows)
     series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+    series_days = [day.isoformat() for day in days]
     newest = per_day[days[-1]]
     previous = per_day[days[-2]] if len(days) > 1 else None
     return MarketPrice(
@@ -485,6 +494,7 @@ def _market_price(market: Market, rows: list[PriceRow]) -> MarketPrice:
             else 0.0
         ),
         series_30d=series,
+        series_days=series_days,
         range_low=min(series),
         range_high=max(series),
         modal=per_kg(newest.modal_price_qtl),
@@ -583,6 +593,8 @@ async def get_commodity(session: AsyncSession, slug: str) -> CommodityDetail | N
         unit=commodity.display_unit,
         source="Agmarknet",
         as_of=newest_day.isoformat(),
+        # Same O1 rule as get_mandi: the daily cadence is data, not copy.
+        next_pull_hour_ist=get_settings().mandi_pull_hour_ist,
         note=notes.get(commodity.id),
         markets=markets,
     )

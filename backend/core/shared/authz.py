@@ -81,6 +81,8 @@ PERMISSION_CATALOG: dict[str, frozenset[str]] = {
     "content.read": _STAFF_UP,
     "content.write": _STAFF_UP,
     "content.publish": _STAFF_UP,
+    # market data (A-U4b): read-only ingest-health browse — the first market key
+    "market.read": _STAFF_UP,
 }
 
 

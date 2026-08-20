@@ -110,10 +110,11 @@ export async function fetchContentItem(
  * Building them from separate calls at the call site is exactly how that
  * duplication happens.
  *
- * Card preference is video → guide → advisory → article. Video leads
- * because the card treatment is built around the play tile; articles are
- * the fallback so the row still fills while the CMS is young, and the
- * rail then skips whatever the cards took.
+ * Cards are ordered by `published_at` alone — recency wins, kind never
+ * outranks it (AG-A65). The old rule concatenated video → guide →
+ * advisory → article, which meant three curated items of any age locked
+ * the newest article out of the cards forever. The card treatment keeps
+ * its video play tile; videos just compete on date like everything else.
  */
 export async function fetchKnowledgeSection(
   cardLimit = 3,
@@ -126,8 +127,14 @@ export async function fetchKnowledgeSection(
     fetchFeed({ kind: "article", limit: newsLimit + cardLimit }),
   ]);
 
-  const curated = [...videos.items, ...guides.items, ...advisories.items];
-  const cards = [...curated, ...articles.items].slice(0, cardLimit);
+  const cards = [
+    ...videos.items,
+    ...guides.items,
+    ...advisories.items,
+    ...articles.items,
+  ]
+    .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at))
+    .slice(0, cardLimit);
 
   // The rail shows news the cards did not already take. It never pads
   // itself back to newsLimit with something already on screen.

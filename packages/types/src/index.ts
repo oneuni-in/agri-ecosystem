@@ -100,6 +100,8 @@ export interface MandiCommodity {
   readonly change: number;
   /** Oldest first — the sparkline input. */
   readonly series_30d: readonly number[];
+  /** ISO arrival dates, one per series_30d point — makes the window's holes visible. */
+  readonly series_days: readonly string[];
   readonly range_low: number;
   readonly range_high: number;
   readonly modal: number | null;
@@ -111,6 +113,13 @@ export interface MandiBlock {
   readonly market: string;
   readonly as_of: string;
   readonly source: string;
+  /**
+   * O1 (AG-A70): prices come from ONE Agmarknet pull a day, fired at this
+   * IST hour (settings.mandi_pull_hour_ist). The UI renders "updated once
+   * daily, around H pm IST" from THIS field — never a frontend literal —
+   * because the page's 60 s cache does not make a daily snapshot live.
+   */
+  readonly next_pull_hour_ist: number;
   readonly commodities: readonly MandiCommodity[];
 }
 

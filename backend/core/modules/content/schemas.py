@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models import KIND_VIDEO, VIDEO_ID_PATTERN, VIDEO_PROVIDERS, ContentItem
 
@@ -156,3 +156,28 @@ def to_detail(item: ContentItem, *, bookmarked: bool = False) -> ContentDetail:
 
 def to_queue_card(item: ContentItem) -> QueueCard:
     return QueueCard(**to_card(item).model_dump(), moderation_status=item.moderation_status)
+
+
+# ── A-U4b C1: ingest-health admin read (admin_router.py) ─────────────
+# NOT the reader-facing contract: an admin-console shape, mirrored
+# nowhere in packages/types. One row of content.ingest_runs, verbatim.
+
+
+class IngestRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_slug: str
+    started_at: datetime
+    finished_at: datetime | None
+    outcome: str
+    fetched: int
+    written: int
+    duplicates: int
+    skipped: int
+    error: str | None
+
+
+class IngestRunPage(BaseModel):
+    items: list[IngestRunOut]
+    next_cursor: str | None = None

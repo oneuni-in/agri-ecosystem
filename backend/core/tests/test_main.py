@@ -69,6 +69,11 @@ EXPECTED_PUBLIC_ROUTES = [
     "/directory/covers/{pincode}",
     "/directory/businesses/{slug}/nearby-branches",
     "/directory/businesses/{slug}/view",
+    # A-U4b O11 (AG-A69): the "Live on agri.in" feed read. agri_live_feed-
+    # gated (404 while off — its D57 state); every field it serves is
+    # already public elsewhere or coarse, per
+    # docs/security/agri-live-feed-privacy.md.
+    "/directory/feed/live",
     # Phase 2: the agri-colleges vertical. Read-only reference data about
     # public institutions -- the same class as /catalog/verticals and
     # /market/schemes. app_rt holds SELECT only on education.*, so there is

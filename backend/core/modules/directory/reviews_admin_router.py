@@ -12,12 +12,16 @@ a decision.
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import reviews_service
+from modules.directory.activity import record_activity
+from modules.directory.models import Business
 from modules.directory.reviews_schemas import (
     AdminReplyPageOut,
     AdminReviewPageOut,
@@ -97,6 +101,23 @@ async def approve_review(request: Request, review_id: uuid.UUID, session: Sessio
         raise HTTPException(status_code=409, detail="already_decided") from exc
     await reviews_service.recompute_aggregate(
         session, target_type=review.target_type, target_id=review.target_id
+    )
+    # Live feed (O11): rating + business name ONLY when the target is a
+    # publicly visible business (search_sync rule: active + not soft-deleted,
+    # the latter filtered by the ORM's soft-delete criteria); never the author.
+    feed_business = None
+    if review.target_type == "business":
+        feed_business = await session.scalar(
+            select(Business).where(Business.id == review.target_id, Business.status == "active")
+        )
+    await record_activity(
+        session,
+        kind="review_approved",
+        source_id=review.id,
+        occurred_at=datetime.now(UTC),
+        rating=review.rating,
+        business_name=feed_business.name if feed_business else None,
+        business_slug=feed_business.slug if feed_business else None,
     )
     await audit(
         session,

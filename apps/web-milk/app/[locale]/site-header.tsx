@@ -7,6 +7,7 @@ import { DudhGlyph } from "@/components/atoms/IndicGlyphs";
 import { CONSOLE_URL, listingsHref } from "@/lib/console";
 import { WHATSAPP_HOTLINE, advertiseHref, hotlineHref } from "@/lib/contact";
 
+import { BrandLink } from "./brand-link";
 import { HeaderLocation } from "./header-location";
 import { LocaleSwitcher } from "./locale-switcher";
 
@@ -54,7 +55,9 @@ export async function SiteHeader({ locale }: { locale: string }) {
       <HeaderStack
         flat
         nowrap
-        logo="milk.in"
+        // AG-A64: the wordmark links to the locale-prefixed home everywhere
+        // except on the home page itself, where BrandLink renders plain text.
+        logo={<BrandLink>milk.in</BrandLink>}
         // The Devanagari "दूध" is an inline SVG (`DudhGlyph`), not the literal
         // characters - this tagline renders on every page/locale, and the
         // literal glyph would force ~121 KB of Noto Sans Devanagari onto every

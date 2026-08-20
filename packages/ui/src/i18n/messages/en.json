@@ -211,7 +211,12 @@
         "context": "4-acre farmer, Annur · illustrative example"
       },
       "reviews": {
-        "title": "What farmers say"
+        "title": "What farmers say",
+        "emptyNote": "No approved reviews in your area yet. Every review is checked by our team before it appears — approved reviews only. Pick a business in the directory to write the first one.",
+        "coinsNudge": "🪙 Write a review, earn {amount} AgriCoins",
+        "coinsNudgeNoAmount": "🪙 Write a review, earn AgriCoins",
+        "cta": "Write a review · earn {amount} 🪙",
+        "ctaNoAmount": "Write a review"
       },
       "earn": {
         "eyebrow": "One wallet · every platform",
@@ -243,6 +248,13 @@
         "capped": "Alert limit reached",
         "error": "Could not save — try again",
         "signin": "Sign in to get alerts"
+      },
+      "install": {
+        "title": "Get agri.in on your phone",
+        "sub": "One-tap install — helplines and your last-known mandi prices stay ready offline. No app store needed.",
+        "cta": "Install app",
+        "ios": "To install on iPhone: tap Share, then 'Add to Home Screen' — helplines and your last-known mandi prices stay ready offline.",
+        "dismiss": "Dismiss"
       },
       "faq": {
         "title": "Common questions",
@@ -318,13 +330,23 @@
         "eyebrow": "Market data · {source}",
         "title": "Mandi prices · சந்தை விலை",
         "stamp": "{source} · updated {asOf}",
+        "cadence": "Daily snapshot — updated once a day, around {hour} IST",
+        "nextUpdate": "next update after {hour} IST {day, select, today {today} other {tomorrow}}",
         "tickerLabel": "Today's mandi prices — {market}",
         "tickerCount": "{count} commodities",
+        "tickerCadence": "once-daily · ~{hour} IST",
         "range": "30-day: ₹{low}–{high}",
         "modal": "modal ₹{modal}",
         "arrivals": "arrivals {qtl} qtl",
         "share": "Share {name} price on WhatsApp",
         "empty": "No market data for this area yet"
+      },
+      "liveFeed": {
+        "label": "Live on agri.in — recent activity",
+        "needPosted": "{hasDistrict, select, yes {A need was posted in {district}} other {A need was posted}}",
+        "businessJoined": "{name} joined agri.in",
+        "reviewApproved": "{hasName, select, yes {New review for {name}} other {New review}}{hasRating, select, yes { · ★{rating}} other {}}",
+        "leadSent": "A farmer contacted {name}"
       },
       "calendar": {
         "eyebrow": "Season guide · {zone}",
@@ -377,6 +399,15 @@
         "enam": {
           "title": "eNAM registration",
           "sub": "Sell in regulated e-markets — how to enrol"
+        },
+        "detail": {
+          "what": "What it is",
+          "eligibility": "Who is eligible",
+          "documents": "Documents needed",
+          "source": "Source: {domain} · ✓ {date}",
+          "go": "Open {domain} ↗",
+          "close": "Close",
+          "dpdp": "Details open on the official government portal — agri.in never sees or stores your records."
         }
       },
       "toolsRow": {

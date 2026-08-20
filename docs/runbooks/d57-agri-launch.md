@@ -191,7 +191,7 @@ wrong.
 | 6 | Airplane mode, go to `/directory` | offline shell, links to what IS cached |
 | 7 | Log in, `/coins` | a balance and a referral code render |
 | 8 | `/ask` | honest "not switched on yet" — **NOT** a chat box |
-| 9 | Any scheme card | opens the official `.gov.in` portal |
+| 9 | Any scheme card | opens the detail dialog (what/eligibility/documents + verified stamp); its "Open {domain} ↗" button opens the official `.gov.in` portal; Escape returns focus to the card (A-U4b O2) |
 | 10 | View source on `/` | JSON-LD present, canonical is `agri.in` |
 
 **If #8 shows a chat box, stop the launch.** It means `agri_ai` is on, and
@@ -213,6 +213,10 @@ Watch, in this order:
 State these to anyone who asks, rather than discovering them under pressure:
 
 - The AI assistant is off, and the entry surface says so.
+- The "Live on agri.in" feed engine is BUILT and verified (A-U4b O11,
+  2026-08-20) but `agri_live_feed` is OFF, so the marquee is absent at
+  launch. Flipping it is a post-launch decision that re-reads
+  `docs/security/agri-live-feed-privacy.md`.
 - Coins accumulate; there is nothing to spend them on yet.
 - Federated search covers agri + milk. Organic has no index — that site does
   not exist yet (D63-74).
@@ -221,3 +225,23 @@ State these to anyone who asks, rather than discovering them under pressure:
   curator has published a video. Owner-deferred, not silently green.
 - Three helpline numbers still carry their 2026-08-14 verification date and
   want an owner dial-check.
+
+## 8b · Explicit gate exceptions (A-U4b §3, recorded 2026-08-20)
+
+Rows that CANNOT close in the dev environment. Each is a named exception,
+not a silent green; each closes on the stated evidence or not at all.
+
+| Row | State | Blocked on | Closes when |
+|---|---|---|---|
+| AG-A38 | structural pass, no live model run | no `ANTHROPIC_API_KEY` (owner decision) | key provisioned + red-team §1 questions run live |
+| AG-A39 | machinery verified, no answer ever generated | same key | same run |
+| AG-A41 | push UI + wiring done, round-trip unproven | no VAPID key in this environment | prod key at BUILD time — shared dependency with milk (§4 item 2) |
+| AG-A42 | federated search: dairy yes, organic no | theorganic.in has no index (D63–74) | one entry added to `SITES` when organic ships |
+| AG-A27 | video code path + tests green, zero rows | owner deferral 2026-08-17 | first curated rows land via the knowledge CMS |
+| AG-A66 (partial) | install band built, all three states verified on the prod build in desktop Chrome | no physical Android/iOS device in this environment | owner device pass: one real Android-Chrome install tap, one real Safari A2HS read |
+| AG-A25 (partial) | fix live; first unattended pull recorded 2026-08-20 | two CONSECUTIVE automatic pulls need two calendar days | tomorrow's ledger row lands with no manual trigger |
+
+The standing rule beneath the table: `agri_ai` ships **OFF** (owner, CP1
+2026-08-17), and the Ask-AI entry surface reading honestly as coming-soon in
+EN/TA/HI is verified evidence, not an assumption — AG-A60, captures in
+`docs/qa/evidence/a-u4b/`.

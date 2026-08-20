@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.directory import claims, search_sync
+from modules.directory.activity import record_activity
 from modules.directory.models import Business, Claim, Verification
 from modules.directory.schemas import (
     AdminBusinessDetailOut,
@@ -206,6 +207,18 @@ async def approve_claim(
         },
         ip=request.client.host if request.client else None,
     )
+    # Live feed (O11): only a business that is publicly visible RIGHT NOW is
+    # announced; UNIQUE(kind, source_id) makes the claim/verification pair
+    # write ONE 'business_joined' row per business, ever.
+    if business.status == "active" and business.deleted_at is None:
+        await record_activity(
+            session,
+            kind="business_joined",
+            source_id=business.id,
+            occurred_at=datetime.now(UTC),
+            business_name=business.name,
+            business_slug=business.slug,
+        )
     # capture EVERYTHING needed after commit BEFORE committing - ORM
     # attributes expire at commit and async lazy-refresh raises
     payload: dict[str, object] = {
@@ -329,6 +342,18 @@ async def approve_verification(
         metadata={"business_id": str(business.id), "note": body.note},
         ip=request.client.host if request.client else None,
     )
+    # Live feed (O11): same rule as claim approval - visible-now only; the
+    # UNIQUE(kind, source_id) constraint makes this a no-op if the claim
+    # already announced this business (one 'joined' row per business, ever).
+    if business.status == "active" and business.deleted_at is None:
+        await record_activity(
+            session,
+            kind="business_joined",
+            source_id=business.id,
+            occurred_at=datetime.now(UTC),
+            business_name=business.name,
+            business_slug=business.slug,
+        )
     # capture EVERYTHING needed after commit BEFORE committing - ORM
     # attributes expire at commit and async lazy-refresh raises
     payload: dict[str, object] = {

@@ -272,6 +272,19 @@ def _looks_in_domain(question: str) -> bool:
 #: spraying constantly and should get answers. It is about a QUANTITY of a
 #: chemical per unit area, which is what a label or an extension officer
 #: prescribes and what this assistant must never compute.
+#:
+#: TAMIL/HINDI ANCHORING NOTE (A-U4b C4, closes redteam §5.4 for the
+#: regulated domains). The Indic patterns below deliberately do NOT mirror
+#: the English `\b` anchors: Python `re` classifies combining vowel signs
+#: (matras, Unicode Mn) as NON-word characters, so a trailing `\b` after a
+#: word like मात्रा or அளவு can never match — the pattern would compile,
+#: pass review, and silently catch nothing, which is the exact failure this
+#: pass exists to fix. Indic word starts are anchored with `(?:^|\s)` where
+#: a prefix collision exists (e.g. Tamil என் is a prefix of என்ன "what");
+#: word ends are left open because Tamil/Hindi case suffixes attach directly
+#: to the stem (கடன் → கடனுக்கு) and must still match. The same
+#: quantity-of-chemical philosophy applies: a quantity word next to a
+#: chemical/unit noun refuses; the topic alone never does.
 _DOSAGE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -282,6 +295,53 @@ _DOSAGE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"\bhow\s+many\s+(ml|grams?|kg|litres?|liters?)\b",
         r"\b(mix|dilute|dilution)\s+\w*\s*(ratio|rate)\b",
         r"\bapplication\s+rate\b",
+        # ── Tamil ──
+        # quantity word + chemical noun, either order ("எவ்வளவு யூரியா",
+        # "பூச்சிக்கொல்லி எவ்வளவு"). Latin DAP/NPK/urea appear untranslated
+        # in Tamil questions, so they join the alternation here too.
+        r"(எவ்வளவு|எத்தனை)[^?।]{0,40}?(யூரியா|உரம்|பூச்சிக்கொல்லி|பூச்சி\s*மருந்து|களைக்கொல்லி|பூஞ்சைக்கொல்லி|கீடநாசினி|மருந்து|dap|npk|urea)",
+        r"(யூரியா|உரம்|பூச்சிக்கொல்லி|பூச்சி\s*மருந்து|களைக்கொல்லி|பூஞ்சைக்கொல்லி|கீடநாசினி|மருந்து)[^?।]{0,40}?(எவ்வளவு|எத்தனை)",
+        # "dose" — மருந்தளவு is dosage outright; டோஸ் is the loanword;
+        # bare அளவு ("amount") only counts next to a quantity question word.
+        r"மருந்தளவு|டோஸ்|டோசேஜ்",
+        r"அளவு\s*எவ்வளவு|எவ்வளவு\s*அளவ",
+        # how many ml/grams OF a chemical. Unlike English "ml", the bare
+        # Tamil units collide with innocent text — மில்லி prefixes
+        # மில்லிமீட்டர் (rainfall) and "எத்தனை லிட்டர் பால்" is a dairy
+        # question — so the unit must be followed by chemical/mixing context.
+        r"(எவ்வளவு|எத்தனை)\s*(மில்லி(?!மீ)|கிராம்|கிலோ|லிட்டர்)[^?।]{0,15}?(பூச்சிக்கொல்லி|களைக்கொல்லி|பூஞ்சைக்கொல்லி|கீடநாசினி|மருந்து|யூரியா|உரம்|தெளிக்க|கலக்க|dap|npk)",
+        # unit per acre/hectare/tank — both orders ("ஏக்கருக்கு 400 மில்லி"),
+        # digit-anchored so prose mentioning acres near a unit word does not
+        # trip it. This is the arm that catches a dose stated in an ANSWER.
+        r"\d\s*(மில்லி(?!மீ)|கிராம்|கிலோ|லிட்டர்)[^?।]{0,20}?(ஏக்கர|ஹெக்டேர|டேங்க|பம்ப)",
+        r"(ஏக்கர|ஹெக்டேர|டேங்க|பம்ப)[^?।]{0,20}?\d+\s*(மில்லி(?!மீ)|கிராம்|கிலோ)",
+        # mix / dilution ratio
+        r"(கலவை|கரைசல்|தெளிப்பு|நீர்த்த)[^?।]{0,20}?(விகிதம்|விகிதத்)",
+        # ── Hindi ──
+        # quantity word + chemical noun, either order ("कितना यूरिया",
+        # "कीटनाशक कितना")
+        r"(कितना|कितनी|कितने)[^?।]{0,40}?(यूरिया|खाद|उर्वरक|कीटनाशक|खरपतवारनाशी|फफूंदनाशक|दवा|दवाई|छिड़काव|डीएपी|एनपीके|dap|npk|urea)",
+        r"(यूरिया|खाद|उर्वरक|कीटनाशक|खरपतवारनाशी|फफूंदनाशक|दवा|दवाई|डीएपी|एनपीके)[^?।]{0,40}?(कितना|कितनी|कितने)",
+        # "dose" — खुराक/डोज़ are dose outright; bare मात्रा ("quantity")
+        # only counts next to a chemical, or a weather question ("बारिश की
+        # मात्रा") would be refused.
+        r"खुराक|डोज़|डोज|डोस",
+        r"(यूरिया|खाद|उर्वरक|कीटनाशक|खरपतवारनाशी|फफूंदनाशक|दवा|दवाई|छिड़काव|स्प्रे|घोल|डीएपी|एनपीके|dap|npk|urea)[^?।]{0,30}?मात्रा",
+        r"मात्रा[^?।]{0,30}?(यूरिया|खाद|उर्वरक|कीटनाशक|खरपतवारनाशी|फफूंदनाशक|दवा|दवाई|छिड़क|स्प्रे|घोल)",
+        # how many ml/grams OF a chemical. The bare Hindi units collide with
+        # innocent text far worse than English "ml": मिली is the verb
+        # "received" and prefixes मिलीमीटर, ग्राम is also "village", and
+        # "कितने लीटर दूध" is a dairy question — so the unit must be
+        # followed by chemical/mixing context.
+        r"(कितना|कितनी|कितने)\s*(मिली(?!मीटर)|एमएल|ग्राम|किलो|लीटर)[^?।]{0,15}?(कीटनाशक|दवा|दवाई|यूरिया|खाद|उर्वरक|फफूंदनाशक|खरपतवारनाशी|छिड़क|घोल|मिला|डाल|प्रति|dap|npk)",
+        # unit per acre/hectare/tank — both orders ("प्रति एकड़ 400 मिली"),
+        # digit-anchored so "मेरे ग्राम में 5 एकड़" (village!) does not trip
+        # it. लीटर stays out of the container-first group so irrigation-water
+        # volumes are not refused. This arm catches a dose in an ANSWER.
+        r"\d\s*(मिली(?!मीटर)|एमएल|ग्राम|किलो|लीटर)[^?।]{0,20}?(एकड़|हेक्टेयर|टंकी|पंप)",
+        r"(एकड़|हेक्टेयर|टंकी|पंप)[^?।]{0,20}?\d+\s*(मिली(?!मीटर)|एमएल|ग्राम|किलो)",
+        # mix / dilution ratio
+        r"(घोल|मिश्रण|मिलाने)[^?।]{0,15}?(अनुपात|रेशियो)",
     )
 )
 
@@ -298,6 +358,33 @@ _SCHEME_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"\bhow\s+much\s+(subsidy|money|amount)\s+(will|do|would)\s+i\b",
         r"\bapply\s+on\s+my\s+behalf\b",
         r"\bfill\s+(in\s+)?my\s+application\b",
+        # ── Tamil ── (see the anchoring note above _DOSAGE_PATTERNS)
+        # first-person pronoun + eligibility. என் needs the (?:^|\s) guard
+        # and a trailing space — it is a prefix of என்ன ("what"), and
+        # "திட்டம் என்ன" (what is the scheme) must stay allowed.
+        r"(?:^|\s)(நான்|எனக்கு|என்|எனது|எங்களுக்கு|என்னுடைய)\s[^?।]{0,60}?தகுதி",
+        r"தகுதி[^?।]{0,30}?(சரிபார்|உண்டா|இருக்கிறதா|கிடைக்கும)",
+        # will I get / did I get the subsidy, how much subsidy will I get
+        r"(எனக்கு|எங்களுக்கு)[^?।]{0,50}?(மானியம்|உதவித்தொகை|மானியத்)",
+        r"(மானியம்|உதவித்தொகை)[^?।]{0,40}?(கிடைக்குமா|கிடைக்கும்|வருமா|கிடைத்த|எனக்கு)",
+        # application / scheme STATUS — a personal-record lookup we cannot
+        # do; the official portal can (spec C4 names நிலை explicitly)
+        r"(விண்ணப்ப|திட்ட)[^?।]{0,15}?நிலை",
+        # fill in MY application — applying in general stays allowed
+        r"(என்|எனது|என்னுடைய)\s*விண்ணப்பத்தை[^?।]{0,30}?(நிரப்ப|நிரப்பி|பூர்த்தி)",
+        # ── Hindi ──
+        # first-person pronoun + eligible/eligibility
+        r"(?:^|\s)(मैं|हम|मुझे)\s[^?।]{0,60}?(पात्र|योग्य)",
+        r"(मेरी|मेरा|अपनी|हमारी)\s*पात्रता",
+        r"पात्रता[^?।]{0,30}?(जांच|जाँच|चेक)",
+        # will I get / did I get the subsidy, how much subsidy will I get
+        r"(मुझे|मुझको|हमें)[^?।]{0,50}?(सब्सिडी|अनुदान|राशि|लाभ)[^?।]{0,40}?(मिलेग|मिलेंग|मिल\s*सकत|मिली|मिला)",
+        r"(सब्सिडी|अनुदान)[^?।]{0,40}?(मुझे|मुझको|हमें)[^?।]{0,30}?(मिलेग|मिलेंग)",
+        # application / scheme STATUS — a personal-record lookup we cannot
+        # do; the official portal can (spec C4 names स्थिति explicitly)
+        r"(आवेदन|योजना)[^?।]{0,15}?(स्थिति|स्टेटस)",
+        # fill in MY application
+        r"(मेरा|मेरी)\s*(आवेदन|अर्जी|फॉर्म|फार्म)[^?।]{0,30}?(भर|जमा)",
     )
 )
 
@@ -310,6 +397,29 @@ _LOAN_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"\b(interest\s+rate|emi|repayment|tenure)\b.*\b(should|best|recommend|calculate\s+for\s+me)\b",
         r"\bwhich\s+bank\s+(should|is\s+best)\b",
         r"\bshould\s+i\s+(take|borrow|mortgage|pledge)\b",
+        # ── Tamil ── (see the anchoring note above _DOSAGE_PATTERNS)
+        # how much loan / which loan is best / should I take a loan.
+        # கடன is the stem so case-suffixed forms (கடனுக்கு, கடனை) match.
+        r"(எவ்வளவு|எத்தனை)[^?।]{0,30}?கடன",
+        r"(கடன|கிரெடிட)[^?।]{0,50}?(எவ்வளவு|வாங்கலாமா|வாங்கலாம|எடுக்கலாமா|எடுக்கலாம|சிறந்த|நல்லது|எந்த)",
+        # which bank is best
+        r"(எந்த|எது)\s*வங்கி[^?।]{0,30}?(சிறந்த|நல்ல)",
+        r"வங்கி\s*(தான்\s*)?(சிறந்தது|நல்லது)",
+        # should I mortgage / pledge
+        r"(அடமானம்|அடமான|ஈடு\s*வைக்க)[^?।]{0,30}?(வைக்கலாமா|வைக்க|வைப்பது)",
+        # interest-rate advice
+        r"வட்டி[^?।]{0,40}?(விகிதம்|விகிதத்)?[^?।]{0,30}?(ஏற்|சரி|சிறந்த|நல்ல|எவ்வளவு)",
+        # ── Hindi ──
+        # how much loan / loan advice
+        r"(कितना|कितनी|कितने)[^?।]{0,40}?(लोन|ऋण|कर्ज|क्रेडिट)",
+        r"(लोन|ऋण|कर्ज|क्रेडिट)[^?।]{0,50}?(लेना\s*चाहिए|ले\s*सकत|मिलेग|सबसे\s*अच्छ|कौन|कितना|कितनी)",
+        # which bank is best
+        r"(कौन\s*सा|कौनसा)\s*बैंक[^?।]{0,30}?(अच्छ|बेहतर|सही)",
+        r"बैंक\s*(सबसे\s*)?(अच्छा|बेहतर|सही)",
+        # should I mortgage / pledge
+        r"(गिरवी|बंधक)[^?।]{0,30}?(रखना|रखूं|रखें|रखू)[^?।]{0,15}?चाहिए",
+        # interest-rate advice
+        r"ब्याज\s*(दर|रेट)?[^?।]{0,40}?(चाहिए|अच्छ|सही|कितनी|कितना)",
     )
 )
 

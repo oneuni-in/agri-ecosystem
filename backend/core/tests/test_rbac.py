@@ -6,11 +6,11 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 from redis.asyncio import Redis
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.identity.models import Permission, Role, RolePermission, User
+from modules.identity.models import User
 from modules.identity.rbac import (
     permissions_for_roles,
     require_permission,
@@ -19,6 +19,7 @@ from modules.identity.rbac import (
 from modules.identity.service import assign_role
 from shared.db import get_session
 from shared.security import SecureRouter
+from tests.conftest import RbacMatrix
 from tests.test_session_router import UA, _login
 
 sample_router = SecureRouter(prefix="/rbac-sample", tags=["rbac-sample"])
@@ -95,20 +96,15 @@ async def test_super_admin_passes_all_three(
         assert (await http.get(path)).status_code == 200
 
 
-async def test_matrix_is_cached_until_reset(db_session: AsyncSession) -> None:
+async def test_matrix_is_cached_until_reset(
+    db_session: AsyncSession, rbac_matrix: RbacMatrix
+) -> None:
     """role->permissions rides the TTL cache; mutating grants requires
     reset_permission_cache() (the invalidation hook role-matrix tooling must call)."""
-    granted = await permissions_for_roles(db_session, ("user",))
-    assert "profile.write" in granted
-    role_id = await db_session.scalar(select(Role.id).where(Role.name == "user"))
-    perm_id = await db_session.scalar(
-        select(Permission.id).where(Permission.name == "profile.write")
-    )
-    await db_session.execute(
-        delete(RolePermission).where(
-            RolePermission.role_id == role_id, RolePermission.permission_id == perm_id
-        )
-    )
+    assert "profile.write" in await permissions_for_roles(db_session, ("user",))
+    # 0051 made the catalog read-only for app_rt, so the revoke goes through
+    # the owner and is committed - db_session reads it on its next statement
+    await rbac_matrix.revoke("user", "profile.write")
     assert "profile.write" in await permissions_for_roles(db_session, ("user",))  # stale by design
     reset_permission_cache()
     assert "profile.write" not in await permissions_for_roles(db_session, ("user",))

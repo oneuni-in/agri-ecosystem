@@ -10,19 +10,19 @@ from typing import cast
 
 import httpx
 import pytest
-import uuid6
 from joserfc import jwt
 from redis.asyncio import Redis
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.identity.models import Permission, Role, RolePermission, User
+from modules.identity.models import User
 from modules.identity.oauth_keys import get_signing_key
 from modules.identity.rbac import reset_permission_cache
 from modules.identity.service import assign_role
 from settings import get_settings
 from shared.db import get_session
+from tests.conftest import RbacMatrix
 from tests.test_session_router import UA, _login, _stream_entries
 
 ADMIN_PHONE = "+919876533333"
@@ -166,17 +166,17 @@ async def test_add_role_publishes_role_changed_event(
 
 async def test_super_admin_assignment_requires_super_admin(
     api: tuple[httpx.AsyncClient, AsyncSession],
+    rbac_matrix: RbacMatrix,
 ) -> None:
     """Privilege-escalation guard. Staff normally lacks roles.assign entirely,
     so grant it temporarily - the guard must STILL refuse super_admin."""
     http, session = api
     target = await _make_target(http, session)
     await _login_admin(http, session, role="staff")
-    role_id = await session.scalar(select(Role.id).where(Role.name == "staff"))
-    perm_id = await session.scalar(select(Permission.id).where(Permission.name == "roles.assign"))
-    await session.execute(
-        insert(RolePermission).values(id=uuid6.uuid7(), role_id=role_id, permission_id=perm_id)
-    )
+    # 0051 left the RBAC catalog read-only for app_rt, so the grant is written
+    # as the owner and committed - the request resolves permissions on its own
+    # connection and would not see an uncommitted row
+    await rbac_matrix.grant("staff", "roles.assign")
     reset_permission_cache()
     escalate = await http.post(f"/admin/users/{target.agri_id}/roles", json={"role": "super_admin"})
     assert escalate.status_code == 403

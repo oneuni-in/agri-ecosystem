@@ -7,6 +7,8 @@ import { use, useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, postJson } from "../../lib/api";
 
+import { LoginLocaleSwitcher } from "./locale-switcher";
+
 type Step = "phone" | "otp" | "handle" | "language";
 
 const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
@@ -149,6 +151,12 @@ export function LoginFlow({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-center gap-4 px-4 py-8">
+      {/* AG-A63: pre-auth locale switcher, above every step. The language
+          STEP below persists a choice to the ACCOUNT after login; this only
+          changes what THIS browser renders, right now, so a Tamil-first user
+          never has to read the flow in English to reach that step. */}
+      <LoginLocaleSwitcher />
+
       {/* Brand lockup. This screen is CONSUMED by agri.in, milk.in and
           theorganic.in alike, so it has to say whose login it is and that the
           one account covers all three - otherwise arriving here from a bounce

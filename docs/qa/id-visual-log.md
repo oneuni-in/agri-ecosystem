@@ -240,3 +240,29 @@ because it is real throttle state that was cleared: it is local-only abuse
 protection in front of a mock SMS driver, no message was ever sent, and no
 product behaviour was altered — the 429 proof in P2 was captured against the
 genuine phone-cap throttle before this.
+
+---
+
+## P6 · gated (503) + locked (429) — verify-only
+
+Proofs: `p6-gated` (× live/ref × 1280/390). The locked half was captured with
+P2 (`p2-otp-locked`) against the genuine phone-cap throttle; its findings are
+recorded there (P2-Q1…Q3) rather than repeated here.
+
+The gated state was reached the real way: `signup_enabled` flipped to `false`
+in `public.feature_flags`, waited out the 30 s flag cache, confirmed the API
+returned `503 signup_unavailable`, captured, then **flipped back and
+re-verified with a live 200**. No UI was posed.
+
+Correct and unchanged: the rail and the trust strip both hide while gated —
+there is no progress through a closed flow, and "free forever" under a shut
+door reads as an advertisement for something you cannot have. The screen is
+an explanation, not an error, exactly as the code comment intends.
+
+### findings
+
+| # | Finding | Severity |
+|---|---|---|
+| **P6-Q1** | **The gated screen names the wrong site.** The live copy reads "We're finishing SMS verification with our provider. **The rest of Milk.in works without an account.**" — on `id.agri.in`, the shared login for all three sites. A farmer who bounced here from agri.in or theorganic.in is told to go use a dairy site. The string is a D30 leftover from when the gate was written for milk.in alone. | **Real bug on a launch-gate screen**, and the cheapest fix in this pass — one string, three catalogs. It needs to name the family or the site the visitor came from, not one sibling. |
+| P6-Q2 | **No notify-me capture.** The reference offers a phone field and "Notify me — one SMS when sign-ups open. Nothing else, ever." Live explains and stops, so a farmer turned away at the door leaves no way to be told when it opens. The machinery exists (D23 pincode-interest / notify). | A feature ADD on a page the prompt scopes as verify-only, so flagged rather than built. Worth it only if sign-ups are actually gated at launch. |
+| P6-Q3 | The reference gives the card a 🌱 and centres it; live is a plain left-aligned card. | Cosmetic. Recorded for completeness. |

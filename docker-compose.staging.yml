@@ -95,6 +95,17 @@ services:
     # container-start time, so building this image locally (`docker build
     # -f apps/Dockerfile --build-arg APP=web-milk --build-arg
     # CONSOLE_URL=<console-origin> .`) needs the same --build-arg too.
+    # env_file on every web service, matching what the example file has
+    # always claimed ("the SINGLE env file every staging service reads") and
+    # what the api/workers already do. Without it the Next.js containers ran
+    # with NO environment at all, so AUTH_SESSION_SECRET could never reach
+    # them - auth-client then throws at boot in production, and the runbook's
+    # owner-action #1 had no wiring to land on. Trade-off stated rather than
+    # hidden: the web containers now see the whole shared file, including
+    # infra credentials, exactly as the api container already does; a
+    # least-privilege split into web.env/api.env is a follow-up decision,
+    # not a blocker.
+    env_file: secrets/staging.env
     ports:
       - "3100:3000"
     healthcheck: &web-health
@@ -107,6 +118,7 @@ services:
 
   web-organic:
     image: ghcr.io/oneuni-in/agri-web-organic:${TAG:-dev}
+    env_file: secrets/staging.env
     ports:
       - "3101:3000"
     healthcheck: *web-health
@@ -114,6 +126,7 @@ services:
 
   web-agri:
     image: ghcr.io/oneuni-in/agri-web-agri:${TAG:-dev}
+    env_file: secrets/staging.env
     ports:
       - "3102:3000"
     healthcheck: *web-health
@@ -121,6 +134,7 @@ services:
 
   web-id:
     image: ghcr.io/oneuni-in/agri-web-id:${TAG:-dev}
+    env_file: secrets/staging.env
     ports:
       - "3103:3000"
     healthcheck: *web-health
@@ -128,6 +142,7 @@ services:
 
   web-admin:
     image: ghcr.io/oneuni-in/agri-web-admin:${TAG:-dev}
+    env_file: secrets/staging.env
     ports:
       - "3104:3000"
     healthcheck: *web-health

@@ -14,12 +14,23 @@ control rather than in a crontab on a host, where it would be invisible
 to the repo and lost on a rebuild.
 
 BEHAVIOUR
-  - Wakes at settings.mandi_pull_hour_ist (evening IST — the feed fills
-    through the working day; see mandi_pull's scheduling note).
-  - On startup, pulls immediately IF today has no successful run yet.
-    A container restarting at 20:05 must not skip the 19:00 slot, because
-    tomorrow cannot recover today. The ledger is what makes that check
-    possible without re-pulling on every restart.
+  - On startup, pulls immediately if today has no successful run yet —
+    at ANY hour, not only after the slot. The first version gated the
+    boot catch-up on `now.hour >= 19`, and the ledger shows what that
+    bought: zero unattended pulls, ever. Every observed boot of the dev
+    container was between 08:24 and 17:55 IST — a laptop's working day —
+    so the catch-up never armed, and the process never survived to 19:00.
+    Two whole days of Agmarknet data (18–19 Aug) are permanently gone to
+    that gate. A morning pull captures a partial day, but the pull
+    upserts on its natural key, so the 19:00 pull tops it up; partial
+    beats nothing on a feed that serves only the live day.
+  - Still fires at settings.mandi_pull_hour_ist (evening IST — the feed
+    fills through the working day) regardless of a boot pull, for the
+    top-up. The ledger check is what keeps restarts from re-pulling all
+    day: one ok/empty run marks the day covered for CATCH-UP purposes,
+    while the scheduled evening pull always runs. An `empty` run only
+    stands catch-up down for EMPTY_RECHECK_HOURS — the feed being empty
+    at 08:39 says nothing about 15:00.
   - Retries a failed pull within the same day (settings.mandi_pull_retries
     x mandi_pull_retry_minutes) instead of waiting for tomorrow. An empty
     day is not a failure and is not retried.
@@ -47,25 +58,48 @@ from shared.telemetry import (
 logger = get_logger(__name__)
 
 
-async def _ran_today(day: date) -> bool:
-    """Has a pull already completed for this IST day?
+# An `empty` run proves the feed was reached, not that the day is covered:
+# the very first ungated catch-up (2026-08-20 08:39 IST) got 0 records
+# because Agmarknet genuinely holds nothing that early — mandis report
+# through the working day. Treating that as "done" would immunise the whole
+# day against catch-up, and a container rebooting at 15:00 would again be
+# praying it survives to 19:00. So an empty run only suppresses catch-up
+# for a cooldown, while an OK run covers the day. Three hours keeps a
+# restart-happy laptop to a handful of API calls a day.
+EMPTY_RECHECK_HOURS = 3
 
-    Only 'ok' and 'empty' count: those are runs that actually reached the
-    feed and learned what it held. A failed run is not a reason to skip
-    the day — it is a reason to try again.
+
+async def _day_covered(day: date, now_utc: datetime) -> bool:
+    """Should the boot catch-up stand down for this IST day?
+
+    Yes if the day has an OK run (data landed; the 19:00 loop still tops
+    up), or an ok/empty run within the last EMPTY_RECHECK_HOURS (we asked
+    recently; asking again now would learn nothing). A failed run never
+    counts: it is a reason to try again, not to skip the day.
     """
     start_utc = datetime.combine(day, datetime.min.time(), tzinfo=IST).astimezone(UTC)
+    recent_cutoff = now_utc - timedelta(hours=EMPTY_RECHECK_HOURS)
     try:
         async with get_sessionmaker()() as session:
-            found = await session.scalar(
+            ok_today = await session.scalar(
                 select(IngestRun.id)
                 .where(
                     IngestRun.started_at >= start_utc,
+                    IngestRun.outcome == OUTCOME_OK,
+                )
+                .limit(1)
+            )
+            if ok_today is not None:
+                return True
+            recent = await session.scalar(
+                select(IngestRun.id)
+                .where(
+                    IngestRun.started_at >= max(start_utc, recent_cutoff),
                     IngestRun.outcome.in_((OUTCOME_OK, OUTCOME_EMPTY)),
                 )
                 .limit(1)
             )
-        return found is not None
+        return recent is not None
     except Exception as exc:  # noqa: BLE001
         # If the ledger cannot be read, pull anyway. A duplicate pull is
         # free (the natural key upserts); a skipped day is not.
@@ -118,9 +152,15 @@ async def _main() -> int:
     logger.info("market.scheduler_started", extra={"extra_fields": {"hour_ist": hour}})
 
     now = now_ist()
-    # Catch-up on boot: a restart after the day's slot must not silently
-    # skip the day.
-    if now.hour >= hour and not await _ran_today(now.date()):
+    # Catch-up on boot whenever today has no successful run — at any hour.
+    # The previous `now.hour >= hour` gate assumed the process would either
+    # boot after the slot or live until it; on a dev laptop neither is true,
+    # and the gate converted "restarted during the working day" into
+    # permanent data loss (see BEHAVIOUR above). An early pull is a partial
+    # snapshot the 19:00 top-up completes; the upsert makes running both
+    # free, and the ledger keeps a crash-looping container from hammering
+    # the API — a day with one ok/empty run boots quietly.
+    if not await _day_covered(now.date(), datetime.now(UTC)):
         logger.info("market.scheduler_catchup", extra={"extra_fields": {"day": now.isoformat()}})
         await _pull_with_retries()
 

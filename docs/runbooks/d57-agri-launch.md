@@ -189,6 +189,10 @@ Watch, in this order:
 State these to anyone who asks, rather than discovering them under pressure:
 
 - The AI assistant is off, and the entry surface says so.
+- The "Live on agri.in" feed engine is BUILT and verified (A-U4b O11,
+  2026-08-20) but `agri_live_feed` is OFF, so the marquee is absent at
+  launch. Flipping it is a post-launch decision that re-reads
+  `docs/security/agri-live-feed-privacy.md`.
 - Coins accumulate; there is nothing to spend them on yet.
 - Federated search covers agri + milk. Organic has no index — that site does
   not exist yet (D63-74).

@@ -14,10 +14,18 @@ class Message(BaseModel):
     detail: str
 
 
-def make_client(router: SecureRouter) -> TestClient:
+RELAY = "10.9.0.1"
+
+
+def make_client(router: SecureRouter, *, peer: str | None = None) -> TestClient:
+    """`peer` sets the socket address the app sees. It has to be a real
+    address for any X-Forwarded-For test, since trusted_proxy_ips is matched
+    against it and the default ('testclient') parses as no address at all."""
     app = FastAPI()
     app.include_router(router)
-    return TestClient(app)
+    if peer is None:
+        return TestClient(app)
+    return TestClient(app, client=(peer, 50000))
 
 
 def test_route_without_public_returns_401() -> None:
@@ -131,7 +139,11 @@ def test_client_ip_ignores_forwarded_header_by_default() -> None:
 def test_client_ip_takes_first_forwarded_entry_when_trusted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Leftmost entry, because each hop appends. Reading the header needs the
+    peer declared in trusted_proxy_ips as well as the flag - see
+    tests/test_client_ip_trust.py for why the flag alone is not enough."""
     monkeypatch.setenv("TRUST_FORWARDED_FOR", "true")
+    monkeypatch.setenv("TRUSTED_PROXY_IPS", RELAY)
     get_settings.cache_clear()
 
     router = SecureRouter()
@@ -140,7 +152,7 @@ def test_client_ip_takes_first_forwarded_entry_when_trusted(
     async def whoami(request: Request) -> Message:
         return Message(detail=client_ip(request))
 
-    client = make_client(router)
+    client = make_client(router, peer=RELAY)
     response = client.get("/whoami", headers={"x-forwarded-for": "10.0.0.1, 10.0.0.2"})
     assert response.json()["detail"] == "10.0.0.1"
 
@@ -154,6 +166,7 @@ def test_rate_limit_separates_forwarded_clients_when_trust_is_on(
     one bucket - two visitors making one request each must not 429 the
     second one just because they share a socket-level client."""
     monkeypatch.setenv("TRUST_FORWARDED_FOR", "true")
+    monkeypatch.setenv("TRUSTED_PROXY_IPS", RELAY)
     monkeypatch.setenv("RATE_LIMIT_REQUESTS", "1")
     monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")  # unreachable -> fallback
     get_settings.cache_clear()
@@ -164,7 +177,7 @@ def test_rate_limit_separates_forwarded_clients_when_trust_is_on(
     async def limited_route() -> Message:
         return Message(detail="ok")
 
-    client = make_client(router)
+    client = make_client(router, peer=RELAY)
     response_a = client.get("/limited", headers={"x-forwarded-for": "10.0.0.1"})
     response_b = client.get("/limited", headers={"x-forwarded-for": "10.0.0.2"})
     assert response_a.status_code == 200

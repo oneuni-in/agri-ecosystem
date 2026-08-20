@@ -11,6 +11,8 @@ import inspect
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from functools import lru_cache
+from ipaddress import IPv4Network, IPv6Network, ip_address, ip_network
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -132,22 +134,71 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 
-def client_ip(request: Request) -> str:
-    """Best client address available: the first X-Forwarded-For entry when
-    settings.trust_forwarded_for is on (deploy proxy overwrites the header),
-    else the direct socket address.
+@lru_cache(maxsize=8)
+def _trusted_networks(spec: str) -> tuple[IPv4Network | IPv6Network, ...]:
+    """Parse the comma-separated trusted_proxy_ips setting once per value.
 
-    PROD NOTE: in production trust_forwarded_for must be enabled and the
-    edge proxy must overwrite (not append) X-Forwarded-For - otherwise a
-    caller can spoof the header and dodge both rate limiting and any
-    per-visitor hashing built on top of this helper. With trust_forwarded_for
-    off (the default), the header is never read.
+    Unparseable entries are dropped with a warning rather than raising: a typo
+    in this setting must not take the API down, and dropping it fails closed
+    (that peer simply stops being trusted).
     """
-    if get_settings().trust_forwarded_for:
-        fwd = request.headers.get("x-forwarded-for")
-        if fwd:
-            return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    networks: list[IPv4Network | IPv6Network] = []
+    for entry in spec.split(","):
+        candidate = entry.strip()
+        if not candidate:
+            continue
+        try:
+            networks.append(ip_network(candidate, strict=False))
+        except ValueError:
+            logger.warning("ignoring unparseable trusted_proxy_ips entry: %r", candidate)
+    return tuple(networks)
+
+
+def _is_trusted_relay(peer: str, spec: str) -> bool:
+    try:
+        address = ip_address(peer)
+    except ValueError:
+        return False  # 'unknown', a unix socket, a hostname: not a declared relay
+    return any(address in network for network in _trusted_networks(spec))
+
+
+def client_ip(request: Request) -> str:
+    """The caller's address: the socket peer, unless a declared relay vouched
+    for someone else via X-Forwarded-For.
+
+    A caller must never be able to nominate its own address here. This value
+    keys the rate limiter (`ratelimit:{ip}:{path}`) and seeds the daily viewer
+    pseudonym (directory/analytics.viewer_hash), so anyone who can choose it
+    has neither a rate limit nor a stable pseudonym.
+
+    X-Forwarded-For is not a forbidden header name, so page JavaScript can set
+    it on a same-origin fetch, and the Next relays forward what they receive.
+    An edge proxy does not fix that by itself either: Cloudflare APPENDS the
+    real address to a client-supplied header rather than replacing it, so the
+    leftmost entry stays attacker-chosen. Hence both conditions - the feature
+    flag AND the peer being a relay the operator declared in trusted_proxy_ips.
+
+    Undeclared peer, unset setting, or a forwarded value that is not an
+    address: the socket peer wins. Behind a relay that means every visitor
+    shares one bucket, which costs throughput and leaks nothing.
+    """
+    peer = request.client.host if request.client else "unknown"
+    settings = get_settings()
+    if not settings.trust_forwarded_for:
+        return peer
+    if not _is_trusted_relay(peer, settings.trusted_proxy_ips):
+        return peer
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return peer
+    # leftmost is the original client: each hop APPENDS, and every hop between
+    # here and the visitor is trusted by construction once the peer is declared
+    claimed = forwarded.split(",")[0].strip()
+    try:
+        ip_address(claimed)
+    except ValueError:
+        return peer  # the value crossed untrusted ground before the relay saw it
+    return claimed
 
 
 async def rate_limit(request: Request) -> None:

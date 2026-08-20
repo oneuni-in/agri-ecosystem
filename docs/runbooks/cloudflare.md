@@ -140,10 +140,42 @@ benefit.
       published IP ranges so the origin cannot be reached directly, bypassing
       every rule above.
 
+## 5b. Client IP — turn this on WITH the edge, not before
+
+Every browser request reaches the API through a Next relay, so the address the
+API sees is the relay's. Per-IP rate limiting and the daily viewer pseudonym
+both need the visitor's address instead, and that address is only knowable once
+an edge is in front. Three settings switch it on, and they belong to the same
+change as the DNS cut:
+
+- [ ] **`TRUST_EDGE_CLIENT_IP=true`** on every web-* service. It makes the
+      relays read `CF-Connecting-IP`. Leave it unset anywhere Cloudflare is not
+      actually in front — without an edge, a caller can send that header
+      itself and we are back to a spoofable address wearing a new name.
+- [ ] **`TRUST_FORWARDED_FOR=true`** on the API.
+- [ ] **`TRUSTED_PROXY_IPS`** on the API: the addresses or CIDR the relays
+      connect from, e.g. the compose network `172.16.0.0/12`. The API believes
+      a forwarded address only from these peers. Empty means it believes
+      nobody, which is safe but collapses every visitor into one rate-limit
+      bucket.
+
+**`CF-Connecting-IP`, never `X-Forwarded-For`.** Cloudflare *appends* the real
+address to a visitor-supplied `X-Forwarded-For` rather than replacing it, and
+the leftmost entry — the one a naive reader takes — stays whatever the visitor
+wrote. `CF-Connecting-IP` is set by Cloudflare and overwrites what arrived.
+This is why the origin lock in §5 matters here too: a caller who reaches the
+VPS directly bypasses the edge and supplies both headers freely.
+
+Verify after the cut: two devices on different networks browsing the same
+vendor page must produce two rows in `directory.profile_views`, not one.
+
 ## 6. After applying (D31)
 
 - [ ] Confirm each rule fires: curl past a threshold from a throwaway IP and
       check the firewall event log names the expected rule.
+- [ ] Confirm client IP resolves: `TRUSTED_PROXY_IPS` covers the relay subnet
+      (§5b), or every visitor shares one bucket and profile-view counts read
+      as 1/day/business.
 - [ ] Confirm the app-tier `429`s still appear in application metrics for
       normal-rate abuse — if they have gone silent, an edge rule is too tight
       and is masking the signal (see the governing rule at the top).

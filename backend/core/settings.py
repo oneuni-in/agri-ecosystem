@@ -117,10 +117,20 @@ class Settings(BaseSettings):
     # Location resolution (D19). GeoIP is optional, state-level, advisory-only
     # infrastructure: an empty path means the feature is off (no mmdb file is
     # committed to this repo; the owner provisions one on the VPS later).
-    # trust_forwarded_for gates whether the caller may read X-Forwarded-For
-    # for the client IP - only safe behind a trusted reverse proxy.
     geoip_mmdb_path: str = ""
+    # trust_forwarded_for gates whether X-Forwarded-For may be read for the
+    # client IP at all; trusted_proxy_ips says WHOSE claim is believed. Both
+    # are required in prod - the flag alone used to mean "believe anyone",
+    # and X-Forwarded-For is not a forbidden header, so page JavaScript can
+    # set it on a same-origin fetch and the relays pass it through.
+    #
+    # Comma-separated addresses or CIDRs, matched against the immediate peer
+    # (the socket address the API sees, i.e. the Next relay, not the visitor).
+    # Compose assigns container addresses from a subnet, so this is normally a
+    # CIDR - e.g. "172.16.0.0/12". Empty means trust nobody, which degrades to
+    # one shared rate-limit bucket rather than to a spoofable one.
     trust_forwarded_for: bool = False
+    trusted_proxy_ips: str = ""
 
     # Billing (D20). Razorpay KYC is on hold: every credential defaults empty
     # and the billing_enabled DB flag (seeded false in D03) is the master

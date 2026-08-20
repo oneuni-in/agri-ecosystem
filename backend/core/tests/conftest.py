@@ -9,14 +9,21 @@ import os
 import subprocess
 import sys
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Mapping
 from decimal import Decimal
+from typing import Any
 
 import pytest
+import uuid6
 from redis.asyncio import Redis
-from sqlalchemy import text
+from sqlalchemy import TextClause, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 
 from modules.directory import catalog_service, service
@@ -193,6 +200,86 @@ async def owner_session(
         async with maker() as session:
             yield session
         await outer.rollback()
+    await engine.dispose()
+
+
+class RbacMatrix:
+    """Reshape identity.role_permissions as the table OWNER, then put it back.
+
+    0051 made the RBAC catalog (roles/permissions/role_permissions) SELECT-only
+    for app_rt, because nothing in the application ever writes it - only tests
+    did. A test that needs a role to hold an extra permission therefore cannot
+    go through db_session any more.
+
+    Changes are COMMITTED rather than left in a transaction: the code under
+    test reads the matrix on its own app_rt connection, so an uncommitted row
+    would be invisible to it. Teardown reverses each change in reverse order,
+    and only the changes that actually took effect.
+    """
+
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+        self._undo: list[tuple[str, str, str]] = []
+
+    async def grant(self, role: str, permission: str) -> None:
+        sql = text(
+            "INSERT INTO identity.role_permissions (id, role_id, permission_id) "
+            "SELECT :id, r.id, p.id FROM identity.roles r, identity.permissions p "
+            "WHERE r.name = :role AND p.name = :permission "
+            "ON CONFLICT (role_id, permission_id) DO NOTHING RETURNING id"
+        )
+        params = {"id": uuid6.uuid7(), "role": role, "permission": permission}
+        if await self._execute(sql, params):
+            self._undo.append(("revoke", role, permission))
+
+    async def revoke(self, role: str, permission: str) -> None:
+        sql = text(
+            "DELETE FROM identity.role_permissions rp "
+            "USING identity.roles r, identity.permissions p "
+            "WHERE rp.role_id = r.id AND rp.permission_id = p.id "
+            "AND r.name = :role AND p.name = :permission RETURNING rp.id"
+        )
+        if await self._execute(sql, {"role": role, "permission": permission}):
+            self._undo.append(("grant", role, permission))
+
+    async def _execute(self, sql: TextClause, params: Mapping[str, Any]) -> bool:
+        async with self._engine.connect() as conn:
+            result = await conn.execute(sql, params)
+            await conn.commit()
+            return result.first() is not None
+
+    async def restore(self) -> None:
+        for action, role, permission in reversed(self._undo):
+            # call the raw statement, not grant/revoke, or the undo list grows
+            if action == "grant":
+                await self._execute(
+                    text(
+                        "INSERT INTO identity.role_permissions (id, role_id, permission_id) "
+                        "SELECT :id, r.id, p.id FROM identity.roles r, identity.permissions p "
+                        "WHERE r.name = :role AND p.name = :permission "
+                        "ON CONFLICT (role_id, permission_id) DO NOTHING RETURNING id"
+                    ),
+                    {"id": uuid6.uuid7(), "role": role, "permission": permission},
+                )
+            else:
+                await self._execute(
+                    text(
+                        "DELETE FROM identity.role_permissions rp "
+                        "USING identity.roles r, identity.permissions p "
+                        "WHERE rp.role_id = r.id AND rp.permission_id = p.id "
+                        "AND r.name = :role AND p.name = :permission RETURNING rp.id"
+                    ),
+                    {"role": role, "permission": permission},
+                )
+        self._undo.clear()
+
+
+@pytest.fixture
+async def rbac_matrix(admin_database_url: str) -> AsyncIterator[RbacMatrix]:
+    engine = create_async_engine(admin_database_url, poolclass=NullPool)
+    matrix = RbacMatrix(engine)
+    yield matrix
+    await matrix.restore()
     await engine.dispose()
 
 

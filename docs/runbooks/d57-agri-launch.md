@@ -94,6 +94,13 @@ None of these can be done by an agent, and none has a workaround:
 1. **`AUTH_SESSION_SECRET`** in the production environment. Without it every
    authed page 500s — `/coins`, `/saved`, `/account/*`. Public pages are
    unaffected, which is exactly why this is easy to miss until someone logs in.
+   **Where, concretely:** `secrets/staging.env` (SOPS-encrypted per
+   docs/runbooks/secrets.md) — NOT a GitHub Actions secret; CI never needs it
+   and the pipeline is only the courier that decrypts the file on the VPS.
+   Generate with `openssl rand -base64 48`. The compose now delivers the file
+   to the web services (`env_file:` on all five — before 2026-08-20 they had
+   no environment at all, so the value could not have reached them however
+   carefully it was set).
 2. **`NEXT_PUBLIC_VAPID_PUBLIC_KEY` at BUILD time** if push should work on day
    one. It is inlined, not read at runtime, so setting it after the build does
    nothing. Without it the push card renders nothing — honest, but no
@@ -102,6 +109,23 @@ None of these can be done by an agent, and none has a workaround:
 4. **Decide the burn side of coins.** `redeem()` exists with no route and no
    catalog, so coins currently only accumulate. That is a shippable state, but
    it should be a decision rather than an oversight.
+5. **Rotate `app_rt`, and fill the application secrets.** Migration 0013
+   creates the runtime database role with the password `app_rt`, which is
+   published in this repository; every secret in the new "application secrets"
+   block of `secrets/staging.env.example` (`OTP_PEPPER`, the two beacon
+   secrets, the MinIO keys) likewise ships with a working dev default. On the
+   database, once per environment:
+
+   ```sql
+   ALTER ROLE app_rt PASSWORD '<the value that goes in DATABASE_URL>';
+   ```
+
+   `shared/startup_checks.py` refuses to boot with `APP_ENV=prod` while any of
+   them is still the published value, and the error names every offending
+   variable at once — so this is now self-enforcing rather than a step someone
+   has to remember. It is listed here because a failed boot at launch is a
+   worse way to discover it than a checklist. Note `OTP_PEPPER` invalidates
+   in-flight OTPs when it changes: set it before traffic, not during.
 
 ---
 

@@ -74,6 +74,7 @@ from shared.middleware import SlugRedirectMiddleware
 from shared.request_context import RequestContextMiddleware
 from shared.security import SecureRouter, register_principal_resolver
 from shared.sentry import init_sentry
+from shared.startup_checks import check_production_secrets
 from shared.storage import check_storage
 from shared.telemetry import configure_logging, get_logger
 
@@ -181,6 +182,10 @@ async def metrics() -> Response:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
+    # before anything else: prod must not run on a credential published in
+    # this repo. First so the operator sees the actionable list rather than
+    # whichever downstream guard happens to trip.
+    check_production_secrets(settings)
     # fail at boot, not first token: prod without a signing key must not start
     get_signing_key()
     logger.info("public routes: %s", app.state.public_routes)

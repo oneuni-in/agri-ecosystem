@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async
 from sqlalchemy.pool import NullPool
 
 from shared.audit import audit, verify_chain
+from tests.conftest import audit_trigger_disabled
 
 DAY = date(2020, 6, 15)
 
@@ -29,7 +30,9 @@ async def engines(
     runtime = create_async_engine(database_url, poolclass=NullPool)
     admin = create_async_engine(admin_database_url, poolclass=NullPool)
     yield runtime, admin
-    async with admin.connect() as conn:  # app_rt cannot clean audit rows
+    # app_rt cannot clean audit rows, and since 0054 neither can the owner
+    # without disabling the trigger
+    async with audit_trigger_disabled(admin), admin.connect() as conn:
         await conn.execute(text("DELETE FROM audit.entries WHERE chain_day = '2020-06-15'"))
         await conn.commit()
     await runtime.dispose()
@@ -51,8 +54,9 @@ async def test_tampered_row_breaks_the_chain(engines: tuple[AsyncEngine, AsyncEn
         for i in range(3):
             await audit(session, action="test.tamper", metadata={"i": i}, now=_at(i))
         await session.commit()
-    # a privileged connection (compromised owner creds) rewrites history
-    async with admin.connect() as conn:
+    # a privileged connection (compromised owner creds) rewrites history,
+    # which since 0054 means disabling the trigger first
+    async with audit_trigger_disabled(admin), admin.connect() as conn:
         await conn.execute(
             text(
                 "UPDATE audit.entries SET metadata = '{\"i\": 99}'::jsonb "
@@ -71,7 +75,7 @@ async def test_deleted_row_breaks_the_chain(engines: tuple[AsyncEngine, AsyncEng
         for i in range(3):
             await audit(session, action="test.gap", metadata={"i": i}, now=_at(i))
         await session.commit()
-    async with admin.connect() as conn:
+    async with audit_trigger_disabled(admin), admin.connect() as conn:
         await conn.execute(
             text("DELETE FROM audit.entries WHERE chain_day = '2020-06-15' AND seq = 2")
         )
@@ -91,3 +95,25 @@ async def test_app_rt_cannot_update_or_delete(engines: tuple[AsyncEngine, AsyncE
             with pytest.raises((ProgrammingError, DBAPIError)) as excinfo:
                 await conn.execute(text(statement))
             assert "permission denied" in str(excinfo.value).lower()
+
+
+async def test_the_owner_cannot_update_or_delete_either(
+    engines: tuple[AsyncEngine, AsyncEngine],
+) -> None:
+    """The non-negotiable 0054 adds: grants stop app_rt, but the owner is who
+    a compromise of the migration credentials gets you, and every sibling
+    ledger (coins, billing, ads, geo) already refuses that. Detection via the
+    hash chain is good; refusing the write is better.
+    """
+    _, admin = engines
+    async with async_sessionmaker(admin, expire_on_commit=False)() as session:
+        await audit(session, action="test.owner", metadata={"i": 0}, now=_at(0))
+        await session.commit()
+    for statement in (
+        "UPDATE audit.entries SET action = 'x' WHERE chain_day = '2020-06-15'",
+        "DELETE FROM audit.entries WHERE chain_day = '2020-06-15'",
+    ):
+        async with admin.connect() as conn:
+            with pytest.raises((ProgrammingError, DBAPIError)) as excinfo:
+                await conn.execute(text(statement))
+            assert "append-only" in str(excinfo.value).lower()

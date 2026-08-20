@@ -29,6 +29,7 @@ from modules.identity.otp_throttle import (
 from settings import get_settings
 from shared.audit import AuditEntry
 from shared.db import reset_engine
+from tests.conftest import audit_trigger_disabled
 
 PHONE = "+919876543210"
 IP = "203.0.113.7"
@@ -189,7 +190,13 @@ async def test_phone_daily_cap_trip_writes_committed_audit_row(
             await engine.dispose()
     finally:
         admin_engine = create_async_engine(admin_database_url, poolclass=NullPool)
-        async with admin_engine.connect() as conn:
+        # audit() commits through its own session, so these rows survive the
+        # fixture rollback and must be cleaned up - which since 0054 means
+        # lifting the immutability trigger first (owner credentials required).
+        async with (
+            audit_trigger_disabled(admin_engine),
+            admin_engine.connect() as conn,
+        ):
             await conn.execute(text("DELETE FROM audit.entries WHERE action LIKE 'otp.abuse%'"))
             await conn.commit()
         await admin_engine.dispose()

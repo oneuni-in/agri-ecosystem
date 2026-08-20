@@ -469,7 +469,10 @@ if (institution === null) notFound();
 // merged -> permanent redirect to the successor. Incoming links to renamed
 // institutions are exactly the traffic worth keeping (spec section 7). The
 // API deliberately did NOT redirect -- it handed us the pointer, and
-// issuing the 301 is this page's job (Plan 2 decision 1).
+// issuing the permanent redirect is this page's job (Plan 2 decision 1).
+// [A-U4b C5, 2026-08-20] As built it is a 308, not the 301 this plan first
+// named: Next's permanentRedirect() issues 308, which preserves the request
+// method — equivalent to 301 for a GET and what AG-A57 verified live.
 if (institution.status === "merged" && institution.merged_into_slug) {
   permanentRedirect(`/colleges/${institution.merged_into_slug}`);
 }
@@ -542,7 +545,7 @@ curl -s "$API/education/institutions?trust=listed&limit=1"  | python -m json.too
 - a verified active college — badge, fees, seats, JSON-LD present, indexable
 - a listed college — notice, programmes without numbers, no JSON-LD, `noindex`
 - a closed college — banner, 200, no admission data, `noindex`
-- a merged college — 301 to its successor
+- a merged college — permanent redirect to its successor (a 308 as built — `permanentRedirect()` preserves the method; amended A-U4b C5, 2026-08-20)
 
 ```
 git commit -m "feat(agri): the college detail page and its trust rendering

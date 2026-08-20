@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     media_public_base_url: str = "http://localhost:9000/agri-media"
 
     rate_limit_requests: int = 60
+    # Budget for the per-process window used only while Redis is unreachable.
+    # It has to be tighter than the shared one: with the shared counter gone,
+    # every worker grants its own allowance, so reusing 60 would multiply the
+    # real limit by the worker count at the worst possible moment. A quarter
+    # keeps roughly the intended ceiling across a handful of workers.
+    #
+    # Applied as min(this, rate_limit_requests), so lowering rate_limit_requests
+    # alone always tightens degraded mode too - a Redis outage must never be
+    # the thing that loosens a limit someone deliberately set.
+    rate_limit_degraded_requests: int = 15
     rate_limit_window_seconds: int = 60
 
     # OTP (D07). The pepper keys the HMAC over stored code hashes: a DB dump

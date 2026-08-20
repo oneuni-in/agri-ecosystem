@@ -96,39 +96,92 @@ def require_role(request: Request, *allowed: str) -> uuid.UUID:
 
 
 class RateLimiter:
-    """Fixed-window rate limiter: Redis-backed, in-memory fallback for dev."""
+    """Fixed-window rate limiter: Redis-backed, with a degraded local window.
+
+    When Redis answers, the count is shared by every worker and the budget is
+    `rate_limit_requests`. When it does not, each process falls back to its own
+    dict, and two things stop being true: the count is no longer shared, and
+    the keys are no longer someone else's problem to expire.
+
+    Both are handled here rather than by refusing service. A 503 on every route
+    the moment Redis blinks trades a bounded abuse window for a total outage,
+    which is the wrong way round for a public catalogue - the sensitive
+    surfaces that genuinely should fail closed (OTP issuance, contact reveal)
+    already do so in their own throttles.
+    """
+
+    # A per-process window handing out the full shared budget would multiply
+    # the real limit by the worker count exactly when the shared counter is
+    # gone, so degraded mode gets its own, smaller number.
+    #
+    # The dict is also bounded. Keys are `{ip}:{path}`, i.e. caller-chosen, so
+    # an unbounded map during a long outage is a memory exhaustion primitive
+    # that costs the attacker nothing but 404s.
+    MEMORY_MAX_KEYS = 10_000
+    _SWEEP_EVERY = 32
 
     def __init__(self) -> None:
         self._memory: dict[str, tuple[int, float]] = {}
         self._warned = False
+        self._since_sweep = 0
 
     def reset(self) -> None:
         self._memory.clear()
         self._warned = False
+        self._since_sweep = 0
+
+    def tracked_keys(self) -> tuple[str, ...]:
+        """Keys currently held by the degraded window (tests/introspection)."""
+        return tuple(self._memory)
 
     async def hit(self, key: str) -> bool:
         settings = get_settings()
-        limit = settings.rate_limit_requests
         window = settings.rate_limit_window_seconds
         try:
             count = await get_redis().incr(key)
             if int(count) == 1:
                 await get_redis().expire(key, window)
-            return int(count) <= limit
+            return int(count) <= settings.rate_limit_requests
         except (RedisError, OSError):
+            # never MORE permissive than the configured shared budget: an
+            # operator who tightens rate_limit_requests below the degraded
+            # default would otherwise be loosened by a Redis outage
+            degraded = min(settings.rate_limit_degraded_requests, settings.rate_limit_requests)
             if not self._warned:
-                logger.warning("redis unreachable; falling back to in-memory rate limiting")
+                logger.warning(
+                    "redis unreachable; rate limiting degraded to a per-process window "
+                    "of %s per %ss",
+                    degraded,
+                    window,
+                )
                 self._warned = True
-        return self._hit_memory(key, limit, window)
+            return self._hit_memory(key, degraded, window)
 
     def _hit_memory(self, key: str, limit: int, window: int) -> bool:
         now = time.monotonic()
+        self._since_sweep += 1
+        if self._since_sweep >= self._SWEEP_EVERY or len(self._memory) >= self.MEMORY_MAX_KEYS:
+            self._sweep(now, window)
         count, started = self._memory.get(key, (0, now))
         if now - started >= window:
             count, started = 0, now
         count += 1
         self._memory[key] = (count, started)
         return count <= limit
+
+    def _sweep(self, now: float, window: int) -> None:
+        """Drop finished windows; if everything is still live, drop the oldest.
+
+        Amortised over _SWEEP_EVERY calls, and only ever runs while Redis is
+        down - the healthy path never touches this dict.
+        """
+        self._since_sweep = 0
+        self._memory = {k: v for k, v in self._memory.items() if now - v[1] < window}
+        if len(self._memory) >= self.MEMORY_MAX_KEYS:
+            # all windows still open: keep the newest half, since the oldest
+            # are the closest to expiring anyway
+            newest = sorted(self._memory.items(), key=lambda kv: kv[1][1], reverse=True)
+            self._memory = dict(newest[: self.MEMORY_MAX_KEYS // 2])
 
 
 rate_limiter = RateLimiter()
@@ -232,11 +285,16 @@ class SecureRouter(APIRouter):
                 "or a return type annotation"
             )
         dependencies = list(kwargs.pop("dependencies", None) or [])
-        dependencies.insert(0, Depends(rate_limit))
         if public:
             self.public_paths.append(f"{self.prefix}{path}")
         else:
             dependencies.insert(0, Depends(require_auth))
+        # rate_limit goes in LAST so it ends up FIRST. FastAPI stops at the
+        # first failing dependency, so with require_auth ahead of it an
+        # unauthenticated request to a private route was never counted - while
+        # still paying for a session lookup or an RS256 verification on every
+        # attempt. Credential probing has to spend budget like anything else.
+        dependencies.insert(0, Depends(rate_limit))
         kwargs["dependencies"] = dependencies
         super().add_api_route(path, endpoint, **kwargs)
 

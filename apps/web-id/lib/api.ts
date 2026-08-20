@@ -7,6 +7,14 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly detail: string,
+    /** Seconds until the caller may retry, from the response's `Retry-After`
+     * header; null when the server did not send one. The OTP throttles have
+     * always sent it (`OtpRateLimited.retry_after` -> `router.py`), but this
+     * client used to build errors from the JSON body alone and drop every
+     * header — so a rate-limited screen could not name the wait, and told
+     * people to "request a new code" instead, which is the exact action the
+     * throttle had just refused. */
+    public readonly retryAfter: number | null = null,
   ) {
     super(`${status}: ${detail}`);
   }
@@ -16,10 +24,21 @@ interface JsonBody {
   [key: string]: unknown;
 }
 
+function retryAfterSeconds(response: Response): number | null {
+  const raw = response.headers.get("retry-after");
+  if (raw === null) return null;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
 async function parse(response: Response): Promise<JsonBody> {
   const body = (await response.json().catch(() => ({}))) as JsonBody;
   if (!response.ok) {
-    throw new ApiError(response.status, String(body.detail ?? body.error ?? "request_failed"));
+    throw new ApiError(
+      response.status,
+      String(body.detail ?? body.error ?? "request_failed"),
+      retryAfterSeconds(response),
+    );
   }
   return body;
 }

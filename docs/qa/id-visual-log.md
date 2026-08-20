@@ -266,3 +266,32 @@ an explanation, not an error, exactly as the code comment intends.
 | **P6-Q1** | **The gated screen names the wrong site.** The live copy reads "We're finishing SMS verification with our provider. **The rest of Milk.in works without an account.**" — on `id.agri.in`, the shared login for all three sites. A farmer who bounced here from agri.in or theorganic.in is told to go use a dairy site. The string is a D30 leftover from when the gate was written for milk.in alone. | **Real bug on a launch-gate screen**, and the cheapest fix in this pass — one string, three catalogs. It needs to name the family or the site the visitor came from, not one sibling. |
 | P6-Q2 | **No notify-me capture.** The reference offers a phone field and "Notify me — one SMS when sign-ups open. Nothing else, ever." Live explains and stops, so a farmer turned away at the door leaves no way to be told when it opens. The machinery exists (D23 pincode-interest / notify). | A feature ADD on a page the prompt scopes as verify-only, so flagged rather than built. Worth it only if sign-ups are actually gated at launch. |
 | P6-Q3 | The reference gives the card a 🌱 and centres it; live is a plain left-aligned card. | Cosmetic. Recorded for completeness. |
+
+---
+
+## CP1 follow-ups (owner-approved)
+
+Four changes taken after the CP1 walkthrough. Proofs for `p2-otp-locked`,
+`p4-language` and `p6-gated` were re-captured against the new copy.
+
+| # | Change | Detail |
+|---|---|---|
+| CP1-1 | **The 429 now names a real wait** (closes P2-Q1 + P2-Q2). `ApiError` carries `retryAfter`, read from the `Retry-After` header the throttles have always sent and this client used to discard. The copy no longer says "request a new code" — the action the throttle had just refused. | Verified live against both throttles: the daily phone cap renders "Wait about **24 hours**", the resend cooldown renders "Wait about **1 minute**". |
+| CP1-2 | **The gated screen names the family, not one sibling** (closes P6-Q1). Was: "The rest of **Milk.in** works without an account", on id.agri.in. Now names agri.in, milk.in and theorganic.in and what stays free on them. | Re-captured with the flag genuinely flipped, then flipped back and re-verified with a live 200. |
+| CP1-3 | **The language step has its subtitle** (closes P4-Q1): what the choice governs, and that it is reversible — which is the half that matters on a step committing on tap. | Rendered in the re-captured proof. |
+| CP1-4 | **Returning users skip the done screen** (closes P5-Q2). `verifyAndLogin`'s existing-user branch calls `performRedirect()` directly, exactly as the flow behaved before this pass. | Verified live: an existing account landed straight on `/devices`, done screen never mounted. |
+
+Two bugs in my *own* first cut of CP1-1, both caught by re-capturing rather
+than by reading the diff:
+
+- **"Wait about 1440 minutes."** The per-phone cap is a full 24 h, and minutes
+  is the wrong unit for it. Anything an hour or over is now said in hours.
+- **"Wait about 1 minutes."** No plural handling. Both strings are now ICU
+  plurals in all three catalogs.
+
+The `isNewUser` guard on the coins line is deliberately kept even though
+returning users can no longer reach that screen. It costs nothing and the
+thing it prevents — announcing a signup bonus the ledger will never pay — is
+worth a dead branch.
+
+P5-Q1 (the bell strip on the done screen) stands as built, per your call.

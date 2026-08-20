@@ -44,6 +44,29 @@ const SITES = [
   { host: "theorganic.in", icon: "\ud83c\udf3f", tagKey: "done.organicTag" },
 ] as const;
 
+/** The rate-limit message, naming the real wait when the server sent one.
+ *
+ * The throttles always send Retry-After; before ID-U1 the client dropped it
+ * and the copy said "request a new code" - the one action the throttle had
+ * just refused.
+ *
+ * The unit matters as much as the number. These windows are not all small:
+ * the resend cooldown is 30 s but the per-phone daily cap is a full 24 h, and
+ * "wait about 1440 minutes" is not something a person can act on. Anything an
+ * hour or longer is said in hours. Rounded UP throughout - telling someone to
+ * wait 13 when the window is 13.4 just sends them back for a second refusal.
+ */
+function lockedMessage(
+  err: ApiError,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  if (err.retryAfter === null) return t("otp.locked");
+  if (err.retryAfter >= 3600) {
+    return t("otp.lockedForHours", { hours: Math.ceil(err.retryAfter / 3600) });
+  }
+  return t("otp.lockedFor", { minutes: Math.max(1, Math.ceil(err.retryAfter / 60)) });
+}
+
 function safeNext(raw: string | undefined): string | null {
   // resume only ever returns to our own /authorize - anything else is dropped
   return raw && raw.startsWith("/authorize?") ? raw : null;
@@ -142,7 +165,9 @@ export function LoginFlow({
         return;
       }
       setError(
-        err instanceof ApiError && err.status === 429 ? t("otp.locked") : t("phone.invalid"),
+        err instanceof ApiError && err.status === 429
+          ? lockedMessage(err, t)
+          : t("phone.invalid"),
       );
     } finally {
       setBusy(false);
@@ -171,12 +196,15 @@ export function LoginFlow({
         setSuggestions(suggested.suggestions as string[]);
         finish("handle");
       } else {
-        finish("done");
+        // The done screen announces a SIGNUP. A returning login has no
+        // reward to name, so it goes where it was always going rather
+        // than paying an interstitial on every sign-in.
+        performRedirect();
       }
     } catch (err) {
       setCode("");
       const locked = err instanceof ApiError && err.status === 429;
-      setError(locked ? t("otp.locked") : t("otp.wrong"));
+      setError(locked ? lockedMessage(err as ApiError, t) : t("otp.wrong"));
     } finally {
       verifying.current = false;
       setBusy(false);
@@ -592,6 +620,10 @@ export function LoginFlow({
         {step === "language" && (
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("language.title")}</h1>
+            {/* This step commits on tap - no selected state, no confirm -
+                so the only thing that can tell a farmer who mistapped that
+                the decision is reversible is this sentence. */}
+            <p className="text-sm text-sub">{t("language.subtitle")}</p>
             <div className="grid grid-cols-3 gap-2">
               <CategoryTile
                 icon="🌐"

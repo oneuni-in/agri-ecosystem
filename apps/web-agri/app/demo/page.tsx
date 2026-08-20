@@ -645,6 +645,13 @@ export default async function DemoPage({
             </span>
           </Marquee>
 
+          <Label>Marquee, gold tone — §13b &quot;Live on agri.in&quot; activity strip</Label>
+          <Marquee label="Recent activity on agri.in" tone="gold">
+            <span>A dairy farm in Coimbatore joined</span>
+            <span>A tractor listing was added in Erode</span>
+            <span>A seed supplier in Salem was verified</span>
+          </Marquee>
+
           <Label>Stat band — §8b; server-rendered finals, no count-up animation</Label>
           <StatBand label="Marketplace at a glance">
             <StatCell first value="126" label="Verified vendors" />

@@ -19,6 +19,21 @@ import { cn } from "../lib/cn";
 /* ── §5b · marquee ─────────────────────────────────────────────────────── */
 
 /**
+ * Shell + ink per tone. The ink lives on the inner track, which callers cannot
+ * reach through `className`, so a tone has to be a prop rather than a class
+ * the app tacks on — otherwise the background changes and the text does not.
+ *
+ * `gold` reuses the golden family already carrying paid and coins surfaces
+ * rather than introducing a colour: `tint-gold` behind `accent-ink`, bordered
+ * with `certgold-line`. That ink-on-tint pairing measures about 11:1, so it
+ * clears AA with room to spare at this 12px size.
+ */
+const MARQUEE_TONES = {
+  brand: { shell: "border-brand-soft-2 bg-brand-soft", ink: "text-brand-deep" },
+  gold: { shell: "border-certgold-line bg-tint-gold", ink: "text-accent-ink" },
+} as const;
+
+/**
  * A seamless horizontal marquee. Renders its children TWICE and translates the
  * track by -50%, so the second copy arrives exactly as the first leaves; the
  * duplicate is `aria-hidden` so assistive tech reads the content once.
@@ -31,23 +46,33 @@ export function Marquee({
   children,
   label,
   className,
+  tone = "brand",
   ...rest
 }: {
   children: ReactNode;
   /** Accessible name for the strip, e.g. "Today's milk prices in 641001". */
   label: string;
   className?: string;
+  /** Colour family. `brand` is the default; `gold` marks the live strip. */
+  tone?: keyof typeof MARQUEE_TONES;
 } & Omit<React.HTMLAttributes<HTMLDivElement>, "children" | "className">) {
+  const palette = MARQUEE_TONES[tone];
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-pill border border-brand-soft-2 bg-brand-soft",
+        "relative overflow-hidden rounded-pill border",
+        palette.shell,
         className,
       )}
       aria-label={label}
       {...rest}
     >
-      <div className="flex w-max animate-ticker gap-[34px] whitespace-nowrap py-2 text-[12px] text-brand-deep hover:[animation-play-state:paused] motion-reduce:[animation:none]">
+      <div
+        className={cn(
+          "flex w-max animate-ticker gap-[34px] whitespace-nowrap py-2 text-[12px] hover:[animation-play-state:paused] motion-reduce:[animation:none]",
+          palette.ink,
+        )}
+      >
         {children}
         <span aria-hidden="true" className="contents">
           {children}

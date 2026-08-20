@@ -1063,6 +1063,7 @@ export async function LiveFeedStrip() {
     <Marquee
       data-testid="live-feed"
       label={t("agriHome.liveFeed.label")}
+      tone="gold"
       className="mt-5"
     >
       {phrases.map((phrase, i) => (

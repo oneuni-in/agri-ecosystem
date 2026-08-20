@@ -211,7 +211,12 @@
         "context": "4 एकड़ किसान, अन्नूर · उदाहरण मात्र"
       },
       "reviews": {
-        "title": "किसान क्या कहते हैं"
+        "title": "किसान क्या कहते हैं",
+        "emptyNote": "आपके क्षेत्र में अभी कोई स्वीकृत समीक्षा नहीं। हर समीक्षा प्रकाशित होने से पहले हमारी टीम जाँचती है — केवल स्वीकृत समीक्षाएँ। डायरेक्टरी में कोई व्यवसाय चुनकर पहली समीक्षा लिखें।",
+        "coinsNudge": "🪙 समीक्षा लिखें, {amount} AgriCoins पाएँ",
+        "coinsNudgeNoAmount": "🪙 समीक्षा लिखें, AgriCoins पाएँ",
+        "cta": "समीक्षा लिखें · {amount} 🪙 पाएँ",
+        "ctaNoAmount": "समीक्षा लिखें"
       },
       "earn": {
         "eyebrow": "एक वॉलेट · हर मंच",
@@ -318,8 +323,11 @@
         "eyebrow": "मंडी डेटा · {source}",
         "title": "मंडी भाव",
         "stamp": "{source} · अपडेट {asOf}",
+        "cadence": "दैनिक स्नैपशॉट — दिन में एक बार, लगभग {hour} IST पर अपडेट",
+        "nextUpdate": "अगला अपडेट {day, select, today {आज} other {कल}} {hour} IST के बाद",
         "tickerLabel": "आज के मंडी भाव — {market}",
         "tickerCount": "{count} जिंस",
+        "tickerCadence": "दिन में एक बार · ~{hour} IST",
         "range": "30-दिन: ₹{low}–{high}",
         "modal": "मोडल ₹{modal}",
         "arrivals": "आवक {qtl} क्विंटल",

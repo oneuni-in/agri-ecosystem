@@ -18,6 +18,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from settings import get_settings
+
 
 class TranslatedText(BaseModel):
     en: str
@@ -92,6 +94,14 @@ class MandiBlock(BaseModel):
     market: str
     as_of: str  # "6:00 AM" display stamp; NEVER hardcoded in the UI
     source: str  # "Agmarknet"
+    # A-U4b O1: prices come from ONE Agmarknet pull a day (the scheduler
+    # fires at settings.mandi_pull_hour_ist), and the UI renders "updated
+    # daily around H pm IST" from THIS field, never a frontend literal —
+    # the page's 60 s cache does not make a daily snapshot real-time.
+    # default_factory rather than a service-side literal so the router's
+    # empty "no data for this area yet" block carries the cadence too:
+    # the pull schedule is a property of the pipeline, not of the data.
+    next_pull_hour_ist: int = Field(default_factory=lambda: get_settings().mandi_pull_hour_ist)
     commodities: list[MandiCommodity]
 
 
@@ -202,6 +212,9 @@ class CommodityDetail(BaseModel):
     unit: str
     source: str
     as_of: str
+    # Same O1 rule as MandiBlock: the commodity pages stamp "updated once
+    # a day around H pm IST" from data, never a frontend literal.
+    next_pull_hour_ist: int = Field(default_factory=lambda: get_settings().mandi_pull_hour_ist)
     note: TranslatedText | None = None  # MSP overlay, when verified
     markets: list[MarketPrice]
 

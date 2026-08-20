@@ -211,7 +211,12 @@
         "context": "4-acre farmer, Annur · illustrative example"
       },
       "reviews": {
-        "title": "What farmers say"
+        "title": "What farmers say",
+        "emptyNote": "No approved reviews in your area yet. Every review is checked by our team before it appears — approved reviews only. Pick a business in the directory to write the first one.",
+        "coinsNudge": "🪙 Write a review, earn {amount} AgriCoins",
+        "coinsNudgeNoAmount": "🪙 Write a review, earn AgriCoins",
+        "cta": "Write a review · earn {amount} 🪙",
+        "ctaNoAmount": "Write a review"
       },
       "earn": {
         "eyebrow": "One wallet · every platform",
@@ -318,8 +323,11 @@
         "eyebrow": "Market data · {source}",
         "title": "Mandi prices · சந்தை விலை",
         "stamp": "{source} · updated {asOf}",
+        "cadence": "Daily snapshot — updated once a day, around {hour} IST",
+        "nextUpdate": "next update after {hour} IST {day, select, today {today} other {tomorrow}}",
         "tickerLabel": "Today's mandi prices — {market}",
         "tickerCount": "{count} commodities",
+        "tickerCadence": "once-daily · ~{hour} IST",
         "range": "30-day: ₹{low}–{high}",
         "modal": "modal ₹{modal}",
         "arrivals": "arrivals {qtl} qtl",

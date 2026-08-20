@@ -1,10 +1,10 @@
 import { Eyebrow, MandiCard, Wrap } from "@agri/ui";
 import { buildMetadata, canonicalUrl, datasetJsonLd, JsonLd, shouldNoIndex } from "@agri/ui/seo";
 import type { Metadata } from "next";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { fetchCommodities, fetchCommodity, pick, type MarketPrice } from "@/lib/mandi";
+import { fetchCommodities, fetchCommodity, istHourLabel, pick, type MarketPrice } from "@/lib/mandi";
 
 /**
  * A-U2 W3 — `/mandi/[commodity]`, the commodity × market page.
@@ -75,7 +75,11 @@ export default async function CommodityPage({
   params: Promise<{ commodity: string }>;
 }) {
   const { commodity } = await params;
-  const [detail, locale] = await Promise.all([fetchCommodity(commodity), getLocale()]);
+  const [detail, locale, t] = await Promise.all([
+    fetchCommodity(commodity),
+    getLocale(),
+    getTranslations("ui"),
+  ]);
   if (!detail) notFound();
 
   const name = pick(locale, detail.name);
@@ -104,10 +108,17 @@ export default async function CommodityPage({
           {name}
         </h1>
         {/* Source + as-of are DATA. The page never claims freshness it
-            does not have. */}
+            does not have — and since O1 (AG-A70) it also says HOW fresh it
+            can ever be: one Agmarknet pull a day, the hour from the
+            payload. No "next update today/tomorrow" here on purpose: this
+            page is ISR-cached for an hour, and a cached "today" would lie
+            across the pull boundary. */}
         <p className="mb-4 text-[12px] text-muted" data-testid="commodity-stamp">
           {detail.source} · {detail.as_of}
           {detail.note ? ` · ${pick(locale, detail.note)}` : ""}
+          <span className="block">
+            {t("agriHome.mandi.cadence", { hour: istHourLabel(detail.next_pull_hour_ist) })}
+          </span>
         </p>
 
         {lead ? (

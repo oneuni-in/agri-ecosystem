@@ -97,7 +97,12 @@ interface TodayShape {
   stub: boolean;
   weather: { source: string };
   severe_alert: unknown | null;
-  mandi: { source: string; as_of: string; commodities: unknown[] };
+  mandi: {
+    source: string;
+    as_of: string;
+    next_pull_hour_ist: number;
+    commodities: unknown[];
+  };
   schemes: {
     items: { verified_against: string; verified_on: string }[];
     deadlines: { chip: string }[];
@@ -276,6 +281,19 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
         .getByText(`${today.mandi.source} · updated ${today.mandi.as_of}`)
         .first(),
     ).toBeVisible();
+    // O1 (AG-A70): the stamp's second line says the data is a once-a-day
+    // snapshot and when it refreshes — the hour FROM the payload
+    // (next_pull_hour_ist), never a literal. The LiveDot is gone from this
+    // stamp: a pulsing dot over a daily dataset implied real-time.
+    const pullHour = today.mandi.next_pull_hour_ist;
+    const hourLabel = `${pullHour % 12 === 0 ? 12 : pullHour % 12} ${pullHour < 12 ? "AM" : "PM"}`;
+    const stamp = page.getByTestId("mandi-stamp");
+    await expect(stamp).toContainText(`updated once a day, around ${hourLabel} IST`);
+    await expect(stamp).toContainText(`next update after ${hourLabel} IST`);
+    // §6b ticker carries the compact cadence phrase alongside the source.
+    await expect(page.getByTestId("mandi-ticker")).toContainText(
+      `once-daily · ~${hourLabel} IST`,
+    );
     // §8 meta stamp: WeatherBlock.source verbatim — "Open-Meteo", or the
     // stale "Open-Meteo · as of …" form during an upstream outage.
     expect(today.weather.source).toContain("Open-Meteo");

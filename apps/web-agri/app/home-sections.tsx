@@ -2,8 +2,10 @@ import type { MandiCommodity, TodayPayload, TranslatedText } from "@agri/types";
 import {
   AdCarousel,
   Badge,
+  buttonVariants,
   CategoryGroup,
   CategoryTile,
+  cn,
   CropChip,
   DeadlineItem,
   DeadlinesBar,
@@ -11,7 +13,6 @@ import {
   EarnCard,
   Eyebrow,
   KnowledgeCard,
-  LiveDot,
   MandiCard,
   Marquee,
   NewsList,
@@ -32,6 +33,7 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { EARN_CARDS, fetchEarnRules } from "@/lib/coins";
+import { istHourLabel, nextPullDay } from "@/lib/mandi";
 import { formatDuration, pick as pickContent, type ContentKind } from "@/lib/content";
 import { helplineStamp } from "@/lib/helplines";
 import { HOME_HERO_SLOT } from "@/lib/ads";
@@ -369,6 +371,11 @@ export async function MandiBlock({ pincode }: { pincode: string }) {
   ]);
   if (!today) return null;
 
+  // O1 (AG-A70): the once-a-day pull cadence, FROM the payload. Both the
+  // ticker and the §7 stamp render it — the 60 s page cache does not make
+  // a daily Agmarknet snapshot real-time, and the page must not imply it.
+  const pullHour = istHourLabel(today.mandi.next_pull_hour_ist);
+
   return (
     <>
       {/* §6b — mandi ticker: every lane item renders from the payload. */}
@@ -394,7 +401,7 @@ export async function MandiBlock({ pincode }: { pincode: string }) {
             {today.mandi.source} ·{" "}
             {t("agriHome.mandi.tickerCount", { count: today.mandi.commodities.length })}
           </b>{" "}
-          ·
+          · {t("agriHome.mandi.tickerCadence", { hour: pullHour })} ·
         </span>
       </Marquee>
 
@@ -406,20 +413,31 @@ export async function MandiBlock({ pincode }: { pincode: string }) {
         <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2.5">
           <h2 className="font-display text-xl font-extrabold">{t("agriHome.mandi.title")}</h2>
           {/* A-U2 §2, honest degradation: with no ingested rows there is no
-              as-of to stamp, so the strip says so. */}
-          <span className="text-[10.5px] text-muted">
-            {today.mandi.commodities.length > 0 ? (
-              <>
-                <LiveDot />
+              as-of to stamp, so the strip says so.
+              O1 (AG-A70): the stamp is readable, not a 10.5px whisper, and
+              carries the daily cadence + next-update line. The LiveDot that
+              used to pulse here is GONE — a live-dot over a once-daily
+              dataset implies real-time, which is exactly what O1 forbids
+              (weather keeps its fresher treatment elsewhere). */}
+          {today.mandi.commodities.length > 0 ? (
+            <div className="text-right" data-testid="mandi-stamp">
+              <span className="block text-[12.5px] font-semibold text-ink">
                 {t("agriHome.mandi.stamp", {
                   source: today.mandi.source,
                   asOf: today.mandi.as_of,
                 })}
-              </>
-            ) : (
-              t("agriHome.mandi.empty")
-            )}
-          </span>
+              </span>
+              <span className="block text-[11.5px] text-muted">
+                {t("agriHome.mandi.cadence", { hour: pullHour })} ·{" "}
+                {t("agriHome.mandi.nextUpdate", {
+                  hour: pullHour,
+                  day: nextPullDay(today.mandi.next_pull_hour_ist),
+                })}
+              </span>
+            </div>
+          ) : (
+            <span className="text-[10.5px] text-muted">{t("agriHome.mandi.empty")}</span>
+          )}
         </div>
         <div className="grid gap-2.5 max-md:grid-cols-2 md:grid-cols-4">
           {today.mandi.commodities.slice(0, 8).map((c) => {
@@ -913,15 +931,58 @@ export async function StatsBandSection({ pincode }: { pincode: string }) {
 
 /* ── §15 · reviews strip ──────────────────────────────────────────────────── */
 
-/** Approved-only D18 rows composed from the businesses on this page; zero
- * reviews → section ABSENT. */
+/** Approved-only D18 rows composed from the businesses on this page.
+ *
+ * Zero reviews → EMPTY-BUT-HONEST (owner direction 2026-08-20, AG-A68), no
+ * longer ABSENT: the heading stays, with the moderation note, a coins
+ * nudge and a real door into writing one (reviews attach to directory
+ * businesses — D18 — so the door is /directory, where the visitor picks
+ * the business to review). The reference mockup's three sample quotes are
+ * illustrative copy and are NEVER rendered; the coin amount comes from the
+ * same rules engine as §15b, and a missing/inactive `review_approved` rule
+ * renders the nudge and CTA WITHOUT an amount (the standing A-U1 rule —
+ * never a literal 5). */
 export async function ReviewsStrip({ pincode }: { pincode: string }) {
   const [{ reviews }, locale, t] = await Promise.all([
     reviewSignalsFor(pincode),
     getLocale(),
     getTranslations("ui"),
   ]);
-  if (reviews.length === 0) return null;
+
+  if (reviews.length === 0) {
+    const rules = await fetchEarnRules();
+    const amount = rules["review_approved"]?.amount;
+    return (
+      <Section title={t("agriHome.reviews.title")}>
+        <div
+          data-testid="reviews-empty"
+          className="rounded-card border border-cream-line bg-card p-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <p className="m-0 max-w-[58ch] text-[12.5px] leading-[1.55] text-sub">
+              {t("agriHome.reviews.emptyNote")}
+            </p>
+            <span className="rounded-pill bg-coins-bg px-3 py-1.5 text-[11px] font-bold text-coins-fg">
+              {amount !== undefined
+                ? t("agriHome.reviews.coinsNudge", { amount })
+                : t("agriHome.reviews.coinsNudgeNoAmount")}
+            </span>
+          </div>
+          <a
+            href="/directory"
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "mt-3 inline-flex flex-none px-4 text-[12.5px] no-underline",
+            )}
+          >
+            {amount !== undefined
+              ? t("agriHome.reviews.cta", { amount })
+              : t("agriHome.reviews.ctaNoAmount")}
+          </a>
+        </div>
+      </Section>
+    );
+  }
 
   return (
     <Section title={t("agriHome.reviews.title")}>

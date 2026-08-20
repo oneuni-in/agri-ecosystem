@@ -313,6 +313,12 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         market=market_name,
         as_of=latest_date.isoformat() if latest_date else "",
         source="Agmarknet",
+        # O1: the UI renders "updated daily around H pm IST" from this
+        # field — the once-a-day cadence travels IN the payload, never as
+        # a frontend literal (the schema's default reads the same setting;
+        # passing it here keeps the source of the number visible where the
+        # block is built).
+        next_pull_hour_ist=get_settings().mandi_pull_hour_ist,
         commodities=commodities,
     )
 
@@ -587,6 +593,8 @@ async def get_commodity(session: AsyncSession, slug: str) -> CommodityDetail | N
         unit=commodity.display_unit,
         source="Agmarknet",
         as_of=newest_day.isoformat(),
+        # Same O1 rule as get_mandi: the daily cadence is data, not copy.
+        next_pull_hour_ist=get_settings().mandi_pull_hour_ist,
         note=notes.get(commodity.id),
         markets=markets,
     )

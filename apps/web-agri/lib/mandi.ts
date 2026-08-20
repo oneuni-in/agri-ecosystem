@@ -50,6 +50,9 @@ export interface CommodityDetail {
   unit: string;
   source: string;
   as_of: string;
+  /** IST hour of the once-a-day Agmarknet pull — the cadence stamp's
+   * data source (O1: never a frontend literal). */
+  next_pull_hour_ist: number;
   /** MSP overlay — present only where a verified row exists. */
   note: Record<string, string> | null;
   markets: MarketPrice[];
@@ -83,4 +86,34 @@ export async function fetchCommodity(slug: string): Promise<CommodityDetail | nu
 export function pick(locale: string, text: Record<string, string> | null | undefined): string {
   if (!text) return "";
   return text[locale] ?? text["en"] ?? "";
+}
+
+/* ── O1 (AG-A70): the daily-cadence stamp's formatters ────────────────
+ * Prices are ONE Agmarknet pull a day; every price surface says so from
+ * `next_pull_hour_ist` in the payload, and these two helpers are the only
+ * place that hour becomes display text — never a literal in a component. */
+
+/** 19 → "7 PM", 8 → "8 AM" (the as-of stamps' 12-hour convention). */
+export function istHourLabel(hour: number): string {
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+/**
+ * Whether the next pull lands today or tomorrow, by the clock in IST.
+ *
+ * Server-side only, and only on request-rendered surfaces (the home). An
+ * ISR page must NOT use this — a page cached at 18:59 saying "today"
+ * would still say it at 21:00 — which is why the commodity pages render
+ * the cadence without the day word.
+ */
+export function nextPullDay(pullHour: number, now: Date = new Date()): "today" | "tomorrow" {
+  const istHour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      hourCycle: "h23", // "00".."23" — never the h24 cycle's "24"
+    }).format(now),
+  );
+  return istHour < pullHour ? "today" : "tomorrow";
 }

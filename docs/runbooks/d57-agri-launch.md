@@ -167,7 +167,7 @@ wrong.
 | 6 | Airplane mode, go to `/directory` | offline shell, links to what IS cached |
 | 7 | Log in, `/coins` | a balance and a referral code render |
 | 8 | `/ask` | honest "not switched on yet" — **NOT** a chat box |
-| 9 | Any scheme card | opens the official `.gov.in` portal |
+| 9 | Any scheme card | opens the detail dialog (what/eligibility/documents + verified stamp); its "Open {domain} ↗" button opens the official `.gov.in` portal; Escape returns focus to the card (A-U4b O2) |
 | 10 | View source on `/` | JSON-LD present, canonical is `agri.in` |
 
 **If #8 shows a chat box, stop the launch.** It means `agri_ai` is on, and

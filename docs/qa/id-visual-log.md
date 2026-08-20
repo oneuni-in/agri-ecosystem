@@ -169,3 +169,19 @@ wrong for anyone who picked at signup; see P7.)
 | P3-Q1 | **`checkHandle` fires one request per keystroke.** There is no debounce, so typing a 12-character handle issues ~9 authenticated checks. Harmless at dev volume, wasteful at launch, and it is what makes the "checking" flicker visible at all. | Debouncing means restructuring the shipped check, which the prompt scopes out of this pass. Small, self-contained fast-follow. |
 | P3-Q2 | **Handle subtitle is thinner than the reference's.** A7 explains that the handle is what appears on reviews and questions, shows the referral link shape `agri.in/r/<handle>`, and says the phone number stays private. Live says only "Your public name across the family of apps". | Shipped copy, unmarked. The reference's version is better and I'd take it, but replacing shipped strings is your call. |
 | P3-Q3 | **`already_changed` renders the invalid-format copy.** `saveHandle` maps any non-matching detail to `invalidFormat`, so a 409 `already_changed` would tell the user their handle has bad characters. Unreachable at signup (the first pick is always allowed) — but reachable from `/account`'s Change button. | Belongs to P7, where the Change path is actually built; noted so it is not discovered twice. |
+
+---
+
+## P4 · `/login` — language step (verify-only)
+
+Proofs: `p4-language` (× live/ref × 1280/390). Reached by a real signup and
+then skipping the handle pick. Self-check: 780 px at 2× DPR (no overflow),
+console clean, rail correctly shows all four steps complete.
+
+Zero app changes, as scoped. Three findings:
+
+| # | Finding | Note |
+|---|---|---|
+| **P4-Q1** | **The subtitle is missing.** The reference says "Everything — pages, alerts, the morning mandi summary — arrives in this language. **Change it any time.**" Live shows the heading and the tiles alone. Both halves of that sentence do work: the first says what the choice actually controls (not just this screen), and the second removes the fear of getting it wrong — which is exactly the fear a one-tap-commits screen creates. | The single most worthwhile addition on this step. |
+| **P4-Q2** | **No selected state, and no confirm.** Live commits the moment a tile is tapped, so no tile ever renders as chosen and there is no Finish button; the reference shows a highlighted tile plus a separate "Finish →". One tap is fewer taps, and I would keep that — but combined with P4-Q1's absence, a farmer who taps Hindi by accident gets no signal about what just happened or that it is reversible. | Keep one-tap; the reassurance belongs in copy, not an extra button. |
+| P4-Q3 | Tiles render the shared `CategoryTile` (emoji + tint square + name + vernacular); the reference draws letter glyphs (`த` / `A` / `हि`). | Component-level, shipped, and consistent with the rest of the family. Recorded, not a defect. |

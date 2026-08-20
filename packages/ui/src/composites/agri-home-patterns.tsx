@@ -131,6 +131,66 @@ export function sparkPoints(
     .join(" ");
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Like `sparkPoints`, but honest about time: x positions are proportional
+ * to each observation's actual date within [first day, last day], and the
+ * line BREAKS wherever consecutive observations are more than one calendar
+ * day apart (18–19 Aug 2026 is a permanent hole — ADR-0012). Returns one
+ * points-string per contiguous run; `sparkPoints` stays as-is for callers
+ * without dates. Any unusable `days` input (length mismatch, unparsable or
+ * non-increasing dates) falls back to a single sparkPoints segment — this
+ * renders on the public home and must never throw.
+ */
+export function sparkSegments(
+  values: number[],
+  days: string[],
+  width = 110,
+  height = 26,
+  pad = 3,
+): string[] {
+  const fallback = () => {
+    const pts = sparkPoints(values, width, height, pad);
+    return pts === "" ? [] : [pts];
+  };
+  if (values.length < 2) return fallback();
+  if (days.length !== values.length) return fallback();
+  const times = days.map((d) => Date.parse(`${d}T00:00:00Z`));
+  for (let i = 0; i < times.length; i += 1) {
+    const t = times[i];
+    if (t === undefined || Number.isNaN(t)) return fallback();
+    const prev = times[i - 1];
+    if (i > 0 && prev !== undefined && t <= prev) return fallback();
+  }
+  const first = times[0] as number;
+  const last = times[times.length - 1] as number;
+  const timeSpan = last - first;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min;
+  const segments: string[] = [];
+  let current: string[] = [];
+  values.forEach((v, i) => {
+    const t = times[i] as number;
+    const x = Math.round(((t - first) / timeSpan) * width * 10) / 10;
+    const y =
+      span === 0
+        ? height / 2
+        : Math.round(
+            (pad + (1 - (v - min) / span) * (height - 2 * pad)) * 10,
+          ) / 10;
+    const prev = times[i - 1];
+    if (i > 0 && prev !== undefined && t - prev > MS_PER_DAY) {
+      segments.push(current.join(" "));
+      current = [];
+    }
+    current.push(`${x},${y}`);
+  });
+  segments.push(current.join(" "));
+  return segments;
+}
+
 /**
  * `.spark`: 30-day sparkline. Inside a Reveal, the stroke draws itself on
  * entry (`animate-draw`); before that it is held un-drawn. Outside a Reveal
@@ -139,13 +199,18 @@ export function sparkPoints(
  */
 export function Spark({
   values,
+  days,
   tone = "flat",
   className,
 }: {
   values: number[];
+  /** ISO dates, one per value. With them the line breaks over data holes
+   * (sparkSegments); without them, the evenly-spaced single polyline. */
+  days?: string[] | undefined;
   tone?: PriceTone;
   className?: string;
 }) {
+  const segments = days ? sparkSegments(values, days) : [sparkPoints(values)];
   return (
     <svg
       className={cn("mt-[7px] w-full", className)}
@@ -154,19 +219,22 @@ export function Spark({
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      <polyline
-        fill="none"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={sparkPoints(values)}
-        className={cn(
-          sparkStroke[tone],
-          "group-data-[in=false]/reveal:[stroke-dasharray:120] group-data-[in=false]/reveal:[stroke-dashoffset:120]",
-          "group-data-[in=true]/reveal:[stroke-dasharray:120] group-data-[in=true]/reveal:animate-draw",
-          "motion-reduce:!animate-none motion-reduce:![stroke-dasharray:none] motion-reduce:![stroke-dashoffset:0]",
-        )}
-      />
+      {segments.map((points, index) => (
+        <polyline
+          key={index}
+          fill="none"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          className={cn(
+            sparkStroke[tone],
+            "group-data-[in=false]/reveal:[stroke-dasharray:120] group-data-[in=false]/reveal:[stroke-dashoffset:120]",
+            "group-data-[in=true]/reveal:[stroke-dasharray:120] group-data-[in=true]/reveal:animate-draw",
+            "motion-reduce:!animate-none motion-reduce:![stroke-dasharray:none] motion-reduce:![stroke-dashoffset:0]",
+          )}
+        />
+      ))}
     </svg>
   );
 }
@@ -210,6 +278,7 @@ export function MandiCard({
   change,
   tone = "flat",
   spark,
+  sparkDays,
   range,
   share,
   className,
@@ -225,6 +294,8 @@ export function MandiCard({
   tone?: PriceTone;
   /** 30-day series, oldest first. */
   spark?: number[];
+  /** ISO dates paired with `spark`; lets the line break over data holes. */
+  sparkDays?: string[];
   /** "30-day: ₹18–29 · modal ₹24 · arrivals 12,400 qtl" */
   range?: ReactNode;
   /** A ShareChip, when the payload carries a share link. */
@@ -257,7 +328,7 @@ export function MandiCard({
           {change}
         </span>
       </div>
-      {spark ? <Spark values={spark} tone={tone} /> : null}
+      {spark ? <Spark values={spark} days={sparkDays} tone={tone} /> : null}
       {range ? (
         <div className="mt-1 text-[9.5px] text-muted">{range}</div>
       ) : null}

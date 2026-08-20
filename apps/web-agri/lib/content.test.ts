@@ -64,7 +64,7 @@ describe("AG-A65: knowledge cards order by published_at, kind never outranks rec
       article: [card("article", "news", "2026-08-19T00:00:00Z")],
     });
     const { cards } = await fetchKnowledgeSection(3, 6);
-    expect(cards[0].slug).toBe("news");
+    expect(cards[0]?.slug).toBe("news");
   });
 
   it("the rail still skips whatever the cards took, in feed order", async () => {

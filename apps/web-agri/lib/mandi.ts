@@ -35,6 +35,8 @@ export interface MarketPrice {
   change: number;
   /** Oldest first — the sparkline input. One point means no line yet. */
   series_30d: number[];
+  /** ISO arrival dates, one per series_30d point — the window's holes. */
+  series_days: string[];
   range_low: number;
   range_high: number;
   modal: number | null;

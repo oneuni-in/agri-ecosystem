@@ -111,6 +111,8 @@ async def test_flag_on_serves_the_frozen_contract(
     assert [c["slug"] for c in body["mandi"]["commodities"]] == ["paddy"]
     for c in body["mandi"]["commodities"]:
         assert len(c["series_30d"]) >= 2  # sparkline needs a line
+        # Additive gap-marker field: one ISO date per series point.
+        assert len(c["series_days"]) == len(c["series_30d"])
         assert {"en", "ta", "hi"} <= set(c["name"])
         assert c["price"] == 24.0  # 2400/qtl, converted once
 

@@ -277,6 +277,7 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
         # a series with one point renders no line, which is correct on
         # day one of ingestion rather than a fabricated trend.
         series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+        series_days = [day.isoformat() for day in days]
         prices = series
 
         previous = per_day[days[-2]] if len(days) > 1 else None
@@ -296,6 +297,7 @@ async def get_mandi(session: AsyncSession, pincode: str) -> MandiBlock | None:
                 price=per_kg(newest.modal_price_qtl),
                 change=change,
                 series_30d=series,
+                series_days=series_days,
                 range_low=min(prices),
                 range_high=max(prices),
                 modal=per_kg(newest.modal_price_qtl),
@@ -472,6 +474,7 @@ def _daily_points(rows: list[PriceRow]) -> tuple[list[date], dict[date, PriceRow
 def _market_price(market: Market, rows: list[PriceRow]) -> MarketPrice:
     days, per_day = _daily_points(rows)
     series = [per_kg(per_day[day].modal_price_qtl) for day in days]
+    series_days = [day.isoformat() for day in days]
     newest = per_day[days[-1]]
     previous = per_day[days[-2]] if len(days) > 1 else None
     return MarketPrice(
@@ -485,6 +488,7 @@ def _market_price(market: Market, rows: list[PriceRow]) -> MarketPrice:
             else 0.0
         ),
         series_30d=series,
+        series_days=series_days,
         range_low=min(series),
         range_high=max(series),
         modal=per_kg(newest.modal_price_qtl),

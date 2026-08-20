@@ -339,6 +339,14 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
           '[data-testid="mandi-card"] svg polyline',
         ),
       );
+      // A spark is one polyline per CONTIGUOUS run of days now (A-U4b):
+      // a hole in the data splits the line, so a card may hold several.
+      const cards = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-testid="mandi-card"]'),
+      );
+      const cardsMissingSpark = cards.filter(
+        (card) => card.querySelectorAll("svg polyline").length === 0,
+      ).length;
       const offsets = polylines.map(
         (pl) => getComputedStyle(pl).strokeDashoffset,
       );
@@ -360,6 +368,7 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
       );
       return {
         polylineCount: polylines.length,
+        cardsMissingSpark,
         offsets,
         hiddenSparks,
         tileCount: tiles.length,
@@ -367,7 +376,13 @@ test.describe("A-U2 agri_today ON — payload-bound sections render", () => {
         laneAnimation: lane ? getComputedStyle(lane).animationName : "missing",
       };
     });
-    expect(sweep.polylineCount).toBe(expectedCards);
+    // >= not ===: a gap in a card's series renders as multiple polylines
+    // (one per contiguous segment); the dash sweep above covers them ALL.
+    expect(sweep.polylineCount).toBeGreaterThanOrEqual(expectedCards);
+    expect(
+      sweep.cardsMissingSpark,
+      "every mandi card must render at least one sparkline segment",
+    ).toBe(0);
     expect(
       sweep.hiddenSparks,
       `sparklines must render fully drawn under reduced motion (offsets: ${sweep.offsets.join(", ")})`,

@@ -121,6 +121,7 @@ export default async function CommodityPage({
               change={changeText(lead.change, detail.unit)}
               tone={tone(lead.change)}
               spark={[...lead.series_30d]}
+              sparkDays={[...lead.series_days]}
               range={`30-day: ₹${lead.range_low}–${lead.range_high}`}
             />
           </div>

@@ -96,6 +96,9 @@ async def test_detail_keeps_each_market_series_separate(db_session: AsyncSession
     assert set(by_name) == {"Coimbatore market", "Pollachi market"}
     assert by_name["Coimbatore market"].series_30d == [23.0, 24.0]
     assert by_name["Pollachi market"].series_30d == [22.9, 23.6]
+    # Each point carries its arrival date, so a renderer can show holes.
+    assert by_name["Coimbatore market"].series_days == ["2026-08-14", "2026-08-15"]
+    assert by_name["Pollachi market"].series_days == ["2026-08-14", "2026-08-15"]
     assert by_name["Coimbatore market"].change == 1.0
     assert by_name["Pollachi market"].change == 0.7
     # Each row carries its OWN as-of: markets report on different days and
@@ -120,6 +123,7 @@ async def test_detail_window_is_thirty_days(db_session: AsyncSession) -> None:
     detail = await get_commodity(db_session, "paddy")
     assert detail is not None
     assert detail.markets[0].series_30d == [24.0]  # the June point is out
+    assert detail.markets[0].series_days == ["2026-08-15"]  # and its date with it
 
 
 async def test_a_commodity_with_no_prices_has_no_page(db_session: AsyncSession) -> None:

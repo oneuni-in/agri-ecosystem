@@ -100,6 +100,8 @@ export interface MandiCommodity {
   readonly change: number;
   /** Oldest first — the sparkline input. */
   readonly series_30d: readonly number[];
+  /** ISO arrival dates, one per series_30d point — makes the window's holes visible. */
+  readonly series_days: readonly string[];
   readonly range_low: number;
   readonly range_high: number;
   readonly modal: number | null;

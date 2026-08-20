@@ -443,6 +443,7 @@ export async function MandiBlock({ pincode }: { pincode: string }) {
                 change={change.text}
                 tone={change.tone}
                 spark={[...c.series_30d]}
+                sparkDays={[...c.series_days]}
                 range={rangeParts.join(" · ")}
                 share={
                   <ShareChip

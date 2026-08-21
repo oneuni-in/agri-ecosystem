@@ -40,6 +40,14 @@ class CoversItem:
     distance_m: int
     lat: Decimal | None
     lng: Decimal | None
+    # A-U6: the branch a Call/WhatsApp tap should reveal, so a list card can
+    # run D18's login-gated, daily-capped, DPDP-logged reveal without first
+    # loading the profile. This is an ID, NOT a number - contact details still
+    # never travel in a list payload; only POST /branches/{id}/reveal returns
+    # them, and only to a signed-in caller with a slot left.
+    # None when the business has no branch carrying a number at all, which is
+    # the honest "this listing has no phone" signal.
+    contact_branch_id: uuid.UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +101,7 @@ WITH q AS (
 )
 SELECT b.id, b.name, b.slug, b.type, b.verification_status,
        b.subscription_tier, b.primary_pincode, d.distance_m, nb.lat, nb.lng,
+       cb.id AS contact_branch_id,
        {_VERIFIED_RANK} AS verified_rank, {_TIER_RANK} AS tier_rank
 FROM directory.businesses b
 JOIN directory.business_coverage c
@@ -118,6 +127,23 @@ LEFT JOIN LATERAL (
     ORDER BY {_BRANCH_DISTANCE}
     LIMIT 1
 ) nb ON TRUE
+LEFT JOIN LATERAL (
+    -- A-U6: the nearest branch that actually HAS a number. Separate from nb
+    -- because nb is geocoded-only (it anchors distance): a business whose
+    -- only branch lacks coordinates still has a phone worth revealing.
+    -- Geocoded branches first, then by distance, then by id so the pick is
+    -- deterministic for a business whose branches are all ungeocoded.
+    SELECT br.id
+    FROM directory.branches br
+    WHERE br.business_id = b.id
+      AND br.deleted_at IS NULL
+      AND (br.phone IS NOT NULL OR br.whatsapp IS NOT NULL)
+    ORDER BY (br.lat IS NULL OR br.lng IS NULL),
+             CASE WHEN br.lat IS NOT NULL AND br.lng IS NOT NULL
+                  THEN {_BRANCH_DISTANCE} END NULLS LAST,
+             br.id
+    LIMIT 1
+) cb ON TRUE
 WHERE b.status = 'active' AND b.deleted_at IS NULL
 """
 
@@ -201,6 +227,7 @@ async def covers(
             distance_m=int(m["distance_m"]),
             lat=m["lat"],
             lng=m["lng"],
+            contact_branch_id=m["contact_branch_id"],
         )
         for m in (row._mapping for row in rows[:limit])
     ]

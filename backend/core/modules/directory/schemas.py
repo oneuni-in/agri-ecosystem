@@ -257,6 +257,15 @@ class CoversItemOut(BaseModel):
     distance_m: int
     lat: Decimal | None
     lng: Decimal | None
+    # A-U6: the branch a card's Call/WhatsApp tap reveals. An ID, never a
+    # number - D18's reveal endpoint is still the only way to a phone, and it
+    # is login-gated, daily-capped and DPDP-logged.
+    contact_branch_id: uuid.UUID | None = None
+    # A-U6: the M3.C organic label, scored by modules/directory/recommended.py
+    # - the SAME fn milk-home uses, so the badge cannot mean two things on two
+    # sites. Paid signals never enter it. Defaults False so a page that does
+    # not ask for the ranking (or a serving error) simply shows no badge.
+    recommended: bool = False
 
 
 class CoversOut(BaseModel):

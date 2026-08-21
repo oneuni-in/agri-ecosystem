@@ -25,6 +25,7 @@ from modules.directory.activity import recent_activity, record_activity
 from modules.directory.leads_models import ContactReveal
 from modules.directory.leads_schemas import ContactRevealOut
 from modules.directory.models import Branch, Business, BusinessCoverage, Category
+from modules.directory.recommended import rank_recommended
 from modules.directory.reveal import (
     RevealCapExceededError,
     RevealUnavailableError,
@@ -654,8 +655,14 @@ async def covers_search(
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
+    # M3.C label, scored over THIS page's rows only. It is a label, never an
+    # ordering: the organic nearest-first sequence below is untouched, which
+    # is the same contract the milk rail keeps.
+    recommended = set(await rank_recommended(session, page.items, now=datetime.now(UTC)))
     return CoversOut(
-        items=[CoversItemOut(**asdict(item)) for item in page.items],
+        items=[
+            CoversItemOut(**asdict(item), recommended=item.id in recommended) for item in page.items
+        ],
         next_cursor=page.next_cursor,
     )
 

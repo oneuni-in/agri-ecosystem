@@ -9,6 +9,8 @@
  * get_owned_business — enforced backend-side, not here. Data flow is D18's.
  */
 
+import Link from "next/link";
+
 import {
   Button,
   ConsoleField,
@@ -221,9 +223,13 @@ export function InboxClient() {
         icon="🏢"
         title={t("noBusiness")}
         action={
-          <a href="/directory" className={cn(buttonVariants({ variant: "brand" }), "no-underline")}>
+          <Link
+            href="/directory"
+            prefetch={false}
+            className={cn(buttonVariants({ variant: "brand" }), "no-underline")}
+          >
             {t("browseDirectory")}
-          </a>
+          </Link>
         }
       />
     );

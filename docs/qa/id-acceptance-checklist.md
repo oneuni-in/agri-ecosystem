@@ -28,6 +28,7 @@ never by assertion. Deltas and their reasoning live in
 | 1 | `identity.users.phone` is stored in a plain `Text` column. A7's consent copy claims "encrypted"; the shipped sentence does not, because it is not true | visual log P1-K1 |
 | 2 | Rows on `/devices` are sessions, not devices — 28 for one real account | P8-Q1 |
 | 3 | `place` on a device row needs the GeoLite2 mmdb, and will only ever be state-level | P8-Q3 / ID-A6 |
-| 4 | The 429 wait, the gated copy and the language subtitle were fixed at CP1; `checkHandle` still fires one request per keystroke | P3-Q1 |
+| 4 | `checkHandle` still fires one request per keystroke (no debounce) | P3-Q1 |
 | 5 | Native TA/HI review of this pass's new strings | ID-A11 |
-| 6 | W5 (farm profile) not started — it needs an explicit go and carries the only remaining migration | build prompt §2 |
+| 6 | The 429 notice uses the `severe-*` (amber) token family because the reference's red `.err` trio has no counterpart in the design system. A real `--danger-*` family would be a design-system change | P2 re-match |
+| 7 | W5 (farm profile) not started — it needs an explicit go and carries the only remaining migration | build prompt §2 |

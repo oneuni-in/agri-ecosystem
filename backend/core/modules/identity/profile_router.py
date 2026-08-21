@@ -9,7 +9,7 @@ type sniffed from magic bytes only, stored via shared.storage.put_object.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,15 +23,18 @@ from modules.identity.avatar import (
     avatar_object_key,
     validate_avatar,
 )
-from modules.identity.models import Profile, User
+from modules.identity.models import FarmProfile, Profile, User
 from modules.identity.profile_service import (
     INTERESTS_MAX,
     ProfileUpdateError,
+    apply_farm_profile,
     apply_location,
+    get_farm_profile,
     get_or_create_profile,
     get_visibility,
     live_missing,
     live_score,
+    normalize_describes,
     normalize_interests,
     normalize_name,
     recompute_score,
@@ -43,6 +46,7 @@ from modules.identity.session_auth import PrincipalDep
 from shared import storage
 from shared.db import get_session
 from shared.events import publish
+from shared.lookups import resolve_owned_businesses
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
 
@@ -53,6 +57,26 @@ profile_router = SecureRouter(prefix="/identity/profile", tags=["profile"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 EVENT_STREAM = "identity"
+
+
+class FarmOut(IdentityPublicSchema):
+    """The farm, as its owner sees it. Every field nullable: this section is
+    answered in any order or not at all, and a 0 would claim "no animals"
+    where the truth is "not said".
+
+    land_area is a STRING on the wire. It is Numeric in the database
+    because scheme thresholds are compared per hectare, and serialising a
+    Decimal through JSON's float would reintroduce exactly the rounding the
+    column type exists to avoid (the D24 Decimal-wire-string precedent).
+    """
+
+    land_area: str | None
+    land_unit: str | None
+    tenure: str | None
+    cattle: int | None
+    goats: int | None
+    poultry: int | None
+    irrigation: str | None
 
 
 class ProfileOut(IdentityPublicSchema):
@@ -71,6 +95,17 @@ class ProfileOut(IdentityPublicSchema):
     # WEIGHTS); deriving this in the client would let them drift apart the
     # moment a weight moves.
     missing: list[str]
+    # ID-U1 W5. `describes` is self-description, never authorisation - it
+    # decides which section of the page you see, and nothing else.
+    describes: list[str]
+    # W5's business half collects NOTHING about a shop - the directory listing
+    # owns that. This is only so the section can say "you already have one"
+    # instead of inviting someone to claim what they already own. Read through
+    # the shared.lookups seam; identity cannot touch directory's tables.
+    owned_businesses: list[str]
+    # None until a farmer answers something. Absent and all-empty are the
+    # same thing to the reader, but the null keeps that explicit.
+    farm: FarmOut | None
     visibility: dict[str, bool]
     # M1.5.D: "Member since {month year}" - the account's created_at is not
     # PII (no phone, no UUID; the schema guard enforces that at import time)
@@ -81,6 +116,20 @@ async def _load_user(session: AsyncSession, principal: PrincipalDep) -> User:
     user = await session.scalar(select(User).where(User.id == principal.user_id))
     assert user is not None  # the resolver proved existence this request
     return user
+
+
+def _farm_out(row: FarmProfile | None) -> FarmOut | None:
+    if row is None:
+        return None
+    return FarmOut(
+        land_area=None if row.land_area is None else format(row.land_area, "f"),
+        land_unit=row.land_unit,
+        tenure=row.tenure,
+        cattle=row.cattle,
+        goats=row.goats,
+        poultry=row.poultry,
+        irrigation=row.irrigation,
+    )
 
 
 async def _profile_out(session: AsyncSession, user: User, profile: Profile | None) -> ProfileOut:
@@ -95,6 +144,9 @@ async def _profile_out(session: AsyncSession, user: User, profile: Profile | Non
         has_avatar=bool(profile is not None and profile.avatar_key),
         completion_score=live_score(user, profile),
         missing=live_missing(user, profile),
+        describes=list(profile.describes) if profile else [],
+        owned_businesses=[b.name for b in await resolve_owned_businesses(session, user.id)],
+        farm=_farm_out(await get_farm_profile(session, user.id)),
         visibility=await get_visibility(session, user.id),
         member_since=user.created_at,
     )
@@ -123,6 +175,13 @@ class ProfilePatchIn(BaseModel):
     # the progressive-only invariant (scores only rise, crossings fire once).
     interests: list[str] | None = Field(default=None, min_length=1, max_length=INTERESTS_MAX)
     visibility: dict[str, bool] | None = None
+    describes: list[str] | None = None
+    # A DICT rather than a model, because farm fields are individually
+    # CLEARABLE and pydantic cannot distinguish an omitted field from an
+    # explicit null on a nested model without extra machinery. The keys
+    # present in this dict are exactly the fields the caller means to set;
+    # the service validates each one.
+    farm: dict[str, Any] | None = None
 
 
 async def _commit_and_announce(session: AsyncSession, *, user: User, crossed: bool) -> None:
@@ -164,6 +223,10 @@ async def patch_profile(
             profile.interests = normalize_interests(body.interests)
         if body.visibility is not None:
             await set_visibility(session, user.id, body.visibility)
+        if body.describes is not None:
+            profile.describes = normalize_describes(body.describes)
+        if body.farm is not None:
+            await apply_farm_profile(session, user.id, body.farm)
     except ProfileUpdateError as exc:
         raise HTTPException(status_code=422, detail=exc.code) from exc
     _, crossed = await recompute_score(session, user=user, profile=profile)

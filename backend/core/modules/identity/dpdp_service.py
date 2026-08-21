@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.identity.dpdp_models import ErasureRequest
-from modules.identity.models import Profile, User
+from modules.identity.models import FarmProfile, Profile, User
 from shared import dpdp
 from shared.telemetry import get_logger
 
@@ -164,6 +164,12 @@ async def erase_user(session: AsyncSession, user_id: uuid.UUID) -> dict[str, int
         profile.interests = []
         profile.avatar_key = None
         profile.completion_score = 0
+        profile.describes = []
+    # W5: the farm row IS personal data and nothing else references it, so
+    # unlike the user row it is deleted outright rather than scrubbed.
+    farm = await session.scalar(select(FarmProfile).where(FarmProfile.user_id == user_id))
+    if farm is not None:
+        await session.delete(farm)
     counts = await dpdp.run_erasers(session, user_id)
     await session.flush()
     logger.info(

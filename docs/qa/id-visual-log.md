@@ -576,3 +576,57 @@ Two deliberate departures, both recorded rather than silently taken:
 Testing note: this page's captures exhausted the dev IP's daily **verify**
 budget (`otp:vday:ip:*`, cap 50) as well as the issue budget, which briefly
 turned a wrong-code capture into a 429. Both counters were reset once more.
+
+---
+
+## W5 · "What describes you?" (farm profile)
+
+Proofs: `w5-describes` (nothing picked), `w5-farmer`, `w5-business`,
+`w5-exploring` — × live/ref × 1280/390. Driven for real: the form was filled
+through the live API and read back, at both sizes. Console clean, no overflow.
+
+### the asymmetry is the design
+
+A **farmer** answers here. There is one farm and all three sites read it —
+cattle feed milk.in, crops feed agri.in's advisories, certification feeds
+theorganic.in — so it belongs on the identity profile rather than being asked
+three times by three verticals.
+
+A **business** answers nowhere near here. Category, timings, photos, GST and
+verification belong to the directory listing, where customers see them and
+where the claim flow already verifies them. This section collects **nothing**
+about a shop; it routes to `${CONSOLE_URL}/business/listings` and, if you
+already own listings, says so rather than inviting you to claim what is
+already yours. That "already yours" line reads through the existing
+`shared.lookups` seam — identity still cannot touch directory's tables.
+
+**Both is a real answer.** `describes` is a list, and picking farmer *and*
+business shows both sections — verified live. "Just exploring" is the answer
+*neither*, so it replaces rather than joins, and the server enforces that as
+well as the UI.
+
+### decisions
+
+| # | Decision | Why |
+|---|---|---|
+| W5-D1 | **Farm data never moves the completion score.** Pinned by a test. | Crossing 100 awards `profile_100` coins. If farm fields counted, adding a cow would pay out. Verified live too: the score read 70 before and after the whole form was filled. |
+| W5-D2 | **Zero and unset are different answers.** The steppers show "—" until answered, then a number; 0 survives as 0. | "I keep no poultry" is a real answer. A NOT NULL default of 0 would turn "I did not say" into a claim about someone's livestock. |
+| W5-D3 | **Farm fields are individually clearable** — the only part of the profile that is. Everywhere else omission means "leave alone" and nothing can be emptied. | A farmer who sells their cattle has to be able to say so. A field that can only ever be set makes the profile a record of what was once true. Omission still means "leave alone"; the two are distinguishable because the client sends only the keys it means. |
+| W5-D4 | **`land_area` is `Numeric` in the database and a STRING on the wire.** | Scheme thresholds are compared per hectare, and serialising a Decimal through JSON's float would reintroduce exactly the rounding the column type exists to prevent (the D24 Decimal-wire-string precedent). Verified: `"3.50"` round-trips as `"3.50"`. |
+| W5-D5 | **Value constraints live in the database as CHECKs, not only in pydantic.** | One router writes these columns today, but every vertical's advisories will read them, and a CHECK is the only guard that survives a future writer that forgets to validate. |
+| W5-D6 | **A bare land number implies acres.** | "3.5" is not actionable — a per-hectare threshold cannot read it — so the server completes the answer rather than storing half of one. |
+| W5-D7 | **`describes` is self-description, never authorisation.** It decides which section of the page you see and nothing else; it is unrelated to RBAC roles. | Naming it `roles` would have invited exactly that confusion. |
+
+### fixed while building
+
+The land amount and the unit select both carried the accessible name "Land",
+which is ambiguous to a screen reader — it cannot tell the amount from the
+unit. The select now has its own name. Found because a Playwright locator
+could not disambiguate them either, which is usually what an ambiguous
+accessible name feels like from the outside.
+
+### not in the reference, deliberately
+
+A7's business panel shows "Already claimed: **AgroMart Agencies** ✓ — manage
+it from the business console" as static mockup text. Live reads the real list
+and omits the line entirely when there is nothing to say.

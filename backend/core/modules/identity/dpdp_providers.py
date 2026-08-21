@@ -12,7 +12,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.identity.models import Email, Preference, Profile, SessionWeb, User
+from modules.identity.models import (
+    Email,
+    FarmProfile,
+    Preference,
+    Profile,
+    SessionWeb,
+    User,
+)
 
 
 async def identity_export(session: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
@@ -37,6 +44,10 @@ async def identity_export(session: AsyncSession, user_id: uuid.UUID) -> dict[str
         )
     ).all()
     preference = await session.scalar(select(Preference).where(Preference.user_id == user_id))
+    # ID-U1 W5. The farm section promises on its own face that these details
+    # are "in your DPDP export below" — so they have to actually be, or the
+    # page is lying about a legal right.
+    farm = await session.scalar(select(FarmProfile).where(FarmProfile.user_id == user_id))
     sessions = (
         await session.scalars(
             select(SessionWeb)
@@ -62,6 +73,20 @@ async def identity_export(session: AsyncSession, user_id: uuid.UUID) -> dict[str
             "interests": list(profile.interests or []),
             "has_photo": profile.avatar_key is not None,
             "completion_score": profile.completion_score,
+        },
+        "describes": list(profile.describes) if profile else [],
+        "farm": None
+        if farm is None
+        else {
+            # a string, not a float: the column is Numeric because scheme
+            # thresholds are per hectare, and JSON's float would undo that
+            "land_area": None if farm.land_area is None else format(farm.land_area, "f"),
+            "land_unit": farm.land_unit,
+            "tenure": farm.tenure,
+            "cattle": farm.cattle,
+            "goats": farm.goats,
+            "poultry": farm.poultry,
+            "irrigation": farm.irrigation,
         },
         "emails": [{"email": e, "verified": v is not None} for e, v in emails],
         "preferences": None

@@ -223,8 +223,10 @@ async def test_an_open_dispute_holds_the_erasure_instead_of_running_it(
         result = await execute_due(session, now=datetime.now(UTC) + timedelta(days=99))
     finally:
         dpdp._hold_providers.pop("pytest", None)
-    assert result["executed"] == [] and len(result["held"]) == 1
     row = await session.scalar(select(ErasureRequest).where(ErasureRequest.user_id == user.id))
+    # about THIS request, not a global count: execute_due walks every due row
+    assert row is not None
+    assert str(row.id) in result["held"] and str(row.id) not in result["executed"]
     assert row is not None and row.status == "held"
     assert "pytest:open_dispute" in (row.hold_reasons or "")
     # and crucially the account is untouched
@@ -245,13 +247,16 @@ async def test_a_provider_that_raises_is_itself_a_hold(
         raise RuntimeError("module down")
 
     dpdp.register_erasure_hold_provider("pytest", _broken)
+    user = await _user(session, PHONE)
     try:
         result = await execute_due(session, now=datetime.now(UTC) + timedelta(days=99))
     finally:
         dpdp._hold_providers.pop("pytest", None)
-    assert result["executed"] == [] and len(result["held"]) == 1
-    user = await _user(session, PHONE)
-    assert user.status == "active"
+    row = await session.scalar(select(ErasureRequest).where(ErasureRequest.user_id == user.id))
+    assert row is not None
+    assert str(row.id) in result["held"] and str(row.id) not in result["executed"]
+    refreshed = await session.get(User, user.id)
+    assert refreshed is not None and refreshed.status == "active"
 
 
 async def test_a_held_request_can_still_be_withdrawn(
@@ -300,10 +305,15 @@ async def test_erasure_is_idempotent_at_execution_too(
     await _login(http, session, phone=PHONE)
     await http.post("/identity/dpdp/erasure")
     later = datetime.now(UTC) + timedelta(days=99)
+    user = await _user(session, PHONE)
+    row = await session.scalar(select(ErasureRequest).where(ErasureRequest.user_id == user.id))
+    assert row is not None
     first = await execute_due(session, now=later)
     second = await execute_due(session, now=later)
-    assert len(first["executed"]) == 1
-    assert second["executed"] == [] and second["considered"] == 0
+    assert str(row.id) in first["executed"]
+    # the second pass must not see it again - a crashed tick or a retried
+    # deploy re-runs this, and erasing twice must be a no-op
+    assert str(row.id) not in second["executed"] and str(row.id) not in second["held"]
     erased = await session.get(User, await _erased_id(session))
     assert erased is not None and erased.status == "deleted"
 
@@ -342,10 +352,45 @@ async def test_an_unwired_registry_holds_instead_of_erasing(
     finally:
         dpdp._hold_providers.update(saved)
 
-    assert result["executed"] == [], "an unwired registry must never erase anyone"
-    assert len(result["held"]) == 1
     row = await session.scalar(select(ErasureRequest).where(ErasureRequest.user_id == user.id))
     assert row is not None and row.status == "held"
+    assert str(row.id) not in result["executed"], "an unwired registry must never erase anyone"
+    assert str(row.id) in result["held"]
     assert "registry:unwired" in (row.hold_reasons or "")
     refreshed = await session.get(User, user.id)
     assert refreshed is not None and refreshed.status == "active"
+
+
+async def test_the_farm_profile_is_in_the_export(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The farm section tells the farmer, on its own face, that these details
+    are "in your DPDP export below". If they were not, the page would be lying
+    about a legal right."""
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    await http.patch(
+        "/identity/profile",
+        json={"describes": ["farmer"], "farm": {"cattle": 4, "land_area": "3.50"}},
+    )
+    identity = (await http.get("/identity/dpdp/export")).json()["data"]["identity"]
+    assert identity["describes"] == ["farmer"]
+    assert identity["farm"]["cattle"] == 4
+    assert identity["farm"]["land_area"] == "3.50"
+
+
+async def test_erasure_removes_the_farm_profile(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    from modules.identity.models import FarmProfile
+
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    await http.patch("/identity/profile", json={"farm": {"cattle": 4}})
+    user = await _user(session, PHONE)
+    await erase_user(session, user.id)
+    # the farm row IS personal data and nothing else references it, so unlike
+    # the user row it goes outright rather than being scrubbed
+    assert (await session.scalar(select(FarmProfile).where(FarmProfile.user_id == user.id))) is None
+    profile = await session.scalar(select(Profile).where(Profile.user_id == user.id))
+    assert profile is not None and profile.describes == []

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, patchJson, postForm, postJson } from "../../lib/api";
 
+import { DescribesBlock, type FarmData } from "./describes-block";
 import { DpdpBlock } from "./dpdp-block";
 
 export interface ProfileData {
@@ -33,6 +34,9 @@ export interface ProfileData {
   has_avatar: boolean;
   completion_score: number;
   missing: string[];
+  describes: string[];
+  farm: FarmData | null;
+  owned_businesses: string[];
   visibility: Record<string, boolean>;
   member_since: string;
 }
@@ -51,10 +55,12 @@ export function AccountManager({
   canChangeHandle,
   profileCoins,
   erasureGraceDays,
+  consoleUrl,
 }: {
   initial: ProfileData;
   canChangeHandle: boolean;
   erasureGraceDays: number;
+  consoleUrl: string;
   // explicitly `| undefined`: the repo runs exactOptionalPropertyTypes, and
   // "the rules table had no profile_100 row" is a real state this page must
   // be able to receive rather than a missing prop.
@@ -441,6 +447,16 @@ export function AccountManager({
           </Button>
         </form>
       </Card>
+
+      <DescribesBlock
+        describes={profile.describes}
+        farm={profile.farm}
+        ownedBusinesses={profile.owned_businesses}
+        consoleUrl={consoleUrl}
+        busy={busy}
+        savedFlash={<Saved section="describes" />}
+        onSave={(payload) => void apply(payload, "describes")}
+      />
 
       <Card className="space-y-2 p-4">
         <div className="flex items-center gap-2">

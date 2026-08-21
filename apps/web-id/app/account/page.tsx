@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { RULE_PROFILE_100, fetchRuleAmounts } from "../../lib/coins";
+import { CONSOLE_URL } from "../../lib/console";
 
 import { AccountManager, type ProfileData } from "./account-manager";
 
@@ -52,6 +53,7 @@ export default async function AccountPage() {
       canChangeHandle={canChangeHandle}
       profileCoins={ruleAmounts[RULE_PROFILE_100]}
       erasureGraceDays={ERASURE_GRACE_DAYS}
+      consoleUrl={CONSOLE_URL}
     />
   );
 }

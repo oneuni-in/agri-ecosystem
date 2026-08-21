@@ -9,6 +9,7 @@ Functions take the caller's AsyncSession and flush but never commit.
 """
 
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,7 @@ from modules.identity.completion import (
     crossed_completion,
     missing_parts,
 )
-from modules.identity.models import Preference, Profile, User
+from modules.identity.models import FarmProfile, Preference, Profile, User
 from shared.geo.models import State
 from shared.geo.service import district_for_pincode
 
@@ -138,3 +139,89 @@ async def recompute_score(
     profile.completion_score = new
     await session.flush()
     return new, crossed_completion(old, new)
+
+
+# --- ID-U1 W5: the farm profile ---------------------------------------------
+
+DESCRIBES_VALUES = ("farmer", "business", "exploring")
+LAND_UNITS = ("acres", "hectares")
+TENURES = ("owned", "leased", "both")
+IRRIGATION = ("borewell", "canal", "rainfed")
+
+# A guard, not a product limit. Nobody enters six digits of cattle by hand, and
+# without a ceiling a fat-fingered paste becomes a number every future advisory
+# has to defend itself against.
+LIVESTOCK_MAX = 100_000
+LAND_AREA_MAX = Decimal("99999.99")
+
+
+def normalize_describes(values: list[str]) -> list[str]:
+    """Deduped, ordered, and restricted to the known set.
+
+    Order is DESCRIBES_VALUES' order rather than the order tapped, so two
+    people who picked the same two things store the same list.
+    """
+    chosen = {value.strip().lower() for value in values}
+    unknown = chosen - set(DESCRIBES_VALUES)
+    if unknown:
+        raise ProfileUpdateError("invalid_describes")
+    # "exploring" is the answer "neither", so it cannot be combined with one
+    if "exploring" in chosen and len(chosen) > 1:
+        raise ProfileUpdateError("invalid_describes")
+    return [value for value in DESCRIBES_VALUES if value in chosen]
+
+
+async def get_farm_profile(session: AsyncSession, user_id: uuid.UUID) -> FarmProfile | None:
+    row = await session.scalar(select(FarmProfile).where(FarmProfile.user_id == user_id))
+    return row if isinstance(row, FarmProfile) else None
+
+
+async def apply_farm_profile(
+    session: AsyncSession, user_id: uuid.UUID, patch: dict[str, object]
+) -> FarmProfile:
+    """Progressive, and CLEARABLE - unlike the rest of the profile.
+
+    Everywhere else in this module an omitted field means "leave it alone" and
+    nothing can be emptied (scores only rise, crossings fire once). Farm data
+    is different: a farmer who sells their cattle has to be able to say so, and
+    a field that can only ever be set would make the profile a record of what
+    was once true. So an explicit null here CLEARS. Omission still means "leave
+    it alone" - the two are distinguishable because the caller sends only the
+    keys it means.
+    """
+    row = await get_farm_profile(session, user_id)
+    if row is None:
+        row = FarmProfile(user_id=user_id)
+        session.add(row)
+    for field in ("land_unit", "tenure", "irrigation"):
+        if field not in patch:
+            continue
+        value = patch[field]
+        allowed = {"land_unit": LAND_UNITS, "tenure": TENURES, "irrigation": IRRIGATION}[field]
+        if value is not None and value not in allowed:
+            raise ProfileUpdateError(f"invalid_{field}")
+        setattr(row, field, value)
+    for field in ("cattle", "goats", "poultry"):
+        if field not in patch:
+            continue
+        value = patch[field]
+        if value is not None and (not isinstance(value, int) or not 0 <= value <= LIVESTOCK_MAX):
+            raise ProfileUpdateError(f"invalid_{field}")
+        setattr(row, field, value)
+    if "land_area" in patch:
+        area = patch["land_area"]
+        if area is not None:
+            try:
+                area = Decimal(str(area))
+            except (ArithmeticError, ValueError) as exc:
+                raise ProfileUpdateError("invalid_land_area") from exc
+            if area < 0 or area > LAND_AREA_MAX:
+                raise ProfileUpdateError("invalid_land_area")
+        row.land_area = area
+    # land_unit without land_area is meaningless, and land_area without a unit
+    # is a number nobody can act on - a scheme threshold in hectares cannot
+    # read "3.5".
+    if row.land_area is not None and row.land_unit is None:
+        row.land_unit = "acres"
+    await session.flush()
+    return row

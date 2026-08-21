@@ -333,3 +333,142 @@ async def test_avatar_requires_a_session(
     http, _session = api
     # No login: the photo route is owner-scoped like every other profile route.
     assert (await http.get("/identity/profile/avatar")).status_code == 401
+
+
+# --- ID-U1 W5: self-description + the farm profile --------------------------
+
+
+async def test_describes_accepts_both_farmer_and_business(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The reference is explicit: you can be a farmer AND run a shop, and both
+    sections show. So this is a list, not a choice."""
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    body = (
+        await http.patch("/identity/profile", json={"describes": ["business", "farmer"]})
+    ).json()
+    # stored in a canonical order, so two people who picked the same two things
+    # store the same list
+    assert body["describes"] == ["farmer", "business"]
+
+
+async def test_exploring_cannot_be_combined(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    response = await http.patch("/identity/profile", json={"describes": ["exploring", "farmer"]})
+    # "just exploring" is the answer "neither" - combining it is not a
+    # narrower statement, it is a contradiction
+    assert response.status_code == 422 and response.json()["detail"] == "invalid_describes"
+
+
+async def test_unknown_describes_value_is_rejected(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    response = await http.patch("/identity/profile", json={"describes": ["landlord"]})
+    assert response.status_code == 422
+
+
+async def test_farm_profile_round_trips_and_land_area_keeps_its_precision(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    body = (
+        await http.patch(
+            "/identity/profile",
+            json={
+                "farm": {
+                    "land_area": "3.50",
+                    "land_unit": "hectares",
+                    "tenure": "leased",
+                    "cattle": 4,
+                    "irrigation": "borewell",
+                }
+            },
+        )
+    ).json()
+    farm = body["farm"]
+    # a STRING on the wire: the column is Numeric because scheme thresholds are
+    # compared per hectare, and a JSON float would undo exactly that
+    assert farm["land_area"] == "3.50"
+    assert isinstance(farm["land_area"], str)
+    assert farm["land_unit"] == "hectares" and farm["tenure"] == "leased"
+    assert farm["cattle"] == 4 and farm["irrigation"] == "borewell"
+    # untouched fields stay unset rather than becoming 0
+    assert farm["goats"] is None and farm["poultry"] is None
+
+
+async def test_farm_fields_are_individually_clearable(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Unlike the rest of the profile, farm data can be emptied. A farmer who
+    sells their cattle has to be able to say so; a field that can only ever be
+    set would make this a record of what was once true."""
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    await http.patch("/identity/profile", json={"farm": {"cattle": 4, "goats": 12}})
+    body = (await http.patch("/identity/profile", json={"farm": {"cattle": None}})).json()
+    assert body["farm"]["cattle"] is None
+    # omission still means "leave alone" - only the key sent was cleared
+    assert body["farm"]["goats"] == 12
+
+
+async def test_zero_and_unset_are_different_answers(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    body = (await http.patch("/identity/profile", json={"farm": {"poultry": 0}})).json()
+    # "I keep no poultry" is a real answer and must survive as 0, distinct from
+    # the null that means "I did not say"
+    assert body["farm"]["poultry"] == 0
+    assert body["farm"]["cattle"] is None
+
+
+async def test_land_area_implies_a_unit(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    body = (await http.patch("/identity/profile", json={"farm": {"land_area": "2"}})).json()
+    # a bare number is not actionable - a per-hectare scheme threshold cannot
+    # read "2" - so a unit is assumed rather than stored half-answered
+    assert body["farm"]["land_unit"] == "acres"
+
+
+async def test_farm_rejects_nonsense(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    for patch, detail in (
+        ({"irrigation": "magic"}, "invalid_irrigation"),
+        ({"tenure": "rented"}, "invalid_tenure"),
+        ({"land_unit": "bighas"}, "invalid_land_unit"),
+        ({"cattle": -1}, "invalid_cattle"),
+        ({"land_area": "-3"}, "invalid_land_area"),
+    ):
+        response = await http.patch("/identity/profile", json={"farm": patch})
+        assert response.status_code == 422, patch
+        assert response.json()["detail"] == detail
+
+
+async def test_farm_data_never_moves_the_completion_score(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Load-bearing: completion crossing 100 awards profile_100 coins. If farm
+    fields counted, adding a cow would pay out."""
+    http, session = api
+    await _login(http, session, phone=PHONE)
+    before = (await http.get("/identity/profile")).json()
+    after = (
+        await http.patch(
+            "/identity/profile",
+            json={"describes": ["farmer"], "farm": {"cattle": 9, "land_area": "5"}},
+        )
+    ).json()
+    assert after["completion_score"] == before["completion_score"]
+    assert after["missing"] == before["missing"]

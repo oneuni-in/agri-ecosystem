@@ -573,7 +573,26 @@
         },
         "devices": "Manage devices",
         "error": "That didn't work — try again",
-        "memberSince": "Member since {date}"
+        "memberSince": "Member since {date}",
+        "handleTitle": "Your @handle",
+        "handleChange": "Change",
+        "handleCancel": "Cancel",
+        "handleSave": "Save handle",
+        "handleOneEver": "One change ever — you have not used yours yet. After it, your handle is permanent, so names people saved and links you shared keep working.",
+        "handleSpent": "You have already used your one handle change, so this is permanent. Links people saved keep working.",
+        "completionReward": "+{amount} AgriCoins at 100%",
+        "missingLabel": "Still missing: {items}",
+        "missingParts": {
+          "name": "your name",
+          "location": "your location",
+          "language": "a language",
+          "interests": "an interest",
+          "avatar": "a photo"
+        },
+        "interestsExplainer": "Used to pick what you see first — your Today strip, advisories and suggestions. Never shown publicly unless you turn on the Interests switch below.",
+        "visibilityLocationHint": "District only — never your pincode.",
+        "savedFlash": "Saved ✓",
+        "avatarAlt": "Your profile photo"
       },
       "gated": {
         "title": "Login coming shortly",

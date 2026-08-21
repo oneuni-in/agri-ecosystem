@@ -16,6 +16,16 @@ _SIGNATURES: tuple[tuple[bytes, str, str], ...] = (
 )
 
 
+# ext -> content type, DERIVED from the signature table above so a new
+# accepted format cannot be servable without also being sniffable. Used when
+# serving the stored object back (ID-U1 P7): the bucket keeps bytes, not the
+# content type it was uploaded with.
+AVATAR_CONTENT_TYPES: dict[str, str] = {
+    **{ext: content_type for _magic, content_type, ext in _SIGNATURES},
+    "webp": "image/webp",
+}
+
+
 class AvatarError(ValueError):
     """Rejected upload; .code is the API error detail."""
 

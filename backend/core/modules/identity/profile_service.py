@@ -13,7 +13,11 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.identity.completion import compute_completion, crossed_completion
+from modules.identity.completion import (
+    compute_completion,
+    crossed_completion,
+    missing_parts,
+)
 from modules.identity.models import Preference, Profile, User
 from shared.geo.models import State
 from shared.geo.service import district_for_pincode
@@ -100,17 +104,29 @@ async def set_visibility(
     await session.flush()
 
 
-def live_score(user: User, profile: Profile | None) -> int:
-    return compute_completion(
-        phone_verified=user.phone_verified_at is not None,
-        has_name=bool(profile is not None and profile.name),
-        has_location=bool(
+def _completion_flags(user: User, profile: Profile | None) -> dict[str, bool]:
+    """One reading of the profile, shared by the score and the missing list so
+    the bar and the line beside it can never disagree (ID-U1 P7)."""
+    return {
+        "phone_verified": user.phone_verified_at is not None,
+        "has_name": bool(profile is not None and profile.name),
+        "has_location": bool(
             profile is not None and profile.state and profile.district and profile.pincode
         ),
-        has_language=profile is not None and profile.language is not None,
-        has_interests=bool(profile is not None and profile.interests),
-        has_avatar=profile is not None and profile.avatar_key is not None,
-    )
+        "has_language": profile is not None and profile.language is not None,
+        "has_interests": bool(profile is not None and profile.interests),
+        "has_avatar": profile is not None and profile.avatar_key is not None,
+    }
+
+
+def live_score(user: User, profile: Profile | None) -> int:
+    return compute_completion(**_completion_flags(user, profile))
+
+
+def live_missing(user: User, profile: Profile | None) -> list[str]:
+    """Which parts are still empty, heaviest first - what the completion bar's
+    "what's missing" line renders."""
+    return missing_parts(**_completion_flags(user, profile))
 
 
 async def recompute_score(

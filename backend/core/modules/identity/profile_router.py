@@ -11,12 +11,13 @@ type sniffed from magic bytes only, stored via shared.storage.put_object.
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import Depends, HTTPException, UploadFile
+from fastapi import Depends, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.identity.avatar import (
+    AVATAR_CONTENT_TYPES,
     MAX_AVATAR_BYTES,
     AvatarError,
     avatar_object_key,
@@ -29,6 +30,7 @@ from modules.identity.profile_service import (
     apply_location,
     get_or_create_profile,
     get_visibility,
+    live_missing,
     live_score,
     normalize_interests,
     normalize_name,
@@ -63,6 +65,12 @@ class ProfileOut(IdentityPublicSchema):
     interests: list[str]
     has_avatar: bool
     completion_score: int
+    # ID-U1 P7: the bar showed a percentage but never what was still empty, so
+    # "78%" was a number with no next action. Server-side because it and the
+    # score are two renderings of ONE reading of the profile (completion.py's
+    # WEIGHTS); deriving this in the client would let them drift apart the
+    # moment a weight moves.
+    missing: list[str]
     visibility: dict[str, bool]
     # M1.5.D: "Member since {month year}" - the account's created_at is not
     # PII (no phone, no UUID; the schema guard enforces that at import time)
@@ -86,6 +94,7 @@ async def _profile_out(session: AsyncSession, user: User, profile: Profile | Non
         interests=list(profile.interests) if profile else [],
         has_avatar=bool(profile is not None and profile.avatar_key),
         completion_score=live_score(user, profile),
+        missing=live_missing(user, profile),
         visibility=await get_visibility(session, user.id),
         member_since=user.created_at,
     )
@@ -160,6 +169,38 @@ async def patch_profile(
     _, crossed = await recompute_score(session, user=user, profile=profile)
     await _commit_and_announce(session, user=user, crossed=crossed)
     return await _profile_out(session, user, profile)
+
+
+@profile_router.get("/avatar", dependencies=[require_permission("profile.read")])
+async def get_avatar(principal: PrincipalDep, session: SessionDep) -> Response:
+    """The owner's own profile photo, streamed through the API.
+
+    ID-U1 P7: /account showed a bare "✓" where a photo should be, because
+    ProfileOut carried has_avatar and no way to actually see the image.
+
+    Deliberately NOT a media-domain URL. Catalog images take that route
+    (`media_url` + ensure_prefix_public_read), but a product photo is meant to
+    be public and a face is not: avatars have their own visibility toggle on
+    this very page, and publishing them to a public-read prefix would leave
+    that switch governing whether the URL is SHOWN rather than whether the
+    image can be fetched. Owner-scoped and permission-gated keeps the toggle
+    meaning what it says. The `avatars/` prefix stays private.
+    """
+    user = await _load_user(session, principal)
+    profile = await session.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is None or not profile.avatar_key:
+        raise HTTPException(status_code=404, detail="no_avatar")
+    try:
+        data = await storage.get_object(profile.avatar_key)
+    except storage.StorageError as exc:
+        raise HTTPException(status_code=503, detail="storage_unavailable") from exc
+    content_type = AVATAR_CONTENT_TYPES.get(profile.avatar_key.rsplit(".", 1)[-1], "image/jpeg")
+    # private: this is one person's face, and no shared cache may hold it.
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"cache-control": "private, max-age=0, must-revalidate"},
+    )
 
 
 @profile_router.post("/avatar", dependencies=[require_permission("profile.write")])

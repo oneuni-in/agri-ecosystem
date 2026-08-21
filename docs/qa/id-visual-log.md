@@ -295,3 +295,68 @@ thing it prevents — announcing a signup bonus the ledger will never pay — is
 worth a dead branch.
 
 P5-Q1 (the bell strip on the done screen) stands as built, per your call.
+
+---
+
+## P7 · `/account` — profile
+
+Proofs: `p7-profile` (a 100 %-complete account), `p7-profile-partial` (30 %,
+where the missing line and the reward pill do their work), and
+`p7-profile-handle` (the change panel open on a real `reserved` verdict)
+— × live/ref × 1280/390.
+
+Every value on these proofs came from the server: each capture signs in for
+real and fills the profile through the real API from inside the authenticated
+page, including a real multipart PNG upload.
+
+Self-check: `scrollWidth === clientWidth` at both sizes, console clean.
+
+### built
+
+| Item | Note |
+|---|---|
+| **@handle block** | The one identity field this app owns and the shipped page never showed. Read-only, with a Change button that appears only when the change is still available. Changing it re-uses the login step's live `/auth/handle/check`, so nobody spends a once-ever allowance discovering a name is taken. The validation strings are the login step's own — not copies — so `reserved` cannot come to mean two different things on two screens. |
+| **Completion reward + what's missing** | "+200 AgriCoins at 100%" (from the `profile_100` rule at render time) and "Still missing: your location, your name, an interest, a photo". The bar used to be a percentage with no next action. |
+| **"District only — never your pincode"** | Under the Location visibility row. "Location" without saying how much of it is the difference between a district and a doorstep. |
+| **Interests explainer** | What interests *do* — pick what you see first, never public unless you turn the switch on. The shipped hint only said how many you may add, which answers a question nobody asked. |
+
+### fixed
+
+| # | What was wrong | Fix + evidence |
+|---|---|---|
+| P7-F1 | **Two contradictory save models on one page.** Name had a Save button while language, interests and every toggle applied instantly, so the page taught two different rules about when a change had taken. | Everything is instant-apply. Name commits on a 900 ms debounce and on blur; success is a per-section "Saved" flash beside the control that changed, rather than a toast that fires constantly and never says *which* field took. Failures still toast — those must interrupt. **Verified live:** zero Save buttons on the page, flash appeared after typing simply stopped, the value survived a reload, and the bar moved 30 % to 45 % with "your name" dropping out of the missing line. |
+| P7-F2 | **The photo was a tick.** `ProfileOut` carried `has_avatar` and no way to see the image. | A real thumbnail, served by a new **owner-scoped** `GET /identity/profile/avatar`. Verified live: `naturalWidth/Height` 8x8 of the uploaded PNG, `content-type: image/png`, `cache-control: private`. |
+
+### the seeded "sample" chip — there is no seeder
+
+The FIX asks to remove the chip "and whatever seed put it there". **No such
+seed exists.** Nothing in the repo writes interests — not the migrations, not
+`scripts/`, not any fixture. The chip is a single hand-inserted row in the dev
+database, on `AG-0000002` (your own dev account), almost certainly left over
+from D11 credential-fill testing: `identity.profiles` for `AG-0000002` holds
+`interests = ["sample"]`.
+
+I did not touch it: it is your account's data, in dev only, and there is no
+code change that would prevent it recurring because no code caused it. Say the
+word and it is one UPDATE. Nothing ships with it.
+
+### decisions
+
+| # | Decision | Why |
+|---|---|---|
+| P7-D1 | **`missing` is computed on the server**, sharing one reading of the profile with the score (`completion.py`'s `_present`). | The bar and the line beside it are two renderings of one truth. Deriving the list in the client would let them disagree the moment a weight moves — and the client cannot see `phone_verified` at all. |
+| P7-D2 | **The avatar is served through the API, not a public media URL.** The `avatars/` prefix stays private; only `products/` is public-read. | Catalog images take the media-domain route because a product photo is meant to be public. A face is not, and it has its own visibility switch *on this very page* — publishing it to a public-read prefix would leave that switch governing whether the URL is **shown** rather than whether the image can be **fetched**. |
+| P7-D3 | **The handle rule renders in the state it is actually in.** A7's card says "One change ever — you haven't used yours" unconditionally. | Signup's pick **is** the one change (`set_handle` flips `agri_id_changed_once`), so for anyone who picked a handle at signup the truthful line is "already used, this is permanent". Both states are in the proofs. The Change button also **fails closed**: if `/auth/me` cannot be read, it hides rather than offering an irreversible action we are not sure the account still has. |
+
+### deferred by construction
+
+**The DPDP block is not on this page yet.** The prompt requires it wired to
+W4's endpoints and explicitly forbids dead buttons, so it lands at CP3 with
+those endpoints, and `/account` gets re-snapshotted then. Everything else in
+P7 is complete.
+
+### flagged — for CP2
+
+| # | Observation | Note |
+|---|---|---|
+| P7-Q1 | **Every visibility switch defaults to off** for a new account, including Name. The reference shows Name, Location and Photo on, Interests off. | Privacy-safe as it stands, and the visibility card is marked SHIP, so I left the defaults alone. But it means a brand-new profile is invisible on reviews and answers by default, which may not be what you want. |

@@ -540,7 +540,25 @@
         "confirmRevokeAll": "हर डिवाइस से साइन आउट करें? सभी ऐप्स साइन आउट हो जाएँगे।",
         "cancel": "रद्द करें",
         "revoked": "डिवाइस साइन आउट हो गया",
-        "logout": "साइन आउट"
+        "logout": "साइन आउट",
+        "unknownDevice": "अज्ञात उपकरण",
+        "activeNow": "अभी सक्रिय",
+        "relMinutes": "{count, plural, one {# मिनट पहले} other {# मिनट पहले}}",
+        "relHours": "{count, plural, one {# घंटा पहले} other {# घंटे पहले}}",
+        "relDays": "{count, plural, one {कल} other {# दिन पहले}}",
+        "renameOpen": "इस उपकरण का नाम बदलें",
+        "renameSave": "सहेजें",
+        "olderToggle": "{count, plural, one {# पुराना सत्र} other {# पुराने सत्र}}",
+        "olderHint": "30 दिनों से अधिक समय से उपयोग नहीं हुआ।",
+        "confirmRevokeAllCount": "{count, plural, one {# दूसरा सत्र समाप्त करें?} other {# दूसरे सत्र समाप्त करें?}}",
+        "revokeAllBody": "यह उपकरण साइन इन रहेगा। हर साइट पर हर दूसरा सत्र तुरंत समाप्त हो जाएगा।",
+        "sites": {
+          "web": "id.agri.in",
+          "web-agri": "agri.in",
+          "web-milk": "milk.in",
+          "web-organic": "theorganic.in",
+          "web-admin": "admin"
+        }
       },
       "profile": {
         "title": "आपकी प्रोफ़ाइल",

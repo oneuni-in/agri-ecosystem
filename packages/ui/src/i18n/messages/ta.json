@@ -540,7 +540,25 @@
         "confirmRevokeAll": "எல்லா சாதனங்களிலிருந்தும் வெளியேறவா? எல்லா ஆப்களும் வெளியேற்றப்படும்.",
         "cancel": "ரத்து",
         "revoked": "சாதனம் வெளியேற்றப்பட்டது",
-        "logout": "வெளியேறு"
+        "logout": "வெளியேறு",
+        "unknownDevice": "தெரியாத சாதனம்",
+        "activeNow": "இப்போது செயலில்",
+        "relMinutes": "{count, plural, one {# நிமிடத்திற்கு முன்} other {# நிமிடங்களுக்கு முன்}}",
+        "relHours": "{count, plural, one {# மணி நேரத்திற்கு முன்} other {# மணி நேரத்திற்கு முன்}}",
+        "relDays": "{count, plural, one {நேற்று} other {# நாட்களுக்கு முன்}}",
+        "renameOpen": "இந்தச் சாதனத்திற்கு பெயரிடு",
+        "renameSave": "சேமி",
+        "olderToggle": "{count, plural, one {# பழைய அமர்வு} other {# பழைய அமர்வுகள்}}",
+        "olderHint": "30 நாட்களுக்கு மேலாகப் பயன்படுத்தப்படவில்லை.",
+        "confirmRevokeAllCount": "{count, plural, one {# மற்ற அமர்வை முடிக்கவா?} other {# மற்ற அமர்வுகளை முடிக்கவா?}}",
+        "revokeAllBody": "இந்தச் சாதனம் உள்நுழைந்தே இருக்கும். மற்ற எல்லா தளங்களிலும் உள்ள எல்லா அமர்வுகளும் உடனே முடியும்.",
+        "sites": {
+          "web": "id.agri.in",
+          "web-agri": "agri.in",
+          "web-milk": "milk.in",
+          "web-organic": "theorganic.in",
+          "web-admin": "admin"
+        }
       },
       "profile": {
         "title": "உங்கள் சுயவிவரம்",

@@ -360,3 +360,77 @@ P7 is complete.
 | # | Observation | Note |
 |---|---|---|
 | P7-Q1 | **Every visibility switch defaults to off** for a new account, including Name. The reference shows Name, Location and Photo on, Interests off. | Privacy-safe as it stands, and the visibility card is marked SHIP, so I left the defaults alone. But it means a brand-new profile is invisible on reviews and answers by default, which may not be what you want. |
+
+---
+
+## P8 · `/devices`
+
+Proofs: `p8-devices` (three real sessions from three real device profiles),
+`p8-devices-mixed` (an account with real cross-site app sessions),
+`p8-devices-stale` (the collapse), plus the counted confirm for each
+— × live/ref × 1280/390.
+
+Self-check: no overflow at either size, console clean.
+
+### the fix, and what it cost
+
+Every row used to read "web / web" or "web-admin / web-admin" — the OAuth
+client id printed twice, with no time, no place and no way to tell eight
+dev-login rows apart. A row now answers all four questions it should:
+
+| Question | Where it comes from | Proof |
+|---|---|---|
+| **which site** | `kind` already carried it (`"web"`, or the client_id) — a mapping, no backend change | `p8-devices-mixed`: id.agri.in, agri.in and milk.in pills side by side |
+| **what device** | NEW: a stored `device_kind` (migration 0054) | `p8-devices`: "Android - Chrome", "Mac - Firefox", "Windows - Chrome", each derived from the UA that actually minted that session |
+| **where** | existing geoip | **not shown, and cannot be** — see below |
+| **when** | `last_seen_at` / `created_at`, relative | "Active now", "9 days ago", "15 days ago" |
+
+Plus: a "This device" chip, rename moved behind a ✎ tap (zero permanent
+inputs on the page — asserted), stale sessions dimmed and folded into "▸ 2
+older sessions", and a sign-out-everywhere confirm that names the count
+("End 3 other sessions?"). Every sign-out is the existing backchannel
+logout; no new session machinery.
+
+### why a stored description and not a `user_agent` column
+
+Sessions have never kept a raw UA — only `device_fingerprint`, a one-way
+SHA-256 that cannot answer "what device is this?". A `user_agent` column
+would have worked and was the obvious move. It is not what shipped: a full
+UA is a high-entropy fingerprint at rest, and this screen needs exactly one
+recognisable sentence. The description is derived once at session creation
+and only it is stored, so the row keeps **strictly less** about the visitor
+than the alternative while answering the question the screen asks.
+`device_fingerprint` keeps doing the security job. There is a test asserting
+the raw UA never lands on the row.
+
+Parsing is deliberately shallow, and unrecognised agents return `None` →
+"Unknown device". A wrong-but-plausible label is worse than a vague one. The
+ordering traps are unit-tested, because a naive scan gets all three wrong:
+Android UAs contain "Linux", every Chrome UA contains "Safari", and Edge's
+contains "Chrome".
+
+### "where" is not achievable as specced
+
+`shared/geoip.py` resolves **subdivisions (state)**, not districts, and only
+when a GeoLite2 mmdb is provisioned — an owner/VPS action that is on your
+deferred list, so in dev it is off entirely and `place` is `None` on every
+row. The field is in the payload and the UI omits it when absent, so the row
+degrades to site + device + time. The reference's "Coimbatore" is a
+district; the best this can ever say is "Tamil Nadu", and only once the mmdb
+exists.
+
+### findings
+
+| # | Finding | Severity |
+|---|---|---|
+| **P8-Q1** | **Rows are sessions, not devices — and the page is called "Your devices".** A real dev account shows **28 live rows**, because every login mints a new `sessions_web` row and nothing dedupes by `device_fingerprint`. Signing in from the same phone ten times produces ten rows. My fix makes each row legible; it does not reduce their number, and at 28 rows legibility is not enough. | **The biggest remaining issue on this page.** The 30-day stale collapse does not help — these were all 7–15 days old. |
+| P8-Q2 | I did **not** fix P8-Q1, and deliberately. The obvious fix (group by fingerprint, show the newest) would make "Sign out" a lie: revoking the group's newest session leaves its siblings alive, and fixing *that* means either a revoke-by-fingerprint action or capping live sessions per device at login — both squarely "new session machinery", which this pass is told not to add. | Needs your call. My recommendation is the login-time cap: one live web session per fingerprint per site, which makes rows ≈ devices honestly. |
+| P8-Q3 | The reference's rows show a **place** on every row. Ours cannot until the mmdb is provisioned, and then only at state level. | Sequenced behind the VPS work. |
+
+### testing note
+
+Two sessions on the capture account were aged to 45 days in the database to
+demonstrate the stale collapse — nothing in dev is old enough to trigger it
+naturally. That is real state, changed to exercise a real code path, and it
+is recorded here rather than left implicit. The dev IP's daily OTP counter
+was also reset once more during this page's captures.

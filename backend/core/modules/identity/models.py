@@ -80,6 +80,10 @@ class SessionRefresh(UUIDv7PKMixin, TimestampMixin, Base):
     )
     token_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     device_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ID-U1 P8: coarse, human-readable device description ("Android - Chrome").
+    # Derived once at session creation; the raw UA is never stored. NULL for
+    # rows predating 0054 - the list renders those as "Unknown device".
+    device_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
@@ -113,6 +117,10 @@ class SessionWeb(UUIDv7PKMixin, TimestampMixin, Base):
     sid_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     device_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     device_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ID-U1 P8: coarse, human-readable device description ("Android - Chrome").
+    # Derived once at session creation; the raw UA is never stored. NULL for
+    # rows predating 0054 - the list renders those as "Unknown device".
+    device_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)

@@ -540,7 +540,25 @@
         "confirmRevokeAll": "Sign out of every device? All apps on all devices will be signed out.",
         "cancel": "Cancel",
         "revoked": "Device signed out",
-        "logout": "Sign out"
+        "logout": "Sign out",
+        "unknownDevice": "Unknown device",
+        "activeNow": "Active now",
+        "relMinutes": "{count, plural, one {# minute ago} other {# minutes ago}}",
+        "relHours": "{count, plural, one {# hour ago} other {# hours ago}}",
+        "relDays": "{count, plural, one {yesterday} other {# days ago}}",
+        "renameOpen": "Rename this device",
+        "renameSave": "Save",
+        "olderToggle": "{count, plural, one {# older session} other {# older sessions}}",
+        "olderHint": "Not used in over 30 days.",
+        "confirmRevokeAllCount": "{count, plural, one {End # other session?} other {End # other sessions?}}",
+        "revokeAllBody": "This device stays signed in. Every other session, on every site, ends immediately.",
+        "sites": {
+          "web": "id.agri.in",
+          "web-agri": "agri.in",
+          "web-milk": "milk.in",
+          "web-organic": "theorganic.in",
+          "web-admin": "admin"
+        }
       },
       "profile": {
         "title": "Your profile",

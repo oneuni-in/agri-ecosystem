@@ -20,6 +20,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, patchJson, postForm, postJson } from "../../lib/api";
 
+import { DpdpBlock } from "./dpdp-block";
+
 export interface ProfileData {
   agri_id: string;
   name: string | null;
@@ -48,9 +50,11 @@ export function AccountManager({
   initial,
   canChangeHandle,
   profileCoins,
+  erasureGraceDays,
 }: {
   initial: ProfileData;
   canChangeHandle: boolean;
+  erasureGraceDays: number;
   // explicitly `| undefined`: the repo runs exactOptionalPropertyTypes, and
   // "the rules table had no profile_100 row" is a real state this page must
   // be able to receive rather than a missing prop.
@@ -513,6 +517,11 @@ export function AccountManager({
           </div>
         ))}
       </Card>
+
+      {/* DPDP rights, last: they are the least-used part of the page and
+          the most consequential, so they sit below everything a person came
+          here to edit rather than beside it. */}
+      <DpdpBlock graceDays={erasureGraceDays} />
 
       <a href="/devices" className="inline-block text-sm text-brand underline">
         {t("devices")}

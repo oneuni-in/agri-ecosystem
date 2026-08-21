@@ -10,6 +10,11 @@ import { AccountManager, type ProfileData } from "./account-manager";
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const SITE = "https://id.agri.in";
 
+// Mirrors modules/identity/dpdp_service.ERASURE_GRACE_DAYS. The confirm
+// dialog promises a specific number of days, so it must not drift from the
+// window the server actually applies.
+const ERASURE_GRACE_DAYS = 7;
+
 // Private, always-fresh account settings - never indexed (devices/page.tsx precedent).
 export const metadata: Metadata = buildMetadata({
   title: "Your profile — AgriID",
@@ -46,6 +51,7 @@ export default async function AccountPage() {
       initial={profile}
       canChangeHandle={canChangeHandle}
       profileCoins={ruleAmounts[RULE_PROFILE_100]}
+      erasureGraceDays={ERASURE_GRACE_DAYS}
     />
   );
 }

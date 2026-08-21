@@ -464,3 +464,83 @@ session-lifecycle decision behind it rather than a display change.
 **P7 — both items left alone**, per your call: the "sample" chip stays in
 your dev data (no code produced it, nothing ships with it) and the visibility
 switches keep defaulting to off, which is the privacy-safe direction.
+
+---
+
+## W4 · DPDP endpoints (backend) + the `/account` block
+
+Proofs: `p7-profile-dpdp` (the block in place), `p7-profile-dpdp-pending`
+(a real erasure request, showing the withdraw state), `w4-admin-queue` (the
+A6 staff queue against real rows). Console clean; the pending copy read
+"…erased after August 28, 2026" — the real 7-day grace, not a literal.
+
+### shape
+
+Three rights, one seam. `shared/dpdp.py` is the same dependency-inversion
+pattern as `shared/lookups.py`: identity orchestrates but may not read
+anyone else's tables, so each module registers what it can answer —
+`identity` / `directory` / `coins` export providers, directory's reveal-log
+provider, its erasure hold and its eraser — and `main.wire_dependencies()`
+wires them.
+
+Fail-closed differs by right, deliberately:
+
+- **Export fails loud.** Silently returning less than everything is the one
+  outcome a data-access right cannot have.
+- **Holds fail closed as held.** An unanswerable question about an
+  irreversible action resolves to "ask a human", never "go ahead".
+- **The reveal log fails empty**, because it is a read and an empty log
+  reads the same as "no reveals happened".
+
+Erasure is a **scrub, not a row delete**: `users.id` is referenced by ledger
+entries, audit rows and the request row itself, and an immutable coins ledger
+cannot lose an entry because its subject left. The row survives stripped of
+everything identifying, `status` flips to `deleted`, and every existing
+resolver already treats that as gone. Directory **anonymises rather than
+deletes** for the same reason — an answered inquiry is the vendor's record
+too, and a reveal-log entry is the evidence protecting the very person being
+erased.
+
+### the bug this pass caught, live
+
+The first real run of `scripts/dpdp_erasure_job.py` **erased an account that
+owned five live businesses.** It should have been held.
+
+The job is a standalone script. It imported `execute_due` directly and never
+ran the dependency wiring, so `_hold_providers` was empty — and
+`erasure_holds` returned `[]`, which means "nobody objected". The truth was
+"nobody was asked". The two were indistinguishable, and the consequence was
+irreversible.
+
+Fixed twice over, because one fix would have left the class of mistake alive:
+
+1. The job now calls `wire_dependencies()` — extracted from `create_app()`
+   so any script can share it rather than each remembering to.
+2. **An empty hold registry is itself a hold.** A queue full of unexpected
+   holds is a loud, recoverable failure; a wrongly erased account is neither.
+
+Verified after the fix with a real business owner: `considered=1 executed=0
+held=1`, the account still `active`, reason `directory:owns_business`. A
+regression test pins it.
+
+Cost, recorded rather than glossed: one dev account (`AG-0000004`,
+`+919000000023`) was genuinely scrubbed by the buggy run and is not
+recoverable. It was a test account created by earlier dev testing, not yours.
+
+### decisions
+
+| # | Decision | Why |
+|---|---|---|
+| W4-D1 | **The user is never told *why* their erasure is held.** The admin queue shows `directory:owns_business`; the user sees "under review". | A hold names another module's business state. That is staff context, and handing it over the counter tells someone about internal machinery they cannot act on anyway. |
+| W4-D2 | **Staff can release a hold or run a *due* erasure — nothing else.** There is no "delete this person" control. | A queue that can begin an irreversible action nobody asked for is a bigger risk than the one it manages. Every row here started as the user's own request, and `execute` still refuses if the grace has not elapsed: staff may skip the *scheduler*, never the promise made to the user. |
+| W4-D3 | **`dpdp.decide` is super-admin only**, split from `dpdp.read` (staff). | Both actions are one-way for a person. A queue nobody can see is not oversight; a decision anyone can take is not either. |
+| W4-D4 | **The export carries the subject's own phone unredacted.** | Admin surfaces see last-4 (D11 non-negotiable 2), but this archive goes to its own subject, and a masked copy of your own number is not a data-access right. Internal UUIDs stay absent — they tell the subject nothing about themselves. |
+| W4-D5 | **Coins exports but does not erase.** | The ledger is immutable by database trigger. Erasing entries would fail the trigger or, if forced, change the platform's accounting for everyone. The entries carry no personal data of their own, and once identity scrubs the user row that id points at nobody. |
+
+### testing note
+
+A full-suite run and per-file runs overlapped early in this work, and this
+repo's conftest drops the test database `WITH (FORCE)` — so that run reported
+17 unrelated `sqlalchemy` failures in pagination/slugs/oauth that were my own
+collision, not regressions. Re-run serially to confirm. Never run two pytest
+processes against this repo at once.

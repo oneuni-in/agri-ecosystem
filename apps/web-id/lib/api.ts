@@ -67,3 +67,7 @@ export function postForm(path: string, form: FormData): Promise<JsonBody> {
   // no content-type header: the browser sets the multipart boundary
   return fetch(`/api/id${path}`, { method: "POST", body: form }).then(parse);
 }
+
+export function deleteJson(path: string): Promise<JsonBody> {
+  return fetch(`/api/id${path}`, { method: "DELETE" }).then(parse);
+}

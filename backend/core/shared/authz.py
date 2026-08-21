@@ -83,6 +83,14 @@ PERMISSION_CATALOG: dict[str, frozenset[str]] = {
     "content.publish": _STAFF_UP,
     # market data (A-U4b): read-only ingest-health browse — the first market key
     "market.read": _STAFF_UP,
+    # DPDP data requests (ID-U1 W4). Reading the queue is staff work; DECIDING
+    # an erasure is not. `dpdp.decide` is super-admin only because both of its
+    # actions are one-way for a person: running an erasure early destroys data
+    # no one can restore, and releasing a hold clears the only reason the
+    # system had for pausing. Split from the read on purpose - a queue nobody
+    # can see is not oversight, and a decision anyone can take is not either.
+    "dpdp.read": _STAFF_UP,
+    "dpdp.decide": _SUPER_ONLY,
 }
 
 

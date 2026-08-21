@@ -21,6 +21,7 @@ from modules.billing.admin_router import admin_router as billing_admin_router
 from modules.billing.payments_admin_router import admin_router as payments_admin_router
 from modules.billing.router import router as billing_router
 from modules.coins.admin_router import admin_router as coins_admin_router
+from modules.coins.dpdp_providers import coins_export
 from modules.coins.router import router as coins_router
 from modules.content.admin_router import admin_router as content_admin_router
 from modules.content.router import router as content_router
@@ -28,6 +29,18 @@ from modules.directory.admin_router import admin_router as directory_admin_route
 from modules.directory.catalog_admin_router import admin_router as catalog_admin_router
 from modules.directory.catalog_router import router as catalog_router
 from modules.directory.claims_router import router as directory_claims_router
+from modules.directory.dpdp_providers import (
+    directory_export,
+)
+from modules.directory.dpdp_providers import (
+    erase as directory_erase,
+)
+from modules.directory.dpdp_providers import (
+    erasure_hold as directory_erasure_hold,
+)
+from modules.directory.dpdp_providers import (
+    reveal_log as directory_reveal_log,
+)
 from modules.directory.leads_router import router as leads_engine_router
 from modules.directory.lookups import business_is_servable, business_ref, owned_business_refs
 from modules.directory.moderation_sources import register_directory_moderation_sources
@@ -39,6 +52,9 @@ from modules.directory.router import router as directory_router
 from modules.directory.service import BusinessDisabledError
 from modules.education.router import router as education_router
 from modules.identity.admin_router import admin_router as identity_admin_router
+from modules.identity.dpdp_admin_router import dpdp_admin_router as identity_dpdp_admin_router
+from modules.identity.dpdp_providers import identity_export
+from modules.identity.dpdp_router import dpdp_router as identity_dpdp_router
 from modules.identity.location_router import location_router as identity_location_router
 from modules.identity.lookups import notify_contact, public_handle
 from modules.identity.oauth_keys import get_signing_key
@@ -59,6 +75,12 @@ from modules.search.router import router as search_router
 from settings import get_settings
 from shared.cache import check_cache, close_redis
 from shared.db import check_database
+from shared.dpdp import (
+    register_eraser,
+    register_erasure_hold_provider,
+    register_export_provider,
+    register_reveal_log_provider,
+)
 from shared.lookups import (
     register_business_resolver,
     register_campaign_billing_resolver,
@@ -103,6 +125,8 @@ MODULE_ROUTERS = [
     identity_router,
     identity_oauth_router,
     identity_otp_router,
+    identity_dpdp_admin_router,
+    identity_dpdp_router,
     identity_profile_router,
     identity_session_router,
     leads_router,
@@ -202,8 +226,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await close_redis()
 
 
-def create_app() -> FastAPI:
-    init_sentry(get_settings())
+def wire_dependencies() -> None:
+    """Register every cross-module seam.
+
+    Called by create_app() AND by any standalone script that touches these
+    seams. It is a separate function because a script that imports a service
+    directly gets an EMPTY registry, and for the DPDP erasure job that meant
+    no hold provider answered, "nobody objected" was indistinguishable from
+    "nobody was asked", and a live account was erased that should have been
+    held. shared.dpdp now fails closed on an empty registry as well - this
+    function is the other half of that fix.
+    """
     register_principal_resolver(resolve_principal)  # D09: real session auth
     # D20: dependency-inverted cross-module lookups (same pattern as the
     # principal resolver) - directory owns business refs, identity owns
@@ -215,6 +248,19 @@ def create_app() -> FastAPI:
     # asks through this seam rather than reading identity.users. Coins is the
     # first caller (the login referral banner names the inviter).
     register_handle_resolver(public_handle)
+    # ID-U1 W4: the three DPDP rights span every module, and identity may
+    # not read anyone else's tables - so each module registers its own
+    # answers here and identity's dpdp_router only calls what it finds.
+    # Adding a module that holds user data means adding it HERE; the
+    # export completeness test asserts the registered set, so a module
+    # that forgets shows up as a failing assertion rather than as a
+    # quietly short archive handed to someone exercising a legal right.
+    register_export_provider("identity", identity_export)
+    register_export_provider("directory", directory_export)
+    register_export_provider("coins", coins_export)
+    register_reveal_log_provider(directory_reveal_log)
+    register_erasure_hold_provider("directory", directory_erasure_hold)
+    register_eraser("directory", directory_erase)
     # M1.5: directory answers serve-time status (ads consume it - the M3
     # seam); ads pause an advertiser's campaigns when directory disables it.
     register_servable_resolver(business_is_servable)
@@ -235,6 +281,11 @@ def create_app() -> FastAPI:
     # (same dependency-inversion pattern as the resolvers above).
     register_directory_moderation_sources()
     register_ads_moderation_sources()
+
+
+def create_app() -> FastAPI:
+    init_sentry(get_settings())
+    wire_dependencies()
     app = FastAPI(title="agri core", lifespan=lifespan)
 
     # M1.5.B: the disabled-business console lock surfaces from every

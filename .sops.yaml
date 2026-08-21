@@ -16,6 +16,13 @@
 # secrets/staging.sops.env`. If the old private key may have leaked, rotate
 # the VALUES too - a stolen key decrypts every historical version of the file
 # in git history, not just the current one.
+# path_regex uses `secrets.` rather than `secrets/`: sops matches this against
+# the path as the OS reports it, and on Windows that is `secrets\staging.sops.env`
+# with a backslash, which a literal `/` never matches. Verified empirically with
+# sops 3.13.2 - `secrets/.*` and even `secrets[\/].*` both fail there, while
+# `secrets.*` and a bare `.*` succeed. The `.` costs nothing (it still requires
+# SOME character between the directory and the name) and keeps one config
+# working for Windows authors and Linux CI alike.
 creation_rules:
-  - path_regex: secrets/.*\.sops\..*$
+  - path_regex: secrets.*\.sops\..*$
     age: age1c457t6r68v46aafr9nj28nju7ht945e2jr5ps3llxghsrx0z3efq2jj0xv

@@ -28,15 +28,36 @@ workflow files, or in CI logs.
 ## Encrypting staging secrets
 
 ```sh
-cp secrets/staging.env.example secrets/staging.env   # fill real values
-sops --encrypt secrets/staging.env > secrets/staging.sops.env
-rm secrets/staging.env                               # plaintext never committed
+cp secrets/staging.env.example secrets/staging.sops.env   # fill real values
+sops --encrypt --in-place secrets/staging.sops.env        # encrypts where it sits
 git add secrets/staging.sops.env
 ```
 
-`.gitignore` blocks everything under `secrets/` except `*.sops.env` and the
-example template, so an accidental `git add secrets/staging.env` is inert.
-The `security` CI job (gitleaks, full history) is the backstop.
+**Name the file `*.sops.env` BEFORE encrypting, and encrypt in place.** The
+obvious shape - `sops --encrypt secrets/staging.env > secrets/staging.sops.env`
+- fails with:
+
+```
+error loading config: no matching creation rules found
+```
+
+which reads like a broken key and is not. sops picks its creation rule from
+the path of the file it is READING, and `secrets/staging.env` does not contain
+`.sops.`, so no rule matches and it never gets as far as the recipient.
+Encrypting in place means the name matches from the start.
+
+There is no separate plaintext file to delete afterwards: `--in-place`
+rewrites the same file, so the window where a filled-in plaintext copy exists
+on disk is as short as it can be. If you do keep an intermediate copy, delete
+it - `.gitignore` blocks everything under `secrets/` except `*.sops.env` and
+the template, so an accidental `git add secrets/staging.env` is inert, but
+inert-in-git is not the same as gone-from-disk.
+
+`*.agekey` and `*.age.key` are ignored repo-wide, not just under `secrets/`,
+so a private key that lands anywhere in the tree cannot be staged. The
+`security` CI job (gitleaks, full history) is the backstop for content that
+did get committed - but it runs after the push, by which point a leaked key
+has to be treated as burned. The ignore rules are what stop it earlier.
 
 ## How the deploy uses the key
 

@@ -61,7 +61,27 @@ NEXT_PUBLIC_ENABLE_SW=1   # dev only; prod always registers the SW
 value present during `next build`, not just at runtime.
 
 For staging, both backend keys belong in `secrets/staging.sops.env`
-(see `secrets.md`); the public key additionally goes in the build env.
+(see `secrets.md`). The public key additionally goes in the BUILD env, and
+until now there was no way to put it there — which is why push was dead in
+every container image regardless of what the runtime environment said.
+
+**OWNER ACTION — set the repo variable.** GitHub → Settings → Secrets and
+variables → Actions → *Variables* → `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. A
+variable, not a secret: the public half ships to every browser as the
+subscription `applicationServerKey`, and this mirrors how
+`NEXT_PUBLIC_CONSOLE_URL` is already handled.
+
+`deploy-staging.yml` passes it as the `VAPID_PUBLIC_KEY` build-arg, which
+`apps/Dockerfile` turns back into `NEXT_PUBLIC_VAPID_PUBLIC_KEY` inside the
+builder stage, before `turbo run build` runs. Unset resolves to empty and push
+simply stays dark, so nothing breaks if you deploy before setting it.
+
+Whatever pipeline builds PRODUCTION images needs the same build-arg passed —
+only the staging path is wired here.
+
+Order matters: the build-arg must exist before the variable is worth setting,
+and the variable must be set before the build that is meant to carry it. A
+value added after an image is built does nothing to that image.
 
 ## 3. Flip the flag
 

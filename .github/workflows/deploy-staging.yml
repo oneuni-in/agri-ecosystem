@@ -55,10 +55,19 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          # VAPID_PUBLIC_KEY is a repo VARIABLE, not a secret: the public
+          # half of the pair ships to every browser as the subscription
+          # applicationServerKey, exactly like CONSOLE_URL. Unset resolves to
+          # empty, which leaves push dark - the state before this line existed.
+          # NB these comments sit ABOVE the block scalar deliberately: inside
+          # `build-args: |` they would be literal text handed to Docker, not
+          # YAML comments, and this workflow is manual-dispatch-only so CI
+          # would never catch it.
           build-args: |
             APP=${{ matrix.name }}
             GIT_SHA=${{ github.sha }}
             CONSOLE_URL=${{ vars.NEXT_PUBLIC_CONSOLE_URL }}
+            VAPID_PUBLIC_KEY=${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/agri-${{ matrix.name }}:${{ github.sha }}

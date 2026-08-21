@@ -92,6 +92,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     roles: STAFF_UP,
   },
   {
+    href: "/data-requests",
+    title: "Data requests",
+    icon: "🗂️",
+    sub: "DPDP export & erasure queue",
+    roles: STAFF_UP,
+  },
+  {
     href: "/audit",
     title: "Audit log",
     icon: "📜",

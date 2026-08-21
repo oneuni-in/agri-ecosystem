@@ -30,6 +30,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
+from modules.identity.device_kind import describe_device
 from modules.identity.oauth_keys import get_jwks
 from modules.identity.oauth_server import (
     AgriAuthorizationServer,
@@ -157,6 +158,12 @@ async def token(request: Request, session: SessionDep) -> Response:
                 client=ctx.client.row,
                 fingerprint=fingerprint,
                 ip=request.client.host if request.client else None,
+                # D10's BFF forwards the browser's UA, so this describes the
+                # user's device rather than the BFF host.
+                device_kind=describe_device(
+                    request.headers.get("user-agent"),
+                    request.headers.get("sec-ch-ua-platform"),
+                ),
             )
             ctx.new_refresh_token = issued.token
             ctx.issued_family_id = issued.family_id

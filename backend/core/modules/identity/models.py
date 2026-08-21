@@ -8,9 +8,19 @@ serialization guard in schemas.py makes leaking structurally impossible.
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import TIMESTAMP, Boolean, ForeignKey, Integer, Text, UniqueConstraint, text
+from sqlalchemy import (
+    TIMESTAMP,
+    Boolean,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -80,6 +90,10 @@ class SessionRefresh(UUIDv7PKMixin, TimestampMixin, Base):
     )
     token_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     device_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ID-U1 P8: coarse, human-readable device description ("Android - Chrome").
+    # Derived once at session creation; the raw UA is never stored. NULL for
+    # rows predating 0054 - the list renders those as "Unknown device".
+    device_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
@@ -113,6 +127,10 @@ class SessionWeb(UUIDv7PKMixin, TimestampMixin, Base):
     sid_hash: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     device_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     device_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ID-U1 P8: coarse, human-readable device description ("Android - Chrome").
+    # Derived once at session creation; the raw UA is never stored. NULL for
+    # rows predating 0054 - the list renders those as "Unknown device".
+    device_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
@@ -233,6 +251,13 @@ class Profile(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
         postgresql.JSONB, server_default=text("'[]'::jsonb"), nullable=False
     )
     completion_score: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    # ID-U1 W5: how the person describes themselves ("farmer" / "business" /
+    # "exploring"). A LIST because the reference is explicit that you can be
+    # both - a farmer who also runs a shop picks both and sees both sections.
+    # Self-description only; it grants nothing and is unrelated to RBAC roles.
+    describes: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, server_default=text("'[]'::jsonb"), nullable=False
+    )
 
 
 class Address(UUIDv7PKMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -264,3 +289,38 @@ class Preference(UUIDv7PKMixin, TimestampMixin, Base):
     privacy: Mapped[dict[str, Any]] = mapped_column(
         postgresql.JSONB, server_default=text("'{}'::jsonb"), nullable=False
     )
+
+
+class FarmProfile(UUIDv7PKMixin, TimestampMixin, Base):
+    """One farm, on the identity profile rather than in any single vertical
+    (ID-U1 W5).
+
+    It lives here because there is one farm and all three sites read it:
+    cattle feed milk.in, crops feed agri.in's advisories, certification feeds
+    theorganic.in. Putting it in a vertical would mean asking the same farmer
+    the same questions three times.
+
+    EVERY field is nullable and stays that way. A farmer answers what they
+    like, in any order; NOT NULL would turn "I did not say" into a claim of
+    zero animals. Crops are deliberately absent - they stay in Profile.interests,
+    one list rather than two.
+
+    Never public. No route serves these to anyone but their owner.
+    """
+
+    __tablename__ = "farm_profiles"
+    __table_args__ = {"schema": "identity"}
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("identity.users.id"), nullable=False, unique=True
+    )
+    # Numeric, not float: land is compared against per-hectare scheme
+    # thresholds, and a binary-float 2.9999999 must not land on the wrong side
+    # of one.
+    land_area: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    land_unit: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tenure: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cattle: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goats: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    poultry: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    irrigation: Mapped[str | None] = mapped_column(Text, nullable=True)

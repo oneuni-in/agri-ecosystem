@@ -56,6 +56,7 @@ async def create_web_session(
     fingerprint: str,
     ip: str | None,
     device_label: str | None = None,
+    device_kind: str | None = None,
 ) -> str:
     """Mint a session and return the plaintext sid exactly once.
 
@@ -69,6 +70,7 @@ async def create_web_session(
             sid_hash=hash_code(sid),
             device_fingerprint=fingerprint,
             device_label=device_label,
+            device_kind=device_kind,
             ip=ip,
             expires_at=datetime.now(UTC) + timedelta(seconds=WEB_SESSION_TTL_SECONDS),
         )

@@ -201,6 +201,10 @@ class Settings(BaseSettings):
     pincode_tier_min_rows: int = 100
     # Kill switch for scripts/geo_tier_nightly.py.
     geo_tier_job_enabled: bool = True
+    # ID-U1 W4. Default ON: a DPDP erasure right that depends on remembering
+    # to turn a flag on is not a right. The switch exists so a bad tick can be
+    # stopped without a deploy, not so the feature can wait for one.
+    dpdp_erasure_job_enabled: bool = True
 
     # --- A-U2 W1: weather (Open-Meteo) ----------------------------------
     # Open-Meteo needs no API key on the free tier, but the base URL is

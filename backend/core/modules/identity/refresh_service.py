@@ -62,6 +62,7 @@ def _new_row(
     family_id: uuid.UUID | None,
     fingerprint: str | None,
     device_label: str | None,
+    device_kind: str | None,
     ip: str | None,
     rotated_from: uuid.UUID | None,
 ) -> tuple[str, SessionRefresh]:
@@ -76,6 +77,7 @@ def _new_row(
         client_id=client_row_id,
         device_fingerprint=fingerprint,
         device_label=device_label,
+        device_kind=device_kind,
         ip=ip,
         expires_at=datetime.now(UTC) + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
         rotated_from=rotated_from,
@@ -139,6 +141,7 @@ async def issue_refresh_token(
     fingerprint: str | None,
     ip: str | None,
     device_label: str | None = None,
+    device_kind: str | None = None,
 ) -> RefreshRotation:
     """Start a new family (the code-exchange mint point)."""
     subject = await load_token_subject(session, user_id)
@@ -150,6 +153,7 @@ async def issue_refresh_token(
         family_id=None,
         fingerprint=fingerprint,
         device_label=device_label,
+        device_kind=device_kind,
         ip=ip,
         rotated_from=None,
     )
@@ -236,6 +240,9 @@ async def rotate_refresh_token(
         family_id=row.family_id,
         fingerprint=row.device_fingerprint,
         device_label=row.device_label,
+        # a rotation is the SAME device; carry the description forward rather
+        # than re-deriving it from whatever UA presented the refresh token
+        device_kind=row.device_kind,
         ip=row.ip,
         rotated_from=row.id,
     )

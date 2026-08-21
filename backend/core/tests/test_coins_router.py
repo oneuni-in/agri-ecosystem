@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
 from modules.coins import service
+from modules.coins.models import ReferralCode
 from shared.db import get_session
+from shared.lookups import register_handle_resolver, reset_lookup_resolvers
 from shared.security import register_principal_resolver
 
 pytestmark = pytest.mark.asyncio
@@ -99,3 +101,65 @@ async def test_referral_code_is_stable(
     second = (await http.get("/coins/referral-code")).json()["code"]
     assert first == second
     assert len(first) >= 6
+
+
+# --- ID-U1: referral code -> inviter handle (the login done screen) ----------
+# The handle arrives through shared.lookups, never a join: coins may not read
+# identity.users. These tests register a fake resolver for exactly that reason
+# - if the seam is ever replaced by a direct import, the import-linter
+# contract breaks first and these still pass, which is the point of having
+# both.
+
+
+async def test_resolve_referrer_names_the_code_owner(
+    api: tuple[httpx.AsyncClient, AsyncSession, uuid.UUID],
+) -> None:
+    http, session, _uid = api
+    owner_id = uuid.uuid4()
+    session.add(ReferralCode(user_id=owner_id, code="OWNERC0DE"))
+    await session.flush()
+    register_handle_resolver(lambda _s, user_id: _handle_for(user_id, owner_id))
+    response = await http.get("/coins/referral/resolve", params={"code": "OWNERC0DE"})
+    assert response.status_code == 200
+    assert response.json() == {"handle": "murugesan"}
+
+
+async def test_resolve_referrer_is_silent_on_an_unknown_code(
+    api: tuple[httpx.AsyncClient, AsyncSession, uuid.UUID],
+) -> None:
+    http, _session, _uid = api
+    response = await http.get("/coins/referral/resolve", params={"code": "N0SUCHC0"})
+    assert response.status_code == 200
+    # Not a 404: an unknown code and a code we decline to name must be
+    # indistinguishable, or the endpoint becomes a code-existence oracle.
+    assert response.json() == {"handle": None}
+
+
+async def test_resolve_referrer_never_names_you_to_yourself(
+    api: tuple[httpx.AsyncClient, AsyncSession, uuid.UUID],
+) -> None:
+    http, session, uid = api
+    session.add(ReferralCode(user_id=uid, code="MYOWNC0DE"))
+    await session.flush()
+    register_handle_resolver(lambda _s, user_id: _handle_for(user_id, uid))
+    response = await http.get("/coins/referral/resolve", params={"code": "MYOWNC0DE"})
+    assert response.status_code == 200
+    # referrals.attribute refuses a self-referral, so the banner must not
+    # imply one is in progress.
+    assert response.json() == {"handle": None}
+
+
+async def test_resolve_referrer_fails_closed_without_a_resolver(
+    api: tuple[httpx.AsyncClient, AsyncSession, uuid.UUID],
+) -> None:
+    http, session, _uid = api
+    session.add(ReferralCode(user_id=uuid.uuid4(), code="NORESOLVE"))
+    await session.flush()
+    reset_lookup_resolvers()
+    response = await http.get("/coins/referral/resolve", params={"code": "NORESOLVE"})
+    assert response.status_code == 200
+    assert response.json() == {"handle": None}
+
+
+async def _handle_for(user_id: uuid.UUID, expected: uuid.UUID) -> str | None:
+    return "murugesan" if user_id == expected else None

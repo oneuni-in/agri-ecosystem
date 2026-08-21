@@ -68,6 +68,32 @@ export async function loginAs(page: Page, phone: string): Promise<void> {
   await completeLoginUi(page, phone);
 }
 
+/**
+ * ID-U1 P5 put a DONE screen between the language step and the redirect, so a
+ * new signup no longer lands on /devices by itself. It auto-continues after
+ * ~6s, which is longer than Playwright's default 5s URL timeout - waiting it
+ * out would make every signup spec look slow and flaky for no reason. Press
+ * the button instead, which is also the path a real person takes.
+ *
+ * No-op for a RETURNING login: those skip the screen entirely and redirect as
+ * they always did, so the same helper is safe on both paths.
+ */
+export async function continuePastDoneScreen(page: Page): Promise<void> {
+  // by testid, not by name: the label is localised (the Tamil path reads
+  // "5வி-இல் தொடரும்") and counts down, so no text matcher survives.
+  const cta = page.getByTestId("done-continue");
+  // Race, do not poll-once: called straight after the language tap, the done
+  // screen has not rendered yet, so a bare count() reads 0 and the helper
+  // becomes a no-op that leaves the test stranded on /login. Wait for
+  // WHICHEVER outcome this path produces - the button (new signup) or the
+  // redirect itself (returning login, which skips the screen).
+  await Promise.race([
+    cta.waitFor({ timeout: 15_000 }).catch(() => {}),
+    page.waitForURL(/\/devices/, { timeout: 15_000 }).catch(() => {}),
+  ]);
+  if (await cta.count()) await cta.first().click();
+}
+
 /** The app's own error line - Next's route announcer also carries role=alert. */
 export function errorAlert(page: Page) {
   return page.locator("p[role='alert']");

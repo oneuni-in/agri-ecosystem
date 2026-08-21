@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.identity.backchannel import notify_logout_everywhere
+from modules.identity.device_kind import describe_device
 from modules.identity.handles import HandleError, can_change_handle, validate_handle
 from modules.identity.models import (
     Email,
@@ -51,6 +52,7 @@ from modules.identity.session_service import (
 from shared.audit import audit
 from shared.db import get_session
 from shared.events import publish
+from shared.geoip import state_for_ip
 from shared.pagination import Page, paginate
 from shared.security import SecureRouter
 from shared.telemetry import get_logger
@@ -68,6 +70,14 @@ AG_FALLBACK_PREFIX = "AG-"
 
 def _fingerprint(request: Request) -> str:
     return device_fingerprint(
+        request.headers.get("user-agent"), request.headers.get("sec-ch-ua-platform")
+    )
+
+
+def _device_kind(request: Request) -> str | None:
+    """The one recognisable sentence /devices shows. Derived here and stored;
+    the raw UA never is (see modules/identity/device_kind.py)."""
+    return describe_device(
         request.headers.get("user-agent"), request.headers.get("sec-ch-ua-platform")
     )
 
@@ -142,6 +152,7 @@ async def login(
         fingerprint=fingerprint,
         ip=request.client.host if request.client else None,
         device_label=body.device_label,
+        device_kind=_device_kind(request),
     )
     _set_session_cookie(response, sid)
     # commit BEFORE announcing (mirrors profile_router._commit_and_announce /
@@ -409,6 +420,14 @@ class DeviceOut(IdentityPublicSchema):
     current: bool
     created_at: datetime
     last_seen_at: datetime | None
+    # ID-U1 P8. A session row has to answer four questions - which site, what
+    # device, where, when - and before this it answered one, by printing the
+    # OAuth client id twice.
+    device_kind: str | None  # "Android - Chrome"; None for pre-0054 rows
+    # STATE, not district. shared.geoip resolves subdivisions only, and only
+    # when an mmdb is provisioned (an owner/VPS action) - unset means this is
+    # None everywhere, which the UI renders by simply omitting the place.
+    place: str | None
 
 
 class DevicesOut(BaseModel):
@@ -445,6 +464,8 @@ async def list_devices(
             current=row.id == principal.session_id,
             created_at=row.created_at,
             last_seen_at=row.last_seen_at,
+            device_kind=row.device_kind,
+            place=state_for_ip(row.ip) if row.ip else None,
         )
         for row in page.items
     ]
@@ -469,6 +490,8 @@ async def list_devices(
                 current=False,
                 created_at=refresh.created_at,
                 last_seen_at=refresh.last_used_at,
+                device_kind=refresh.device_kind,
+                place=state_for_ip(refresh.ip) if refresh.ip else None,
             )
             for refresh, client_id in family_rows
         )

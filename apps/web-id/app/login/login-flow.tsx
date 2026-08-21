@@ -6,10 +6,21 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
 
 import { ApiError, getJson, postJson } from "../../lib/api";
+import {
+  RULE_REFEREE,
+  RULE_REFERRER,
+  RULE_SIGNUP,
+  type RuleAmounts,
+} from "../../lib/coins";
 
 import { LoginLocaleSwitcher } from "./locale-switcher";
 
-type Step = "phone" | "otp" | "handle" | "language";
+type Step = "phone" | "otp" | "handle" | "language" | "done" | "locked";
+
+/** How long the done screen waits before taking the farmer where they were
+ * already going. Long enough to read the reward line, short enough that a
+ * phone put down mid-signup still lands somewhere useful. */
+const DONE_AUTO_CONTINUE_SECONDS = 6;
 
 const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
 
@@ -20,6 +31,42 @@ const RESEND_SECONDS = 30; // mirrors otp_limits' first-rung resend cooldown
  * `finish()` walks. */
 const STEP_ORDER: Step[] = ["phone", "otp", "handle", "language"];
 
+/** The reference's masked form: enough of the number to recognise it as
+ * yours, not enough for someone reading over a shoulder to write down. */
+function maskPhone(digits: string): string {
+  if (digits.length !== 10) return "";
+  return `+91 ${digits.slice(0, 2)}\u2022\u2022\u2022\u2022\u2022\u2022${digits.slice(-2)}`;
+}
+
+const SITES = [
+  { host: "agri.in", icon: "\ud83c\udf3e", tagKey: "done.agriTag" },
+  { host: "milk.in", icon: "\ud83e\udd5b", tagKey: "done.milkTag" },
+  { host: "theorganic.in", icon: "\ud83c\udf3f", tagKey: "done.organicTag" },
+] as const;
+
+/** The rate-limit message, naming the real wait when the server sent one.
+ *
+ * The throttles always send Retry-After; before ID-U1 the client dropped it
+ * and the copy said "request a new code" - the one action the throttle had
+ * just refused.
+ *
+ * The unit matters as much as the number. These windows are not all small:
+ * the resend cooldown is 30 s but the per-phone daily cap is a full 24 h, and
+ * "wait about 1440 minutes" is not something a person can act on. Anything an
+ * hour or longer is said in hours. Rounded UP throughout - telling someone to
+ * wait 13 when the window is 13.4 just sends them back for a second refusal.
+ */
+function lockedMessage(
+  err: ApiError,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  if (err.retryAfter === null) return t("otp.locked");
+  if (err.retryAfter >= 3600) {
+    return t("otp.lockedForHours", { hours: Math.ceil(err.retryAfter / 3600) });
+  }
+  return t("otp.lockedFor", { minutes: Math.max(1, Math.ceil(err.retryAfter / 60)) });
+}
+
 function safeNext(raw: string | undefined): string | null {
   // resume only ever returns to our own /authorize - anything else is dropped
   return raw && raw.startsWith("/authorize?") ? raw : null;
@@ -27,8 +74,10 @@ function safeNext(raw: string | undefined): string | null {
 
 export function LoginFlow({
   searchParamsPromise,
+  ruleAmounts,
 }: {
   searchParamsPromise: Promise<{ next?: string; ref?: string }>;
+  ruleAmounts: RuleAmounts;
 }) {
   const { next, ref } = use(searchParamsPromise);
   const t = useTranslations("ui.auth");
@@ -44,7 +93,44 @@ export function LoginFlow({
   const [handle, setHandle] = useState("");
   const [handleState, setHandleState] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [agriId, setAgriId] = useState<string | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [inviter, setInviter] = useState<string | null>(null);
+  const [autoIn, setAutoIn] = useState(DONE_AUTO_CONTINUE_SECONDS);
+  // the rate-limit message, held separately from `error`: it is a whole
+  // screen in the reference, not an inline line under a field
+  const [lockedText, setLockedText] = useState<string | null>(null);
   const verifying = useRef(false);
+
+  // The banner exists to name a reward, so it renders only when it can name
+  // BOTH halves. A partial banner ("you get some coins") is worse than none,
+  // and a hardcoded fallback is the thing this pass is forbidden to do.
+  const refereeCoins = ruleAmounts[RULE_REFEREE];
+  const referrerCoins = ruleAmounts[RULE_REFERRER];
+  const signupCoins = ruleAmounts[RULE_SIGNUP];
+  const showReferral = Boolean(ref) && refereeCoins !== undefined && referrerCoins !== undefined;
+
+  // Name the inviter only now, with a session in hand. /coins/referral/resolve
+  // is private precisely so this cannot happen on the phone step. Best-effort:
+  // no name simply means no line.
+  const onDone = step === "done";
+  useEffect(() => {
+    if (!onDone || !ref) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const body = await getJson(
+          `/coins/referral/resolve?code=${encodeURIComponent(ref)}`,
+        );
+        if (!cancelled) setInviter((body.handle as string | null) ?? null);
+      } catch {
+        if (!cancelled) setInviter(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onDone, ref]);
 
   const coolingDown = cooldown > 0;
   useEffect(() => {
@@ -53,15 +139,17 @@ export function LoginFlow({
     return () => clearInterval(timer);
   }, [coolingDown]);
 
-  const finish = (nextStep: Step | "done") => {
-    if (nextStep !== "done") {
-      setStep(nextStep);
-      return;
-    }
+  /** The redirect this flow has always performed, lifted out of finish()
+   * UNCHANGED so the done screen's button and its auto-continue both land
+   * exactly where the flow used to go on its own: same safeNext check, same
+   * /devices fallback. */
+  const performRedirect = () => {
     const resume = safeNext(next);
     if (resume) window.location.assign(resume);
     else router.push("/devices");
   };
+
+  const finish = (nextStep: Step) => setStep(nextStep);
 
   const requestOtp = async () => {
     setBusy(true);
@@ -79,9 +167,12 @@ export function LoginFlow({
         setGated(true);
         return;
       }
-      setError(
-        err instanceof ApiError && err.status === 429 ? t("otp.locked") : t("phone.invalid"),
-      );
+      if (err instanceof ApiError && err.status === 429) {
+        setLockedText(lockedMessage(err, t));
+        setStep("locked");
+        return;
+      }
+      setError(t("phone.invalid"));
     } finally {
       setBusy(false);
     }
@@ -102,17 +193,26 @@ export function LoginFlow({
         otp_proof: verified.otp_proof,
         ...(ref ? { referral_code: ref } : {}),
       });
+      setAgriId(login.agri_id as string);
+      setIsNewUser(Boolean(login.is_new_user));
       if (login.is_new_user) {
         const suggested = await getJson("/auth/handle/suggest");
         setSuggestions(suggested.suggestions as string[]);
         finish("handle");
       } else {
-        finish("done");
+        // The done screen announces a SIGNUP. A returning login has no
+        // reward to name, so it goes where it was always going rather
+        // than paying an interstitial on every sign-in.
+        performRedirect();
       }
     } catch (err) {
       setCode("");
-      const locked = err instanceof ApiError && err.status === 429;
-      setError(locked ? t("otp.locked") : t("otp.wrong"));
+      if (err instanceof ApiError && err.status === 429) {
+        setLockedText(lockedMessage(err, t));
+        setStep("locked");
+        return;
+      }
+      setError(t("otp.wrong"));
     } finally {
       verifying.current = false;
       setBusy(false);
@@ -125,6 +225,12 @@ export function LoginFlow({
       setHandleState(null);
       return;
     }
+    // "checking" is the fifth state the A7 reference names, and the only one
+    // with no server code behind it - it is the window while /auth/handle/check
+    // is in flight. Without it the line under the field simply held the PREVIOUS
+    // verdict while a new one was being fetched, so a taken handle still read
+    // "available" for as long as the request took.
+    setHandleState("checking");
     const result = await getJson(`/auth/handle/check?h=${encodeURIComponent(candidate)}`);
     setHandleState(result.ok ? "available" : (result.code as string));
   };
@@ -132,7 +238,8 @@ export function LoginFlow({
   const saveHandle = async () => {
     setBusy(true);
     try {
-      await postJson("/auth/handle", { handle });
+      const saved = await postJson("/auth/handle", { handle });
+      setAgriId(saved.agri_id as string);
       finish("language");
     } catch (err) {
       setHandleState(err instanceof ApiError ? err.detail : "invalid_format");
@@ -140,6 +247,19 @@ export function LoginFlow({
       setBusy(false);
     }
   };
+
+  // Auto-continue: a farmer who puts the phone down mid-signup still lands
+  // where they were going. Shown as a countdown ON the button, never a silent
+  // hijack - and pressing it skips the wait.
+  useEffect(() => {
+    if (!onDone) return;
+    if (autoIn <= 0) {
+      performRedirect();
+      return;
+    }
+    const timer = setTimeout(() => setAutoIn((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [onDone, autoIn]);
 
   const chooseLanguage = async (locale: "en" | "ta" | "hi") => {
     await postJson("/auth/language", { language: locale });
@@ -150,7 +270,7 @@ export function LoginFlow({
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-center gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[540px] flex-col items-center justify-center gap-4 px-4 py-8">
       {/* AG-A63: pre-auth locale switcher, above every step. The language
           STEP below persists a choice to the ACCOUNT after login; this only
           changes what THIS browser renders, right now, so a Tamil-first user
@@ -176,10 +296,18 @@ export function LoginFlow({
 
       {/* Where you are in the four steps. Hidden while gated: there is no
           progress through a flow that is closed. */}
-      {!gated && (
-        <ol aria-label={t("stepsLabel")} className="flex items-center gap-1.5">
+      {/* The rail measures the four SIGNUP steps. "done" is past all of them,
+          so it hides rather than rendering four bars with nothing current —
+          the reference hides it on this screen for the same reason. */}
+      {!gated && step !== "done" && (
+        <ol
+          aria-label={t("stepsLabel")}
+          className="flex w-full max-w-[420px] items-center gap-1.5"
+        >
           {STEP_ORDER.map((name, index) => {
-            const current = STEP_ORDER.indexOf(step);
+            // being rate-limited does not move you back a step: the rail
+            // keeps reading "2 of 4", as the reference's own show() does
+            const current = STEP_ORDER.indexOf(step === "locked" ? "otp" : step);
             const done = index < current;
             const here = index === current;
             return (
@@ -195,7 +323,7 @@ export function LoginFlow({
         </ol>
       )}
 
-      <Card className="p-6">
+      <Card className="w-full max-w-[420px] p-6">
         {/* The D30 launch gate wins over every step: signup is closed until
             DLT approval lands, so there is no partial flow worth showing. */}
         {gated ? (
@@ -213,6 +341,30 @@ export function LoginFlow({
               void requestOtp();
             }}
           >
+            {/* Referral banner. `?ref=` has always been captured and passed to
+                /auth/login as referral_code; until now it was invisible, so an
+                invitation that promised coins arrived at a screen mentioning
+                none. Deliberately UNNAMED here: resolving a code to the
+                inviter's handle before sign-in would publish a code -> handle
+                oracle on a public route. The name arrives on the done screen,
+                once there is a session to gate it behind.
+
+                The TIMING in the copy is the engine's, not the mockup's. A7
+                says "+100 when you sign up"; referrals.py delays BOTH rewards
+                to the referee's profile_100 event on purpose - that delay is
+                the anti-farm design. Promising coins at signup would promise
+                something no code path pays. */}
+            {showReferral && (
+              <div className="flex items-start gap-2.5 rounded-btn border border-line bg-brand-soft px-3 py-2.5">
+                <span aria-hidden="true" className="text-[18px] leading-none">
+                  🎁
+                </span>
+                <p className="text-[12.5px] leading-[1.5] text-brand-deep">
+                  <b className="font-bold">{t("referral.title")}</b>{" "}
+                  {t("referral.body", { referee: refereeCoins, referrer: referrerCoins })}
+                </p>
+              </div>
+            )}
             <h1 className="font-display text-xl font-bold text-ink">{t("phone.title")}</h1>
             <p className="text-sm text-sub">{t("phone.subtitle")}</p>
             <label className="text-sm font-bold text-ink" htmlFor="phone">
@@ -247,13 +399,44 @@ export function LoginFlow({
             <Button variant="brand" type="submit" disabled={busy || phone.length !== 10}>
               {t("phone.cta")}
             </Button>
+            {/* DPDP consent, one sentence, no checkbox. It replaces the generic
+                "you agree to our Terms and Privacy policy" line that used to
+                sit below the card: boilerplate nobody reads is not consent,
+                and the A7 ADD asks for what we store and what we never do, in
+                plain words.
+
+                ON THE WORDING: the reference says "we store your number
+                ENCRYPTED". identity.users.phone is a plain Text column - it is
+                NOT encrypted at rest - so that claim is absent here. A false
+                privacy promise on the consent line of a DPDP launch gate is
+                not a copy nit. Encrypting the column is a real backlog item;
+                until it exists this says only what is true. */}
+            <p className="text-[11.5px] leading-[1.55] text-muted">
+              {t("phone.dpdp")}{" "}
+              <a className="text-brand underline" href="/privacy">
+                {t("phone.dpdpLink")}
+              </a>
+            </p>
           </form>
         )}
 
         {step === "otp" && (
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("otp.title")}</h1>
-            <p className="text-sm text-sub">{t("otp.sentTo", { phone: `+91 ${phone}` })}</p>
+            <p className="text-sm text-sub">
+              {t("otp.sentTo", { phone: `+91 ${phone}` })}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("phone");
+                  setCode("");
+                  setError(null);
+                }}
+                className="tap-target text-brand underline"
+              >
+                {t("otp.changeNumber")}
+              </button>
+            </p>
             <OtpInput
               value={code}
               onChange={setCode}
@@ -297,23 +480,71 @@ export function LoginFlow({
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("handle.title")}</h1>
             <p className="text-sm text-sub">{t("handle.subtitle")}</p>
-            <input
-              aria-label={t("handle.title")}
-              value={handle}
-              placeholder={t("handle.placeholder")}
-              onChange={(event) => void checkHandle(event.target.value.toLowerCase())}
-              className="min-h-[44px] rounded-btn border border-line bg-card px-3.5 text-lg font-bold text-ink"
-            />
+            {/* The rules sit BESIDE the label, not in an error you have to earn
+                by breaking them: "4-20 · a-z 0-9 _" read before typing costs
+                nothing, and read after a rejection costs a retry. */}
+            <div className="flex items-baseline justify-between gap-2">
+              <label className="text-sm font-bold text-ink" htmlFor="handle">
+                {t("handle.label")}
+              </label>
+              <span className="text-[11.5px] text-muted">{t("handle.rules")}</span>
+            </div>
+            {/* The @ is rendered, never typed: handles.py normalizes a leading
+                @ away anyway, so showing it here just tells the truth about
+                what the name will look like everywhere else. */}
+            <div className="relative">
+              {/* Positioned INSIDE the field, as the reference builds it, not
+                  as a sibling box: the focus ring is the design system's
+                  "never remove" 3px accent outline and it belongs to the
+                  input. A wrapped layout let that ring paint straight over
+                  the @, cutting the glyph in half whenever the field had
+                  focus. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-lg font-bold text-muted"
+              >
+                @
+              </span>
+              <input
+                id="handle"
+                value={handle}
+                placeholder={t("handle.placeholder")}
+                onChange={(event) => void checkHandle(event.target.value.toLowerCase())}
+                className="min-h-[44px] w-full min-w-0 rounded-btn border border-line bg-card py-2 pl-8 pr-3.5 text-lg font-bold text-ink"
+              />
+            </div>
+            {/* Five states, each pinned to what the server actually answered.
+                `reserved` says only "reserved" - never why, never what else is
+                on the list: the blocklist is a brand-squatting defence and
+                enumerating it defeats it. */}
             {handleState && (
-              <p role="status" className="text-sm text-sub">
-                {handleState === "available" && t("handle.available")}
-                {handleState === "taken" && t("handle.taken")}
-                {handleState === "reserved" && t("handle.reserved")}
+              <p
+                role="status"
+                className={`text-sm ${
+                  handleState === "available"
+                    ? "text-up"
+                    : handleState === "checking"
+                      ? "text-muted"
+                      : "text-down"
+                }`}
+              >
+                {handleState === "checking" && t("handle.checking")}
+                {handleState === "available" && t("handle.available", { handle })}
+                {handleState === "taken" && t("handle.taken", { handle })}
+                {handleState === "reserved" && t("handle.reserved", { handle })}
                 {(handleState === "invalid_format" || handleState === "already_changed") &&
                   t("handle.invalidFormat")}
               </p>
             )}
-            <div className="flex flex-wrap gap-1.5" aria-label={t("handle.suggestions")}>
+            {/* Suggestions are an ANSWER to a rejection - the taken message
+                ends "try one of these:" and these are the these. Under an
+                available handle they contradicted the line above them,
+                offering alternatives to a name the farmer had just been told
+                they could have. */}
+            <div
+              className={`flex flex-wrap gap-1.5 ${handleState === "available" ? "hidden" : ""}`}
+              aria-label={t("handle.suggestions")}
+            >
               {suggestions.map((name) => (
                 <button
                   key={name}
@@ -335,12 +566,124 @@ export function LoginFlow({
             <Button variant="ghost" onClick={() => finish("language")}>
               {t("handle.skip")}
             </Button>
+            {/* Stated HERE, at pick time, because this pick IS the one change:
+                set_handle flips agri_id_changed_once, so a farmer who chooses
+                carelessly now has already spent the allowance. Saying it on
+                /account afterwards would be telling someone about a door that
+                has already shut. */}
+            <p className="text-[11.5px] leading-[1.55] text-muted">{t("handle.oneChange")}</p>
+          </div>
+        )}
+
+        {step === "locked" && (
+          <div className="flex flex-col gap-3">
+            <h1 className="font-display text-xl font-bold text-ink">
+              {t("otp.lockedTitle")}
+            </h1>
+            {/* A bordered notice, not a grey line under a field. Being
+                shut out is the one state on this flow the farmer has to
+                notice, and it used to render in the same weight as the
+                DPDP sentence beneath it.
+
+                Tokens: the reference's red `.err` trio has no counterpart
+                in the design system, so it maps onto the severe-* family
+                per the A-U1 one-off-colour policy (severe-ink on
+                severe-bg is 6.71:1). */}
+            <p
+              role="alert"
+              className="rounded-btn border border-severe-border bg-severe-bg px-3 py-2.5 text-sm leading-[1.5] text-severe-ink"
+            >
+              {lockedText}
+            </p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setLockedText(null);
+                setCode("");
+                setError(null);
+                setStep("phone");
+              }}
+            >
+              {t("otp.back")}
+            </Button>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="flex flex-col gap-3">
+            {/* motion-reduce keeps the burst at its FINAL state - visible,
+                full size - rather than removing it. The A-U1 contract:
+                reduced motion means no animation, never missing content. */}
+            <span
+              aria-hidden="true"
+              className="mx-auto flex h-16 w-16 animate-pop items-center justify-center rounded-full bg-brand-soft text-[30px] motion-reduce:animate-none"
+            >
+              ✅
+            </span>
+            <h1 className="text-center font-display text-xl font-bold text-ink">
+              {isNewUser ? t("done.title") : t("done.titleReturning")}
+            </h1>
+            <p className="text-center text-sm text-sub">
+              {agriId ? `@${agriId} \u00b7 ` : ""}
+              {maskPhone(phone)}
+            </p>
+            {inviter && (
+              <p className="text-center text-[12.5px] text-brand-deep">
+                {t("done.invitedBy", { handle: inviter })}
+              </p>
+            )}
+            {/* Signup coins only for an actual signup: a returning login has
+                no bonus to announce, and saying otherwise would promise coins
+                the ledger will never pay. Amount from the rules table, or the
+                line is absent entirely. */}
+            {isNewUser && signupCoins !== undefined && (
+              <div className="flex items-center gap-2.5 rounded-btn border border-alert-line bg-coins-bg px-3 py-2.5">
+                <span aria-hidden="true" className="text-[22px]">
+                  🪙
+                </span>
+                <div>
+                  <b className="font-display text-lg text-coins-fg">
+                    {t("done.coinsAmount", { amount: signupCoins })}
+                  </b>
+                  <p className="text-[11px] leading-[1.4] text-sub">{t("done.coinsNote")}</p>
+                </div>
+              </div>
+            )}
+            <ul aria-label={t("done.sitesLabel")} className="grid grid-cols-3 gap-2">
+              {SITES.map((site) => (
+                <li
+                  key={site.host}
+                  className="rounded-btn border border-line bg-cream px-1.5 py-2.5 text-center"
+                >
+                  <b className="block text-[12.5px] text-ink">
+                    {site.icon} {site.host}
+                  </b>
+                  {/* break-words is load-bearing, not defensive: Tamil and
+                      Hindi taglines are single long words with no break
+                      opportunity, and at 390 they ran straight over the card
+                      border into the neighbouring tile. */}
+                  <span className="block break-words text-[11px] leading-[1.3] text-muted">
+                    {t(site.tagKey)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* testid because the label is localised AND counts down: a
+                spec cannot match it by text in three languages, and this
+                screen sits on the path every signup test walks. */}
+            <Button variant="brand" data-testid="done-continue" onClick={performRedirect}>
+              {autoIn > 0 ? t("done.continueIn", { seconds: autoIn }) : t("done.continue")}
+            </Button>
           </div>
         )}
 
         {step === "language" && (
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("language.title")}</h1>
+            {/* This step commits on tap - no selected state, no confirm -
+                so the only thing that can tell a farmer who mistapped that
+                the decision is reversible is this sentence. */}
+            <p className="text-sm text-sub">{t("language.subtitle")}</p>
             <div className="grid grid-cols-3 gap-2">
               <CategoryTile
                 icon="🌐"
@@ -370,11 +713,26 @@ export function LoginFlow({
         )}
       </Card>
 
-      {/* DPDP notice. Plain text, not links: agri.in has no /terms or /privacy
-          route yet, and its own footer renders these as text for the same
-          reason. A link that 404s on the consent line of a login screen is
-          worse than no link. Wire them up when the pages exist. */}
-      <p className="text-center text-[11.5px] leading-[1.55] text-muted">{t("terms")}</p>
+      {/* Trust strip. Four facts a farmer deciding whether to hand over a
+          phone number is actually weighing, and all four are true today. It
+          takes the place of the old generic terms line, whose job (the DPDP
+          link) moved INTO the card, under the CTA, where consent belongs.
+          Hidden while gated: "free forever" under a closed sign-up reads as
+          an advertisement for something you cannot have. */}
+      {!gated && (
+        <ul className="flex w-full flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 text-[11px] text-muted">
+          {[t("trust.free"), t("trust.noCharges"), t("trust.languages"), t("trust.dpdp")].map(
+            (fact) => (
+              <li key={fact} className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-up">
+                  ✓
+                </span>
+                {fact}
+              </li>
+            ),
+          )}
+        </ul>
+      )}
     </main>
   );
 }

@@ -13,17 +13,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.coins import referrals, service
-from modules.coins.models import Rule
+from modules.coins.models import ReferralCode, Rule
 from modules.coins.reason_codes import label_key
 from modules.coins.schemas import (
     BalanceOut,
     HistoryItemOut,
     HistoryOut,
     ReferralCodeOut,
+    ReferrerOut,
     RuleOut,
     RulesOut,
 )
 from shared.db import get_session
+from shared.lookups import resolve_handle
 from shared.pagination import DEFAULT_PAGE_SIZE
 from shared.security import SecureRouter
 
@@ -97,6 +99,30 @@ async def get_history(
         ],
         next_cursor=page.next_cursor,
     )
+
+
+# PRIVATE on purpose, and this is the whole reason the login banner does not
+# name the inviter until after the OTP. A public code -> handle route would be
+# an enumeration oracle: codes are 8 characters from a 32-character alphabet,
+# and anyone could walk them to harvest handles. Behind require_auth (and the
+# router's rate limit) the same walk costs a session and a budget.
+#
+# The handle comes through shared.lookups, never a join: coins may not read
+# identity.users (the independence contract), and the seam hands back the
+# handle alone.
+@router.get("/referral/resolve")
+async def resolve_referrer(
+    request: Request,
+    session: SessionDep,
+    code: Annotated[str, Query(min_length=1, max_length=16)],
+) -> ReferrerOut:
+    user_id = _principal_user_id(request)
+    owner_id = await session.scalar(select(ReferralCode.user_id).where(ReferralCode.code == code))
+    # Your own code names nobody: a self-referral is not attributable anyway
+    # (referrals.attribute refuses it), so the banner must not imply it is.
+    if owner_id is None or owner_id == user_id:
+        return ReferrerOut(handle=None)
+    return ReferrerOut(handle=await resolve_handle(session, owner_id))
 
 
 @router.get("/referral-code")

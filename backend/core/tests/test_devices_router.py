@@ -134,3 +134,63 @@ async def test_language_upserts_profile(api: tuple[httpx.AsyncClient, AsyncSessi
     assert profile.language == "ta"
     assert (await http.get("/auth/me")).json()["language"] == "ta"
     assert (await http.post("/auth/language", json={"language": "xx"})).status_code == 422
+
+
+# --- ID-U1 P8: a row has to say WHICH SITE, WHAT DEVICE, WHERE, WHEN --------
+
+
+async def test_device_row_carries_a_readable_device_description(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    # a real browser UA, sent on the request that mints the session
+    chrome = {
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "sec-ch-ua-platform": '"Windows"',
+    }
+    await _login(http, session, headers=chrome)
+    row = (await http.get("/auth/devices", headers=chrome)).json()["items"][0]
+    assert row["device_kind"] == "Windows - Chrome"
+    # geoip is state-level and only active with a provisioned mmdb, so `place`
+    # is a nullable field the UI simply omits - it must still be PRESENT in
+    # the payload, or the client cannot tell "unknown" from "not implemented".
+    assert "place" in row
+
+
+async def test_unrecognisable_agent_is_null_not_a_guess(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    odd = {"user-agent": "curl/8.4.0", "sec-ch-ua-platform": '"Unknown"'}
+    await _login(http, session, headers=odd)
+    row = (await http.get("/auth/devices", headers=odd)).json()["items"][0]
+    # None, so the screen says "Unknown device" rather than naming the wrong
+    # thing. Rows created before migration 0054 read the same way, and there
+    # is nothing to backfill them from - the raw UA was never stored.
+    assert row["device_kind"] is None
+
+
+async def test_the_raw_user_agent_is_never_stored(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    from modules.identity.models import SessionWeb
+
+    http, session = api
+    chrome = {
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "sec-ch-ua-platform": '"Windows"',
+    }
+    await _login(http, session, headers=chrome)
+    row = await session.scalar(select(SessionWeb).order_by(SessionWeb.id.desc()).limit(1))
+    assert row is not None
+    # the whole point of deriving a description instead of adding a
+    # user_agent column: the high-entropy string must not be at rest.
+    assert row.device_kind == "Windows - Chrome"
+    assert chrome["user-agent"] not in (row.device_kind or "")
+    assert not hasattr(row, "user_agent")

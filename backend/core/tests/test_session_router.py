@@ -56,10 +56,16 @@ async def _otp_proof(session: AsyncSession, phone: str = PHONE) -> str:
 
 
 async def _login(
-    http: httpx.AsyncClient, session: AsyncSession, phone: str = PHONE
+    http: httpx.AsyncClient,
+    session: AsyncSession,
+    phone: str = PHONE,
+    headers: dict[str, str] | None = None,
 ) -> httpx.Response:
+    """`headers` overrides the client's default UA for this one request - the
+    session row's device description is derived from whatever UA mints it
+    (ID-U1 P8), so tests about that need to choose their own."""
     proof = await _otp_proof(session, phone)
-    return await http.post("/auth/login", json={"otp_proof": proof})
+    return await http.post("/auth/login", json={"otp_proof": proof}, headers=headers)
 
 
 async def test_new_user_login_sets_cookie_and_creates_account(

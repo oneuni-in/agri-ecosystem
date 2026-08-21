@@ -279,6 +279,27 @@ async def list_owner_reviews(
     return await paginate(session, query, cursor=cursor, limit=limit, descending=True)
 
 
+async def list_mine(
+    session: AsyncSession,
+    *,
+    author_user_id: uuid.UUID,
+    cursor: str | None = None,
+    limit: int = DEFAULT_PAGE_SIZE,
+) -> Page[Review]:
+    """Every review this person WROTE, newest first, whatever its status.
+
+    Deliberately unfiltered by moderation status, which is the point of the
+    endpoint: a review is `pending` on write and therefore absent from the
+    public list, so without this an author has no way to see that what they
+    wrote exists at all. `author_user_id` is indexed.
+
+    Scoped to the caller by the router - there is no parameter here that
+    could ask for somebody else's.
+    """
+    query = select(Review).where(Review.author_user_id == author_user_id)
+    return await paginate(session, query, cursor=cursor, limit=limit, descending=True)
+
+
 async def list_replies_for_moderation(
     session: AsyncSession, *, status: str, cursor: str | None = None, limit: int = DEFAULT_PAGE_SIZE
 ) -> Page[ReviewReply]:

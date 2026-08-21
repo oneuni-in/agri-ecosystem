@@ -54,6 +54,68 @@
         "title": "Price alerts",
         "sub": "Each subscription is a once-a-day digest of one pincode's mandi prices."
       },
+      "reviewsPage": {
+        "title": "My reviews",
+        "sub": "What you wrote, and where each one stands.",
+        "empty": "You have not written a review yet.",
+        "emptyCta": "Find a business",
+        "published": "Published",
+        "pending": "In moderation",
+        "rejected": "Not published",
+        "pendingNote": "Every review is read before it goes live. Yours is in the queue.",
+        "rejectedNote": "This one was not published. Reviews are read against the posting rules.",
+        "ratingLabel": "{rating} out of 5",
+        "unknownTarget": "A listing that is no longer available"
+      },
+      "prefs": {
+        "title": "How we reach you",
+        "hint": "Changes save as you make them. The notification feed above is always on.",
+        "sms": "SMS",
+        "email": "Email",
+        "push": "Push notifications",
+        "on": "On",
+        "off": "Off",
+        "saved": "Saved",
+        "loadFailed": "Could not load your preferences.",
+        "saveFailed": "That did not save. Try again."
+      },
+      "privacyPage": {
+        "title": "Data & privacy",
+        "sub": "What other people can see, and your rights over what we hold."
+      },
+      "privacy": {
+        "visibility": "What others can see",
+        "visibilityHint": "Everything is private until you turn it on. Your phone number and email are never on this list — they are never public, so they are not a setting.",
+        "name": "Your name",
+        "location": "Your district and pincode",
+        "language": "Your language",
+        "interests": "What you grow",
+        "avatar": "Your photo",
+        "on": "Visible",
+        "off": "Private",
+        "saved": "Saved",
+        "saveFailed": "That did not save. Try again.",
+        "dpdp": "Your data — DPDP Act 2023",
+        "dpdpHint": "You can take a copy of everything we hold about you, see who was shown your contact details, and ask us to delete your account.",
+        "export": "Download my data",
+        "exportHint": "A JSON archive of everything on your AgriID. Downloading it is recorded.",
+        "reveals": "Who was shown your contact details",
+        "revealsHint": "We log that a business was shown your number — never the number itself.",
+        "revealsEmpty": "No business has been shown your contact details.",
+        "erase": "Delete my account",
+        "eraseHint": "There is a waiting period before anything is deleted, and you can cancel during it.",
+        "eraseAsk": "Request deletion",
+        "eraseBusy": "Sending…",
+        "erasePending": "Deletion requested. Nothing is removed before {date}.",
+        "eraseCancel": "Cancel this request",
+        "eraseFailed": "That did not go through. Try again."
+      },
+      "devicesPage": {
+        "title": "Devices & sessions",
+        "sub": "Where your AgriID is signed in, across every site in the family.",
+        "manage": "Sign devices out on id.agri.in →",
+        "readOnly": "This is a read-only view. Signing a device out, renaming one, or ending every session happens on id.agri.in, where your AgriID lives."
+      },
       "nav": {
         "overview": "Overview",
         "inquiries": "My enquiries",

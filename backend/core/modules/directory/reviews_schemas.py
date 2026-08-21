@@ -63,6 +63,29 @@ class ReviewPageOut(BaseModel):
     next_cursor: str | None
 
 
+class MyReviewOut(ReviewOut):
+    """A review as its AUTHOR sees it (AG-U5 P4).
+
+    ReviewOut plus the target's name and slug. The public list does not carry
+    these because it is already scoped to one target - the reader knows what
+    they are looking at. An author's list spans targets, so a row without a
+    name says "you rated something four stars" and nothing more.
+
+    Both are nullable: a target that has since been deleted, archived or
+    hidden resolves to nothing, and the row then renders without a name
+    rather than with a guess. The review itself is still theirs and still
+    shown - a vanished shop must not vanish your words.
+    """
+
+    target_name: str | None = None
+    target_slug: str | None = None
+
+
+class MyReviewPageOut(BaseModel):
+    items: list[MyReviewOut]
+    next_cursor: str | None
+
+
 class RatingSummaryOut(BaseModel):
     target_type: str
     target_id: uuid.UUID

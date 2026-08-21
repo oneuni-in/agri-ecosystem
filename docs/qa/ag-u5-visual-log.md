@@ -82,3 +82,58 @@ console clean apart from the same pre-existing `icon.svg` manifest warning.
 | P2-5 | **The right column is crops + saved; the reference puts the AgriCoins passbook there.** | **keep** — the passbook already ships in full at `/account/coins` (P3 mounts it, drift doc §2). Duplicating a ledger into the overview would give two readers of one balance and an eventual disagreement. |
 | P2-6 | **"Last sent 2026-08-21" renders the raw ISO date.** | **flag** — correct but not localised, and it will read oddly in ta/hi. A date formatter is a shared concern (several surfaces print dates) rather than something to inline here. |
 | P2-7 | **Stats sub-captions describe the category even at zero** — "SAVED ITEMS 0 / guides, articles and videos". | **keep** — the caption says what the tile counts, which is still true of an empty one, and it is how the reference's captions read. |
+
+---
+
+## P3 · the coins passbook
+
+Proofs: `ag-u5-p3-coins-1280.png` · `ag-u5-p3-coins-390.png`.
+
+**P3 was a mount, not a build** (drift doc §2): `/coins` already shipped balance,
+ledger and referral share at A-U4 W2. It moved to `/account/coins` in P1 and is
+verified here rather than rewritten — the out-of-bounds rule is that the shell
+mounts modules and never rewrites them.
+
+Verified live: no overflow at 390 or 1280; the earn amounts are read from
+`GET /coins/rules` at render (`referral_referrer=250`, `referral_referee=100`,
+`daily_visit_streak=15`, `review_approved=20`) and match what the page prints;
+the ledger renders real entries; the referral code loads.
+
+| # | Delta | Verdict |
+|---|---|---|
+| P3-1 | **The share is a bare CODE; the reference shows a link, `agri.in/r/murugesan`.** No `/r/[code]` route exists on web-agri, and the WhatsApp share sends the code as text. | **flag — and it is the more serious half of a bigger gap. See below.** |
+| P3-2 | **Earn amounts read +20 / +250 where the reference prints +5 / +25.** | **keep — the reference is wrong**, as `lib/coins.ts` already records. The rules table is the data. |
+| P3-3 | **"Attend a webinar" renders a Soon badge with no amount.** | **keep** — no `webinar_attend` rule exists, so there is no amount to print. A card promising coins nothing can award would advertise a reward nobody can earn. |
+
+### The referral chain has no entry point — owner decision needed
+
+Following P3-1 down: **the referral feature is complete in the backend and
+unreachable from any UI.**
+
+- `POST /auth/login` accepts `referral_code` (`session_router.py:111`), puts it
+  on the `user.registered` event, and `coins/worker.py` calls
+  `referrals.attribute` — which creates the `Referral` row, and `maybe_reward`
+  pays both sides on the referee's `profile_100`.
+- **No frontend passes `referral_code`. Anywhere.** Grepped across all five
+  apps and `packages/auth-client`: the field is never set.
+
+So today a farmer copies their code, shares it on WhatsApp, their friend signs
+up — and **nothing is attributed, because no signup surface accepts a code**.
+The coins page truthfully says "you both earn when they verify their number";
+the mechanism that would make it true is not connected.
+
+`agri.in/r/<code>` is exactly the missing piece — the link carries the code so
+the referee never types it. **It was not built in this pass, deliberately:**
+
+1. It spans **web-id**. The code has to survive the hop to `id.agri.in/login`
+   and be included in that page's login POST. AG-U5 is scoped to
+   `apps/web-agri`, and web-id's login is the surface D30's two-layer signup
+   gate hardened — not somewhere to make an unreviewed change days before
+   launch.
+2. Building `/r/[code]` on agri alone would produce a link that **looks** like
+   it attributes a referral and does not. That is worse than today's honest
+   bare code, not better.
+
+Recommendation: treat this as its own small cross-app task (agri `/r/[code]` →
+web-id login carries the code → attribution assertion), sized and reviewed on
+its own. Flagged rather than silently shipped half-done.

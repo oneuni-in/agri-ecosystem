@@ -256,3 +256,64 @@ async def test_reviews_public_routes_are_registered() -> None:
     app = create_app()
     assert "/reviews" in app.state.public_routes
     assert "/reviews/summary" in app.state.public_routes
+
+
+# ── the author's own reviews (AG-U5 P4) ──────────────────────────────
+
+
+async def test_mine_requires_auth(api: tuple[httpx.AsyncClient, AsyncSession]) -> None:
+    http, _ = api
+    assert (await http.get("/reviews/mine")).status_code == 401
+
+
+async def test_mine_shows_the_authors_pending_review(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The whole reason this endpoint exists.
+
+    A review is `pending` on write, so it is absent from the public list by
+    definition — and /reviews is keyed by target, not author. Before AG-U5
+    there was no way to answer "where did my review go?", which is the
+    question a moderation queue creates.
+    """
+    http, session = api
+    b = await _business(session, USER_A)
+    posted = await http.post("/reviews", json=_review_body("business", b.id), headers=_as(USER_B))
+    assert posted.status_code == 201
+
+    resp = await http.get("/reviews/mine", headers=_as(USER_B))
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert [i["id"] for i in items] == [posted.json()["id"]]
+    assert items[0]["moderation_status"] == "pending"
+
+
+async def test_mine_never_shows_someone_elses(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    http, session = api
+    b = await _business(session, USER_A)
+    await http.post("/reviews", json=_review_body("business", b.id), headers=_as(USER_B))
+
+    # USER_A owns the business being reviewed and still sees nothing here:
+    # this list is scoped to what YOU wrote, not what was written about you.
+    assert (await http.get("/reviews/mine", headers=_as(USER_A))).json()["items"] == []
+
+
+async def test_mine_names_what_was_reviewed(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """A row reading "★★★★☆ — your review" names nothing. The target's name
+    and slug travel with it so the dashboard can say which shop, and link."""
+    http, session = api
+    b = await _business(session, USER_A, name="AgroMart Agencies")
+    product = await _approved_product(session, USER_A, b)
+    await http.post("/reviews", json=_review_body("business", b.id), headers=_as(USER_B))
+    await http.post("/reviews", json=_review_body("product", product.id), headers=_as(USER_B))
+
+    items = (await http.get("/reviews/mine", headers=_as(USER_B))).json()["items"]
+    by_type = {i["target_type"]: i for i in items}
+    assert by_type["business"]["target_name"] == "AgroMart Agencies"
+    assert by_type["business"]["target_slug"] == b.slug
+    assert by_type["product"]["target_name"] == "A2 Milk"
+    assert by_type["product"]["target_slug"] == product.slug

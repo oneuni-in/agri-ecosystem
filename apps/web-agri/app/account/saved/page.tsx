@@ -44,7 +44,7 @@ async function fetchSaved(token: string): Promise<ContentCard[]> {
 
 export default async function SavedPage() {
   const user = await auth.getServerUser();
-  if (!user) redirect("/api/auth/login?next=/saved");
+  if (!user) redirect("/api/auth/login?next=/account/saved");
 
   const token = await auth.getAccessToken();
   const [t, locale, items] = await Promise.all([

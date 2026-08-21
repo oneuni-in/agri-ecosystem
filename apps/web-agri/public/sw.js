@@ -16,9 +16,9 @@
  *                 great deal at a mandi gate with no signal; no price at all
  *                 is worth nothing. The stamp on the page carries its own
  *                 as-of date, so a stale page still says how stale it is.
- *   /saved      — items the visitor deliberately saved to read later, which
- *                 is close to a declaration that they expect to read them
- *                 somewhere without signal.
+ *   /account/saved — items the visitor deliberately saved to read later,
+ *                 which is close to a declaration that they expect to read
+ *                 them somewhere without signal.
  *   /tools     — the farm calculators, which are client-pure: they make no
  *                 network call at all, so unlike /mandi a cached copy is not
  *                 even stale. EMI before signing for a loan is wanted in a
@@ -40,7 +40,7 @@
  * Cache policy IS the threat model (milk's D28 sw.js, same rules):
  *  - only same-origin GETs are touched at all;
  *  - /api/* is NEVER intercepted — no PII in caches, ever. This matters more
- *    now than it did in A-U3: /saved is per-user, so its API payload must
+ *    now than it did in A-U3: /account/saved is per-user, so its API payload must
  *    never land in a shared cache. Only the RENDERED page is cached, by the
  *    browser that rendered it, and a logged-out visitor re-fetches it.
  *  - /_next/static/* is deliberately NOT cached. Production sets immutable
@@ -50,19 +50,23 @@
  *    (this broke three milk e2e specs; do not "fix" it by adding them here).
  */
 // Bumped whenever the cached SET changes, not merely when this file does:
-// v3 adds /tools. Old generations are deleted wholesale on activate, so a
-// device never serves a mix of two generations' pages.
-const VERSION = "v3";
+// v3 adds /tools; v4 moves /saved to /account/saved (AG-U5). The move is
+// exactly why v4 is mandatory rather than tidy — cache entries are keyed by
+// pathname, so an already-installed worker would hold a document at /saved
+// that no longer routes and would never reach the new one. Old generations
+// are deleted wholesale on activate, so a device never serves a mix of two
+// generations' pages.
+const VERSION = "v4";
 const CACHE = `agri-offline-${VERSION}`;
 
 /** Precached at install. /offline must be here or the shell cannot show. */
 const PRECACHE = ["/offline", "/helplines"];
 
 /** Navigations kept fresh in the cache as the visitor uses them. Not
- * precached: /saved is per-user, /mandi is large, and /tools needs its own JS
+ * precached: /account/saved is per-user, /mandi is large, and /tools needs its own JS
  * in the HTTP cache to be interactive at all — so all three are stored only
  * once the visitor has actually been there. */
-const RUNTIME_CACHEABLE = new Set(["/helplines", "/mandi", "/saved", "/tools"]);
+const RUNTIME_CACHEABLE = new Set(["/helplines", "/mandi", "/account/saved", "/tools"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

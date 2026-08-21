@@ -108,7 +108,7 @@ export async function SiteHeader() {
               <CoinsBalancePill endpoint="/api/coins/balance" />
               <NotificationBellIsland
                 basePath="/api/notify"
-                href="/notifications"
+                href="/account/notifications"
                 label={t("agriHome.notificationsLabel")}
               />
             </SignedIn>

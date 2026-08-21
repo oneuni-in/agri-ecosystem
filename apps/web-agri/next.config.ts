@@ -54,6 +54,28 @@ const nextConfig: NextConfig = {
     // 3: agri holds it from PR one).
     inlineCss: true,
   },
+  // AG-U5: /coins, /saved and /notifications moved under the /account shell.
+  //
+  // THESE REDIRECTS ARE PERMANENT INFRASTRUCTURE, NOT A MIGRATION COURTESY.
+  // Do not delete them once "the links are all updated" — the links are not
+  // the point. `backend/core/modules/notify/drivers.py` hardcodes
+  // `{"url": "/notifications"}` into every web-push payload, and that driver
+  // is shared by agri, milk, organic and id — web-id keeps its
+  // /notifications at the top level, so the literal cannot simply be
+  // repointed here without breaking the other three. Every push already
+  // delivered to a device, and every one sent from now on, clicks through to
+  // /notifications on this origin. This entry is what makes that land.
+  //
+  // Permanent (308) rather than temporary: the old paths are not coming back,
+  // and a 308 preserves the request method (the AG-A57 note on Next's
+  // `permanentRedirect`).
+  async redirects() {
+    return [
+      { source: "/coins", destination: "/account/coins", permanent: true },
+      { source: "/saved", destination: "/account/saved", permanent: true },
+      { source: "/notifications", destination: "/account/notifications", permanent: true },
+    ];
+  },
   // Same page-level hardening milk ships (M2 creative threat model): agri's
   // home now renders ad creatives too. Safe subset only; the full img-src
   // allowlist CSP remains the tracked fast-follow.

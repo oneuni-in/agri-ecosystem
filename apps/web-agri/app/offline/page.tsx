@@ -48,7 +48,7 @@ export default async function OfflinePage() {
             {[
               { href: "/helplines", key: "helplines", icon: "📞" },
               { href: "/mandi", key: "mandi", icon: "🌾" },
-              { href: "/saved", key: "saved", icon: "🔖" },
+              { href: "/account/saved", key: "saved", icon: "🔖" },
             ].map((entry) => (
               <li key={entry.key}>
                 <Link

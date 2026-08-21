@@ -2,9 +2,27 @@
 # to the staging age recipient below. The PRIVATE key never touches the repo,
 # CI logs, or the VPS disk outside a deploy (docs/runbooks/secrets.md).
 #
-# PLACEHOLDER: replace with the real public key after generating the keypair
-# offline (age-keygen); until then `sops --encrypt` will fail loudly rather
-# than encrypt to a key nobody holds.
+# The recipient below is the staging age PUBLIC key, generated offline with
+# `age-keygen` on 2026-08-21 and committed deliberately: a public key is not a
+# secret, and having it here is what lets anyone re-encrypt secrets/*.sops.*
+# without holding the private half.
+#
+# The PRIVATE half lives in exactly two places, per docs/runbooks/secrets.md:
+# an offline copy the owner controls, and the `SOPS_AGE_KEY` secret on the
+# `staging` GitHub ENVIRONMENT (not a plain repo secret, so only approved
+# deploy runs can read it).
+#
+# Rotating this recipient means re-encrypting: `sops updatekeys
+# secrets/staging.sops.env`. If the old private key may have leaked, rotate
+# the VALUES too - a stolen key decrypts every historical version of the file
+# in git history, not just the current one.
+# path_regex uses `secrets.` rather than `secrets/`: sops matches this against
+# the path as the OS reports it, and on Windows that is `secrets\staging.sops.env`
+# with a backslash, which a literal `/` never matches. Verified empirically with
+# sops 3.13.2 - `secrets/.*` and even `secrets[\/].*` both fail there, while
+# `secrets.*` and a bare `.*` succeed. The `.` costs nothing (it still requires
+# SOME character between the directory and the name) and keeps one config
+# working for Windows authors and Linux CI alike.
 creation_rules:
-  - path_regex: secrets/.*\.sops\..*$
-    age: age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqql6uvw5
+  - path_regex: secrets.*\.sops\..*$
+    age: age1c457t6r68v46aafr9nj28nju7ht945e2jr5ps3llxghsrx0z3efq2jj0xv

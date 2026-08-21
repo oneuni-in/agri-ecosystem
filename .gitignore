@@ -27,6 +27,15 @@ secrets/*
 !secrets/*.sops.env
 !secrets/staging.env.example
 
+# age PRIVATE keys, wherever they land. `secrets/*` above only covers one
+# directory, so a keypair generated outside the repo (the runbook says to
+# generate it offline, so it usually is) stayed committable at the repo root,
+# in backend/, in docs/ - anywhere. Verified: `git check-ignore` said NOT
+# IGNORED for all three before this line. gitleaks would catch the CONTENT in
+# CI, but only after it had been committed and pushed; this stops the file.
+*.agekey
+*.age.key
+
 # staging deploy state (written on the VPS by scripts/deploy/staging_deploy.sh)
 .staging-deployed
 

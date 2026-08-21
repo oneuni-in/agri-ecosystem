@@ -178,6 +178,23 @@ Recorded so the build follows the tree rather than the prompt where they part:
 4. **§2 P4 — "my reviews" needs backend.** See §3.2.
 5. **§0 — the "My crops" either/or is a false choice.** See §3.3.
 6. **§2 P1 — nothing is being extended.** `app/account/` has no page or layout.
+7. **§0 — web-agri runs on `:3002`, not `:3000`.** `apps/web-agri/package.json`
+   has had `next dev --port 3002` since D26, and the e2e suite knows it. Every
+   "live Chrome snapshot of localhost:3000" in §1 means `localhost:3002`.
+
+## 4a · Follow-ups this pass created but did not take
+
+- **Language autonyms exist in three places.** P1 added `lib/languages.ts` for
+  the identity card; `app/locale-switcher.tsx` and
+  `app/business/locale-switcher.tsx` still carry their own copies of "தமிழ்"
+  and "हिंदी". Pointing them at the shared constant is a genuine tidy, but it
+  drags the public header and the business console into AG-U5's diff and
+  neither is in this pass's proof loop. Left as one line of duplication with a
+  comment, rather than a half-done refactor.
+- **Mounted modules were built full-width.** Every page P1 mounted now renders
+  ~192px narrower at 1280 because the sidebar takes that space; the coins
+  earn-cards are visibly cramped. See visual log P1-11 — worth one width pass
+  after P2–P5 have mounted everything, not per-page tuning now.
 
 ---
 

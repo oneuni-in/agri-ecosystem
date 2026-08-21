@@ -37,7 +37,7 @@ export default async function AccountOverviewPage() {
   const place = [identity.district, identity.pincode].filter(Boolean).join(" · ");
 
   return (
-    <div className="pb-4">
+    <main className="pb-4">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0">
           <Eyebrow>{t("eyebrow")}</Eyebrow>
@@ -55,6 +55,6 @@ export default async function AccountOverviewPage() {
           {t("back")}
         </Link>
       </div>
-    </div>
+    </main>
   );
 }

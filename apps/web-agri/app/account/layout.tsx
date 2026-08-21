@@ -55,7 +55,12 @@ export default async function AccountLayout({ children }: { children: React.Reac
       heading={t("heading")}
       nav={
         <>
-          <div className="mb-3 hidden items-center gap-2.5 rounded-card border border-cream-line bg-card px-3 py-2.5 sm:flex">
+          {/* Visible at EVERY width. Below `sm:` the nav is a horizontal
+              scroll row, so the card simply becomes its first item — which is
+              what the A5 mobile reference does, and the reason to follow it is
+              that a phone is where "which account am I even in?" is hardest to
+              answer. `flex-none` keeps it from being squeezed by the pills. */}
+          <div className="mr-2 flex flex-none items-center gap-2.5 rounded-card border border-cream-line bg-card px-3 py-2.5 sm:mb-3 sm:mr-0">
             <span
               aria-hidden="true"
               className="flex h-8 w-8 flex-none items-center justify-center rounded-pill bg-brand-soft font-display text-[14px] font-extrabold text-brand-deep"

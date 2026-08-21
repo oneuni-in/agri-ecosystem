@@ -10,6 +10,7 @@ import subprocess
 import sys
 import uuid
 from collections.abc import AsyncIterator, Iterator, Mapping
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import Any
 
@@ -201,6 +202,37 @@ async def owner_session(
             yield session
         await outer.rollback()
     await engine.dispose()
+
+
+AUDIT_TRIGGER = "audit_entries_immutable"
+
+
+@asynccontextmanager
+async def audit_trigger_disabled(admin: AsyncEngine) -> AsyncIterator[None]:
+    """Lift audit.entries' immutability trigger for the duration.
+
+    0054 made the table reject UPDATE and DELETE from every role, the owner
+    included. Two kinds of test need that lifted, and neither is working around
+    the guarantee:
+
+      - the tamper suites (test_audit_integrity) simulate a compromised owner
+        rewriting history, so taking this step IS the assertion - it shows the
+        write is no longer a plain UPDATE;
+      - suites whose code under test commits real audit rows (audit() opens its
+        own session via get_sessionmaker, so the rows outlive the fixture
+        rollback) have to delete them afterwards or they leak into later tests.
+
+    Requires owner credentials: ALTER TABLE is DDL, and app_rt has none.
+    """
+    async with admin.connect() as conn:
+        await conn.execute(text(f"ALTER TABLE audit.entries DISABLE TRIGGER {AUDIT_TRIGGER}"))
+        await conn.commit()
+    try:
+        yield
+    finally:
+        async with admin.connect() as conn:
+            await conn.execute(text(f"ALTER TABLE audit.entries ENABLE TRIGGER {AUDIT_TRIGGER}"))
+            await conn.commit()
 
 
 class RbacMatrix:

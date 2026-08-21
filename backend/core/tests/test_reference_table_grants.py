@@ -37,6 +37,15 @@ READ_ONLY = (
     ("market", "msp"),
     ("market", "schemes"),
     ("notify", "templates"),
+    # 0055, after reading every prod mention of each (24, 20, 15 and 10
+    # respectively): all joins, type annotations, imports or comments. No
+    # construction, no session.get-then-mutate, no bulk insert, no raw SQL.
+    # scripts/ was read too, since those connect as app_rt rather than owner -
+    # content_approve.py only reads Source to filter ContentItems by source_id.
+    ("directory", "categories"),
+    ("identity", "oauth_clients"),
+    ("market", "commodities"),
+    ("content", "sources"),
 )
 
 
@@ -60,6 +69,28 @@ async def test_reference_table_is_select_only(
             {"schema": schema, "table": table},
         )
     assert {row[0] for row in rows} == {"SELECT"}
+
+
+async def test_coins_rules_keeps_update_but_loses_insert_and_delete(
+    runtime_engine: AsyncEngine,
+) -> None:
+    """The one candidate in this batch that turned out to be written.
+
+    `PUT /admin/coins/rules/{code}` loads a Rule with session.get and then
+    `setattr`s the changed fields - an UPDATE that no pattern matching
+    `Rule(` or `update(Rule)` can see, and the second time that shape has
+    nearly cost a working feature (the first was ads.impressions). It is the
+    ONLY writer: there is no POST or DELETE route for rules, and rows are
+    seeded by migration. So UPDATE stays and the other two go.
+    """
+    async with runtime_engine.connect() as conn:
+        rows = await conn.execute(
+            text(
+                "SELECT privilege_type FROM information_schema.role_table_grants "
+                "WHERE grantee = 'app_rt' AND table_schema = 'coins' AND table_name = 'rules'"
+            )
+        )
+    assert {row[0] for row in rows} == {"SELECT", "UPDATE"}
 
 
 async def test_the_ads_beacon_keeps_its_writes(runtime_engine: AsyncEngine) -> None:

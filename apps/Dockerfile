@@ -26,10 +26,30 @@ ENV NEXT_OUTPUT=standalone
 # itself fails loudly at build time if it's empty in production (see
 # apps/web-milk/lib/console.ts) rather than silently inlining a blank/wrong
 # origin — no hostname is invented here.
+#
+# VAPID_PUBLIC_KEY is the third of these, and the reason it exists: web push
+# was fully built and CI-verified, yet dead in every container image, because
+# NEXT_PUBLIC_VAPID_PUBLIC_KEY had no way to reach the builder. lib/push.ts
+# reads it at MODULE level, so an empty value makes PUSH_CONFIGURED false and
+# detectPushState() answer "unsupported" — the UI renders nothing and no error
+# is raised anywhere. Setting it in the container's runtime environment does
+# not help: NEXT_PUBLIC_ vars are inlined into the bundle during `next build`,
+# which has already happened by then.
+#
+# The public half is safe here. It ships to every browser as the subscription
+# applicationServerKey by design, which is also why it comes from a repo
+# VARIABLE rather than a secret, exactly like CONSOLE_URL. The PRIVATE key is
+# never a build arg — the backend signs with it at runtime and reads it from
+# sops (docs/runbooks/web-push.md).
+#
+# Defaulting to "" keeps the current behaviour for any build that does not
+# pass it: push stays dark, which is the honest state when no key exists.
 ARG GIT_SHA=""
 ARG CONSOLE_URL=""
+ARG VAPID_PUBLIC_KEY=""
 ENV NEXT_PUBLIC_RELEASE=$GIT_SHA
 ENV NEXT_PUBLIC_CONSOLE_URL=$CONSOLE_URL
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 RUN pnpm exec turbo run build --filter=@agri/${APP}
 
 FROM node:24-alpine AS runner

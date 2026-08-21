@@ -58,3 +58,27 @@ reduced-motion rules present and unbroken.
   (`ID_PUBLIC_ORIGIN`), rendered as a plain anchor rather than a `next/link`.
 - `/account/alerts` and `/account/reviews` are in the sidebar and **404 by
   design** until P2 and P4 build them.
+
+---
+
+## P2 · the overview
+
+Proofs: `ag-u5-p2-overview-1280.png` · `ag-u5-p2-overview-390.png`, against the
+same `ag-u5-p1-reference-*.png` reference captures.
+
+State driven for the capture: two mandi-digest subscriptions (636810, 641001),
+three saved items, 105 coins, no enquiries and no crops — so the panels show a
+mix of populated and honest-empty rather than one or the other.
+
+Self-check: no horizontal overflow at 390 or 1280 (`scrollWidth` 390 / 1264);
+console clean apart from the same pre-existing `icon.svg` manifest warning.
+
+| # | Delta | Verdict |
+|---|---|---|
+| P2-1 | **The price-alerts panel does not look like the reference, because the reference draws a feature that does not exist.** A5 shows "Tomato · Coimbatore market · alert when above ₹30/kg", "Turmeric · Erode market · any change ≥ ₹5" and a "Severe weather · Coimbatore district" row — per-commodity thresholds and a weather channel. `market.PriceAlert` is keyed `(user_id, pincode)` and carries only `pincode` and `last_notified_on`. No commodity column, no threshold, no kind. | **keep — the code is right and the reference is aspirational.** `market_data/alerts.py` argues the design explicitly: the source publishes once a day, so a threshold alert is still a once-a-day message that goes *silent* on the days nothing crossed — indistinguishable, to the person waiting, from the pull having failed. Each row therefore says what a subscription is: one pincode, one digest a day. Rendering A5's design would advertise a threshold nobody can set. |
+| P2-2 | **Turning an alert off was a one-way door.** Not a visual delta — a bug this panel exposed. `unsubscribe` soft-deletes, but `uq_price_alerts_user_pincode` is a plain unique on `(user_id, pincode)` that does not exclude deleted rows, and `subscribe`'s idempotency probe cannot see soft-deleted rows. So re-subscribing to a pincode you had ever turned off **500'd, permanently** — including from the home's mandi card. Unreachable before AG-U5 because no UI could unsubscribe. | **fix — in the backend.** `subscribe` now revives the soft-deleted row (`include_deleted=True`, the documented opt-out), clears `last_notified_on` so the new subscription is not born already-latched, and still counts the revival against the per-user cap. Three tests, one of which was confirmed to fail without the fix. |
+| P2-3 | **Counts can read "20+" where the reference prints a bare number.** | **keep** — none of these endpoints returns a total; they are cursor-paginated. A full page means "at least this many". The reference was drawn against mock data where the total was known. |
+| P2-4 | **No "🎙️ Post a need" button, which the reference puts beside "Back to agri.in".** | **keep, and worth the owner knowing why: agri has nowhere to post one.** `post-need/` and `my-needs/` exist only in `apps/web-milk`; web-agri has neither route. The needs that *do* show in the enquiries panel are real and are this person's — one AgriID across the family — they were just posted on milk.in. A button leading nowhere is worse than no button; building post-need for agri is its own pass. |
+| P2-5 | **The right column is crops + saved; the reference puts the AgriCoins passbook there.** | **keep** — the passbook already ships in full at `/account/coins` (P3 mounts it, drift doc §2). Duplicating a ledger into the overview would give two readers of one balance and an eventual disagreement. |
+| P2-6 | **"Last sent 2026-08-21" renders the raw ISO date.** | **flag** — correct but not localised, and it will read oddly in ta/hi. A date formatter is a shared concern (several surfaces print dates) rather than something to inline here. |
+| P2-7 | **Stats sub-captions describe the category even at zero** — "SAVED ITEMS 0 / guides, articles and videos". | **keep** — the caption says what the tile counts, which is still true of an empty one, and it is how the reference's captions read. |

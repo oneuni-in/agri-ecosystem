@@ -6,14 +6,22 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { fetchAccountIdentity } from "@/lib/account-identity";
+import { fetchOverview } from "@/lib/account-overview";
+
+import { alertsCopy } from "./alerts-copy";
+import { AlertsPanel } from "./alerts-manager";
+import { CropsPanel, EnquiriesPanel, SavedPanel, StatsRow } from "./overview-panels";
 
 /**
- * /account — the dashboard overview (AG-U5 P1).
+ * /account — the dashboard overview (AG-U5 P1 shell, P2 contents).
  *
- * P1 ships the shell and this header only. The stats row, enquiries panel,
- * price-alert manager, saved rail and crops panel are P2's, and each arrives
- * reading real data — a placeholder card here would have to be deleted before
- * it was ever true, and would sit in P1's proof pair pretending otherwise.
+ * Two columns from `lg:` and one below it, mirroring A5: the things you are
+ * waiting on (enquiries, alerts) lead, and the things you keep (saved, crops)
+ * follow.
+ *
+ * Every number on this page is read, never assumed. Where a read fails its
+ * own panel says so and the rest of the page still renders — one dead
+ * endpoint must not cost a farmer their coin balance.
  *
  * `noindex`: one person's dashboard has nothing to offer a crawler.
  */
@@ -29,11 +37,17 @@ export default async function AccountOverviewPage() {
   if (!user) redirect("/api/auth/login?next=/account");
 
   const [t, token] = await Promise.all([getTranslations("ui.account"), auth.getAccessToken()]);
-  const identity = token ? await fetchAccountIdentity(token) : null;
+  if (!token) redirect("/api/auth/login?next=/account");
+
+  const [identity, data] = await Promise.all([
+    fetchAccountIdentity(token),
+    fetchOverview(token),
+  ]);
   // The layout already degraded to a bare shell if this read failed; a stale
   // cookie that survived getServerUser() lands here, and login is the fix.
   if (!identity) redirect("/api/auth/login?next=/account");
 
+  const idOrigin = process.env.ID_PUBLIC_ORIGIN ?? "http://localhost:3003";
   const place = [identity.district, identity.pincode].filter(Boolean).join(" · ");
 
   return (
@@ -54,6 +68,24 @@ export default async function AccountOverviewPage() {
         >
           {t("back")}
         </Link>
+      </div>
+
+      <StatsRow data={data} />
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="space-y-3">
+          <EnquiriesPanel data={data} />
+          <AlertsPanel
+            initial={data.alerts}
+            copy={alertsCopy(t)}
+            title={t("panels.alerts")}
+            manageLabel={t("panels.alertsManage")}
+          />
+        </div>
+        <div className="space-y-3">
+          <CropsPanel identity={identity} idOrigin={idOrigin} />
+          <SavedPanel data={data} />
+        </div>
       </div>
     </main>
   );

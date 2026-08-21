@@ -434,3 +434,33 @@ demonstrate the stale collapse — nothing in dev is old enough to trigger it
 naturally. That is real state, changed to exercise a real code path, and it
 is recorded here rather than left implicit. The dev IP's daily OTP counter
 was also reset once more during this page's captures.
+
+---
+
+## CP2 decisions (owner)
+
+**P8-Q1 / P8-Q2 — the 28 rows: logged as a fast-follow, P8 ships as built.**
+Chosen as the option that does not weaken safety, and the reasoning is worth
+keeping because the alternatives look safer than they are:
+
+- Capping live sessions per device at login, and grouping rows with a
+  revoke-by-fingerprint action, both make `device_fingerprint` load-bearing
+  for a **destructive** decision. Its own docstring says it is "deliberately
+  coarse - it distinguishes 'my laptop' from 'a stolen token replayed
+  elsewhere', not one user from another": two different Windows/Chrome
+  machines produce the same fingerprint. A login-time cap would therefore
+  silently end a session on a genuinely different device, and a grouped sign
+  out would revoke more than the row it sits on describes.
+- Grouping also **merges two real devices into one row**, which can hide a
+  rogue session — the precise thing this page exists to reveal.
+- Lowering the stale threshold to ~7 days folds recent sessions out of
+  immediate view, which is the same problem in a smaller form.
+
+Shipping as built changes no security-relevant behaviour: every session stays
+individually visible, individually revocable, and now correctly labelled.
+The cardinality problem is real and stays open as its own scoped work, with a
+session-lifecycle decision behind it rather than a display change.
+
+**P7 — both items left alone**, per your call: the "sample" chip stays in
+your dev data (no code produced it, nothing ships with it) and the visibility
+switches keep defaulting to off, which is the privacy-safe direction.

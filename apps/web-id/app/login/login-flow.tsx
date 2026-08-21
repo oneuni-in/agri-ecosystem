@@ -15,7 +15,7 @@ import {
 
 import { LoginLocaleSwitcher } from "./locale-switcher";
 
-type Step = "phone" | "otp" | "handle" | "language" | "done";
+type Step = "phone" | "otp" | "handle" | "language" | "done" | "locked";
 
 /** How long the done screen waits before taking the farmer where they were
  * already going. Long enough to read the reward line, short enough that a
@@ -97,6 +97,9 @@ export function LoginFlow({
   const [isNewUser, setIsNewUser] = useState(false);
   const [inviter, setInviter] = useState<string | null>(null);
   const [autoIn, setAutoIn] = useState(DONE_AUTO_CONTINUE_SECONDS);
+  // the rate-limit message, held separately from `error`: it is a whole
+  // screen in the reference, not an inline line under a field
+  const [lockedText, setLockedText] = useState<string | null>(null);
   const verifying = useRef(false);
 
   // The banner exists to name a reward, so it renders only when it can name
@@ -164,11 +167,12 @@ export function LoginFlow({
         setGated(true);
         return;
       }
-      setError(
-        err instanceof ApiError && err.status === 429
-          ? lockedMessage(err, t)
-          : t("phone.invalid"),
-      );
+      if (err instanceof ApiError && err.status === 429) {
+        setLockedText(lockedMessage(err, t));
+        setStep("locked");
+        return;
+      }
+      setError(t("phone.invalid"));
     } finally {
       setBusy(false);
     }
@@ -203,8 +207,12 @@ export function LoginFlow({
       }
     } catch (err) {
       setCode("");
-      const locked = err instanceof ApiError && err.status === 429;
-      setError(locked ? lockedMessage(err as ApiError, t) : t("otp.wrong"));
+      if (err instanceof ApiError && err.status === 429) {
+        setLockedText(lockedMessage(err, t));
+        setStep("locked");
+        return;
+      }
+      setError(t("otp.wrong"));
     } finally {
       verifying.current = false;
       setBusy(false);
@@ -297,7 +305,9 @@ export function LoginFlow({
           className="flex w-full max-w-[420px] items-center gap-1.5"
         >
           {STEP_ORDER.map((name, index) => {
-            const current = STEP_ORDER.indexOf(step);
+            // being rate-limited does not move you back a step: the rail
+            // keeps reading "2 of 4", as the reference's own show() does
+            const current = STEP_ORDER.indexOf(step === "locked" ? "otp" : step);
             const done = index < current;
             const here = index === current;
             return (
@@ -413,7 +423,20 @@ export function LoginFlow({
         {step === "otp" && (
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-xl font-bold text-ink">{t("otp.title")}</h1>
-            <p className="text-sm text-sub">{t("otp.sentTo", { phone: `+91 ${phone}` })}</p>
+            <p className="text-sm text-sub">
+              {t("otp.sentTo", { phone: `+91 ${phone}` })}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("phone");
+                  setCode("");
+                  setError(null);
+                }}
+                className="tap-target text-brand underline"
+              >
+                {t("otp.changeNumber")}
+              </button>
+            </p>
             <OtpInput
               value={code}
               onChange={setCode}
@@ -549,6 +572,40 @@ export function LoginFlow({
                 /account afterwards would be telling someone about a door that
                 has already shut. */}
             <p className="text-[11.5px] leading-[1.55] text-muted">{t("handle.oneChange")}</p>
+          </div>
+        )}
+
+        {step === "locked" && (
+          <div className="flex flex-col gap-3">
+            <h1 className="font-display text-xl font-bold text-ink">
+              {t("otp.lockedTitle")}
+            </h1>
+            {/* A bordered notice, not a grey line under a field. Being
+                shut out is the one state on this flow the farmer has to
+                notice, and it used to render in the same weight as the
+                DPDP sentence beneath it.
+
+                Tokens: the reference's red `.err` trio has no counterpart
+                in the design system, so it maps onto the severe-* family
+                per the A-U1 one-off-colour policy (severe-ink on
+                severe-bg is 6.71:1). */}
+            <p
+              role="alert"
+              className="rounded-btn border border-severe-border bg-severe-bg px-3 py-2.5 text-sm leading-[1.5] text-severe-ink"
+            >
+              {lockedText}
+            </p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setLockedText(null);
+                setCode("");
+                setError(null);
+                setStep("phone");
+              }}
+            >
+              {t("otp.back")}
+            </Button>
           </div>
         )}
 

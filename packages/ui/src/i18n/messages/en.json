@@ -505,7 +505,10 @@
         "inputLabel": "OTP digit",
         "dndHint": "Didn't get it? Check DND, or try voice OTP.",
         "lockedFor": "Too many attempts on this number. Wait about {minutes, plural, one {# minute} other {# minutes}} before trying again — any code you already received still works until it expires.",
-        "lockedForHours": "Too many attempts on this number. Wait about {hours, plural, one {# hour} other {# hours}} before trying again — any code you already received still works until it expires."
+        "lockedForHours": "Too many attempts on this number. Wait about {hours, plural, one {# hour} other {# hours}} before trying again — any code you already received still works until it expires.",
+        "changeNumber": "change number",
+        "lockedTitle": "Too many attempts",
+        "back": "← Back"
       },
       "handle": {
         "title": "Pick your @handle",

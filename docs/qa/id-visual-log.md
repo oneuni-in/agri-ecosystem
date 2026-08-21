@@ -544,3 +544,35 @@ repo's conftest drops the test database `WITH (FORCE)` — so that run reported
 17 unrelated `sqlalchemy` failures in pagination/slugs/oauth that were my own
 collision, not regressions. Re-run serially to confirm. Never run two pytest
 processes against this repo at once.
+
+---
+
+## P2 · re-matched to the reference (owner-directed, post-CP3)
+
+Two of P2's findings were reported but not built, because the prompt scoped
+that page verify-only. Owner directed both to be closed. Proofs
+`p2-otp-fresh` and `p2-otp-locked` re-captured.
+
+| # | Was | Now |
+|---|---|---|
+| **P2-Q4** | No way back from the OTP step. A farmer who mistyped one digit could only reload the page. | "change number" sits in the sub-line exactly as the reference draws it — "Code sent to +91 9000000512 · change number". Verified live: it returns to the phone step **with the digits still in the field**, so a wrong digit is corrected rather than retyped. |
+| **P2-Q3** | The 429 rendered as a grey `text-sub` line on whichever step was showing — the same weight as the DPDP sentence beneath it, on the one state a farmer must notice. | A screen of its own, as the reference has it: "Too many attempts" heading, a bordered notice carrying the real wait, and "← Back". Verified live: the notice shows, **the rail stays at step 2** (being rate-limited does not move you back a step — the reference's own `show()` maps `locked` to the OTP index), and Back clears it and returns to the phone step. |
+
+Two deliberate departures, both recorded rather than silently taken:
+
+- **The reference's second paragraph is not shipped.** Its locked card carries
+  "Wrong-code and rate-limit are different messages on purpose: a farmer who
+  mistyped should never read copy that sounds like an accusation." That is the
+  reference explaining its own reasoning to whoever reads the file — annotation,
+  not product copy. The principle is honoured (the two messages *are* different);
+  the sentence about the principle is not shown to a farmer.
+- **Colour.** The reference's `.err` is a red trio (`#FBEDED` / `#EBC9C9` /
+  `#6E2222`) with no counterpart in the design system. Per the A-U1
+  one-off-colour policy it maps onto the existing `severe-*` family rather than
+  entering three new tokens for one screen; `severe-ink` on `severe-bg` is
+  6.71:1. The box reads amber rather than red. Say the word if you want a real
+  `--danger-*` family instead — that is a design-system change, not a page one.
+
+Testing note: this page's captures exhausted the dev IP's daily **verify**
+budget (`otp:vday:ip:*`, cap 50) as well as the issue budget, which briefly
+turned a wrong-code capture into a 429. Both counters were reset once more.

@@ -505,7 +505,10 @@
         "inputLabel": "OTP अंक",
         "dndHint": "Didn't get it? Check DND, or try voice OTP.",
         "lockedFor": "इस नंबर पर बहुत सारी कोशिशें। लगभग {minutes, plural, one {# मिनट} other {# मिनट}} बाद कोशिश करें — जो कोड पहले ही मिल चुका है वह समाप्त होने तक चलेगा।",
-        "lockedForHours": "इस नंबर पर बहुत सारी कोशिशें। लगभग {hours, plural, one {# घंटा} other {# घंटे}} बाद कोशिश करें — जो कोड पहले ही मिल चुका है वह समाप्त होने तक चलेगा।"
+        "lockedForHours": "इस नंबर पर बहुत सारी कोशिशें। लगभग {hours, plural, one {# घंटा} other {# घंटे}} बाद कोशिश करें — जो कोड पहले ही मिल चुका है वह समाप्त होने तक चलेगा।",
+        "changeNumber": "नंबर बदलें",
+        "lockedTitle": "बहुत सारी कोशिशें",
+        "back": "← वापस"
       },
       "handle": {
         "title": "अपना @handle चुनें",

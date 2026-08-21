@@ -23,6 +23,25 @@ down_revision: str | None = "0054"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# -- THREAT/NOTES:
+# - New table only. No existing table is touched, so no lock on live data
+#   and no query plan changes.
+# - Holds NO personal data: a user FK, a status, timestamps, and staff-
+#   facing hold reasons that name another module's business state
+#   ("directory:owns_business"), never a person. It is deliberately
+#   readable after the subject's data is erased, so "was this account
+#   erased, and when?" stays answerable to a regulator.
+# - Blast radius if wrong: the DPDP erasure flow cannot record requests
+#   and the admin queue is empty. Nothing is deleted by this migration,
+#   and no erasure can run without a row here - the failure mode is
+#   "deletion does not happen", never "deletion happens unrecorded".
+# - The FK to identity.users is intentionally NOT ON DELETE CASCADE:
+#   erasure scrubs the user row rather than deleting it (an immutable
+#   coins ledger cannot lose an entry because its subject left), so the
+#   parent always survives.
+# - Downgrade drops the table, which discards the erasure audit trail -
+#   acceptable only before any request exists.
+
 
 def upgrade() -> None:
     op.create_table(

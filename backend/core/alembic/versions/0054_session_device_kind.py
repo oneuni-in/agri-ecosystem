@@ -27,6 +27,24 @@ down_revision: str | None = "0053"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# -- THREAT/NOTES:
+# - Adds one NULLABLE text column to two tables. No default, no backfill,
+#   so postgres records a catalog change and rewrites no rows: the lock is
+#   brief and safe against a running app.
+# - PII posture is the POINT of this column's shape. It stores a coarse
+#   derived string ("Android - Chrome"), never the raw user agent, so the
+#   session row keeps strictly LESS identifying material than the obvious
+#   alternative would have. device_fingerprint continues to do the
+#   security binding; this is only what the /devices list shows a person
+#   about their own sessions.
+# - Blast radius if wrong: rows read NULL and the UI says "Unknown
+#   device". No auth, revocation or rotation path depends on this value -
+#   it is display-only.
+# - Pre-existing rows stay NULL forever and there is nothing to derive
+#   them from, because the raw UA was never stored. That is intentional,
+#   not an incomplete backfill.
+# - Downgrade drops the column; nothing else references it.
+
 _TABLES = ("sessions_web", "sessions_refresh")
 
 

@@ -116,6 +116,42 @@
         "manage": "Sign devices out on id.agri.in →",
         "readOnly": "This is a read-only view. Signing a device out, renaming one, or ending every session happens on id.agri.in, where your AgriID lives."
       },
+      "guest": {
+        "title": "Your agri.in account",
+        "sub": "One AgriID across agri.in, milk.in and theorganic.in. Sign in to see your enquiries, price alerts, saved guides and AgriCoins in one place.",
+        "login": "Sign in",
+        "b1": "Ask any listed business a question, and keep every reply in one inbox.",
+        "b2": "Follow your district's mandi prices — one message a day, not a stream.",
+        "b3": "Save guides and articles to read later, with or without signal.",
+        "browse": "Look around first"
+      },
+      "firstRun": {
+        "title": "Set up your farm dashboard",
+        "sub": "Four things worth doing. Each one is ticked when it is actually done — not when you have looked at it.",
+        "location": "Set your district and pincode",
+        "crops": "Tell us what you grow",
+        "alerts": "Follow your mandi's prices",
+        "ask": "Ask a business a question",
+        "done": "Done",
+        "todo": "Do this"
+      },
+      "roles": {
+        "business": "{name} — your business",
+        "businessOne": "Your business",
+        "verified": "✓ Verified",
+        "unverified": "Verification pending",
+        "openConsole": "Open business console →",
+        "advertiser": "Advertiser account",
+        "campaigns": "{count} campaigns",
+        "openAds": "Open ads console →",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "ctr": "Click-through",
+        "spend": "Spend",
+        "window": "Last 30 days",
+        "statsUnavailable": "Figures unavailable right now.",
+        "sameCounters": "The same impression and click counters the admin console reads — one counter, two readers."
+      },
       "nav": {
         "overview": "Overview",
         "inquiries": "My enquiries",

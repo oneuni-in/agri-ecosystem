@@ -2,28 +2,38 @@ import { Eyebrow } from "@agri/ui";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { fetchAccountIdentity } from "@/lib/account-identity";
 import { fetchOverview } from "@/lib/account-overview";
+import {
+  deriveChecklist,
+  fetchCampaignTotals,
+  fetchMyCampaigns,
+  fetchOwnedBusinesses,
+  isFirstRun,
+} from "@/lib/account-roles";
 
 import { alertsCopy } from "./alerts-copy";
 import { AlertsPanel } from "./alerts-manager";
 import { CropsPanel, EnquiriesPanel, SavedPanel, StatsRow } from "./overview-panels";
+import { AdvertiserCard, BusinessCard, FirstRunChecklist, GuestState } from "./role-states";
 
 /**
- * /account — the dashboard overview (AG-U5 P1 shell, P2 contents).
+ * /account — the dashboard overview (AG-U5 P1 shell, P2 contents, P6 states).
  *
- * Two columns from `lg:` and one below it, mirroring A5: the things you are
- * waiting on (enquiries, alerts) lead, and the things you keep (saved, crops)
- * follow.
+ * Four states, all real:
+ *  - GUEST      — no identity renders; the page explains what an account is
+ *                 for and offers the door. Reached because /account is
+ *                 deliberately outside middleware.ts's matcher.
+ *  - FIRST RUN  — honest zeros plus four things worth doing, each ticked from
+ *                 stored state rather than from having clicked anything.
+ *  - FARMER     — the default: stats, enquiries, alerts, crops, saved.
+ *  - BUSINESS / ADVERTISER — rolecards ON TOP of the farmer view, not instead
+ *                 of it. Both can be true at once, and one person often is.
  *
- * Every number on this page is read, never assumed. Where a read fails its
- * own panel says so and the rest of the page still renders — one dead
- * endpoint must not cost a farmer their coin balance.
- *
- * `noindex`: one person's dashboard has nothing to offer a crawler.
+ * Every number is read, never assumed. Where a read fails its own panel says
+ * so and the rest of the page still renders.
  */
 export const metadata: Metadata = { title: "Your account", robots: { index: false } };
 
@@ -31,23 +41,36 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountOverviewPage() {
   const user = await auth.getServerUser();
-  // P6 replaces this with the guest state the reference draws (no identity
-  // renders, Login in the header). Until then a signed-out visitor goes where
-  // every other account surface sends them, carrying /account as `next`.
-  if (!user) redirect("/api/auth/login?next=/account");
+  const token = user ? await auth.getAccessToken().catch(() => null) : null;
+  if (!user || !token) return <GuestState />;
 
-  const [t, token] = await Promise.all([getTranslations("ui.account"), auth.getAccessToken()]);
-  if (!token) redirect("/api/auth/login?next=/account");
+  const identity = await fetchAccountIdentity(token);
+  // A cookie that survived getServerUser() but cannot read the profile is a
+  // stale session. The guest state is the honest thing to show — it offers
+  // sign-in, which is the fix.
+  if (!identity) return <GuestState />;
 
-  const [identity, data] = await Promise.all([
-    fetchAccountIdentity(token),
-    fetchOverview(token),
-  ]);
-  // The layout already degraded to a bare shell if this read failed; a stale
-  // cookie that survived getServerUser() lands here, and login is the fix.
-  if (!identity) redirect("/api/auth/login?next=/account");
-
+  const t = await getTranslations("ui.account");
   const idOrigin = process.env.ID_PUBLIC_ORIGIN ?? "http://localhost:3003";
+
+  const [data, businesses, campaigns] = await Promise.all([
+    fetchOverview(token),
+    fetchOwnedBusinesses(token),
+    fetchMyCampaigns(token),
+  ]);
+  const stats = await fetchCampaignTotals(
+    token,
+    campaigns.map((campaign) => campaign.id),
+  );
+
+  const checklistInput = {
+    pincode: identity.pincode,
+    interests: identity.interests,
+    alerts: data.counts.alerts,
+    threads: data.counts.activeThreads,
+    saved: data.counts.saved,
+  };
+  const firstRun = isFirstRun(checklistInput);
   const place = [identity.district, identity.pincode].filter(Boolean).join(" · ");
 
   return (
@@ -70,23 +93,35 @@ export default async function AccountOverviewPage() {
         </Link>
       </div>
 
+      {/* Rolecards sit above the stats: if you run a shop, the shop is the
+          first thing you came here for. */}
+      <BusinessCard businesses={businesses} />
+      <AdvertiserCard campaigns={campaigns} stats={stats} />
+
       <StatsRow data={data} />
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="space-y-3">
-          <EnquiriesPanel data={data} />
-          <AlertsPanel
-            initial={data.alerts}
-            copy={alertsCopy(t)}
-            title={t("panels.alerts")}
-            manageLabel={t("panels.alertsManage")}
-          />
+      {firstRun ? (
+        // The checklist REPLACES the panels while every one of them would be
+        // empty. Four empty cards teach nothing; four things to do teach the
+        // shape of the place.
+        <FirstRunChecklist steps={deriveChecklist(checklistInput)} idOrigin={idOrigin} />
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="space-y-3">
+            <EnquiriesPanel data={data} />
+            <AlertsPanel
+              initial={data.alerts}
+              copy={alertsCopy(t)}
+              title={t("panels.alerts")}
+              manageLabel={t("panels.alertsManage")}
+            />
+          </div>
+          <div className="space-y-3">
+            <CropsPanel identity={identity} idOrigin={idOrigin} />
+            <SavedPanel data={data} />
+          </div>
         </div>
-        <div className="space-y-3">
-          <CropsPanel identity={identity} idOrigin={idOrigin} />
-          <SavedPanel data={data} />
-        </div>
-      </div>
+      )}
     </main>
   );
 }

@@ -137,3 +137,88 @@ the referee never types it. **It was not built in this pass, deliberately:**
 Recommendation: treat this as its own small cross-app task (agri `/r/[code]` →
 web-id login carries the code → attribution assertion), sized and reviewed on
 its own. Flagged rather than silently shipped half-done.
+
+---
+
+## P4 · reviews and notification channels
+
+Proofs: `ag-u5-p4-reviews-1280.png` · `ag-u5-p4-notifications-1280.png`.
+
+For the reviews capture, two real reviews were posted through the API and one
+was set to `approved` **directly in the dev database**, because approving
+through the product requires a moderator and this pass has no admin session.
+Both were returned to `pending` afterwards; no rating aggregate existed for
+the target, so nothing was left inconsistent. The screenshot documents how the
+two states render, not a moderation decision.
+
+| # | Delta | Verdict |
+|---|---|---|
+| P4-1 | **A failed read of my-reviews shows a "cannot load" notice, not the empty state.** The reference has no such state. | **keep — added deliberately.** `[]` and "we could not read it" are different claims, and this is the page where confusing them hurts most: it exists to reassure someone their words did not vanish, so "You have not written a review yet" at a person who has is the one message it must never show. `fetchMyReviews` returns `null` for unreadable. |
+| P4-2 | **Review rows link to the target; a target that no longer resolves renders nameless but still shows the review.** | **keep** — `target_name`/`target_slug` are nullable by design. A delisted shop must not take the author's words with it. |
+| P4-3 | **The preference toggles have no Save button**, where a settings screen conventionally would. | **keep — the one-save-model rule.** The toggle is the save: optimistic, a "✓ Saved" tick on success, and on failure the switch goes back where it was and says so. Verified live — SMS off persisted to the server, then back on. |
+| P4-4 | **The notification feed is unchanged from what shipped.** | **keep** — the shell mounts modules and does not rewrite them. P4 added the channels panel beneath it, nothing else. |
+
+## P5 · privacy and devices
+
+Proofs: `ag-u5-p5-privacy-1280.png` · `ag-u5-p5-privacy-390.png` ·
+`ag-u5-p5-devices-1280.png`.
+
+Verified live, all of it against the real endpoints: a visibility toggle wrote
+`name` false→true and back; the erasure round-trip requested (status
+`pending`, `execute_after` seven days out — matching `ERASURE_GRACE_DAYS`) and
+then cancelled back to `none`; the export downloaded as
+`agriid-data-20260821.json` with `cache-control: private, no-store` and three
+sections. No overflow at 390, no console errors.
+
+| # | Delta | Verdict |
+|---|---|---|
+| P5-1 | **Visibility offers five switches; the reference's panel implies more.** | **keep** — `VISIBILITY_KEYS` has exactly five members. Phone and email are deliberately absent: they are never public, so they are not settings, and rendering them switched-off would imply they could be switched on. The hint copy says so in as many words. |
+| P5-2 | **No device row is marked "This device"**, though ID-U1's list on id.agri.in marks one. | **flag** — not a bug, a consequence: `current` is computed against `principal.session_id`, and agri.in holds an OAuth client session rather than id.agri.in's own web session, so nothing matches. A farmer on this page cannot tell which row is the browser they are using. The page is read-only and links to id.agri.in, where the marker does appear, so it is tolerable — but it is worth a decision rather than silence. |
+| P5-3 | **Devices is read-only, where the reference's panel is ambiguous about it.** | **keep, and said out loud in the copy.** Sessions belong to the AgriID; agri.in offering "sign out everywhere" would be one of four apps claiming authority over the other three. |
+| P5-4 | **Export and erasure use two narrow route handlers rather than the shared `/api/identity/*` proxy.** | **keep** — that proxy re-wraps bodies in `NextResponse.json()`, which would strip the `content-disposition` and turn the archive into a wall of JSON; and teaching it POST/DELETE would make every identity endpoint browser-writable to serve one screen. Two small doors beat one wide one on the path that deletes an account. |
+| P5-5 | **No privacy-policy link anywhere on the page.** | **keep** — the legal pages ship at D56. Until then any policy reference is plain text (the consent-line rule). |
+
+## P6 · role states
+
+Proofs: `ag-u5-p6-guest-1280.png` · `ag-u5-p6-firstrun-1280.png` ·
+`ag-u5-p6-roles-1280.png`.
+
+All four states were driven live rather than mocked.
+
+- **Guest** — signed out, in an isolated browser context. No identity renders:
+  no sidebar, no identity card, no coin pill, no bell, no avatar. The site
+  header swaps to **Login**, which is the reference's `data-show-guest`
+  behaviour and already existed. The page says what the account is for and
+  offers the door.
+- **First run** — produced by genuinely emptying the account (alerts and
+  bookmarks deleted through the API). Honest zeros in the stat row and the
+  four-step checklist in place of the panels.
+- **The checklist ticks from data, not clicks** — demonstrated by subscribing
+  to one pincode and reloading: `isFirstRun` flipped, the panels replaced the
+  checklist, and the alerts tile read 1. Nothing was clicked to "complete" a
+  step.
+- **Business + advertiser** — demonstrated by making the test user the owner
+  of a seeded business that holds campaigns with real traffic. Both rolecards
+  render, above the farmer view rather than instead of it, because roles are
+  additive.
+
+| # | Delta | Verdict |
+|---|---|---|
+| P6-1 | **AgriCoins reads 105 in the "honest zeros" first-run state, not 0.** | **keep** — they really do hold 105 coins from signup and a daily visit. Zeroing it to make the empty state look tidier would be the one lie on a page about honest emptiness. |
+| P6-2 | **The advertiser strip prints "Figures unavailable" rather than zeroes when the stats read fails.** | **keep** — "0 impressions" and "we could not read your impressions" are very different things to tell someone who paid. Both paths were exercised: a seven-campaign account with genuinely no traffic showed real zeroes (confirmed in SQL), and a nine-campaign account showed 104/1/0.96%. |
+| P6-3 | **The business card shows the name for one business and a generic title for several.** | **keep** — naming one of four would pick a favourite. Owning several is what the console is for. |
+| P6-4 | **No listing-health percentage, which the reference's business card shows ("listing health 78%").** | **flag** — no endpoint computes it. Inventing a score would be the same class of error as an invented coin amount. |
+| P6-5 | **Role detection uses ownership and campaign-holding, not role claims.** | **keep** — `console-gates.ts` records why: the seeded `business_owner` role is assigned by no code path, so gating on it would hide the console from every real vendor. |
+
+### The reconciliation assertion, actually checked
+
+AG-U5 asks that the advertiser strip read "the SAME beacon counters as admin —
+reconciliation is an assertion". It is now a **measurement**:
+
+- Both readers count rows in `ads.impressions` / `ads.clicks` keyed by
+  `placement_id`. Admin (`/ads/admin/stats`) scopes to one placement; the
+  advertiser (`/ads/my/campaigns/{id}/stats`) scopes to every placement of a
+  campaign. One counter, two readers, no second source.
+- Checked against the live database over the same 30-day window: the strip
+  rendered **104 impressions and 1 click**, and the admin-side query over the
+  same tables returned **104 and 1**. They agree exactly.

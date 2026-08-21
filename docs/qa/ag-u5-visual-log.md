@@ -222,3 +222,46 @@ reconciliation is an assertion". It is now a **measurement**:
 - Checked against the live database over the same 30-day window: the strip
   rendered **104 impressions and 1 click**, and the admin-side query over the
   same tables returned **104 and 1**. They agree exactly.
+
+---
+
+## Test data — what was driven, and how it was put back
+
+Every state in this log was produced by writing real data through real
+endpoints rather than by mocking, because a screenshot of a mock proves the
+markup and nothing else. That means the dev database was mutated. This section
+records what, and the verification that it was undone.
+
+**The reference point is the encrypted backup `backups/agri-20260818T051606Z.dump.age`**,
+restored into a throwaway database (`ag_u5_recover`, since dropped) via the
+`scripts/restore.sh` path — decrypt with `age`, `pg_restore` into a scratch DB.
+The live `agri` database was never restored over.
+
+| Touched | Put back | Verified by |
+|---|---|---|
+| `directory.businesses` — `owner_user_id` on two rows, to make the business and advertiser cards render | Both restored to their **exact original values** | Row-for-row diff against the backup: identical on id, name, owner, status, verification, created_at, updated_at |
+| `directory.reviews` — two reviews posted; one set `approved` directly in SQL for the published-state capture | Both deleted | Table back to **151 rows, matching the backup exactly**; zero authored by the test user; no replies, no coin ledger rows and no rating aggregate referenced them |
+| `market.price_alerts` — one subscription deleted and revived (the resubscribe bug), one new pincode added | The added pincode deleted; the pre-existing one keeps its original row id, and its `last_notified_on` was restored to `2026-08-21` | The revive deliberately clears that latch — correct for a real re-subscribe, wrong to leave after a test, because it would have sent today's digest a second time |
+| `content.bookmarks` — three created | All deleted; the session began with none | First probe of the session returned `items: []` |
+| `identity.preferences.privacy`, `notify.preferences` | Reset to `{}` / no rows | Both were absent before and both are semantic no-ops (`get_visibility` reads an absent key as false; notify defaults an unset channel to enabled), so removing them restores the true prior state rather than leaving a row that only means the default |
+
+**One correction to an earlier claim in this pass.** An interim note said the
+alerts and bookmarks had been "restored (2 and 3)". That was wrong in a way
+worth recording: the session *began* with **one** alert and **zero**
+bookmarks, so restoring two and three left the account with more data than it
+started with. Corrected above.
+
+**What is deliberately still there: the audit trail.** Exercising the DPDP
+rights wrote three rows to `audit.entries` — `dpdp.erasure_requested`,
+`dpdp.erasure_withdrawn`, `dpdp.export` — and left the cancelled request in
+`identity.erasure_requests`. These are **not** cleaned up. They are an
+append-only record that those actions occurred, they are accurate, and
+deleting audit rows to tidy a test is a worse habit than leaving a true record
+that a test happened. Remove them only if the dev database is being reset
+wholesale.
+
+**Also worth knowing, found while verifying:** raw `UPDATE`s against these
+tables do **not** bump `updated_at`. `TimestampMixin`'s `onupdate` is
+SQLAlchemy-side, so anything written outside the ORM leaves the column stale —
+which is why the restored rows compare byte-identical, and why `updated_at`
+cannot be trusted as evidence of "nothing else touched this row".

@@ -80,7 +80,7 @@ test.describe("A-U4 agri PWA", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    // Visit the routes first — /mandi and /saved are runtime-cached, not
+    // Visit the routes first — /mandi and /account/saved are runtime-cached, not
     // precached, so a device only holds what its owner actually opened.
     await page.goto(`${AGRI}/helplines`);
     await page.waitForFunction(
@@ -140,7 +140,7 @@ test.describe("A-U4 agri PWA", () => {
       },
     );
     await page.waitForLoadState("networkidle");
-    // /saved is per-user, so an /api/* response in a shared cache would be a
+    // /account/saved is per-user, so an /api/* response in a shared cache would be a
     // PII leak. The worker returns early for that prefix; this proves it.
     // Retried for the same reason as the registration count above: a dev-only
     // HMR reload can destroy the execution context mid-evaluate. Returning

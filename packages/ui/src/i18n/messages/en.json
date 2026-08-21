@@ -1,5 +1,26 @@
 {
   "ui": {
+    "account": {
+      "heading": "Your account",
+      "settings": "Settings",
+      "back": "← Back to agri.in",
+      "idNote": "Profile, handle, devices and logout live on id.agri.in — this dashboard links out to them. One AgriID across agri.in, milk.in and theorganic.in.",
+      "eyebrow": "Your agri.in dashboard",
+      "greeting": "Hello, {name} 🌾",
+      "greetingNoName": "Hello 🌾",
+      "nav": {
+        "overview": "Overview",
+        "inquiries": "My enquiries",
+        "alerts": "Price alerts",
+        "saved": "Saved items",
+        "reviews": "My reviews",
+        "coins": "AgriCoins",
+        "notifications": "Notifications",
+        "profile": "Profile & language",
+        "devices": "Devices & sessions",
+        "privacy": "Data & privacy"
+      }
+    },
     "actions": {
       "call": "Call",
       "whatsapp": "WhatsApp",

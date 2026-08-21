@@ -1,5 +1,26 @@
 {
   "ui": {
+    "account": {
+      "heading": "आपका खाता",
+      "settings": "सेटिंग्स",
+      "back": "← agri.in पर वापस",
+      "idNote": "प्रोफ़ाइल, हैंडल, डिवाइस और लॉगआउट id.agri.in पर रहते हैं — यह डैशबोर्ड उनसे जोड़ता है। agri.in, milk.in और theorganic.in — एक ही AgriID।",
+      "eyebrow": "आपका agri.in डैशबोर्ड",
+      "greeting": "नमस्ते, {name} 🌾",
+      "greetingNoName": "नमस्ते 🌾",
+      "nav": {
+        "overview": "अवलोकन",
+        "inquiries": "मेरी पूछताछ",
+        "alerts": "भाव अलर्ट",
+        "saved": "सहेजे आइटम",
+        "reviews": "मेरी समीक्षाएँ",
+        "coins": "AgriCoins",
+        "notifications": "सूचनाएँ",
+        "profile": "प्रोफ़ाइल और भाषा",
+        "devices": "डिवाइस और सेशन",
+        "privacy": "डेटा और गोपनीयता"
+      }
+    },
     "actions": {
       "call": "कॉल करें",
       "whatsapp": "WhatsApp",

@@ -716,7 +716,7 @@ export default async function HomePage() {
             {/* A-U4 W2: the coins pill pointed at /notifications as a
                 stand-in because no coins surface existed. It does now. */}
             <EcoPill
-              href="/coins"
+              href="/account/coins"
               gradient="coins"
               title="🪙 AgriCoins"
               sub={t("agriHome.family.coins")}

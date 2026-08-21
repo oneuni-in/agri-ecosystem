@@ -31,7 +31,7 @@ export const metadata = { title: "AgriCoins", robots: { index: false } };
 
 export default async function CoinsPage() {
   const user = await auth.getServerUser();
-  if (!user) redirect("/api/auth/login?next=/coins");
+  if (!user) redirect("/api/auth/login?next=/account/coins");
 
   // Earn rules are public and cached, so the "how to earn" list renders from
   // the same source the home's cards use — the two can never disagree about

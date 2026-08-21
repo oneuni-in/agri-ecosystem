@@ -1,5 +1,26 @@
 {
   "ui": {
+    "account": {
+      "heading": "உங்கள் கணக்கு",
+      "settings": "அமைப்புகள்",
+      "back": "← agri.in க்குத் திரும்பு",
+      "idNote": "சுயவிவரம், கைப்பெயர், சாதனங்கள், வெளியேறுதல் ஆகியவை id.agri.in இல் உள்ளன — இந்த டாஷ்போர்டு அவற்றுக்கு இணைக்கிறது. agri.in, milk.in, theorganic.in — ஒரே AgriID.",
+      "eyebrow": "உங்கள் agri.in டாஷ்போர்டு",
+      "greeting": "வணக்கம், {name} 🌾",
+      "greetingNoName": "வணக்கம் 🌾",
+      "nav": {
+        "overview": "கண்ணோட்டம்",
+        "inquiries": "என் விசாரணைகள்",
+        "alerts": "விலை எச்சரிக்கைகள்",
+        "saved": "சேமித்தவை",
+        "reviews": "என் மதிப்புரைகள்",
+        "coins": "AgriCoins",
+        "notifications": "அறிவிப்புகள்",
+        "profile": "சுயவிவரம் & மொழி",
+        "devices": "சாதனங்கள் & அமர்வுகள்",
+        "privacy": "தரவு & தனியுரிமை"
+      }
+    },
     "actions": {
       "call": "அழை",
       "whatsapp": "WhatsApp",

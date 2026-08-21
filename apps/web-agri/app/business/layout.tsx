@@ -1,4 +1,4 @@
-import { ConsoleShell } from "@agri/ui";
+import { ConsoleShell, ConsoleSidebarBrand } from "@agri/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
@@ -50,19 +50,43 @@ export default async function BusinessConsoleLayout({
     if (entry.gate === "ads") return showAds;
     return true;
   }).map((entry) => ({ ...entry, title: t(`nav.${entry.id}`) }));
+
+  // A-U7 (A3 `.side .biz-sw`): the sidebar's business card. The reference
+  // shows a switcher; this account may own one business, in which case there
+  // is nothing to switch between and the count line is the honest sub-line.
+  // Verification comes off the owner list that the gate already fetched, so
+  // the card costs no extra request.
+  const primary = owned[0];
+  const verifiedCount = owned.filter((b) => b.verification_status === "verified").length;
   return (
     <NextIntlClientProvider messages={messages}>
     <ConsoleShell
       navLabel={t("heading")}
       heading={t("heading")}
+      brand={
+        primary ? (
+          <ConsoleSidebarBrand
+            icon="🏪"
+            name={owned.length === 1 ? primary.name : t("heading")}
+            sub={
+              owned.length === 1
+                ? primary.verification_status === "verified"
+                  ? t("dashboard.verified")
+                  : t("dashboard.needVerify")
+                : t("dashboard.ownedCount", { count: owned.length, verified: verifiedCount })
+            }
+          />
+        ) : undefined
+      }
       nav={
         <>
           <ConsoleNavLinks modules={modules} />
-          <div className="mt-0 sm:mt-4">
+          <div className="flex-none lg:mt-4">
             <ConsoleLocaleSwitcher />
           </div>
         </>
       }
+      footer={t("shellFoot")}
     >
       {children}
     </ConsoleShell>

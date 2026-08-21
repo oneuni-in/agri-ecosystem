@@ -1,18 +1,24 @@
 import {
   ConsoleCell,
+  ConsoleCheckRow,
+  ConsoleGrid2,
   ConsoleHeadCell,
+  ConsoleKpi,
+  ConsoleKpiRow,
+  ConsoleMiniNote,
   ConsoleModuleCard,
   ConsoleNotice,
   ConsolePageHeader,
   ConsolePanel,
   ConsoleRow,
-  ConsoleStatRow,
-  ConsoleStatTile,
   ConsoleTable,
+  ConsoleTopbar,
   EmptyState,
   StateChip,
   buttonVariants,
   cn,
+  consoleGhostButtonClass,
+  consoleMoneyButtonClass,
 } from "@agri/ui";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -41,18 +47,6 @@ import { CONSOLE_MODULES } from "@/lib/console-modules";
 export const metadata = { title: "Business console", robots: { index: false } };
 
 const API = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
-
-const MODULE_ICONS: Record<string, string> = {
-  inbox: "📥",
-  reviews: "⭐",
-  listings: "🏪",
-  products: "🥛",
-  notifications: "🔔",
-  analytics: "📈",
-  premium: "💎",
-  billing: "🧾",
-  ads: "📣",
-};
 
 async function inboxStats(
   token: string,
@@ -133,11 +127,18 @@ function sumAll(rows: (Analytics | null)[]): Analytics | null {
  * by-pincode split, never a per-day series, so the reference's little bar
  * charts have no data behind them and are left out rather than drawn from
  * numbers that do not exist. */
-function delta(now: number, before: number, label: string): string | null {
+function delta(
+  now: number,
+  before: number,
+  label: string,
+): { text: string; tone: "up" | "down" | "flat" } | null {
   if (before <= 0) return null;
   const pct = Math.round(((now - before) / before) * 100);
-  if (pct === 0) return `— ${label}`;
-  return `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% ${label}`;
+  if (pct === 0) return { text: `— ${label}`, tone: "flat" };
+  return {
+    text: `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% ${label}`,
+    tone: pct > 0 ? "up" : "down",
+  };
 }
 
 function statusChip(business: OwnedBusiness, t: (key: string) => string) {
@@ -233,15 +234,50 @@ export default async function BusinessDashboardPage() {
 
   const enforced = owned.filter((business) => business.enforcement_reason);
 
+  const adsHref = modules.find((entry) => entry.id === "ads")?.href ?? null;
+  const publicSlug = owned.length === 1 ? owned[0]?.slug : undefined;
+  const incomplete = owned.filter((business) => business.verification_status !== "verified");
+
   return (
     <main>
-      <ConsolePageHeader
-        title={t("dashboard.title")}
-        sub={owned.length === 1 ? owned[0]?.name : undefined}
+      {/* A3 reference `.topbar`: eyebrow, greeting, one line of context, and
+          the two actions the owner reaches for most. The reference greets by
+          time of day; a server render has no timezone to be right about, so
+          the greeting is stable rather than guessed. */}
+      <ConsoleTopbar
+        eyebrow={t("dashboard.eyebrow")}
+        title={
+          <>
+            {t("dashboard.greeting")}
+            {owned.length === 1 && owned[0] ? `, ${owned[0].name}` : ""}
+          </>
+        }
+        sub={t("dashboard.ownedCount", {
+          count: owned.length,
+          verified: owned.length - incomplete.length,
+        })}
+        actions={
+          <>
+            {publicSlug ? (
+              <Link
+                href={`/directory/businesses/${publicSlug}`}
+                prefetch={false}
+                className={consoleGhostButtonClass}
+              >
+                {t("dashboard.viewPublic")}
+              </Link>
+            ) : null}
+            {adsHref ? (
+              <Link href={adsHref} prefetch={false} className={consoleMoneyButtonClass}>
+                {t("dashboard.promote")}
+              </Link>
+            ) : null}
+          </>
+        }
       />
 
       {enforced.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-2">
+        <div className="mb-3 flex flex-col gap-2">
           {enforced.map((business) => (
             <ConsoleNotice key={business.id} tone="alert">
               {business.name}: {business.enforcement_reason}
@@ -250,131 +286,189 @@ export default async function BusinessDashboardPage() {
         </div>
       ) : null}
 
-      <ConsoleStatRow label={t("dashboard.title")}>
-        <ConsoleStatTile
-          value={String(owned.length)}
-          label={t("dashboard.statBusinesses")}
-        />
-        {leadsKnown ? (
-          <ConsoleStatTile
-            value={String(leadsTotal)}
-            label={t("dashboard.statLeads")}
-            hint={t("dashboard.allTime")}
-          />
-        ) : null}
-        {leadsKnown ? (
-          <ConsoleStatTile
-            value={String(leadsResponded)}
-            label={t("dashboard.statResponded")}
-            hint={t("dashboard.allTime")}
-          />
-        ) : null}
-      </ConsoleStatRow>
-
-      {/* The A3 reference's engagement row. Real figures from the owner-only
-          analytics read, summed across every business this account owns.
-          Rendered only when ALL of them reported. */}
+      {/* The reference's KPI row. Real figures from the owner-only analytics
+          read, summed across every owned business and rendered only when ALL
+          of them reported — a partial sum is a smaller number that looks
+          like a real one. No sparkline bars: that read returns totals and a
+          by-pincode split, never a per-day series. */}
       {recent ? (
-        <ConsoleStatRow label={t("dashboard.last7")}>
-          <ConsoleStatTile
-            value={String(recent.views)}
+        <ConsoleKpiRow label={t("dashboard.last7")}>
+          <ConsoleKpi
             label={t("dashboard.statViews")}
-            hint={delta(recent.views, prior?.views ?? 0, t("dashboard.vsPrev")) ?? t("dashboard.last7")}
+            value={recent.views.toLocaleString("en-IN")}
+            {...kpiDelta(
+              recent.views,
+              prior?.views ?? 0,
+              t("dashboard.vsPrev"),
+              t("dashboard.last7"),
+            )}
           />
-          <ConsoleStatTile
-            value={String(recent.reveals)}
+          <ConsoleKpi
             label={t("dashboard.statReveals")}
-            hint={
-              delta(recent.reveals, prior?.reveals ?? 0, t("dashboard.vsPrev")) ??
-              t("dashboard.last7")
-            }
+            value={recent.reveals.toLocaleString("en-IN")}
+            {...kpiDelta(
+              recent.reveals,
+              prior?.reveals ?? 0,
+              t("dashboard.vsPrev"),
+              t("dashboard.last7"),
+            )}
           />
-          <ConsoleStatTile
-            value={String(recent.leads)}
+          <ConsoleKpi
             label={t("dashboard.statNewLeads")}
-            hint={delta(recent.leads, prior?.leads ?? 0, t("dashboard.vsPrev")) ?? t("dashboard.last7")}
+            value={recent.leads.toLocaleString("en-IN")}
+            {...kpiDelta(
+              recent.leads,
+              prior?.leads ?? 0,
+              t("dashboard.vsPrev"),
+              t("dashboard.last7"),
+            )}
           />
-          {responseRate !== null ? (
-            <ConsoleStatTile
-              value={`${responseRate}%`}
-              label={t("dashboard.statResponseRate")}
-              hint={t("dashboard.last7")}
+          <ConsoleKpi
+            label={
+              responseRate !== null
+                ? t("dashboard.statResponseRate")
+                : t("dashboard.statBusinesses")
+            }
+            value={responseRate !== null ? `${responseRate}%` : String(owned.length)}
+            {...(responseRate !== null ? { delta: t("dashboard.last7") } : {})}
+          />
+        </ConsoleKpiRow>
+      ) : (
+        <ConsoleKpiRow label={t("dashboard.title")}>
+          <ConsoleKpi label={t("dashboard.statBusinesses")} value={String(owned.length)} />
+          {leadsKnown ? (
+            <ConsoleKpi
+              label={t("dashboard.statLeads")}
+              value={leadsTotal.toLocaleString("en-IN")}
+              delta={t("dashboard.allTime")}
             />
           ) : null}
-        </ConsoleStatRow>
-      ) : null}
+          {leadsKnown ? (
+            <ConsoleKpi
+              label={t("dashboard.statResponded")}
+              value={leadsResponded.toLocaleString("en-IN")}
+              delta={t("dashboard.allTime")}
+            />
+          ) : null}
+        </ConsoleKpiRow>
+      )}
 
-      {/* Listing health, from the reference's right rail. Only the checks the
-          owner list actually answers — verification. Coverage, products and
-          description live on the per-business detail read and would cost one
-          request each, so they are not guessed at here. */}
-      {owned.some((business) => business.verification_status !== "verified") ? (
-        <ConsolePanel title={t("dashboard.completeTitle")} className="mt-4">
-          <p className="mb-2 text-[12.5px] text-sub">{t("dashboard.completeSub")}</p>
-          <ul className="grid gap-1.5">
-            {owned
-              .filter((business) => business.verification_status !== "verified")
-              .map((business) => (
-                <li key={business.id} className="text-[13px] text-ink">
-                  <span className="font-semibold">{business.name}</span>{" "}
-                  <span className="text-sub">— {t("dashboard.needVerify")}</span>
-                </li>
+      {/* A3 `.grid2`: the work on the left, the reference rail on the right. */}
+      <ConsoleGrid2>
+        <div className="min-w-0 space-y-3">
+          <ConsolePanel title={t("dashboard.yourBusinesses")}>
+            <ConsoleTable
+              caption={t("dashboard.yourBusinesses")}
+              head={
+                <>
+                  <ConsoleHeadCell>{t("dashboard.colBusiness")}</ConsoleHeadCell>
+                  <ConsoleHeadCell>{t("dashboard.colPincode")}</ConsoleHeadCell>
+                  <ConsoleHeadCell>{t("dashboard.colStatus")}</ConsoleHeadCell>
+                  <ConsoleHeadCell>{t("dashboard.colPlan")}</ConsoleHeadCell>
+                </>
+              }
+            >
+              {owned.map((business) => (
+                <ConsoleRow key={business.id}>
+                  <ConsoleCell label={t("dashboard.colBusiness")}>
+                    <span className="font-semibold">{business.name}</span>
+                    {business.verification_status === "verified" ? (
+                      <>
+                        {" "}
+                        <StateChip tone="ok">{t("dashboard.verified")}</StateChip>
+                      </>
+                    ) : null}
+                  </ConsoleCell>
+                  <ConsoleCell label={t("dashboard.colPincode")}>
+                    {business.primary_pincode}
+                  </ConsoleCell>
+                  <ConsoleCell label={t("dashboard.colStatus")}>
+                    {statusChip(business, t)}
+                  </ConsoleCell>
+                  <ConsoleCell label={t("dashboard.colPlan")}>
+                    {business.subscription_tier === "free" ? (
+                      <StateChip tone="neutral">{t("dashboard.planFree")}</StateChip>
+                    ) : (
+                      <StateChip tone="info">{business.subscription_tier}</StateChip>
+                    )}
+                  </ConsoleCell>
+                </ConsoleRow>
               ))}
-          </ul>
-        </ConsolePanel>
-      ) : null}
+            </ConsoleTable>
+          </ConsolePanel>
 
-      <ConsolePanel title={t("dashboard.yourBusinesses")} className="mt-4">
-        <ConsoleTable
-          caption={t("dashboard.yourBusinesses")}
-          head={
-            <>
-              <ConsoleHeadCell>{t("dashboard.colBusiness")}</ConsoleHeadCell>
-              <ConsoleHeadCell>{t("dashboard.colPincode")}</ConsoleHeadCell>
-              <ConsoleHeadCell>{t("dashboard.colStatus")}</ConsoleHeadCell>
-              <ConsoleHeadCell>{t("dashboard.colPlan")}</ConsoleHeadCell>
-            </>
-          }
-        >
-          {owned.map((business) => (
-            <ConsoleRow key={business.id}>
-              <ConsoleCell label={t("dashboard.colBusiness")}>
-                <span className="font-semibold">{business.name}</span>
-                {business.verification_status === "verified" ? (
-                  <>
-                    {" "}
-                    <StateChip tone="ok">{t("dashboard.verified")}</StateChip>
-                  </>
-                ) : null}
-              </ConsoleCell>
-              <ConsoleCell label={t("dashboard.colPincode")}>
-                {business.primary_pincode}
-              </ConsoleCell>
-              <ConsoleCell label={t("dashboard.colStatus")}>
-                {statusChip(business, t)}
-              </ConsoleCell>
-              <ConsoleCell label={t("dashboard.colPlan")}>
-                {business.subscription_tier === "free" ? (
-                  <StateChip tone="neutral">{t("dashboard.planFree")}</StateChip>
-                ) : (
-                  <StateChip tone="info">{business.subscription_tier}</StateChip>
-                )}
-              </ConsoleCell>
-            </ConsoleRow>
-          ))}
-        </ConsoleTable>
-      </ConsolePanel>
+          <ConsolePanel title={t("dashboard.manage")}>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              {modules.map((entry) => (
+                <Link key={entry.id} href={entry.href} className="no-underline">
+                  <ConsoleModuleCard icon={entry.icon} title={t(`nav.${entry.id}`)} />
+                </Link>
+              ))}
+            </div>
+          </ConsolePanel>
+        </div>
 
-      <h2 className="mb-2.5 mt-5 font-display text-[15px] font-extrabold text-ink">
-        {t("dashboard.manage")}
-      </h2>
-      <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-        {modules.map((entry) => (
-          <Link key={entry.id} href={entry.href} className="no-underline">
-            <ConsoleModuleCard icon={MODULE_ICONS[entry.id] ?? "🗂️"} title={t(`nav.${entry.id}`)} />
-          </Link>
-        ))}
-      </div>
+        <div className="min-w-0 space-y-3">
+          {/* Listing health, from the reference's right rail. Only the check
+              the owner list actually answers — verification. Coverage,
+              products and description live on the per-business detail read
+              and would cost one request each, so they are not guessed at. */}
+          <ConsolePanel title={t("dashboard.completeTitle")}>
+            {incomplete.length === 0 ? (
+              <p className="text-xs text-sub">{t("dashboard.allComplete")}</p>
+            ) : (
+              <>
+                <p className="mb-1 text-[12.5px] text-sub">{t("dashboard.completeSub")}</p>
+                {incomplete.map((business) => (
+                  <ConsoleCheckRow
+                    key={business.id}
+                    done={false}
+                    right={
+                      <Link
+                        href="/business/listings"
+                        prefetch={false}
+                        className="tap-target inline-flex items-center font-medium text-brand no-underline"
+                      >
+                        {t("dashboard.needVerify")}
+                      </Link>
+                    }
+                  >
+                    {business.name}
+                  </ConsoleCheckRow>
+                ))}
+              </>
+            )}
+          </ConsolePanel>
+
+          {adsHref ? (
+            <ConsolePanel title={t("nav.ads")}>
+              <p className="text-xs leading-relaxed text-sub">{t("dashboard.promoteBody")}</p>
+              <Link
+                href={adsHref}
+                prefetch={false}
+                className={cn(consoleMoneyButtonClass, "mt-2.5 w-full")}
+              >
+                {t("dashboard.promoteCta")}
+              </Link>
+              <ConsoleMiniNote>{t("dashboard.promoteNote")}</ConsoleMiniNote>
+            </ConsolePanel>
+          ) : null}
+        </div>
+      </ConsoleGrid2>
     </main>
   );
+}
+
+/** Spreads onto `ConsoleKpi` as `delta` + `deltaTone`, falling back to the
+ * window label when there is no prior period to compare against. */
+function kpiDelta(
+  now: number,
+  before: number,
+  vsLabel: string,
+  fallback: string,
+): { delta: string; deltaTone: "up" | "down" | "flat" } {
+  const measured = delta(now, before, vsLabel);
+  return measured
+    ? { delta: measured.text, deltaTone: measured.tone }
+    : { delta: fallback, deltaTone: "flat" };
 }

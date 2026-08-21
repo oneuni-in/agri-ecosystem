@@ -31,43 +31,145 @@ import { cn } from "../lib/cn";
 export function ConsoleShell({
   navLabel,
   heading,
+  brand,
   nav,
+  footer,
   children,
   ...rest
 }: {
   /** Accessible name for the nav landmark, e.g. "Business console". */
   navLabel: string;
-  /** Sidebar heading (hidden below `sm:`, where the pill row speaks for itself). */
+  /** Sidebar heading (hidden below `lg:`, where the pill row speaks for itself). */
   heading: string;
+  /** A-U7: the business switcher card above the nav (`ConsoleSidebarBrand`). */
+  brand?: ReactNode;
   /** The module list — a `ConsoleNavList` of links. */
   nav: ReactNode;
+  /** A-U7: the sidebar's foot note, desktop only. */
+  footer?: ReactNode;
   children: ReactNode;
 } & Omit<React.HTMLAttributes<HTMLDivElement>, "children">) {
   return (
-    <div
-      className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:gap-6"
-      {...rest}
-    >
+    <div className="lg:grid lg:grid-cols-[218px_minmax(0,1fr)]" {...rest}>
+      {/* A-U7 (A3 reference `.side`): a real white rail on the cream page from
+          `lg:` up, and the SAME horizontally scrollable row below it — nothing
+          hidden behind a hamburger (design-system UX law #2). `sticky top-0`
+          rather than the reference's fixed 34px offset, because the console
+          sits under the site header, whose height is not a constant. */}
       <nav
         aria-label={navLabel}
-        className="flex gap-2 overflow-x-auto pb-1 sm:block sm:w-48 sm:shrink-0 sm:overflow-visible sm:pb-0"
+        className={cn(
+          "flex gap-1.5 overflow-x-auto border-b border-cream-line bg-card px-3.5 py-2.5",
+          "lg:sticky lg:top-0 lg:block lg:h-screen lg:gap-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-3 lg:py-4",
+        )}
       >
-        <p className="hidden font-display text-[13px] font-extrabold uppercase tracking-wide text-sub sm:mb-3 sm:block">
-          {heading}
-        </p>
+        <p className="sr-only">{heading}</p>
+        {brand ? <div className="flex-none lg:mb-3.5">{brand}</div> : null}
         {nav}
+        {footer ? (
+          <div className="mt-3.5 hidden border-t border-cream-line pt-3 text-[10.5px] leading-relaxed text-muted lg:block">
+            {footer}
+          </div>
+        ) : null}
       </nav>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 px-3.5 pb-10 pt-4 lg:px-6 lg:pt-5">{children}</div>
     </div>
   );
 }
 
-export function ConsoleNavList({ children }: { children: ReactNode }) {
-  return <ul className="flex gap-2 sm:block sm:space-y-1">{children}</ul>;
+/**
+ * A-U7 (A3 `.side .biz-sw`): the sidebar's business switcher.
+ *
+ * Presentation only — the caller supplies whatever control actually switches
+ * business (a `<select>`, a link, or nothing at all when the account owns
+ * one business and there is nothing to switch between).
+ */
+export function ConsoleSidebarBrand({
+  icon,
+  name,
+  sub,
+  control,
+}: {
+  icon: string;
+  name: string;
+  sub?: ReactNode;
+  control?: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-[190px] items-center gap-2.5 rounded-btn border border-cream-line bg-cream px-2.5 py-2 lg:w-full">
+      <span
+        aria-hidden="true"
+        className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] bg-brand-soft text-[15px]"
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block truncate text-xs font-medium leading-tight text-ink">{name}</b>
+        {sub ? <small className="block truncate text-[9.5px] text-muted">{sub}</small> : null}
+      </span>
+      {control}
+    </div>
+  );
 }
 
-export function ConsoleNavItem({ children }: { children: ReactNode }) {
-  return <li className="flex-none">{children}</li>;
+/**
+ * Where the nav stops being a scrollable pill row and becomes a sidebar.
+ *
+ * Two shells sit on these shapes and they widen at different points: the
+ * admin console (`AdminShell`) has always flipped at `sm:`, while A-U7's
+ * business rail is 218px of real estate and only earns its place at `lg:`.
+ * A prop rather than a template literal, because Tailwind only sees class
+ * names it can read as literals — both branches are written out in full.
+ */
+export type ConsoleNavBreakpoint = "sm" | "lg";
+
+export function ConsoleNavList({
+  children,
+  breakpoint = "sm",
+}: {
+  children: ReactNode;
+  breakpoint?: ConsoleNavBreakpoint;
+}) {
+  return (
+    <ul
+      className={
+        breakpoint === "lg"
+          ? "flex gap-1.5 lg:block lg:space-y-0.5"
+          : "flex gap-2 sm:block sm:space-y-1"
+      }
+    >
+      {children}
+    </ul>
+  );
+}
+
+export function ConsoleNavItem({
+  children,
+  breakpoint = "sm",
+}: {
+  children: ReactNode;
+  breakpoint?: ConsoleNavBreakpoint;
+}) {
+  return <li className={breakpoint === "lg" ? "flex-none lg:flex-auto" : "flex-none"}>{children}</li>;
+}
+
+/** A-U7 (A3 `.side nav a .ic` / `.n`): the icon and count slots inside a nav
+ * link. Separate exports so the app's `<Link>` and the demo's `<a>` compose
+ * the same row. The count is only ever a real number the caller was given. */
+export function ConsoleNavIcon({ children }: { children: ReactNode }) {
+  return (
+    <span aria-hidden="true" className="w-5 flex-none text-center text-[15px]">
+      {children}
+    </span>
+  );
+}
+
+export function ConsoleNavCount({ children }: { children: ReactNode }) {
+  return (
+    <span className="ml-auto rounded-pill bg-accent px-[7px] py-px text-[9px] font-bold text-accent-ink">
+      {children}
+    </span>
+  );
 }
 
 /**
@@ -76,7 +178,20 @@ export function ConsoleNavItem({ children }: { children: ReactNode }) {
  * campaign wizard's step pills); sidebar row from `sm:` (current = the
  * RadioCard "selected" convention, bg-brand-soft/text-brand-deep).
  */
-export function consoleNavLinkClass(active: boolean): string {
+export function consoleNavLinkClass(
+  active: boolean,
+  breakpoint: ConsoleNavBreakpoint = "sm",
+): string {
+  if (breakpoint === "lg") {
+    // A-U7 (A3 `.side nav a`): an icon + label row, brand-soft when current.
+    return cn(
+      "flex min-h-[44px] items-center gap-2.5 whitespace-nowrap rounded-btn px-3.5 text-[12.5px] no-underline",
+      "lg:min-h-[40px] lg:whitespace-normal lg:px-3",
+      active
+        ? "bg-brand-soft font-medium text-brand-deep"
+        : "bg-cream text-sub lg:bg-transparent lg:hover:bg-cream",
+    );
+  }
   return cn(
     "flex min-h-[44px] items-center whitespace-nowrap rounded-pill px-4 text-[13px] font-semibold no-underline sm:block sm:min-h-0 sm:whitespace-normal sm:rounded-card sm:px-3 sm:py-2 sm:text-[14px]",
     active
@@ -107,6 +222,207 @@ export function ConsolePageHeader({
       {action}
     </header>
   );
+}
+
+/* ── A-U7: the A3 console reference's shapes ───────────────────────────── */
+
+/**
+ * The A3 `.topbar`: eyebrow, title, sub-line, and a right-hand action group.
+ *
+ * A richer sibling of `ConsolePageHeader`, not a replacement — the older
+ * shape is a plain h1 row and several console pages want exactly that.
+ */
+export function ConsoleTopbar({
+  eyebrow,
+  title,
+  sub,
+  actions,
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  sub?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="mb-4 flex flex-wrap items-start gap-3">
+      <div className="min-w-0 flex-1">
+        {eyebrow ? (
+          <p className="mb-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-coins-fg">
+            <span aria-hidden="true" className="h-0.5 w-[22px] flex-none rounded-sm bg-accent" />
+            {eyebrow}
+          </p>
+        ) : null}
+        <h1 className="font-display text-xl font-semibold text-ink">{title}</h1>
+        {sub ? <p className="mt-0.5 text-[11.5px] text-muted">{sub}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </header>
+  );
+}
+
+/** A-U7: the console button recipes (A3 `.btn-ghost` / `.btn-money`). The
+ * shared `buttonVariants` are the 44px consumer set; the console runs a
+ * denser 42px row, and the money pill has no consumer equivalent. */
+export const consoleGhostButtonClass =
+  "tap-target inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-btn border border-cream-line bg-card px-4 text-[13.5px] font-medium text-brand-deep no-underline disabled:opacity-60";
+
+export const consoleMoneyButtonClass =
+  "tap-target inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-pill bg-accent px-[17px] text-[13.5px] font-medium text-accent-ink no-underline disabled:opacity-60";
+
+export const consolePrimaryButtonClass =
+  "tap-target inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-btn bg-brand px-[17px] text-[13.5px] font-medium text-white no-underline disabled:opacity-60";
+
+/** A-U7: KPI row (A3 `.kpis`). Four across on desktop, two on a phone. */
+export function ConsoleKpiRow({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A-U7: one KPI card (A3 `.kpi`).
+ *
+ * NO bar strip. The reference draws a 7-bar sparkline, and the analytics read
+ * behind this console returns totals plus a by-pincode split — never a
+ * per-day series. Bars would be decoration shaped like data, so the card
+ * carries the number and the measured delta and stops there.
+ */
+export function ConsoleKpi({
+  label,
+  value,
+  delta,
+  deltaTone = "flat",
+}: {
+  label: string;
+  value: string;
+  /** e.g. "▲ 18% vs last wk". Omitted when there is nothing to compare to. */
+  delta?: string;
+  deltaTone?: "up" | "down" | "flat";
+}) {
+  return (
+    <div className="rounded-card border border-cream-line bg-card px-[15px] py-[13px]">
+      <small className="block text-[10px] font-medium uppercase tracking-[0.06em] text-muted">
+        {label}
+      </small>
+      <b className="mt-0.5 block font-display text-2xl font-semibold leading-tight text-ink">
+        {value}
+      </b>
+      {delta ? (
+        <span
+          className={cn(
+            "mt-0.5 block text-[10.5px] font-medium",
+            deltaTone === "up" && "text-up",
+            deltaTone === "down" && "text-down",
+            deltaTone === "flat" && "text-muted",
+          )}
+        >
+          {delta}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** A-U7: the A3 `.grid2` — main column plus a reference rail. */
+export function ConsoleGrid2({ children }: { children: ReactNode }) {
+  return <div className="mt-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]">{children}</div>;
+}
+
+/** A-U7: a checklist row (A3 `.check`) — marker, label, optional right slot. */
+export function ConsoleCheckRow({
+  marker,
+  done = false,
+  children,
+  right,
+}: {
+  /** Explicit marker wins; otherwise `done` picks ✅ / ○. */
+  marker?: ReactNode;
+  done?: boolean;
+  children: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 border-b border-cream-line py-[7px] text-xs text-ink last:border-b-0">
+      <span aria-hidden="true" className={done ? "text-up" : "text-muted"}>
+        {marker ?? (done ? "✅" : "○")}
+      </span>
+      <span className="min-w-0">{children}</span>
+      {right ? <span className="ml-auto whitespace-nowrap text-[10.5px]">{right}</span> : null}
+    </div>
+  );
+}
+
+/** A-U7: the A3 `.prog` bar. `value` is a real percentage the caller
+ * computed; there is no default, because a progress bar with an invented
+ * number is the most confident lie a dashboard can tell. */
+export function ConsoleProgress({ value, label }: { value: number; label: string }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className="my-2 h-[7px] overflow-hidden rounded-pill bg-cream-deep"
+    >
+      <span
+        className="block h-full rounded-pill bg-gradient-to-r from-brand to-accent"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+/**
+ * A-U7: one row of the leads/reviews inbox (A3 `.lead`).
+ *
+ * `tone="new"` is the reference's brand-bordered, tinted card. Actions are a
+ * slot: this catalog never knows what a Call button does — on agri.in it runs
+ * the D18 reveal, and that belongs to the app.
+ */
+export function ConsoleLeadRow({
+  icon,
+  title,
+  meta,
+  chip,
+  actions,
+  tone = "default",
+}: {
+  icon?: ReactNode;
+  title: ReactNode;
+  meta?: ReactNode;
+  chip?: ReactNode;
+  actions?: ReactNode;
+  tone?: "default" | "new";
+}) {
+  return (
+    <div
+      className={cn(
+        "mb-2 flex flex-wrap items-start gap-2.5 rounded-btn border px-[13px] py-[11px] last:mb-0",
+        tone === "new" ? "border-brand bg-cream" : "border-cream-line bg-card",
+      )}
+    >
+      {icon ? (
+        <span aria-hidden="true" className="text-lg leading-none">
+          {icon}
+        </span>
+      ) : null}
+      <div className="min-w-[200px] flex-1">
+        <b className="block text-[12.5px] font-medium text-ink">{title}</b>
+        {meta ? <span className="mt-px block text-[10.5px] text-muted">{meta}</span> : null}
+      </div>
+      {chip ? <span className="ml-auto">{chip}</span> : null}
+      {actions ? <div className="mt-2 flex w-full gap-1.5">{actions}</div> : null}
+    </div>
+  );
+}
+
+/** A-U7: the small grey qualifier under a panel (A3 `.mini-note`). */
+export function ConsoleMiniNote({ children }: { children: ReactNode }) {
+  return <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted">{children}</p>;
 }
 
 /* ── panel ─────────────────────────────────────────────────────────────── */

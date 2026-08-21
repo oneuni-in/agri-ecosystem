@@ -18,17 +18,32 @@ export interface ConsoleModule {
   title: string;
   href: string;
   gate?: ConsoleGate;
+  /** A-U7: the sidebar glyph (A3 reference `.side nav a .ic`). Chrome, not
+   * data — it lives on the registry entry so the nav and the dashboard's
+   * module cards cannot drift into two different icons for one module. */
+  icon: string;
 }
 
 export const CONSOLE_MODULES: ConsoleModule[] = [
-  { id: "dashboard", title: "Dashboard", href: "/business" },
-  { id: "inbox", title: "Lead inbox", href: "/business/inbox" },
-  { id: "reviews", title: "Reviews", href: "/business/reviews" },
-  { id: "listings", title: "Listings", href: "/business/listings" },
-  { id: "products", title: "Products", href: "/business/products" },
-  { id: "notifications", title: "Notifications", href: "/business/notifications" },
-  { id: "analytics", title: "Analytics", href: "/business/analytics" },
-  { id: "premium", title: "Premium", href: "/business/premium" },
-  { id: "billing", title: "Subscription & invoices", href: "/business/billing", gate: "billing" },
-  { id: "ads", title: "Advertise", href: "/business/ads", gate: "ads" },
+  { id: "dashboard", title: "Dashboard", href: "/business", icon: "📊" },
+  { id: "inbox", title: "Lead inbox", href: "/business/inbox", icon: "📥" },
+  { id: "reviews", title: "Reviews", href: "/business/reviews", icon: "⭐" },
+  { id: "listings", title: "Listings", href: "/business/listings", icon: "🏪" },
+  { id: "products", title: "Products", href: "/business/products", icon: "📦" },
+  {
+    id: "notifications",
+    title: "Notifications",
+    href: "/business/notifications",
+    icon: "🔔",
+  },
+  { id: "analytics", title: "Analytics", href: "/business/analytics", icon: "📈" },
+  { id: "premium", title: "Premium", href: "/business/premium", icon: "💎" },
+  {
+    id: "billing",
+    title: "Subscription & invoices",
+    href: "/business/billing",
+    gate: "billing",
+    icon: "🧾",
+  },
+  { id: "ads", title: "Advertise", href: "/business/ads", gate: "ads", icon: "📣" },
 ];

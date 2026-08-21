@@ -21,7 +21,8 @@ import { fetchReviewSignals } from "@/lib/home";
 import { ProductThumb } from "@/app/_components/product-thumb";
 import { tintFor } from "@/app/_components/product-tints";
 
-import { CardContact } from "./card-contact";
+import { CardContact } from "@/app/_components/card-contact";
+
 import { CategoryAdSlot } from "./category-ad-slot";
 
 /**

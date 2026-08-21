@@ -8,8 +8,8 @@ request's shape - dates, status, hold reasons - and nothing identifying
 beyond the FK, so "was this account erased, and when?" stays answerable to a
 regulator after the personal data is gone.
 
-Revision ID: 0055
-Revises: 0054
+Revision ID: 0057
+Revises: 0056
 """
 
 from collections.abc import Sequence
@@ -18,8 +18,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0055"
-down_revision: str | None = "0054"
+revision: str = "0057"
+down_revision: str | None = "0056"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

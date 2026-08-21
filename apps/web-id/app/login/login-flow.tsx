@@ -668,7 +668,10 @@ export function LoginFlow({
                 </li>
               ))}
             </ul>
-            <Button variant="brand" onClick={performRedirect}>
+            {/* testid because the label is localised AND counts down: a
+                spec cannot match it by text in three languages, and this
+                screen sits on the path every signup test walks. */}
+            <Button variant="brand" data-testid="done-continue" onClick={performRedirect}>
               {autoIn > 0 ? t("done.continueIn", { seconds: autoIn }) : t("done.continue")}
             </Button>
           </div>

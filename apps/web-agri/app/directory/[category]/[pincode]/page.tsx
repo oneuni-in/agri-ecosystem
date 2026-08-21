@@ -280,7 +280,7 @@ export default async function CategoryLandingPage({ params, searchParams }: Rout
             <Link
               href="/search"
               prefetch={false}
-              className="inline-flex min-h-[40px] items-center justify-center rounded-pill bg-accent px-[18px] text-[12.5px] font-semibold text-accent-ink no-underline"
+              className="tap-target inline-flex min-h-[40px] items-center justify-center rounded-pill bg-accent px-[18px] text-[12.5px] font-semibold text-accent-ink no-underline"
             >
               🔎 Search all of agri.in
             </Link>

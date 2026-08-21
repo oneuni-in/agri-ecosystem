@@ -26,6 +26,7 @@ Every row is a hard gate. A red row is a no-go, not a discussion.
 | AI signed off or OFF | OK — **OFF** (owner, 2026-08-17) | `docs/security/agri-ai-redteam.md` |
 | Every non-live vertical honestly Soon | OK | registry `soon` flags |
 | Prod secrets present | **OWNER ACTION** | §4 |
+| `NEXT_PUBLIC_CONSOLE_URL` on web-id at BUILD time | **OWNER ACTION** (ID-U1 W5) | §4 item 3 |
 
 ---
 
@@ -105,11 +106,18 @@ None of these can be done by an agent, and none has a workaround:
    one. It is inlined, not read at runtime, so setting it after the build does
    nothing. Without it the push card renders nothing — honest, but no
    notifications.
-3. **DNS cut + TLS** for agri.in, and the rollback rehearsal that goes with it.
-4. **Decide the burn side of coins.** `redeem()` exists with no route and no
+3. **`NEXT_PUBLIC_CONSOLE_URL` at BUILD time for `apps/web-id`** (ID-U1 W5).
+   Same class as item 2: inlined at build, so setting it afterwards does
+   nothing. `/account`'s "find & claim my shop" link needs it. The build FAILS
+   LOUDLY without it, by design — the alternative was shipping a button that
+   resolves to the visitor's own machine, dead, with nothing logged anywhere.
+   web-milk already sets this var; web-id is new to it. See
+   `apps/web-id/lib/console.ts`.
+4. **DNS cut + TLS** for agri.in, and the rollback rehearsal that goes with it.
+5. **Decide the burn side of coins.** `redeem()` exists with no route and no
    catalog, so coins currently only accumulate. That is a shippable state, but
    it should be a decision rather than an oversight.
-5. **Rotate `app_rt`, and fill the application secrets.** Migration 0013
+6. **Rotate `app_rt`, and fill the application secrets.** Migration 0013
    creates the runtime database role with the password `app_rt`, which is
    published in this repository; every secret in the new "application secrets"
    block of `secrets/staging.env.example` (`OTP_PEPPER`, the two beacon
@@ -225,6 +233,40 @@ State these to anyone who asks, rather than discovering them under pressure:
   curator has published a video. Owner-deferred, not silently green.
 - Three helpline numbers still carry their 2026-08-14 verification date and
   want an owner dial-check.
+
+### ID-U1 (AgriID) — three open decisions, deliberately not guessed
+
+- **`identity.users.phone` is a plain `Text` column — NOT encrypted at
+  rest.** The A7 reference's consent copy claims "we store your number
+  encrypted"; the shipped sentence says only what the code does, because a
+  false privacy claim on a DPDP surface is not a copy nit. Nothing is
+  broken and nothing is overclaimed — but this sits on the same DPDP
+  ground the D56 gate just closed, so decide it deliberately rather than
+  discovering it in a review. Encrypting the column is a schema + key-
+  management change, not a one-liner.
+- **`/devices` rows are SESSIONS, not devices.** One real dev account
+  shows 28, because every login mints a `sessions_web` row and nothing
+  dedupes by fingerprint. Each row is now correctly labelled and
+  individually revocable, which is strictly better than the old
+  "web / web" — but the count is the remaining problem. Left unfixed on
+  purpose: `device_fingerprint` is deliberately coarse (two Windows/Chrome
+  machines share one), so a login-time cap would end a session on a
+  genuinely different device, and grouping rows would merge two real
+  devices into one and could HIDE a rogue session — the exact thing the
+  page exists to reveal. Needs a session-lifecycle decision, not a display
+  change.
+- **The 429 "too many attempts" notice reads amber, not red.** A7's `.err`
+  trio has no counterpart in the design system, so it maps onto the
+  existing `severe-*` family per the A-U1 one-off-colour policy
+  (`severe-ink` on `severe-bg` = 6.71:1, passes AA). A true `--danger-*`
+  family is a design-system change that would touch every app, not a page
+  fix — cosmetic, and safe to ship as is.
+
+Also still 🟡 in `docs/qa/id-acceptance-checklist.md`: **ID-A7** (the
+cross-site backchannel logout) passes CI but failed consistently on the
+dev box during ID-U1. Not upgraded to green on CI alone — "works in CI,
+not on a dev box" is the shape of a config difference, and prod is the
+environment where that would matter. Worth one deliberate check here.
 
 ## 8b · Explicit gate exceptions (A-U4b §3, recorded 2026-08-20)
 

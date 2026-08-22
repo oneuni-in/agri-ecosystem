@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>theorganic.in — home reference (O1 FINAL v1)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Public+Sans:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   theorganic.in home — O1 DESIGN REFERENCE (FINAL v1)
+   Single-file sample. Same shared design system as milk.in U1 v7
+   and agri.in A1 v4: cream paper tokens + primitives unchanged;
+   the vertical theme layer swaps agri green (--ag) for organic
+   olive (--og). New tokens marked NEW — enter them in
+   docs/design-system.MD before first use in app code.
+   Breakpoints: mobile <768 · tablet 768–1023 · desktop >=1024
+   Trust-first home: the certificate bar leads, hero ad sits below
+   it (organic's equivalent of agri's location-first TODAY strip —
+   in this vertical the question users arrive with is "is this
+   really organic?", not "what is happening near me today").
+   FENCE (visible in the UI, not just the pitch): theorganic.in
+   never sells, never takes payment for goods, never ships. It
+   verifies, displays, routes to where-to-buy, and matches B2B
+   buyers to suppliers. Sponsored is always labelled; verification
+   and ranking are never for sale.
+   ============================================================ */
+:root{
+  /* organic theme tokens (vertical layer — parallel to --ag on agri.in, --mk on milk.in) */
+  --og:#4A6B2A; --og-deep:#35511C; --og-soft:#EFF3E4; --og-soft-2:#C9D8B4;   /* --og-soft-2 is NEW */
+  --og-accent:#B5541C;
+  --og-accent-ink:#FFFFFF;   /* NOTE: organic's accent is a dark terracotta, so the money
+                                button inverts — WHITE on #B5541C = 4.94:1 (AA). agri/milk
+                                use dark ink on a light gold; do NOT copy their ink token. */
+  --ink:#1D2A20; --sub:#5A6A5D; --muted:#8A8574;
+  --wa:#22B45A; --call:#22A34F; --wa-tint:#E8F7EE; --wa-border:#BFE7CE; --wa-ink:#0F6E42;
+  /* shared U1/A1 tokens (already in the design system) */
+  --paper:#FDFBF6; --paper-border:#EDE6D6; --paper-deep:#F4F0E6;
+  --ad-border:#E9A61C; --trust-bg:#FEFAF0;
+  --coins-bg:#FEF3DC; --coins-fg:#854F0B;
+  --up:#1E7A34; --down:#B5541C;
+  --alert-bg:#FDF1E3; --alert-border:#E8B268; --alert-ink:#7A4A0D;
+  /* NEW tokens introduced by O1 — certificate lifecycle states. These are a
+     semantic family, not decoration: the same three states appear on the badge,
+     the brand card, the console table row and the expiry mail. */
+  --cert-bg:#EAF2DC; --cert-fg:#3E5A14;        /* verified · 6.81:1 */
+  --cert-gold:#CBB77A; --cert-gold-bg:#FFFBEE; /* "we verify every certificate" card */
+  --cert-warn-bg:#FDF1E3; --cert-warn-fg:#7A4A0D; /* expiring <60d · 6.71:1 (aliases the alert family) */
+  --cert-off-bg:#F2F1EC; --cert-off-fg:#5A6A5D;   /* unverified / self-declared · never green */
+  --radius:12px; --radius-lg:16px;
+  --font-sans:'Public Sans','Noto Sans Tamil',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque','Public Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+h1,h2,.display{font-family:var(--font-display)}
+h2{font-size:18px;font-weight:600;margin-bottom:10px}
+:focus-visible{outline:3px solid var(--og);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- buttons (primitives — binding, unchanged from U1/A1) ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:500;border-radius:10px;min-height:44px;padding:10px 18px;font-size:14px}
+.btn-primary{background:var(--og);color:#fff}
+.btn-money{background:var(--og-accent);color:var(--og-accent-ink);border-radius:99px}
+.btn-call{background:var(--call);color:#fff}
+.btn-wa{background:var(--wa-tint);border:1px solid var(--wa-border);color:var(--wa-ink)}
+.btn-tertiary{background:var(--paper);color:var(--og-deep)}
+.btn-ghost{background:#fff;border:1px solid var(--paper-border);color:var(--og-deep)}
+.badge{font-size:11px;font-weight:500;border-radius:99px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px}
+.badge-cert{background:var(--cert-bg);color:var(--cert-fg)}
+.badge-warn{background:var(--cert-warn-bg);color:var(--cert-warn-fg)}
+.badge-off{background:var(--cert-off-bg);color:var(--cert-off-fg)}
+.badge-sponsored{background:#FFF1D2;color:#8A5B00}
+.badge-verified{background:#E1F3E5;color:#156A2E}
+.badge-fpo{background:#FFF;border:1px solid var(--paper-border);color:var(--sub)}
+
+/* ---------- 1. utility strip ---------- */
+.util{background:var(--og-deep);color:var(--og-soft-2);font-size:12px}
+.util .wrap{display:flex;align-items:center;gap:16px;padding-top:6px;padding-bottom:6px}
+.util .spacer{flex:1}
+.util .eco a{color:var(--og-soft);margin-right:12px}
+.util .fence{background:rgba(255,255,255,.12);border-radius:5px;padding:3px 9px;white-space:nowrap;color:#fff}
+@media(max-width:767px){.util .link,.util .eco{display:none}}
+
+/* ---------- 2. main header ---------- */
+.hdr{background:var(--og);color:#fff}
+.hdr .wrap{display:flex;align-items:center;gap:18px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;flex-direction:column;line-height:1.05}
+.brand b{font-family:var(--font-display);font-weight:600;font-size:22px}
+.brand small{color:var(--og-soft-2);font-size:10px}  /* 4.07:1 — accepted tagline deviation, same class as agri/milk; audited at OG-A7 */
+.hdr .loc{font-size:13px;color:#E9F3E6;display:flex;align-items:center;gap:4px;white-space:nowrap;background:none}
+.hdr .spacer{flex:1}
+.hdr .lang{font-size:13px;color:var(--og-soft)}
+.coins{background:var(--coins-bg);color:var(--coins-fg);font-weight:500;font-size:13px;border-radius:99px;padding:5px 12px;display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.bell{position:relative;font-size:18px}
+.bell i{font-style:normal}
+.bell .n{position:absolute;top:-6px;right:-9px;background:var(--og-accent);color:#fff;font-size:9px;font-weight:500;border-radius:99px;padding:1px 5px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--og-soft-2);color:var(--og-deep);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.hdr .btn-login{background:#fff;color:var(--og-deep);border-radius:99px;padding:7px 16px;font-size:13px;font-weight:500;min-height:0}
+@media(max-width:767px){
+  .hdr .acct-label{display:none}.hdr .wrap{gap:6px;flex-wrap:wrap;padding-bottom:9px}
+  .brand small{display:none}.brand b{font-size:19px}
+  .hdr .lang{font-size:11px;white-space:nowrap}
+  /* "theorganic.in" + pills will not fit one 360px row (agri.in did — the wordmark is
+     shorter). Location is the universal control in this design system and must stay
+     READABLE, so it drops to its own full-width row rather than ellipsising to "📍 …". */
+  .hdr .loc{order:9;flex-basis:100%;max-width:none;font-size:12px;text-align:left;padding:0}
+  .coins{font-size:11px;padding:4px 8px}.bell{font-size:16px}.avatar{width:24px;height:24px}
+  .util .wrap>span:first-child{display:none}.util .wrap{justify-content:center}
+}
+
+/* ---------- 3. search band ---------- */
+.search-band{background:linear-gradient(135deg,var(--og-deep) 0%,var(--og) 60%,#5A7D35 100%);padding:26px 0 30px;color:#fff}
+.search-band h1{font-size:clamp(19px,2.6vw,27px);font-weight:600;margin-bottom:4px}
+.search-band .sub{color:var(--og-soft-2);font-size:13.5px;margin-bottom:14px}
+.searchbox{background:#fff;border-radius:var(--radius-lg);box-shadow:0 4px 18px rgba(0,0,0,.12);display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;max-width:760px}
+.searchbox input{flex:1;border:0;outline:0;font-family:inherit;font-size:14.5px;color:var(--ink);min-height:44px;background:none}
+.searchbox .mic{width:46px;height:46px;border-radius:12px;background:var(--og-accent);color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center}
+.searchbox .go{min-height:46px;border-radius:12px;background:var(--og);color:#fff;padding:0 18px;font-weight:500;font-size:14px}
+.qfilters{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.qf{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);color:#fff;border-radius:99px;padding:7px 14px;font-size:12.5px;font-weight:500;min-height:34px}
+.qf.on{background:#fff;color:var(--og-deep);border-color:#fff}
+@media(max-width:767px){.searchbox .go{display:none}.search-band{padding:20px 0 24px}}
+
+/* ---------- 4. cert trust bar — the section that leads this vertical ---------- */
+.certbar-sec{margin-top:-16px;position:relative;z-index:2}
+.certbar{display:flex;gap:10px;overflow-x:auto;padding:0 0 6px;scrollbar-width:thin}
+.certcard{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:13px 15px;min-width:210px;display:flex;gap:11px;align-items:flex-start;flex:0 0 auto}
+.certcard .ic{font-size:24px;line-height:1}
+.certcard b{font-size:13px;font-weight:500;display:block}
+.certcard small{font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.certcard.gold{background:var(--cert-gold-bg);border-color:var(--cert-gold)}
+.certcard.gold b{color:var(--cert-fg)}
+.certbar-sec .foot{font-size:12px;color:var(--sub);margin-top:8px}
+.certbar-sec .foot a{color:var(--og);font-weight:500}
+
+/* ---------- 5. hero ad (full-bleed, slot organic_home_hero_xl — config-only reuse of the ad engine) ---------- */
+.hero-ad{color:#fff;position:relative;margin-top:22px;background:linear-gradient(115deg,var(--og-deep) 0%,#456427 55%,var(--og) 100%)}
+.hero-ad .inner{max-width:1180px;margin:0 auto;padding:30px 64px;display:flex;align-items:center;gap:24px;min-height:240px}
+.hero-ad h2{font-size:clamp(20px,2.8vw,30px);font-weight:600;line-height:1.18;max-width:15em;margin:0}
+.hero-ad p{color:var(--og-soft-2);font-size:14px;margin:10px 0 18px;max-width:34em}
+.hero-ad .creatives{margin-left:auto;display:flex;gap:18px}
+.panel{width:175px;height:190px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px}
+.panel.a{background:var(--og-soft);color:var(--og-deep)}
+.panel.b{background:var(--og);border:1px solid rgba(255,255,255,.22);color:var(--og-soft-2)}
+.panel .glyph{font-size:44px}
+.ad-tag{position:absolute;top:10px;right:14px;background:rgba(0,0,0,.42);color:#fff;font-size:10px;font-weight:500;border-radius:4px;padding:2px 7px;letter-spacing:.04em}
+.hero-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:18px}
+.hero-nav.prev{left:14px}.hero-nav.next{right:14px}
+.hero-wave{position:absolute;bottom:-1px;left:0;width:100%;height:26px}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--paper-border)}
+.dots span.on{background:var(--og)}
+@media(max-width:1023px){.hero-ad .inner{padding:24px;flex-direction:column;align-items:flex-start;min-height:0}.hero-ad .creatives{margin-left:0}.panel{width:140px;height:150px}.hero-nav{display:none}}
+/* Two 140px creative panels + an 18px gap exceed a 320px screen once the 24px inner
+   padding is counted. The 750×360 mobile creative is ONE image, not two panels — this
+   is the reference standing in for it, so it collapses to a single panel rather than
+   overflowing and inventing a horizontal scroll on the LCP element. */
+@media(max-width:400px){.hero-ad .inner{padding:18px}.panel{width:124px;height:132px}.hero-ad .creatives{gap:12px}.panel.b{display:none}}
+
+/* ---------- 6b. category banner slot — theorganic_category_banner, 1200x160.
+   Reserved by ASPECT RATIO, not a pixel height: AdImage is object-cover by
+   contract, so a box that disagrees with the creative renders an unreadable
+   slice (the milk lesson). NO fallback on home — the page already has a hero;
+   an empty second unit collapses rather than being filled with house copy. ---------- */
+.adbanner{margin-top:14px;border-radius:var(--radius-lg);overflow:hidden;position:relative;aspect-ratio:1200/160;background:linear-gradient(100deg,#F4EEDB,#EFF3E4);border:1px solid var(--paper-border);display:flex;align-items:center;gap:18px;padding:0 22px}
+.adbanner .g{font-size:36px}
+.adbanner b{font-family:var(--font-display);font-size:17px;font-weight:600}
+.adbanner .s{font-size:12.5px;color:var(--sub)}
+.adbanner .cta{margin-left:auto;background:var(--og);color:#fff;border-radius:99px;padding:9px 16px;font-size:13px;font-weight:500;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap}
+.adbanner .slotname{position:absolute;left:0;bottom:0;font-family:ui-monospace,monospace;font-size:8.5px;color:var(--muted);background:rgba(255,255,255,.7);padding:1px 5px;border-radius:0 5px 0 0}
+@media(max-width:767px){.adbanner{aspect-ratio:auto;min-height:96px;padding:12px 14px;gap:11px;flex-wrap:wrap}.adbanner .cta{margin-left:0;width:100%;justify-content:center}}
+
+/* the house door — a first-party fallback, NOT an ad: no badge, no beacons */
+.housead{margin-top:14px;border-radius:var(--radius-lg);border:1px dashed var(--paper-border);background:#fff;padding:14px 16px;display:flex;align-items:center;gap:14px}
+.housead b{font-size:14px;font-weight:500}
+.housead .s{font-size:12px;color:var(--sub)}
+.housead .cta{margin-left:auto}
+
+/* ---------- 6. category grid — organic taxonomy, 5 groups (icon + EN + vernacular, zero hamburgers) ---------- */
+.vgroup{margin-top:20px}
+.vgroup .gt{font-size:12px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.vgroup .gt::after{content:"";flex:1;height:1px;background:var(--paper-border)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px}
+.tile{background:#fff;border:1.5px solid var(--paper-border);border-radius:var(--radius-lg);padding:11px 8px;text-align:center;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;position:relative}
+.tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08);border-color:var(--og)}
+.tile .ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:25px}
+.tile b{font-size:12px;font-weight:500;line-height:1.2}
+.tile .vern{display:block;font-size:.78em;font-weight:500;opacity:.85;color:var(--sub)}
+.tile .soon{position:absolute;top:6px;right:6px;background:var(--cert-off-bg);color:var(--cert-off-fg);font-size:8.5px;font-weight:500;border-radius:99px;padding:1px 6px}
+.tile.is-soon{opacity:.82}
+
+/* ---------- 7. certified products near you (.pc2) ---------- */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:11px}
+.pc2{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);overflow:hidden;display:flex;flex-direction:column;transition:transform .15s ease,box-shadow .15s ease}
+.pc2:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.pc2 .pimg{height:110px;display:flex;align-items:center;justify-content:center;font-size:44px}
+.pc2 .pbody{padding:12px;display:flex;flex-direction:column;gap:5px;flex:1}
+.pc2 h3{font-size:13.5px;font-weight:500;line-height:1.3}
+.pc2 .brandline{font-size:11.5px;color:var(--sub)}
+.pc2 .rating{color:#C77700;font-weight:500}
+.pc2 .stamp{font-size:10.5px;color:var(--muted)}
+.pc2 .wtb{margin-top:auto;background:var(--og);color:#fff;border-radius:10px;min-height:40px;font-size:12.5px;font-weight:500;width:100%}
+.pc2 .cmp{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);margin-top:6px}
+
+/* ---------- 8. where to buy — store locator strip ---------- */
+.stores{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
+.storelist{display:flex;flex-direction:column;gap:9px}
+.store{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:12px 14px;display:flex;gap:12px;align-items:center}
+.store .ic{width:44px;height:44px;border-radius:12px;background:var(--og-soft);display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto}
+.store b{font-size:14px;font-weight:500;display:block}
+.store small{font-size:11.5px;color:var(--sub);display:block}
+.store .acts{margin-left:auto;display:flex;gap:7px}
+.store .acts .btn{min-height:40px;padding:8px 13px;font-size:12.5px}
+.maparea{background:var(--paper-deep);border:1px solid var(--paper-border);border-radius:var(--radius-lg);min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);font-size:12px;text-align:center;padding:20px}
+.maparea .pin{font-size:34px}
+@media(max-width:1023px){.stores{grid-template-columns:1fr}.maparea{min-height:180px;order:-1}}
+/* At 320px the icon + name + two action buttons do not fit one row. Call and Directions
+   drop to a full-width row of their own rather than overflowing — these are the two
+   highest-intent controls on the page and must never be clipped. */
+@media(max-width:400px){.store{flex-wrap:wrap}.store .acts{margin-left:0;width:100%}.store .acts .btn{flex:1}}
+
+/* ---------- 9. brands & producers near you (listing card) ---------- */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px}
+.vendor{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:9px}
+.vendor .top{display:flex;gap:11px}
+.vendor .vimg{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto}
+.vendor h3{font-size:15.5px;font-weight:500}
+.vendor .meta{font-size:12.5px;color:var(--sub);margin-top:2px}
+.vendor .meta .rating{color:#C77700;font-weight:500}
+.vendor .badges{display:flex;gap:6px;flex-wrap:wrap}
+.vendor .actions{display:flex;gap:8px}
+.vendor .actions .btn{flex:1;min-height:44px;font-size:13px}
+.vendor.sponsored{border-color:var(--ad-border)}
+.vendor .stamp{font-size:11px;color:var(--muted)}
+
+/* ---------- 10. B2B RFQ big CTA tiles ---------- */
+.bcgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bc{border-radius:18px;padding:22px;color:#fff;display:flex;flex-direction:column;gap:7px;min-height:172px}
+.bc .ic{font-size:32px}
+.bc b{font-family:var(--font-display);font-size:18px;font-weight:600}
+.bc small{font-size:12.5px;opacity:.92;line-height:1.45}
+.bc .go{margin-top:auto;align-self:flex-start;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:9px 16px;font-size:13px;font-weight:500;min-height:44px}
+@media(max-width:767px){.bcgrid{grid-template-columns:1fr}}
+
+/* ---------- 11. live RFQ board (flag: organic_rfq_board — OFF until real RFQs exist) ---------- */
+.rfqboard{display:flex;flex-direction:column;gap:8px}
+.rfqrow{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius);padding:11px 14px;display:flex;gap:12px;align-items:center;font-size:13px}
+.rfqrow .qty{font-weight:500;white-space:nowrap}
+.rfqrow .where{color:var(--sub);font-size:12px}
+.rfqrow .age{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.rfqrow .quote{background:var(--og-soft);color:var(--og-deep);border-radius:99px;padding:6px 13px;font-size:12px;font-weight:500;min-height:38px}
+@media(max-width:767px){.rfqrow{flex-wrap:wrap}.rfqrow .age{margin-left:0}}
+
+/* ---------- 12. how verification works ---------- */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.step{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:15px}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--og-soft);color:var(--og-deep);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.step b{font-size:13.5px;font-weight:500;display:block;margin-bottom:3px}
+.step small{font-size:12px;color:var(--sub);line-height:1.45}
+@media(max-width:1023px){.steps{grid-template-columns:1fr 1fr}}
+
+/* ---------- 13. seasonal produce calendar ---------- */
+.season{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:16px 18px}
+.season .months{display:flex;gap:4px;margin-bottom:12px}
+.season .mo{flex:1;text-align:center;font-size:10.5px;color:var(--muted);padding:6px 0;border-radius:8px}
+.season .mo.on{background:var(--og);color:#fff;font-weight:500}
+.season .crops{display:flex;gap:7px;flex-wrap:wrap}
+.chip{background:var(--og-soft);color:var(--og-deep);border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:500}
+.season .note{font-size:11.5px;color:var(--muted);margin-top:10px}
+
+/* ---------- 14. knowledge ---------- */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px}
+.kcard{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:6px}
+.kcard .eyebrow{font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--og)}
+.kcard b{font-size:14.5px;font-weight:500;line-height:1.32}
+.kcard small{font-size:12px;color:var(--sub);line-height:1.45}
+.kcard .stamp{font-size:11px;color:var(--muted);margin-top:auto}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);overflow:hidden}
+.ctable th{background:var(--paper-deep);text-align:left;font-weight:500;padding:9px 12px;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--sub)}
+.ctable td{padding:9px 12px;border-top:1px solid var(--paper-border)}
+.ctable td b{font-weight:500}
+
+/* ---------- 14b. "selling direct?" exemption band (FSSAI Organic Food Regulations 2017) ---------- */
+.exempt{background:var(--cert-gold-bg);border:1px solid var(--cert-gold);border-radius:18px;padding:20px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center}
+.exempt .ic{font-size:40px;line-height:1}
+.exempt b{font-family:var(--font-display);font-size:17px;font-weight:600;display:block;color:var(--cert-fg)}
+.exempt p{font-size:13.5px;color:var(--sub);line-height:1.55;margin-top:5px}
+.exempt .src{font-size:11px;color:var(--muted);margin-top:7px}
+@media(max-width:1023px){.exempt{grid-template-columns:1fr;text-align:left}.exempt .btn{justify-self:start}}
+
+/* ---------- 14c. India organic at a glance (E5 dataset — every figure carries a stamp) ---------- */
+.glance{display:grid;grid-template-columns:1.05fr .95fr;gap:12px}
+.gfacts{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.gfact{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:13px 15px}
+.gfact .v{font-family:var(--font-display);font-size:22px;font-weight:600}
+.gfact .k{font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.4}
+.gfact .s{font-size:10.5px;color:var(--muted);margin-top:5px}
+.trend{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:15px 16px;display:flex;flex-direction:column}
+.trend h3{font-size:14px;font-weight:500;font-family:var(--font-sans)}
+.trend .tbars{display:flex;align-items:flex-end;gap:10px;height:120px;margin-top:12px}
+.trend .tb{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%}
+.trend .tb i{display:block;width:100%;background:var(--og-soft);border:1px solid #D7E2C2;border-top:3px solid var(--og);border-radius:6px 6px 0 0}
+.trend .tb.dip i{background:#F6EFE4;border-color:#E8D6B8;border-top-color:var(--down)}
+.trend .tb em{font-style:normal;font-size:10.5px;font-weight:500;color:var(--sub)}
+.trend .tlbl{display:flex;gap:10px;margin-top:6px}
+.trend .tlbl span{flex:1;text-align:center;font-size:10px;color:var(--muted)}
+.trend .note{font-size:11.5px;color:var(--sub);line-height:1.5;margin-top:10px;border-top:1px solid var(--paper-border);padding-top:9px}
+@media(max-width:1023px){.glance{grid-template-columns:1fr}}
+@media(max-width:520px){.gfacts{grid-template-columns:1fr}}
+
+/* ---------- 15. stats band ---------- */
+.stats{background:var(--og-deep);color:#fff;border-radius:18px;padding:22px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;text-align:center}
+.stats .v{font-family:var(--font-display);font-size:26px;font-weight:600}
+.stats .k{font-size:11.5px;color:var(--og-soft-2);margin-top:2px}
+@media(max-width:767px){.stats{grid-template-columns:1fr 1fr}}
+
+/* ---------- 16. reviews (two-sided: buyer ↔ supplier) ---------- */
+.revrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:11px}
+.rev{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:7px}
+.rev .who{font-size:12.5px;color:var(--sub)}
+.rev .rating{color:#C77700;font-weight:500}
+.rev p{font-size:13.5px;line-height:1.5}
+.rev .side{font-size:10.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- 17. earn coins ---------- */
+.earn{background:linear-gradient(135deg,#FEF9EE 0%,#FDF3DC 100%);border:1px solid #EAD9AC;border-radius:18px;padding:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.earn .e{display:flex;flex-direction:column;gap:3px}
+.earn b{font-size:13.5px;font-weight:500;color:var(--coins-fg)}
+.earn small{font-size:11.5px;color:var(--sub)}
+.earn .amt{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--coins-fg)}
+@media(max-width:767px){.earn{grid-template-columns:1fr 1fr}}
+
+/* ---------- 18. popular searches ---------- */
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{background:#fff;border:1px solid var(--paper-border);border-radius:99px;padding:8px 14px;font-size:12.5px;color:var(--og-deep);min-height:38px;display:inline-flex;align-items:center}
+
+/* ---------- 19. FAQ ---------- */
+.faq{background:#fff;border:1px solid var(--paper-border);border-radius:var(--radius-lg);overflow:hidden}
+.faq details{border-top:1px solid var(--paper-border)}
+.faq details:first-child{border-top:0}
+.faq summary{padding:14px 16px;font-size:14px;font-weight:500;cursor:pointer;list-style:none;display:flex;gap:10px;align-items:center;min-height:48px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"＋";margin-left:auto;color:var(--og);font-size:16px}
+.faq details[open] summary::after{content:"−"}
+.faq p{padding:0 16px 14px;font-size:13.5px;color:var(--sub);line-height:1.55}
+
+/* ---------- 20. PWA + notify band ---------- */
+.pwa{background:var(--og-soft);border:1px solid #DCE6CE;border-radius:18px;padding:18px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.pwa b{font-family:var(--font-display);font-size:16px;font-weight:600;display:block}
+.pwa small{font-size:12.5px;color:var(--sub)}
+.pwa .btn{margin-left:auto}
+
+/* ---------- 21. family strip ---------- */
+.family{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.eco-pill{border-radius:16px;padding:16px 18px;color:#fff;display:flex;flex-direction:column;gap:3px}
+.eco-pill b{font-family:var(--font-display);font-size:16px;font-weight:600}
+.eco-pill small{font-size:12px;opacity:.9}
+@media(max-width:767px){.family{grid-template-columns:1fr}}
+
+/* ---------- 22. footer ---------- */
+.ftr{background:var(--og-deep);color:var(--og-soft-2);margin-top:34px;padding:26px 0 90px;font-size:13px}
+.ftr .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.ftr h4{font-size:11.5px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:#fff;margin-bottom:8px}
+.ftr a{display:block;padding:4px 0;color:var(--og-soft-2)}
+.ftr .fence{margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.14);font-size:12px;line-height:1.6}
+.ftr .fence b{color:#fff;font-weight:500}
+@media(max-width:767px){.ftr .cols{grid-template-columns:1fr 1fr}}
+
+/* ---------- 23. mobile bottom nav ---------- */
+.appnav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--paper-border);box-shadow:0 -2px 10px rgba(0,0,0,.06);display:none;justify-content:space-around;padding:6px 0 8px;z-index:20}
+.appnav a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:500;color:var(--sub);min-width:56px;min-height:44px;justify-content:center}
+.appnav a.on{color:var(--og)}
+.appnav .mid{width:46px;height:46px;border-radius:50%;background:var(--og);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;margin-top:-22px;border:4px solid #fff}
+@media(max-width:767px){.appnav{display:flex}}
+
+/* ---------- section furniture + reveal (shared U1/A1 layer) ---------- */
+section.blk{margin-top:26px}
+.sec-t{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.sec-t h2{margin:0}
+.sec-t .more{margin-left:auto;font-size:12.5px;color:var(--og);font-weight:500}
+.sec-t .sub{font-size:12.5px;color:var(--sub)}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.is-in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
+.skeleton{background:linear-gradient(90deg,#F1EDE2 25%,#FAF7EF 50%,#F1EDE2 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.skeleton{animation:none}}
+
+/* ============================================================
+   attraction layer — identical grammar to A1 v4 (pan / pop /
+   glow / float / pulse). All motion is killed by the global
+   prefers-reduced-motion rule at the top of this sheet, and each
+   static fallback keeps content fully visible.
+   ============================================================ */
+.hero-ad,.search-band{background-size:180% 180%;animation:pan 13s ease-in-out infinite alternate}
+@keyframes pan{from{background-position:0% 30%}to{background-position:100% 70%}}
+.panel .glyph{animation:float 4.5s ease-in-out infinite}
+.panel.b .glyph{animation-delay:1.4s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.bell i{display:inline-block;animation:ring 7s ease-in-out infinite;transform-origin:top center}
+@keyframes ring{0%,88%,100%{transform:rotate(0)}90%{transform:rotate(12deg)}93%{transform:rotate(-10deg)}96%{transform:rotate(6deg)}98%{transform:rotate(-3deg)}}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--up);display:inline-block;position:relative;vertical-align:middle;margin-right:5px}
+.live-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--up);opacity:.6;animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{from{transform:scale(.5);opacity:.7}to{transform:scale(1.4);opacity:0}}
+.vgroup.reveal .tile{opacity:0}
+.vgroup.reveal.is-in .tile{animation:pop .45s cubic-bezier(.2,.7,.3,1.1) both}
+@media (prefers-reduced-motion: reduce){.vgroup.reveal .tile{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+.vgroup.is-in .tile:nth-child(1){animation-delay:0ms}.vgroup.is-in .tile:nth-child(2){animation-delay:45ms}
+.vgroup.is-in .tile:nth-child(3){animation-delay:90ms}.vgroup.is-in .tile:nth-child(4){animation-delay:135ms}
+.vgroup.is-in .tile:nth-child(5){animation-delay:180ms}.vgroup.is-in .tile:nth-child(6){animation-delay:225ms}
+.vgroup.is-in .tile:nth-child(7){animation-delay:270ms}.vgroup.is-in .tile:nth-child(8){animation-delay:315ms}
+.tile:hover .ic{animation:bounce .5s ease}
+@keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}70%{transform:translateY(2px)}}
+.vendor.sponsored{animation:glow 3.5s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(233,166,28,0)}50%{box-shadow:0 4px 22px rgba(233,166,28,.28)}}
+/* certificate seal — a single slow "stamp" tick when the cert bar reveals */
+.certcard.gold .ic{animation:seal 6s ease-in-out infinite}
+@keyframes seal{0%,90%,100%{transform:rotate(0) scale(1)}93%{transform:rotate(-9deg) scale(1.08)}96%{transform:rotate(5deg) scale(1.04)}}
+/* v3 chrome */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--og-accent);z-index:40}
+.to-top{position:fixed;right:16px;bottom:76px;width:42px;height:42px;border-radius:50%;background:var(--og);color:#fff;display:none;align-items:center;justify-content:center;font-size:18px;z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.to-top.show{display:flex}
+</style>
+</head>
+<body>
+
+<!-- v3 chrome: scroll progress + back-to-top -->
+<div class="scroll-progress" aria-hidden="true"></div>
+<a class="to-top" href="#" aria-label="Back to top">↑</a>
+
+<!-- 1 · utility strip -->
+<div class="util"><div class="wrap">
+  <span>Certified organic · இயற்கை · जैविक</span>
+  <span class="eco"><a href="#">🌾 agri.in</a><a href="#">🥛 milk.in</a></span>
+  <span class="spacer"></span>
+  <a class="link" href="#list">List your products</a>
+  <a class="link" href="#advertise">Advertise</a>
+  <span class="fence">We verify — we never sell</span>
+</div></div>
+
+<!-- 2 · main header -->
+<header class="hdr"><div class="wrap">
+  <a class="brand" href="/"><b>theorganic.in</b><small>Trusted organic · இயற்கை · जैविक</small></a>
+  <button class="loc">📍 <span class="city">Coimbatore · </span>641001 ▾</button>
+  <span class="spacer"></span>
+  <span class="lang">EN · த · हि</span>
+  <!-- GUEST STATE: logged out replaces coins + bell + avatar with
+       <a class="btn-login" href="/login">Login</a>. Contact reveal and RFQ
+       posting then gate behind "Login to continue" (D18 rule). No secret →
+       guest render, never a 500 (F1 rule, milk A10 lesson). -->
+  <span class="coins">🪙 1,240</span>
+  <span class="bell"><i>🔔</i><span class="n">4</span></span>
+  <span style="display:flex;align-items:center;gap:6px"><span class="avatar">A</span><span class="acct-label" style="font-size:13px;color:var(--og-soft)">Account</span></span>
+</div></header>
+
+<!-- 3 · search band -->
+<section class="search-band" aria-label="Search organic products">
+  <div class="wrap">
+    <h1>Is it really organic? We check the certificate.</h1>
+    <p class="sub">Certified brands, products and producers near you — with where to buy. இயற்கை உணவு · जैविक उत्पाद</p>
+    <div class="searchbox">
+      <span aria-hidden="true">🔍</span>
+      <input id="q" type="text" placeholder="Search organic rice, cold-pressed oil, brands…" aria-label="Search organic products, brands and producers">
+      <button class="mic" aria-label="Search by voice">🎙️</button>
+      <button class="go">Search</button>
+    </div>
+    <div class="qfilters" role="group" aria-label="Quick filters">
+      <button class="qf on">✔ Certificate verified only</button>
+      <button class="qf">🇮🇳 NPOP</button>
+      <button class="qf">🤝 PGS-India</button>
+      <button class="qf">🌎 USDA / EU</button>
+      <button class="qf">👨‍🌾 Direct from farmer / FPO</button>
+      <button class="qf">🏪 Available near 641001</button>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <!-- 4 · cert trust bar — leads the page in this vertical -->
+  <section class="certbar-sec reveal" aria-label="How to know it is really organic">
+    <div class="certbar">
+      <div class="certcard gold"><span class="ic">🛡️</span><div><b>We verify every certificate</b><small>Uploaded → checked against the issuing body's register → badged with the date we checked. Unverified stays grey.</small></div></div>
+      <div class="certcard"><span class="ic">🇮🇳</span><div><b>India Organic (NPOP)</b><small>APEDA-accredited body · 33 bodies nationally · valid for export</small></div></div>
+      <div class="certcard"><span class="ic">🤝</span><div><b>PGS-India Organic</b><small>Peer-group guarantee · min 5-farmer local group · domestic sale</small></div></div>
+      <div class="certcard"><span class="ic">🌱</span><div><b>PGS-India Green</b><small><b style="color:var(--cert-warn-fg)">Under conversion</b> — a real certificate that means <i>not organic yet</i></small></div></div>
+      <div class="certcard"><span class="ic">🌎</span><div><b>USDA NOP / EU Organic</b><small>Export-grade · required for US and EU buyers</small></div></div>
+      <div class="certcard"><span class="ic">✅</span><div><b>Jaivik Bharat</b><small>FSSAI's unified identity mark — sits alongside a scheme, never instead of one</small></div></div>
+    </div>
+    <p class="foot">FSSAI's Organic Food Regulations recognise exactly two Indian systems — NPOP and PGS-India. Every badge here carries the certificate number, the issuing body and the date we last checked it. <a href="#guide">How verification works →</a></p>
+  </section>
+</div>
+
+<!-- 5 · hero ad — full bleed, D21 slot theorganic_home_hero_xl.
+     Creative 1600×420 desktop / 750×360 mobile — the SAME shapes as milk_home_hero_xl and
+     agri_home_hero_xl, so the tier-keyed rate card prices it on day one and no creative
+     dimension is new. Served SERVER-SIDE: milk measured 2,372 ms of LCP load delay when this
+     carousel fetched client-side, because the image could not start downloading until
+     hydration had run. Reserved by aspect ratio, so loading / empty / full occupy the same
+     space and CLS stays 0. Fallback when the slot is empty: the house door below, which
+     carries NO badge and NO beacons because it is not a served ad.
+     NOTE: there is deliberately no theorganic_global_header. Milk mounted one on every page
+     and removed it — above a full-bleed hero it put two ad units above the fold. -->
+<section class="hero-ad" aria-label="Sponsored banner">
+  <span class="ad-tag">Ad</span>
+  <div class="inner">
+    <div>
+      <h2>Kovai Naturals — new Mapillai Samba harvest is in</h2>
+      <p>NPOP-certified · single-village traceable · stocked at 34 stores across Coimbatore &amp; Tiruppur · இயற்கை நெல்</p>
+      <a class="btn btn-money" href="#stores">Find a store near you</a>
+    </div>
+    <div class="creatives">
+      <div class="panel a"><span class="glyph">🍚</span>product creative</div>
+      <div class="panel b"><span class="glyph">👨‍🌾</span>producer photo</div>
+    </div>
+  </div>
+  <button class="hero-nav prev" aria-label="Previous ad">‹</button>
+  <button class="hero-nav next" aria-label="Next ad">›</button>
+  <svg class="hero-wave" viewBox="0 0 1440 26" preserveAspectRatio="none" aria-hidden="true"><path d="M0,26 L0,14 C240,2 480,24 720,14 C960,4 1200,22 1440,10 L1440,26 Z" fill="#FDFBF6"/></svg>
+</section>
+<div class="dots" aria-hidden="true"><span class="on"></span><span></span><span></span></div>
+
+<div class="wrap">
+
+  <!-- 6 · category grid — organic taxonomy from the registry, 5 groups, zero hamburgers -->
+  <section class="blk" aria-label="Browse organic categories">
+    <div class="sec-t"><h2>Browse organic</h2><span class="sub">Every category on this page — nothing hidden behind a menu</span><a class="more" href="#categories">All categories →</a></div>
+
+    <div class="vgroup reveal">
+      <div class="gt">Staples &amp; grains</div>
+      <div class="tiles">
+        <a class="tile" href="#"><span class="ic" style="background:#EFF3E4">🍚</span><b>Rice &amp; millets<span class="vern">அரிசி · சிறுதானியம்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F4EEDB">🌾</span><b>Wheat &amp; atta<span class="vern">கோதுமை</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EDE7DA">🫘</span><b>Pulses &amp; dals<span class="vern">பருப்பு</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F7EFE0">🍯</span><b>Jaggery &amp; sugar<span class="vern">வெல்லம்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EDF2E6">🥜</span><b>Nuts &amp; seeds<span class="vern">கொட்டைகள்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F2ECE1">🌾</span><b>Flours &amp; rava<span class="vern">மாவு வகைகள்</span></b></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <div class="gt">Oils, spices &amp; ready foods</div>
+      <div class="tiles">
+        <a class="tile" href="#"><span class="ic" style="background:#F4EEDB">🫒</span><b>Cold-pressed oils<span class="vern">செக்கு எண்ணெய்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#FBEAE2">🌶️</span><b>Spices &amp; masala<span class="vern">மசாலா</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#FDF3D9">🍯</span><b>Honey<span class="vern">தேன்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EFF3E4">🍵</span><b>Tea, coffee &amp; herbs<span class="vern">தேயிலை</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F2ECE1">🥫</span><b>Pickles &amp; preserves<span class="vern">ஊறுகாய்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EDE7DA">🍪</span><b>Snacks &amp; ready mix<span class="vern">தின்பண்டம்</span></b></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <div class="gt">Fresh, dairy &amp; farm</div>
+      <div class="tiles">
+        <a class="tile" href="#"><span class="ic" style="background:#EAF4E5">🥬</span><b>Vegetables<span class="vern">காய்கறி</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#FBEEE2">🥭</span><b>Fruits<span class="vern">பழங்கள்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EAF1F8">🥛</span><b>Organic dairy<span class="vern">பால் பொருட்கள்</span></b><span class="soon">via milk.in</span></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F6EFE1">🥚</span><b>Free-range eggs<span class="vern">முட்டை</span></b></a>
+        <a class="tile is-soon" href="#"><span class="ic" style="background:#F2F1EC">🐄</span><b>A2 &amp; ghee<span class="vern">நெய்</span></b><span class="soon">Soon</span></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <div class="gt">Wellness &amp; personal care</div>
+      <div class="tiles">
+        <a class="tile" href="#"><span class="ic" style="background:#EFF3E4">🧴</span><b>Skin &amp; hair care<span class="vern">அழகு பொருட்கள்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F1ECE3">🧼</span><b>Soaps &amp; home care<span class="vern">சோப்பு</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EDF2E6">🌿</span><b>Ayurveda &amp; siddha<span class="vern">ஆயுர்வேதம் · சித்தா</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#FBEEE2">🍼</span><b>Baby &amp; toddler food<span class="vern">குழந்தை உணவு</span></b></a>
+        <a class="tile is-soon" href="#"><span class="ic" style="background:#F2F1EC">👕</span><b>Organic cotton<span class="vern">பருத்தி</span></b><span class="soon">Soon</span></a>
+      </div>
+    </div>
+
+    <div class="vgroup reveal">
+      <div class="gt">Producers, inputs &amp; services</div>
+      <div class="tiles">
+        <a class="tile" href="#"><span class="ic" style="background:#EAF2DC">👨‍🌾</span><b>Organic farmers<span class="vern">விவசாயிகள்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#F4EEDB">🤝</span><b>FPOs &amp; co-ops<span class="vern">உற்பத்தியாளர் அமைப்பு</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#E4F3F1">🌱</span><b>Organic inputs<span class="vern">இடுபொருள்</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EDE7DA">📜</span><b>Certification bodies<span class="vern">சான்று அமைப்பு</span></b></a>
+        <a class="tile" href="#"><span class="ic" style="background:#EFF3E4">🏪</span><b>Organic stores<span class="vern">கடைகள்</span></b></a>
+        <a class="tile is-soon" href="#"><span class="ic" style="background:#F2F1EC">🚚</span><b>Export &amp; bulk logistics<span class="vern">ஏற்றுமதி</span></b><span class="soon">Soon</span></a>
+        <a class="tile is-soon" href="#"><span class="ic" style="background:#F2F1EC">🏭</span><b>Contract processing<span class="vern">பதப்படுத்துதல்</span></b><span class="soon">Soon</span></a>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px">29 categories in the registry · 24 live · 5 honestly marked Soon. A new category is a registry row, not a rebuild.</p>
+
+    <!-- 6b · category-partner banner — D21 slot theorganic_category_banner (1200x160).
+         Approved creatives only. NO fallback passed: the home already has a hero, so an
+         empty slot collapses instead of stacking a second house door above the fold.
+         Targetable by the registry `category` value, so all 24 live categories are
+         sellable inventory the moment they exist — zero code change. -->
+    <div class="adbanner">
+      <span class="ad-tag">Ad</span>
+      <span class="slotname">theorganic_category_banner · 1200×160</span>
+      <span class="g">🌱</span>
+      <div><b>Sakthi Bio-Inputs — NPOP-permitted neem &amp; pseudomonas</b><div class="s">On the NPOP permitted-input list · free field demo across Kongu belt</div></div>
+      <a class="cta" href="#">See the range</a>
+    </div>
+  </section>
+
+  <!-- 7 · certified products near you -->
+  <section class="blk reveal" aria-label="Certified products near you">
+    <div class="sec-t"><h2>Certified products near 641001</h2><span class="sub">We show where to buy — we do not sell</span><a class="more" href="#">See all 480 →</a></div>
+    <div class="pgrid">
+      <div class="pc2">
+        <div class="pimg" style="background:#EFF3E4">🍚</div>
+        <div class="pbody">
+          <span class="badge badge-cert">🇮🇳 NPOP ✔</span>
+          <h3>Mapillai Samba Rice 5 kg</h3>
+          <span class="brandline">Kovai Naturals · <span class="rating">★ 4.8</span></span>
+          <span class="stamp">Certificate checked 6 days ago</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#F4EEDB">🫒</div>
+        <div class="pbody">
+          <span class="badge badge-cert">🇮🇳 NPOP ✔</span>
+          <h3>Cold-pressed Groundnut Oil 1 L</h3>
+          <span class="brandline">Terra Organics · <span class="rating">★ 4.6</span></span>
+          <span class="stamp">Certificate checked 2 days ago</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#FDF3D9">🍯</div>
+        <div class="pbody">
+          <span class="badge badge-cert">🤝 PGS ✔</span>
+          <h3>Wild Forest Honey 500 g</h3>
+          <span class="brandline">Nilgiri Bee Farms · <span class="rating">★ 4.7</span></span>
+          <span class="stamp">Certificate checked 11 days ago</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#FBEAE2">🌶️</div>
+        <div class="pbody">
+          <span class="badge badge-warn">🌎 USDA · expires in 41 days</span>
+          <h3>Turmeric Powder 250 g</h3>
+          <span class="brandline">Erode Organics · <span class="rating">★ 4.9</span></span>
+          <span class="stamp">Renewal requested from brand</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#F7EFE0">🌾</div>
+        <div class="pbody">
+          <!-- PGS-Green is a REAL certificate that explicitly means "not organic yet".
+               It gets the amber state and its own words. Rendering it green would be the
+               single most damaging honesty failure this site could ship. -->
+          <span class="badge badge-warn">🌱 PGS Green · under conversion</span>
+          <h3>Kodo Millet 1 kg</h3>
+          <span class="brandline">Kangeyam Farm Group · <span class="rating">★ 4.3</span></span>
+          <span class="stamp">In conversion since Jun 2025 · organic from 2027</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#EDE7DA">🫘</div>
+        <div class="pbody">
+          <span class="badge badge-off">Direct from farmer · no certificate</span>
+          <h3>Country Toor Dal 1 kg</h3>
+          <span class="brandline">Village Harvest · <span class="rating">★ 4.2</span></span>
+          <span class="stamp">Farmer selling own produce — lawfully exempt</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+      <div class="pc2">
+        <div class="pimg" style="background:#EAF4E5">🍵</div>
+        <div class="pbody">
+          <span class="badge badge-cert">🌎 EU Organic ✔</span>
+          <h3>Nilgiri Green Tea 200 g</h3>
+          <span class="brandline">Blue Hills Estate · <span class="rating">★ 4.5</span></span>
+          <span class="stamp">Certificate checked 3 days ago</span>
+          <button class="wtb">Where to buy 📍</button>
+          <label class="cmp"><input type="checkbox"> Compare</label>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">Comparison-lite: tick 2–4 products to compare certificate, origin, pack size and where they are stocked. Price is shown only where a brand publishes MRP — we never quote a selling price.</p>
+  </section>
+
+  <!-- 8 · where to buy / store locator -->
+  <section class="blk reveal" id="stores" aria-label="Where to buy near you">
+    <div class="sec-t"><h2>Where to buy · 641001</h2><span class="sub">Stocked at these stores today</span><a class="more" href="#">Open store locator →</a></div>
+    <div class="stores">
+      <div class="storelist">
+        <div class="store">
+          <span class="ic">🏪</span>
+          <div><b>Nature's Basket — RS Puram</b><small>1.2 km · stocks 42 certified products · open till 9 PM</small></div>
+          <div class="acts"><a class="btn btn-call" href="tel:">📞 Call</a><a class="btn btn-wa" href="#">Directions</a></div>
+        </div>
+        <div class="store">
+          <span class="ic">🧺</span>
+          <div><b>Kovai Organic Santhai (weekly)</b><small>2.8 km · Sundays 6–11 AM · 18 farmer stalls</small></div>
+          <div class="acts"><a class="btn btn-call" href="tel:">📞 Call</a><a class="btn btn-wa" href="#">Directions</a></div>
+        </div>
+        <div class="store">
+          <span class="ic">🚜</span>
+          <div><b>Erode Organics farm-gate outlet</b><small>34 km · direct from FPO · bulk available</small></div>
+          <div class="acts"><a class="btn btn-call" href="tel:">📞 Call</a><a class="btn btn-wa" href="#">Directions</a></div>
+        </div>
+        <div class="store">
+          <span class="ic">🛒</span>
+          <div><b>Terra Organics brand store — Peelamedu</b><small>4.1 km · brand-owned · 6 products from your list</small></div>
+          <div class="acts"><a class="btn btn-call" href="tel:">📞 Call</a><a class="btn btn-wa" href="#">Directions</a></div>
+        </div>
+      </div>
+      <div class="maparea"><span class="pin">📍</span><b style="font-weight:500">Store locator map</b><span>Pincode-first. Map is a progressive enhancement — the list above is the primary surface and works with JS off and on 2G.</span></div>
+    </div>
+  </section>
+
+  <!-- 9 · brands and producers near you -->
+  <section class="blk reveal" aria-label="Organic brands and producers near you">
+    <div class="sec-t"><h2>Organic brands &amp; producers near Coimbatore</h2><a class="more" href="#">All brands →</a></div>
+    <!-- theorganic_sponsored_listing — spliced at the RENDER layer into display positions
+         0 and 5 (page positions 1 and 6), max 2 per page. The organic array is never
+         reordered, filtered or re-counted: the payload, the cursor and the JSON-LD are
+         byte-identical with ads on and off. That is what makes "advertising never affects
+         ranking" a test (OG-A25) rather than a promise. Cards ship in the SSR HTML → 0 CLS. -->
+    <div class="vgrid">
+      <!-- position 1 · sponsored -->
+      <div class="vendor sponsored">
+        <span class="badge badge-sponsored">★ Sponsored</span>
+        <div class="top"><span class="vimg" style="background:#EFF3E4">🌾</span>
+          <div><h3>Kovai Naturals</h3><div class="meta"><span class="rating">★ 4.8</span> (212) · 46 products · 34 stores</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-cert">🇮🇳 NPOP ✔</span><span class="badge badge-verified">✔ Business verified</span></div>
+        <span class="stamp">Certificate IN-NPOP-1140 · checked 6 days ago</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+      <div class="vendor">
+        <div class="top"><span class="vimg" style="background:#F4EEDB">🤝</span>
+          <div><h3>Erode Organics (FPO)</h3><div class="meta"><span class="rating">★ 4.7</span> (86) · 210 farmer members · bulk supply</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-cert">🤝 PGS-India ✔</span><span class="badge badge-fpo">FPO</span></div>
+        <span class="stamp">Certificate checked 9 days ago</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+      <div class="vendor">
+        <div class="top"><span class="vimg" style="background:#FDF3D9">🐝</span>
+          <div><h3>Nilgiri Bee Farms</h3><div class="meta"><span class="rating">★ 4.7</span> (54) · 8 products · 12 stores</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-cert">🤝 PGS ✔</span></div>
+        <span class="stamp">Certificate checked 11 days ago</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+      <div class="vendor">
+        <div class="top"><span class="vimg" style="background:#EDF2E6">🌿</span>
+          <div><h3>Kongu Millet FPO</h3><div class="meta"><span class="rating">★ 4.6</span> (38) · 140 members · 22 products</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-cert">🤝 PGS ✔</span><span class="badge badge-fpo">FPO</span></div>
+        <span class="stamp">Certificate checked 4 days ago</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+      <div class="vendor">
+        <div class="top"><span class="vimg" style="background:#F4EEDB">🫒</span>
+          <div><h3>Terra Organics</h3><div class="meta"><span class="rating">★ 4.6</span> (176) · 31 products · 40 stores</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-cert">🇮🇳 NPOP ✔</span></div>
+        <span class="stamp">Certificate checked 2 days ago</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+      <!-- position 6 · sponsored. THE POINT OF THIS CARD: this advertiser has no verified
+           certificate, and buying a sponsored slot does not give them one. The badge shows
+           their true state — grey. Money moves the card's position, never a single pixel of
+           the badge. That invariant is OG-A24 and it is the reason the whole site works. -->
+      <div class="vendor sponsored">
+        <span class="badge badge-sponsored">★ Sponsored</span>
+        <div class="top"><span class="vimg" style="background:#F2F1EC">🌰</span>
+          <div><h3>Village Harvest</h3><div class="meta"><span class="rating">★ 4.2</span> (17) · 9 products · 6 stores</div></div>
+        </div>
+        <div class="badges"><span class="badge badge-off">Direct from farmer · no certificate</span></div>
+        <span class="stamp">No certificate on file — a sponsored slot does not change this</span>
+        <div class="actions"><a class="btn btn-primary" href="#">View products</a><a class="btn btn-wa" href="#">WhatsApp</a></div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">Sponsored cards sit in positions 1 and 6, are always labelled, and carry the advertiser's real certificate state. Paying moves a card up the page; it never turns a grey badge green, and it never reorders the organic results around it.</p>
+  </section>
+
+  <!-- 10 · B2B RFQ -->
+  <section class="blk reveal" aria-label="Bulk buying and selling">
+    <div class="sec-t"><h2>Buying or supplying in bulk?</h2><span class="sub">Quotes go buyer ↔ supplier directly. We never take a cut of the trade.</span></div>
+    <div class="bcgrid">
+      <a class="bc" style="background:linear-gradient(140deg,var(--og-deep),var(--og))" href="#rfq">
+        <span class="ic">🏪</span>
+        <b>Post what you need — shops, hotels, exporters</b>
+        <small>"200 kg organic turmeric, monthly, Coimbatore" — verified suppliers in that category and geo send you quotes. Free to post.</small>
+        <span class="go">Post requirement · RFQ</span>
+      </a>
+      <a class="bc" style="background:linear-gradient(140deg,#8A5B00,var(--og-accent))" href="#list">
+        <span class="ic">👨‍🌾</span>
+        <b>Organic farmer, FPO or brand?</b>
+        <small>List your products free. Upload your certificate — we verify it, badge it, and buyers looking for exactly your crop find you.</small>
+        <span class="go">List my products</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 11 · live RFQ board — flag organic_rfq_board. Renders ONLY when real, consented,
+       anonymised requirements exist. Flag OFF = section absent from the DOM (assert node
+       count, not visibility — the A11 lesson). Never seed this with sample rows in prod. -->
+  <section class="blk reveal" id="rfq" aria-label="Open requirements">
+    <div class="sec-t"><h2><span class="live-dot" aria-hidden="true"></span>Open requirements</h2><span class="sub">Buyer identity is hidden until they accept your quote</span><a class="more" href="#">All requirements →</a></div>
+    <div class="rfqboard">
+      <div class="rfqrow"><span class="qty">200 kg · Turmeric powder</span><span class="where">NPOP required · Coimbatore · monthly</span><span class="age">2 hrs ago</span><button class="quote">Send quote</button></div>
+      <div class="rfqrow"><span class="qty">2 tonnes · Mapillai Samba paddy</span><span class="where">PGS or NPOP · Erode · one-time</span><span class="age">6 hrs ago</span><button class="quote">Send quote</button></div>
+      <div class="rfqrow"><span class="qty">500 L · Cold-pressed sesame oil</span><span class="where">Export grade · Tiruppur · quarterly</span><span class="age">yesterday</span><button class="quote">Send quote</button></div>
+      <div class="rfqrow"><span class="qty">1,000 kg · Millets (mixed)</span><span class="where">Any certification · Salem · monthly</span><span class="age">2 days ago</span><button class="quote">Send quote</button></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:9px">Sending a quote costs 1 lead credit. Buyers see every quote side by side; suppliers never see each other's quotes.</p>
+  </section>
+
+  <!-- 12 · how verification works -->
+  <section class="blk reveal" id="guide" aria-label="How certificate verification works">
+    <div class="sec-t"><h2>How we verify a certificate</h2><span class="sub">The same four steps for a 200-farmer FPO and a national brand</span></div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><b>Brand uploads</b><small>Certificate scan + number + issuing body + validity dates, from the brand console.</small></div>
+      <div class="step"><div class="n">2</div><b>We check the issuer</b><small>Number checked against the register of the issuing body — one of the 33 APEDA-accredited NPOP bodies, or the PGS Regional Council. Mismatch → rejected, brand told exactly what did not match.</small></div>
+      <div class="step"><div class="n">3</div><b>Badge with a date</b><small>Green badge carries the scheme, the certificate number and the date we last checked it.</small></div>
+      <div class="step"><div class="n">4</div><b>Expiry watch</b><small>60 days before expiry the badge turns amber and the brand is reminded. Lapsed → grey, never green.</small></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">Verification is never for sale and never affects ranking. Advertising buys a labelled slot, never a badge and never a position in organic results.</p>
+  </section>
+
+  <!-- 13 · seasonal produce -->
+  <section class="blk reveal" aria-label="What is in season">
+    <div class="sec-t"><h2>In season now · Tamil Nadu</h2><span class="sub">Organic produce is seasonal — this is what your region actually grows this month</span></div>
+    <div class="season">
+      <div class="months" aria-hidden="true">
+        <span class="mo">Jan</span><span class="mo">Feb</span><span class="mo">Mar</span><span class="mo">Apr</span>
+        <span class="mo">May</span><span class="mo">Jun</span><span class="mo">Jul</span><span class="mo on">Aug</span>
+        <span class="mo">Sep</span><span class="mo">Oct</span><span class="mo">Nov</span><span class="mo">Dec</span>
+      </div>
+      <div class="crops">
+        <span class="chip">🥭 Mango — last weeks</span>
+        <span class="chip">🌽 Maize</span>
+        <span class="chip">🥬 Amaranth · கீரை</span>
+        <span class="chip">🍌 Banana</span>
+        <span class="chip">🫘 Black gram</span>
+        <span class="chip">🌶️ Chilli — sowing</span>
+      </div>
+      <p class="note">Source: E5 seasonal dataset · verified against TNAU crop calendar · as of 12 Aug 2026</p>
+    </div>
+  </section>
+
+  <!-- 14 · knowledge -->
+  <section class="blk reveal" aria-label="Organic knowledge">
+    <div class="sec-t"><h2>Understand organic certification</h2><a class="more" href="#">All guides →</a></div>
+    <div class="kgrid">
+      <a class="kcard" href="#"><span class="eyebrow">Guide</span><b>NPOP vs PGS-India — which one do you actually need?</b><small>Third-party audit versus peer-group guarantee. The short answer: selling within India → PGS, costs ₹0; selling through shops or exporting → NPOP.</small><span class="stamp">Updated 4 Aug 2026 · EN · த · हि</span></a>
+      <a class="kcard" href="#"><span class="eyebrow">Guide</span><b>The conversion period, and why most people quit halfway</b><small>24 months for annual crops, 36 for perennials — during which you sell as "in-conversion", not organic. Plan the cash flow before you start.</small><span class="stamp">Updated 29 Jul 2026 · EN · த · हि</span></a>
+      <a class="kcard" href="#"><span class="eyebrow">Directory</span><b>All 33 NPOP-accredited certification bodies</b><small>Three are in Tamil Nadu: TNOCD (Chennai), ISCOP and GCL International (both Coimbatore). Plus INDOCERT, Lacon, ECOCERT, IMO, Aditi and KSOCA covering the south.</small><span class="stamp">APEDA list of 1 Apr 2026 · checked 19 Aug 2026</span></a>
+    </div>
+    <div style="margin-top:11px;overflow-x:auto">
+      <table class="ctable">
+        <caption style="text-align:left;font-size:11.5px;color:var(--muted);padding:8px 2px">Indicative cost &amp; timeline. Ranges, not quotes — confirm with the body directly. Sources: APEDA NPOP · NCONF/PGS-India · published certification-cost guidance, 2025–26. Checked 19 Aug 2026.</caption>
+        <thead><tr><th>Scheme</th><th>Who it suits</th><th>Indicative cost</th><th>Conversion</th><th>Group rule</th><th>Accepted by</th></tr></thead>
+        <tbody>
+          <tr><td><b>PGS-India</b></td><td>Small &amp; marginal farmers, FPOs, local sale</td><td><b>₹0</b> — no application, inspection or renewal fee. PKVY assistance ₹50,000/ha over 3 yrs</td><td>Green after one chemical-free season; Organic after 3 yrs documented</td><td>Local Group of <b>5+</b> farmers; individuals must join by year two</td><td>Domestic retail &amp; direct sale — <b>not export</b></td></tr>
+          <tr><td><b>NPOP (India Organic)</b></td><td>Brands, exporters, larger farms</td><td>₹20,000–₹60,000 first year, 1–5 acres · group ICS ₹1,500–₹4,000 per farmer/yr</td><td>24 months annual crops · 36 months perennial</td><td>ICS group of 50–500 farmers</td><td>Retail, export, govt tenders</td></tr>
+          <tr><td><b>USDA NOP / EU</b></td><td>Exporters to the US or EU</td><td>₹80,000+ / yr, on top of NPOP</td><td>24 / 36 months</td><td>as NPOP</td><td>US &amp; EU importers</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:11px;overflow-x:auto">
+      <table class="ctable">
+        <caption style="text-align:left;font-size:11.5px;color:var(--muted);padding:8px 2px">Tamil Nadu Organic Certification Department (TNOCD) — published fee schedule. State agency, NPOP/NAB/0019, established 17 May 2007. Checked 19 Aug 2026.</caption>
+        <thead><tr><th>Applicant</th><th>Registration</th><th>Renewal</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td><b>Individual — small / marginal farmer</b></td><td>₹2,700</td><td>₹2,325</td><td rowspan="5" style="vertical-align:top;color:var(--sub)">TNOCD issues three separate documents: a <b>Scope Certificate</b> (your production is compliant), a <b>Transaction Certificate</b> (₹500, one consignment, needed for export) and a <b>Statement of Compliance</b>. A Transaction Certificate covers one shipment — it is not a licence for your whole catalogue, and this site will not treat it as one.</td></tr>
+          <tr><td>Individual — other farmer</td><td>₹3,200</td><td>₹2,450</td></tr>
+          <tr><td>Group registration</td><td>₹7,200</td><td>₹3,450</td></tr>
+          <tr><td>Commercial firm</td><td>₹9,400</td><td>₹5,650</td></tr>
+          <tr><td>Processing / trading</td><td>₹5,400</td><td>₹5,400</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 14b · the FSSAI direct-sale exemption. This section exists because the honest answer to
+       "why is that product grey?" is often "because the law does not require a certificate
+       here" — and a farmer who reads it may stop believing they are locked out of the site. -->
+  <section class="blk reveal" aria-label="Selling direct as a farmer">
+    <div class="exempt">
+      <span class="ic">👨‍🌾</span>
+      <div>
+        <b>Selling your own produce direct? You may not need a certificate at all.</b>
+        <p>Under FSSAI's Organic Food Regulations, <b>direct sales by the original producer or a producer organisation to the end consumer are exempt</b> from verification of compliance. You can list here, sell at the santhai, sell at your farm gate — legally, without certification. Your badge will read <span class="badge badge-off">Direct from farmer · no certificate</span>, which is the truth, not a penalty. Certification is what you need to sell <i>through</i> shops, brands and exporters.</p>
+        <p class="src">Source: FSSAI Jaivik Bharat FAQ — Food Safety and Standards (Organic Foods) Regulations, 2017 · checked 19 Aug 2026</p>
+      </div>
+      <a class="btn btn-primary" href="#">List my farm free</a>
+    </div>
+  </section>
+
+  <!-- 14c · India organic at a glance — E5 dataset rows. Figures render WITH their source and
+       date stamp or they do not render at all. -->
+  <section class="blk reveal" aria-label="India organic at a glance">
+    <div class="sec-t"><h2>India organic, honestly</h2><span class="sub">Public figures, with the date we checked them</span></div>
+    <div class="glance">
+      <div class="gfacts">
+        <div class="gfact"><div class="v">3.96 M ha</div><div class="k">Under organic certification — 2.25 M organic + 1.71 M in conversion</div><div class="s">APEDA NPOP · 2024–25 · checked 19 Aug 2026</div></div>
+        <div class="gfact"><div class="v">1st</div><div class="k">India's world rank by number of organic producers (2nd by land area)</div><div class="s">APEDA NPOP · 2024–25</div></div>
+        <div class="gfact"><div class="v">4.69 M MT</div><div class="k">Certified organic production in a year</div><div class="s">APEDA NPOP · 2024–25</div></div>
+        <div class="gfact"><div class="v">~2%</div><div class="k">Share of India's 140.1 M ha net sown area — the honest size of this sector</div><div class="s">NCONF</div></div>
+      </div>
+      <div class="trend">
+        <h3>Organic exports — five years, as they actually went</h3>
+        <div class="tbars" role="img" aria-label="Organic export value: 2020-21 USD 1,041 million; 2021-22 USD 772 million; 2022-23 USD 708 million; 2023-24 USD 495 million; 2024-25 USD 666 million">
+          <div class="tb"><em>$1,041M</em><i style="height:100%"></i></div>
+          <div class="tb dip"><em>$772M</em><i style="height:74%"></i></div>
+          <div class="tb dip"><em>$708M</em><i style="height:68%"></i></div>
+          <div class="tb dip"><em>$495M</em><i style="height:48%"></i></div>
+          <div class="tb"><em>$666M</em><i style="height:64%"></i></div>
+        </div>
+        <div class="tlbl"><span>FY21</span><span>FY22</span><span>FY23</span><span>FY24</span><span>FY25</span></div>
+        <p class="note">It fell for three years before recovering — soft global demand, trade uncertainty, and the 2022 delisting of some certification bodies in the EU cutting available capacity. If you are weighing up export certification, that is the shape of the market you are entering. National target: USD 2 bn by 2030.<br><span style="color:var(--muted)">APEDA · FY25 = 368,155 MT / ₹5,394.32 crore · checked 19 Aug 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 · stats band — every number comes from an API, never a literal -->
+  <section class="blk reveal" aria-label="Platform coverage">
+    <div class="stats">
+      <!-- The final value is the SERVER-RENDERED text. JS animates from 0 up to it; with JS
+           off, reduced motion on, or the section never scrolled into view, the real number is
+           already there. Never ship a count-up whose no-JS state is "0". -->
+      <div><div class="v" data-count="1180">1,180+</div><div class="k">Certified brands &amp; producers</div></div>
+      <div><div class="v" data-count="2140">2,140+</div><div class="k">Certificates verified</div></div>
+      <div><div class="v" data-count="9600">9,600+</div><div class="k">Products listed</div></div>
+      <div><div class="v" data-count="640">640</div><div class="k">Stores mapped</div></div>
+    </div>
+  </section>
+
+  <!-- 16 · reviews — two-sided, approved only -->
+  <section class="blk reveal" aria-label="Reviews">
+    <div class="sec-t"><h2>What buyers and suppliers say</h2><span class="sub">Two-sided — both parties rate after a completed RFQ</span></div>
+    <div class="revrow">
+      <div class="rev"><span class="side">Buyer → supplier</span><span class="rating">★ 5.0</span><p>"Quoted in two hours, sent the certificate without being asked, delivered the sample first. Third order now."</p><span class="who">Hotel purchase manager · Coimbatore</span></div>
+      <div class="rev"><span class="side">Supplier → buyer</span><span class="rating">★ 4.0</span><p>"Clear spec, paid on the agreed date. Wanted a 20% smaller lot than posted — flag that upfront next time."</p><span class="who">Erode Organics (FPO)</span></div>
+      <div class="rev"><span class="side">Buyer → supplier</span><span class="rating">★ 4.5</span><p>"NPOP badge here matched the register when I checked it myself. That is the whole reason I use this site."</p><span class="who">Organic store owner · Salem</span></div>
+    </div>
+  </section>
+
+  <!-- 17 · earn AgriCoins — shared coins engine, cross-site balance -->
+  <section class="blk reveal" aria-label="Earn AgriCoins">
+    <div class="sec-t"><h2>Earn AgriCoins here, spend them anywhere in the ecosystem</h2></div>
+    <div class="earn">
+      <div class="e"><span class="amt">+50</span><b>Verify your certificate</b><small>Once per certificate, on approval</small></div>
+      <div class="e"><span class="amt">+20</span><b>Complete your brand profile</b><small>Logo, products, store list</small></div>
+      <div class="e"><span class="amt">+10</span><b>Review after an RFQ</b><small>Both sides earn</small></div>
+      <div class="e"><span class="amt">+5</span><b>Report a wrong badge</b><small>Paid on confirmation — trust is a two-way job</small></div>
+    </div>
+  </section>
+
+  <!-- 18 · popular searches — ISR routes that actually resolve -->
+  <section class="blk reveal" aria-label="Popular searches">
+    <div class="sec-t"><h2>Popular near you</h2></div>
+    <div class="pills">
+      <a class="pill" href="/organic-rice/tamil-nadu/coimbatore">Organic rice in Coimbatore</a>
+      <a class="pill" href="/cold-pressed-oil/tamil-nadu/erode">Cold-pressed oil in Erode</a>
+      <a class="pill" href="/organic-honey/tamil-nadu/nilgiris">Organic honey in Nilgiris</a>
+      <a class="pill" href="/millets/tamil-nadu/salem">Millets in Salem</a>
+      <a class="pill" href="/npop-certified-brands/tamil-nadu">NPOP certified brands in Tamil Nadu</a>
+      <a class="pill" href="/fpo/tamil-nadu/erode">FPOs in Erode</a>
+      <a class="pill" href="/certification-bodies/tamil-nadu">Certification bodies in Tamil Nadu</a>
+    </div>
+  </section>
+
+  <!-- 19 · FAQ (FAQPage JSON-LD ships with this section) -->
+  <section class="blk reveal" aria-label="Frequently asked questions">
+    <div class="sec-t"><h2>Questions people actually ask</h2></div>
+    <div class="faq">
+      <details open><summary>Do you sell these products?</summary><p>No. theorganic.in never sells, never takes payment for goods and never ships anything. We verify certificates, list products and producers, show you where to buy, and connect bulk buyers to suppliers. Every transaction happens directly between you and the seller.</p></details>
+      <details><summary>What does the green badge mean?</summary><p>It means we have seen the certificate, checked the number against the issuing body's register, and it was valid on the date shown on the badge. Amber means it expires within 60 days. Grey means the brand has told us it is organic but we have not been able to verify a certificate — we show that honestly rather than hiding the product.</p></details>
+      <details><summary>Can a brand pay to be verified or to rank higher?</summary><p>No. Verification and ranking are structurally not for sale. Advertising buys a clearly labelled slot that sits beside organic results — never a badge, and never a position within them.</p></details>
+      <details><summary>Is PGS-India "real" organic?</summary><p>Yes. FSSAI's Organic Food Regulations recognise exactly two Indian systems — NPOP and PGS-India — and both carry the Jaivik Bharat mark. PGS works through a peer-inspected Local Group of at least five farmers and costs nothing; it is not accepted for export, which is what NPOP and USDA/EU certification are for. Watch the distinction between the two PGS certificates: <b>PGS-Organic</b> is full certification, while <b>PGS-Green</b> means the land is still in conversion. We show Green in amber, never in green.</p></details>
+      <details><summary>Why is this farmer's product grey if they farm organically?</summary><p>Grey means "we have not verified a certificate", not "not organic". Under FSSAI's regulations, a producer selling their own produce direct to you is exempt from certification altogether — so a genuinely organic farmer at a santhai may legitimately have nothing to upload. We would rather show you an honest grey badge and let you ask them, than hide them or pretend we checked something we did not.</p></details>
+      <details><summary>I am a farmer. Does listing cost anything?</summary><p>Listing your products and uploading a certificate is free, and verification is free. Sending a quote against a bulk requirement uses one lead credit, and you can earn credits with AgriCoins. If you are not certified yet: PGS-India costs ₹0 and PKVY provides ₹50,000 per hectare of assistance over three years.</p></details>
+    </div>
+  </section>
+
+  <!-- 20 · PWA + notify -->
+  <section class="blk reveal">
+    <div class="pwa">
+      <div><b>Install theorganic.in</b><small>Works on a slow connection. Your saved products, store list and certificates stay available offline.</small></div>
+      <a class="btn btn-primary" href="#">Add to home screen</a>
+    </div>
+  </section>
+
+  <!-- 21 · family strip -->
+  <section class="blk reveal" aria-label="The rest of the ecosystem">
+    <div class="family">
+      <a class="eco-pill" style="background:linear-gradient(140deg,#2C5A33,#3E7A45)" href="#"><b>🌾 agri.in</b><small>All of Indian agriculture — mandi prices, weather, schemes, 36 verticals</small></a>
+      <a class="eco-pill" style="background:linear-gradient(140deg,#174A85,#2563A8)" href="#"><b>🥛 milk.in</b><small>Pincode-first milk discovery — every brand and local vendor near you</small></a>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:9px">One AgriID across all three. One coin balance. One location.</p>
+  </section>
+</div>
+
+<!-- 22 · footer -->
+<footer class="ftr"><div class="wrap">
+  <div class="cols">
+    <div><h4>Browse</h4><a href="#">All categories</a><a href="#">Certified brands</a><a href="#">FPOs &amp; producers</a><a href="#">Organic stores</a><a href="#">Open requirements</a></div>
+    <div><h4>Understand</h4><a href="#">How we verify</a><a href="#">NPOP vs PGS</a><a href="#">Getting certified</a><a href="#">Certification bodies</a><a href="#">Report a wrong badge</a></div>
+    <div><h4>For brands</h4><a href="#">List your products</a><a href="#">Upload a certificate</a><a href="#">Brand console</a><a href="#">Advertise</a><a href="#">Lead credits</a></div>
+    <div><h4>Company</h4><a href="#">About</a><a href="#">Privacy &amp; DPDP</a><a href="#">Terms</a><a href="#">Grievance officer</a><a href="#">Contact</a></div>
+  </div>
+  <div class="fence">
+    <b>What theorganic.in is:</b> a discovery, verification and lead platform. We display certified organic products and producers, show where to buy them, and route bulk requirements to verified suppliers.<br>
+    <b>What it is not:</b> we are not the seller. We do not take payment for goods, hold stock, or arrange delivery. Certification is issued by accredited bodies, not by us — we check it and show you the date we checked. Sponsored placements are always labelled and never change organic ranking.
+  </div>
+</div></footer>
+
+<!-- 23 · mobile bottom nav -->
+<nav class="appnav" aria-label="Primary">
+  <a class="on" href="#"><span>🏠</span>Home</a>
+  <a href="#"><span>🧺</span>Products</a>
+  <a href="#" aria-label="Post a bulk requirement"><span class="mid">➕</span></a>
+  <a href="#"><span>🏭</span>Brands</a>
+  <a href="#"><span>👤</span>Profile</a>
+</nav>
+
+<script>
+/* count-up + scroll reveal — both respect prefers-reduced-motion (shared U1/A1 script) */
+const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add('is-in');
+  e.target.querySelectorAll('[data-count]').forEach(el => {
+    const end = +el.dataset.count, fmt = n => n >= 1000 ? n.toLocaleString('en-IN') + '+' : n;
+    if (rm) { el.textContent = fmt(end); return; }
+    const t0 = performance.now(), dur = 900;
+    const tick = t => { const p = Math.min((t - t0) / dur, 1);
+      el.textContent = fmt(Math.round(end * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  io.unobserve(e.target);
+}), { threshold: .25 });
+/* Reduced motion: reveal everything and freeze the counters at their final value
+   immediately — the static fallback must leave content fully visible and fully readable,
+   not merely visible-but-zero. */
+if (rm) {
+  document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const end = +el.dataset.count;
+    el.textContent = end >= 1000 ? end.toLocaleString('en-IN') + '+' : end;
+  });
+} else {
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+}
+
+/* hero ad auto-rotate — carousel behaviour from D21 (approved creatives only); paused for reduced motion */
+const SLIDES = [
+  { h: 'Kovai Naturals — new Mapillai Samba harvest is in',
+    p: 'NPOP-certified · single-village traceable · stocked at 34 stores across Coimbatore & Tiruppur · இயற்கை நெல்',
+    cta: 'Find a store near you', g: '🍚' },
+  { h: 'Terra Organics cold-pressed oils — festive packs',
+    p: 'Wood-pressed groundnut, sesame and coconut · NPOP certificate on every label · செக்கு எண்ணெய்',
+    cta: 'See stockists', g: '🫒' },
+  { h: 'Erode Organics FPO — bulk millets for the Kharif lot',
+    p: 'PGS-India certified · 210 farmer members · sample dispatch within 48 hrs to verified buyers',
+    cta: 'Request a quote', g: '🌾' },
+];
+const heroH = document.querySelector('.hero-ad h2'),
+      heroP = document.querySelector('.hero-ad p'),
+      heroCta = document.querySelector('.hero-ad .btn-money'),
+      heroGlyph = document.querySelector('.panel.a .glyph'),
+      dots = document.querySelectorAll('.dots span'),
+      heroInner = document.querySelector('.hero-ad .inner');
+let slide = 0, heroTimer;
+function showSlide(i){
+  slide = i % SLIDES.length;
+  const s = SLIDES[slide];
+  heroInner.style.transition = rm ? 'none' : 'opacity .35s ease';
+  heroInner.style.opacity = 0;
+  setTimeout(() => {
+    heroH.textContent = s.h; heroP.textContent = s.p; heroCta.textContent = s.cta; heroGlyph.textContent = s.g;
+    dots.forEach((d, k) => d.classList.toggle('on', k === slide));
+    heroInner.style.opacity = 1;
+  }, rm ? 0 : 350);
+}
+function startHero(){ if (!rm) heroTimer = setInterval(() => showSlide(slide + 1), 5000); }
+startHero();
+document.querySelector('.hero-nav.next').onclick = () => { clearInterval(heroTimer); showSlide(slide + 1); startHero(); };
+document.querySelector('.hero-nav.prev').onclick = () => { clearInterval(heroTimer); showSlide(slide + SLIDES.length - 1); startHero(); };
+
+/* rotating search placeholder — one suggestion at a time */
+const HINTS = [
+  'Search organic rice, cold-pressed oil, brands…',
+  'Try: NPOP certified turmeric near me',
+  'Try: மாப்பிள்ளை சம்பா அரிசி',
+  'Try: PGS honey Nilgiris',
+  'Try: organic store in RS Puram',
+  'Try: जैविक गुड़ · organic jaggery',
+];
+const qInput = document.getElementById('q');
+let hint = 0;
+setInterval(() => { if (document.activeElement !== qInput) { hint = (hint + 1) % HINTS.length; qInput.placeholder = HINTS[hint]; } }, 3200);
+
+/* quick filters — single-select demo behaviour; in product these are URL-driven
+   (?cert=npop&near=641001) so the state is shareable, bookmarkable and crawlable */
+document.querySelectorAll('.qf').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
+
+/* scroll progress bar + back-to-top */
+const prog = document.querySelector('.scroll-progress'), toTop = document.querySelector('.to-top');
+addEventListener('scroll', () => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  prog.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%';
+  toTop.classList.toggle('show', scrollY > 900);
+}, { passive: true });
+toTop.addEventListener('click', e => { e.preventDefault(); scrollTo({ top: 0, behavior: rm ? 'auto' : 'smooth' }); });
+</script>
+</body>
+</html>

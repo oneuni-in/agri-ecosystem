@@ -201,7 +201,7 @@ footer{background:var(--mk-deep);color:var(--mk-soft-2);margin-top:24px}
 .hero-ad{background:linear-gradient(115deg,var(--mk-deep) 0%,#1E5A9E 55%,var(--mk) 100%)}
 .search-band{background:linear-gradient(135deg,var(--mk) 0%,#1E5A9E 100%)}
 .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
-.reveal.in{opacity:1;transform:none}
+.reveal.is-in{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
 
 /* live price ticker (D23 price data) */
@@ -666,7 +666,7 @@ footer{background:var(--mk-deep);color:var(--mk-soft-2);margin-top:24px}
 const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
-  e.target.classList.add('in');
+  e.target.classList.add('is-in');
   e.target.querySelectorAll('[data-count]').forEach(el => {
     const end = +el.dataset.count, fmt = n => n >= 1000 ? n.toLocaleString('en-IN') + '+' : n;
     if (rm) { el.textContent = fmt(end); return; }
@@ -679,7 +679,7 @@ const io = new IntersectionObserver(es => es.forEach(e => {
   io.unobserve(e.target);
 }), { threshold: .25 });
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
 </script>
 </body>
 </html>

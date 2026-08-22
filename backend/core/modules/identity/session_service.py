@@ -25,15 +25,53 @@ from shared.telemetry import get_logger
 logger = get_logger(__name__)
 
 
-def device_fingerprint(user_agent: str | None, platform: str | None) -> str:
-    """Privacy-light device binding: UA + client-hint platform, hashed.
+FINGERPRINT_CHARS = 32
+
+
+def _hash_fingerprint(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()[:FINGERPRINT_CHARS]
+
+
+def device_fingerprint(user_agent: str | None, platform: str | None = None) -> str:
+    """Privacy-light device binding: the user agent, hashed.
 
     Deliberately coarse - it distinguishes "my laptop" from "a stolen token
     replayed elsewhere", not one user from another. 32 hex chars keep rows
     compact; collision resistance at that scope is ample.
+
+    WHY `platform` IS ACCEPTED AND IGNORED. This used to hash
+    `UA|sec-ch-ua-platform`. That hint is a client hint, and a client hint is
+    not guaranteed on every request: Chrome omits it on some paths, and the
+    BFF can only forward what it actually received. So the SAME browser
+    produced two fingerprints depending on which route minted the credential,
+    which showed up as two rows on /devices that drifted apart on every visit,
+    and made this-device logout (revoke_families_for_device) silently miss
+    whichever half the current request did not match. The hint added almost no
+    binding strength over the UA it accompanies - it is derived from the same
+    self-reported browser identity - so the honest fix is to drop it rather
+    than to chase it onto every route. The parameter stays so call sites (and
+    legacy_fingerprints below) keep one shared signature.
     """
-    raw = f"{user_agent or ''}|{platform or ''}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+    return _hash_fingerprint(user_agent or "")
+
+
+def legacy_fingerprints(user_agent: str | None, platform: str | None) -> tuple[str, ...]:
+    """Pre-fix hashes this same device could be stored under.
+
+    Rows minted before the change above hash `UA|platform`, with `platform`
+    either present or empty depending on the route. Rotation checks these so
+    an existing session reads as the same device rather than as token theft -
+    without them, shipping the fix would revoke every live refresh family in
+    the system and write a device_mismatch audit line for each one.
+    """
+    return tuple(
+        dict.fromkeys(
+            (
+                _hash_fingerprint(f"{user_agent or ''}|{platform or ''}"),
+                _hash_fingerprint(f"{user_agent or ''}|"),
+            )
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -62,7 +100,25 @@ async def create_web_session(
 
     Fixation hardening: callers ALWAYS get a fresh sid at login - there is no
     code path that adopts or upgrades a pre-login identifier.
+
+    This device's PREVIOUS session is superseded here. A browser holds exactly
+    one agri_sid, so the old row became unreachable the instant this one was
+    minted; leaving it live for the rest of its TTL only added a row per login
+    to /devices. Scoped to this user AND this fingerprint - a shared computer
+    must not let one person's login end another's, and other devices are never
+    touched. Note this does not weaken the fixation rule above: the new sid is
+    still freshly generated, and nothing is carried over from the old row.
     """
+    if fingerprint:
+        await session.execute(
+            update(SessionWeb)
+            .where(
+                SessionWeb.user_id == user_id,
+                SessionWeb.device_fingerprint == fingerprint,
+                SessionWeb.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
     sid = secrets.token_urlsafe(32)
     session.add(
         SessionWeb(

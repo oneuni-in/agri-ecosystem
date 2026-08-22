@@ -17,7 +17,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getJson, postJson } from "../../lib/api";
+import { ApiError, getJson, postJson } from "../../lib/api";
 
 interface Device {
   device_id: string;
@@ -28,6 +28,27 @@ interface Device {
   last_seen_at: string | null;
   device_kind: string | null;
   place: string | null;
+  device_group: string | null;
+}
+
+/** One physical device, with every session it holds.
+ *
+ * The API returns one row per CREDENTIAL — id.agri.in's browser session, plus
+ * a row for each app that device signed into over SSO. Rendering those one per
+ * card made a single laptop look like three or four devices, which is the
+ * opposite of what this screen is for: it exists so someone can recognise a
+ * machine that should not be there. So rows are folded by `device_group` and
+ * the sites they belong to become badges on one card. */
+interface DeviceGroup {
+  key: string;
+  rows: Device[];
+  sites: string[];
+  label: string | null;
+  deviceKind: string | null;
+  place: string | null;
+  current: boolean;
+  /** newest sign of life across the group's rows, ms since epoch */
+  activeAt: number;
 }
 
 /** Sessions untouched for this long collapse out of the way. They are still
@@ -84,23 +105,39 @@ export function DevicesManager({ agriId }: { agriId: string }) {
     void reload();
   }, [reload]);
 
-  const revoke = async (device: Device) => {
-    await postJson("/auth/devices/revoke", { device_id: device.device_id, kind: device.kind });
+  const revoke = async (group: DeviceGroup) => {
+    // Current row last: revoking it clears our own cookie, and anything after
+    // that would be an unauthenticated call. Revoking the web session cascades
+    // server-side to the app families on the same device, so a sibling that
+    // answers 404 here has already been signed out — that is the success path,
+    // not an error to surface.
+    const ordered = [...group.rows].sort((a, b) => Number(a.current) - Number(b.current));
+    for (const row of ordered) {
+      try {
+        await postJson("/auth/devices/revoke", { device_id: row.device_id, kind: row.kind });
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) throw error;
+      }
+    }
     toast({ title: t("revoked") });
-    if (device.current) {
+    if (group.current) {
       router.push("/login");
       return;
     }
     await reload();
   };
 
-  const rename = async (device: Device, label: string) => {
+  const rename = async (group: DeviceGroup, label: string) => {
     if (!label.trim()) return;
-    await postJson("/auth/devices/label", {
-      device_id: device.device_id,
-      kind: device.kind,
-      label: label.trim(),
-    });
+    // every row, so the name a person gave this machine survives whichever of
+    // its sessions outlives the others
+    for (const row of group.rows) {
+      await postJson("/auth/devices/label", {
+        device_id: row.device_id,
+        kind: row.kind,
+        label: label.trim(),
+      });
+    }
     setRenaming(null);
     await reload();
   };
@@ -116,76 +153,108 @@ export function DevicesManager({ agriId }: { agriId: string }) {
   };
 
   /** "when": the last sign of life, said the way a person would. */
-  const lastSeen = (device: Device): string => {
-    const iso = device.last_seen_at ?? device.created_at;
-    const elapsed = Date.now() - new Date(iso).getTime();
+  const lastSeen = (activeAt: number): string => {
+    const elapsed = Date.now() - activeAt;
     if (elapsed < 5 * 60 * 1000) return t("activeNow");
     if (elapsed < 60 * 60 * 1000) return t("relMinutes", { count: Math.round(elapsed / 60000) });
     if (elapsed < DAY_MS) return t("relHours", { count: Math.round(elapsed / 3600000) });
     const days = Math.round(elapsed / DAY_MS);
     if (days < STALE_DAYS) return t("relDays", { count: days });
-    return format.dateTime(new Date(iso), { month: "short", year: "numeric" });
+    return format.dateTime(new Date(activeAt), { month: "short", year: "numeric" });
   };
 
-  const isStale = (device: Device): boolean =>
-    Date.now() - new Date(device.last_seen_at ?? device.created_at).getTime() >
-    STALE_DAYS * DAY_MS;
+  const isStale = (group: DeviceGroup): boolean =>
+    Date.now() - group.activeAt > STALE_DAYS * DAY_MS;
 
-  const { fresh, stale } = useMemo(() => {
-    const all = devices ?? [];
-    return {
-      fresh: all.filter((d) => !isStale(d)),
-      stale: all.filter((d) => isStale(d)),
-    };
+  const groups = useMemo((): DeviceGroup[] => {
+    const byKey = new Map<string, Device[]>();
+    for (const device of devices ?? []) {
+      // A row with no recorded fingerprint is its own device. Lumping every
+      // unknown under one key would assert they are the same machine, which is
+      // exactly the thing we cannot know about them.
+      const key = device.device_group ?? `row:${device.kind}:${device.device_id}`;
+      const bucket = byKey.get(key);
+      if (bucket) bucket.push(device);
+      else byKey.set(key, [device]);
+    }
+    // insertion order = the API's order, which puts this browser's own session
+    // first; grouping must not quietly reshuffle the list under people
+    return [...byKey].map(([key, rows]) => ({
+      key,
+      rows,
+      sites: [...new Set(rows.map((row) => row.kind))],
+      label: rows.find((row) => row.label)?.label ?? null,
+      deviceKind: rows.find((row) => row.device_kind)?.device_kind ?? null,
+      place: rows.find((row) => row.place)?.place ?? null,
+      current: rows.some((row) => row.current),
+      activeAt: Math.max(
+        ...rows.map((row) => new Date(row.last_seen_at ?? row.created_at).getTime()),
+      ),
+    }));
   }, [devices]);
 
-  const otherCount = (devices ?? []).filter((d) => !d.current).length;
+  const { fresh, stale } = useMemo(
+    () => ({
+      fresh: groups.filter((group) => !isStale(group)),
+      stale: groups.filter((group) => isStale(group)),
+    }),
+    [groups],
+  );
 
-  const row = (device: Device) => (
-    <li key={`${device.kind}:${device.device_id}`}>
-      <Card className={`flex items-center gap-3 p-3 ${isStale(device) ? "opacity-65" : ""}`}>
+  // devices, not credentials: "sign out 2 devices" is the truth a person can
+  // act on, where "sign out 7 sessions" was an artefact of how we store them
+  const otherCount = groups.filter((group) => !group.current).length;
+
+  const row = (group: DeviceGroup) => (
+    <li key={group.key}>
+      <Card className={`flex items-center gap-3 p-3 ${isStale(group) ? "opacity-65" : ""}`}>
         <span aria-hidden="true" className="flex-none text-xl">
-          {iconFor(device.device_kind)}
+          {iconFor(group.deviceKind)}
         </span>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-ink">
-            {/* which site */}
-            <span
-              className={`rounded-pill px-2 py-0.5 text-[10px] font-bold ${
-                SITE_TINT[device.kind] ?? "bg-cream-deep text-muted"
-              }`}
-            >
-              {KNOWN_SITES.has(device.kind) ? t(`sites.${device.kind}`) : device.kind}
-            </span>
             {/* what device — the label a person gave it wins over the derived
                 description, because they named it to recognise it */}
             <span className="truncate">
-              {device.label ?? device.device_kind ?? t("unknownDevice")}
+              {group.label ?? group.deviceKind ?? t("unknownDevice")}
             </span>
-            {device.current && (
+            {group.current && (
               <span className="rounded-pill bg-verified-bg px-2 py-0.5 text-[10px] font-bold text-verified-fg">
                 {t("current")}
               </span>
             )}
           </p>
+          {/* which sites — one badge per app this device is signed into */}
+          <p className="mt-0.5 flex flex-wrap items-center gap-1">
+            {group.sites.map((site) => (
+              <span
+                key={site}
+                className={`rounded-pill px-2 py-0.5 text-[10px] font-bold ${
+                  SITE_TINT[site] ?? "bg-cream-deep text-muted"
+                }`}
+              >
+                {KNOWN_SITES.has(site) ? t(`sites.${site}`) : site}
+              </span>
+            ))}
+          </p>
           {/* where (when geoip can say) and when */}
           <p className="truncate text-xs text-muted">
-            {[device.place, lastSeen(device)].filter(Boolean).join(" · ")}
+            {[group.place, lastSeen(group.activeAt)].filter(Boolean).join(" · ")}
           </p>
-          {renaming === device.device_id && (
+          {renaming === group.key && (
             <form
               className="mt-2 flex gap-1.5"
               onSubmit={(event) => {
                 event.preventDefault();
                 const input = event.currentTarget.elements.namedItem("label");
-                void rename(device, (input as HTMLInputElement).value);
+                void rename(group, (input as HTMLInputElement).value);
               }}
             >
               <input
                 name="label"
                 aria-label={t("rename")}
                 placeholder={t("renamePlaceholder")}
-                defaultValue={device.label ?? ""}
+                defaultValue={group.label ?? ""}
                 autoFocus
                 className="min-h-[44px] w-full min-w-0 rounded-btn border border-line bg-card px-2 text-sm text-ink"
               />
@@ -203,7 +272,7 @@ export function DevicesManager({ agriId }: { agriId: string }) {
             variant="ghost"
             aria-label={t("renameOpen")}
             className="flex-none"
-            onClick={() => setRenaming(renaming === device.device_id ? null : device.device_id)}
+            onClick={() => setRenaming(renaming === group.key ? null : group.key)}
           >
             ✎
           </Button>
@@ -216,7 +285,7 @@ export function DevicesManager({ agriId }: { agriId: string }) {
             title={t("confirmRevoke")}
             closeLabel={t("cancel")}
           >
-            <Button variant="brand" onClick={() => void revoke(device)}>
+            <Button variant="brand" onClick={() => void revoke(group)}>
               {t("revoke")}
             </Button>
           </Modal>

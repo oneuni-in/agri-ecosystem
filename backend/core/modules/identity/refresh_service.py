@@ -13,7 +13,13 @@ Lifecycle invariants (the ones the reuse test pins):
   every credential derived from it is presumed stolen.
 - Device binding is strict: a fingerprint mismatch is treated as theft, not
   drift - family revoked. A browser upgrade changes the fingerprint and logs
-  that device out; acceptable v1 cost, decided in the D09 plan.
+  that device out; acceptable v1 cost, decided in the D09 plan. The ONE
+  exception is a row still stored under a pre-UA-only fingerprint format
+  (session_service.legacy_fingerprints): that is the same device described
+  differently, so it is restamped rather than revoked.
+- One live family per (user, client, device): a fresh code exchange supersedes
+  this device's previous family for that client, because the browser can no
+  longer reach the old one anyway.
 - Rotation happens on the ATTEMPT, before authlib judges the request
   (burn-on-attempt, mirrors D08 codes and D07 OTP burn semantics).
 
@@ -143,10 +149,44 @@ async def issue_refresh_token(
     device_label: str | None = None,
     device_kind: str | None = None,
 ) -> RefreshRotation:
-    """Start a new family (the code-exchange mint point)."""
+    """Start a new family (the code-exchange mint point).
+
+    Re-authenticating supersedes this device's previous family for THIS client.
+    A browser holds one cookie jar per app, so the moment a new family is
+    minted the old one is unreachable - leaving it live for its full TTL only
+    grew /devices by a row per SSO round trip and left a valid refresh token
+    behind that nobody could present. Scoping is deliberate: same user, same
+    client, same device. Other apps and other devices are untouched.
+
+    Known blast radius: two browser PROFILES on one machine share a UA and so
+    share a fingerprint, and signing into the second supersedes the first for
+    that app. That is the same device granularity revoke_families_for_device
+    (this-device logout) has always had, not a new rule.
+    """
     subject = await load_token_subject(session, user_id)
     if subject is None:
         raise RefreshInvalidError("subject not eligible")
+    if fingerprint is not None:
+        # None means we could not identify the device at all - superseding on
+        # that would let one unidentifiable client evict every other.
+        superseded = (
+            await session.scalars(
+                update(SessionRefresh)
+                .where(
+                    SessionRefresh.user_id == user_id,
+                    SessionRefresh.client_id == client.id,
+                    SessionRefresh.device_fingerprint == fingerprint,
+                    SessionRefresh.revoked_at.is_(None),
+                )
+                .values(revoked_at=datetime.now(UTC))
+                .returning(SessionRefresh.id)
+            )
+        ).all()
+        if superseded:
+            logger.info(
+                "refresh.family.superseded",
+                extra={"extra_fields": {"client": client.client_id, "rows": len(superseded)}},
+            )
     token, row = _new_row(
         user_id=user_id,
         client_row_id=client.id,
@@ -167,9 +207,19 @@ async def issue_refresh_token(
 
 
 async def rotate_refresh_token(
-    session: AsyncSession, *, token: str, client: OAuthClient, fingerprint: str | None
+    session: AsyncSession,
+    *,
+    token: str,
+    client: OAuthClient,
+    fingerprint: str | None,
+    legacy: tuple[str, ...] = (),
 ) -> RefreshRotation:
     """Atomically retire the presented token and mint its successor.
+
+    `legacy` carries the hashes this same device would have been stored under
+    before the fingerprint format changed (session_service.legacy_fingerprints).
+    A row matching one of those is the same device, not a thief - it is
+    upgraded in place rather than revoked.
 
     Order matters and every branch is deliberate:
     1. Atomic claim (UPDATE .. revoked_at IS NULL .. RETURNING) scoped to this
@@ -178,7 +228,8 @@ async def rotate_refresh_token(
        already retired: REUSE. Revoke the family, audit, raise.
     3. Claim succeeded but the row was already past expiry -> plain invalid
        (a hoarded-not-stolen token; no family damage).
-    4. Fingerprint mismatch -> theft signal: revoke family, audit, raise.
+    4. Fingerprint mismatch, and not a known legacy form of THIS device ->
+       theft signal: revoke family, audit, raise.
     5. Suspended/missing user -> revoke family, raise (instant deny).
     6. Mint successor: same family_id, rotated_from=old row.
     """
@@ -218,18 +269,39 @@ async def rotate_refresh_token(
     if row.expires_at <= now:
         raise RefreshInvalidError("expired token")
     if fingerprint != row.device_fingerprint:
-        revoked = await revoke_family(session, row.family_id)
-        logger.warning(
-            "refresh.device_mismatch.family_revoked",
-            extra={
-                "extra_fields": {
-                    "family": str(row.family_id),
-                    "client": client.client_id,
-                    "revoked_rows": revoked,
-                }
-            },
-        )
-        raise RefreshInvalidError("device mismatch")
+        if row.device_fingerprint is not None and row.device_fingerprint in legacy:
+            # Same device, pre-fix hash format. Restamp the WHOLE family, not
+            # just the row we are about to retire: revoke_families_for_device
+            # matches on this column, so a lineage that is half old-format and
+            # half new would only ever be half logged out.
+            await session.execute(
+                update(SessionRefresh)
+                .where(SessionRefresh.family_id == row.family_id)
+                .values(device_fingerprint=fingerprint)
+            )
+            row.device_fingerprint = fingerprint
+            logger.info(
+                "refresh.fingerprint.upgraded",
+                extra={
+                    "extra_fields": {
+                        "family": str(row.family_id),
+                        "client": client.client_id,
+                    }
+                },
+            )
+        else:
+            revoked = await revoke_family(session, row.family_id)
+            logger.warning(
+                "refresh.device_mismatch.family_revoked",
+                extra={
+                    "extra_fields": {
+                        "family": str(row.family_id),
+                        "client": client.client_id,
+                        "revoked_rows": revoked,
+                    }
+                },
+            )
+            raise RefreshInvalidError("device mismatch")
     subject = await load_token_subject(session, row.user_id)
     if subject is None:
         await revoke_family(session, row.family_id)

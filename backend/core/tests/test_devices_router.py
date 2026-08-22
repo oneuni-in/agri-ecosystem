@@ -1,6 +1,7 @@
 """D09.D backend: device list/label/revoke + handle picker + language."""
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import create_app
-from modules.identity.models import Profile, User
+from modules.identity.models import Profile, SessionRefresh, User
 from shared.audit import AuditEntry
 from shared.db import get_session
 from tests.test_session_router import UA, _login
@@ -48,7 +49,11 @@ async def test_device_label_and_revoke_other(
     api: tuple[httpx.AsyncClient, AsyncSession],
 ) -> None:
     http, session = api
-    await _login(http, session)
+    # two DIFFERENT devices: re-logging in on the same one now supersedes its
+    # own previous session (session_service.create_web_session), so a same-UA
+    # second login would leave nothing "other" to label or revoke.
+    phone = {"user-agent": "Mozilla/5.0 (Linux; Android 14) Chrome/120.0.0.0 Mobile Safari/537.36"}
+    await _login(http, session, headers=phone)
     first_id = (await http.get("/auth/devices")).json()["items"][0]["device_id"]
     await _login(http, session)  # second session; cookie jar now holds session 2
 
@@ -171,6 +176,71 @@ async def test_unrecognisable_agent_is_null_not_a_guess(
     # thing. Rows created before migration 0054 read the same way, and there
     # is nothing to backfill them from - the raw UA was never stored.
     assert row["device_kind"] is None
+
+
+async def test_rows_from_one_device_share_a_group_key(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """The web session and every app session minted from one browser carry the
+    same key, so the screen can show that laptop once instead of once per app."""
+    from modules.identity.oauth_service import get_client
+    from modules.identity.refresh_service import issue_refresh_token
+    from modules.identity.session_service import device_fingerprint
+
+    http, session = api
+    await _login(http, session)
+    user = (await session.scalars(select(User))).one()
+    client = await get_client(session, "web-agri")
+    assert client is not None
+    # the same browser that logged in above now completes an SSO handshake
+    await issue_refresh_token(
+        session,
+        user_id=user.id,
+        client=client,
+        fingerprint=device_fingerprint(UA["user-agent"]),
+        ip=None,
+    )
+
+    rows = (await http.get("/auth/devices")).json()["items"]
+    assert {row["kind"] for row in rows} == {"web", "web-agri"}
+    assert len({row["device_group"] for row in rows}) == 1
+
+
+async def test_app_row_dates_from_the_family_root_not_the_latest_rotation(
+    api: tuple[httpx.AsyncClient, AsyncSession],
+) -> None:
+    """Rotation must not make a months-old app session look brand new.
+
+    The list used to report the CURRENT rotation row's created_at, so every
+    silent token refresh reset the "when" the screen shows - a session from
+    weeks ago kept re-appearing as a device that signed in minutes ago.
+    """
+    from modules.identity.oauth_service import get_client
+    from modules.identity.refresh_service import issue_refresh_token, rotate_refresh_token
+
+    http, session = api
+    await _login(http, session)
+    user = (await session.scalars(select(User))).one()
+    client = await get_client(session, "web-agri")
+    assert client is not None
+
+    issued = await issue_refresh_token(
+        session, user_id=user.id, client=client, fingerprint="fp-x", ip=None
+    )
+    root = await session.scalar(select(SessionRefresh).where(SessionRefresh.id == issued.family_id))
+    assert root is not None
+    # server_default now() is transaction-constant, so age the root explicitly:
+    # without a real gap the rotation descendant would share its timestamp and
+    # the assertion below would pass even against the broken query.
+    root_created = datetime.now(UTC) - timedelta(days=30)
+    root.created_at = root_created
+    await session.flush()
+
+    await rotate_refresh_token(session, token=issued.token, client=client, fingerprint="fp-x")
+
+    rows = (await http.get("/auth/devices")).json()["items"]
+    app_row = next(row for row in rows if row["kind"] == "web-agri")
+    assert datetime.fromisoformat(app_row["created_at"]) == root_created
 
 
 async def test_the_raw_user_agent_is_never_stored(

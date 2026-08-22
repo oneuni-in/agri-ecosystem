@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from modules.identity.backchannel import notify_logout_everywhere
 from modules.identity.device_kind import describe_device
@@ -428,6 +429,15 @@ class DeviceOut(IdentityPublicSchema):
     # when an mmdb is provisioned (an owner/VPS action) - unset means this is
     # None everywhere, which the UI renders by simply omitting the place.
     place: str | None
+    # Opaque "these rows are one physical device" key, so the screen can show a
+    # laptop once with its sites listed instead of once per site. It is the
+    # stored device fingerprint, which is a hash of the user agent and is
+    # returned only to the account that owns the row - knowing it grants
+    # nothing, since rotation re-derives it from the presenting request's own
+    # headers. Named for the job it does here so the derivation stays free to
+    # change. None for rows that never recorded one; the UI then treats the row
+    # as its own group rather than lumping every unknown together.
+    device_group: str | None
 
 
 class DevicesOut(BaseModel):
@@ -466,14 +476,24 @@ async def list_devices(
             last_seen_at=row.last_seen_at,
             device_kind=row.device_kind,
             place=state_for_ip(row.ip) if row.ip else None,
+            device_group=row.device_fingerprint,
         )
         for row in page.items
     ]
     if cursor is None:
+        # The live row of a family is whatever the last rotation minted, and it
+        # is minted fresh on every silent token refresh. Its created_at is
+        # therefore "when this app last refreshed", not "when this device signed
+        # in" - reporting it made weeks-old sessions read as brand-new devices.
+        # The family ROOT (id == family_id) carries the real sign-in moment, so
+        # join to it. LEFT join: a root that has aged out of the table must
+        # degrade to the leaf's own date, never drop the row off the screen.
+        root = aliased(SessionRefresh)
         family_rows = (
             await session.execute(
-                select(SessionRefresh, OAuthClient.client_id)
+                select(SessionRefresh, OAuthClient.client_id, root.created_at)
                 .join(OAuthClient, OAuthClient.id == SessionRefresh.client_id)
+                .outerjoin(root, root.id == SessionRefresh.family_id)
                 .where(
                     SessionRefresh.user_id == principal.user_id,
                     SessionRefresh.revoked_at.is_(None),
@@ -488,12 +508,13 @@ async def list_devices(
                 kind=client_id,
                 label=refresh.device_label,
                 current=False,
-                created_at=refresh.created_at,
+                created_at=root_created_at or refresh.created_at,
                 last_seen_at=refresh.last_used_at,
                 device_kind=refresh.device_kind,
                 place=state_for_ip(refresh.ip) if refresh.ip else None,
+                device_group=refresh.device_fingerprint,
             )
-            for refresh, client_id in family_rows
+            for refresh, client_id, root_created_at in family_rows
         )
     return DevicesOut(items=items, next_cursor=page.next_cursor)
 

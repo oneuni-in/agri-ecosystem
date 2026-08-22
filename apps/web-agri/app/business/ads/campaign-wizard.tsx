@@ -224,10 +224,15 @@ function QuoteRail({ draft }: { draft: WizardDraft }) {
 
 interface CampaignWizardProps {
   businessId: string;
+  /** The campaign was created and paid for — the list should refresh. */
   onDone: () => void;
+  /** A-U7: the visitor backed out. Distinct from `onDone` because leaving
+   * the wizard is not the same event as finishing it, and the list has
+   * nothing new to refetch. Optional so existing callers are unaffected. */
+  onCancel?: () => void;
 }
 
-export function CampaignWizard({ businessId, onDone }: CampaignWizardProps) {
+export function CampaignWizard({ businessId, onDone, onCancel }: CampaignWizardProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -376,7 +381,7 @@ export function CampaignWizard({ businessId, onDone }: CampaignWizardProps) {
             </span>
           ))}
         </div>
-        <Button type="button" variant="ghost" className="min-h-[44px] flex-none px-4" onClick={onDone}>
+        <Button type="button" variant="ghost" className="min-h-[44px] flex-none px-4" onClick={onCancel ?? onDone}>
           Close
         </Button>
       </div>

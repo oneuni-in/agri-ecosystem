@@ -12,7 +12,12 @@
  * SAME code — this file only binds them to Next's Link + usePathname.
  */
 
-import { ConsoleNavItem, ConsoleNavList, consoleNavLinkClass } from "@agri/ui";
+import {
+  ConsoleNavIcon,
+  ConsoleNavItem,
+  ConsoleNavList,
+  consoleNavLinkClass,
+} from "@agri/ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -22,16 +27,19 @@ export function ConsoleNavLinks({ modules }: { modules: ConsoleModule[] }) {
   const pathname = usePathname();
 
   return (
-    <ConsoleNavList>
+    // A-U7: `lg` — the business rail is 218px wide and only earns the space
+    // from `lg:` up; below that it is the same scrollable pill row.
+    <ConsoleNavList breakpoint="lg">
       {modules.map((entry) => {
         const active = pathname === entry.href;
         return (
-          <ConsoleNavItem key={entry.id}>
+          <ConsoleNavItem key={entry.id} breakpoint="lg">
             <Link
               href={entry.href}
               aria-current={active ? "page" : undefined}
-              className={consoleNavLinkClass(active)}
+              className={consoleNavLinkClass(active, "lg")}
             >
+              <ConsoleNavIcon>{entry.icon}</ConsoleNavIcon>
               {entry.title}
             </Link>
           </ConsoleNavItem>

@@ -7,9 +7,27 @@
  * detail/analytics panel (pause/resume, budget, stats, invoice).
  */
 
-import { Button, Card, EmptyState, Skeleton, cn } from "@agri/ui";
+import {
+  Button,
+  Card,
+  ConsoleMiniNote,
+  ConsolePanel,
+  ConsoleTopbar,
+  EmptyState,
+  Skeleton,
+  cn,
+  consoleGhostButtonClass,
+  consoleMoneyButtonClass,
+} from "@agri/ui";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ApiError, getJson, postJson } from "@/lib/api";
 
@@ -33,10 +51,24 @@ interface MyCampaign {
   status: string;
   display_status: string;
   price_paise: number | null;
+  /** Serve credits: how many of the purchased serves are already used.
+   * Both are on the list payload, so the table's Serves column costs
+   * nothing extra. */
+  budget_serves_total: number | null;
+  budget_serves_used: number;
   flight_start: string;
   flight_end: string;
   placements: PlacementSnapshot[];
 }
+
+/** The four numbers the campaigns table shows per row. `null` means that
+ * row's stats read failed — the row shows dashes, the table survives. */
+type RowStats = {
+  impressions: number;
+  clicks: number;
+  ctr_bp: number;
+  spend_paise: number | null;
+} | null;
 
 const FIELD =
   "mt-1 block min-h-[44px] w-full rounded-btn border border-line bg-card px-3 py-2 text-[13px] text-ink";
@@ -510,6 +542,59 @@ function CampaignDetailPanel({
   );
 }
 
+/**
+ * A-U7 W2 — the A3 reference's campaigns table (`#/ads`).
+ *
+ * Per-row impressions / clicks / CTR / spend come from
+ * `GET /ads/my/campaigns/{id}/stats`, one request per campaign on the visible
+ * page. The list payload does not carry them (they live in the day-
+ * partitioned tracking tables), and the reference's table is mostly those
+ * columns — so the choice was N bounded requests or a table of dashes. They
+ * fire in parallel, they are capped by the list's own page size, and a row
+ * whose stats have not landed shows "…" rather than a zero that looks
+ * measured.
+ *
+ * NO WALLET CARD. The reference leads with an ad balance ("₹2,150 · auto-
+ * invoiced with GST") and an "Add funds" button. There is no wallet:
+ * payment is per-campaign, at checkout, through `POST /billing/ad-orders`.
+ * A balance card would be an account that does not exist. The reference's
+ * Razorpay TEST-mode chip is left out for the same reason — no endpoint
+ * tells this client which mode billing is running in, and a hardcoded
+ * "TEST" would be a claim about production the page cannot make.
+ */
+function StatCells({ stats }: { stats: RowStats | undefined }) {
+  if (stats === undefined) {
+    return (
+      <>
+        <td className={TD_NUM}>…</td>
+        <td className={TD_NUM}>…</td>
+        <td className={TD_NUM}>…</td>
+      </>
+    );
+  }
+  if (stats === null) {
+    return (
+      <>
+        <td className={TD_NUM}>—</td>
+        <td className={TD_NUM}>—</td>
+        <td className={TD_NUM}>—</td>
+      </>
+    );
+  }
+  return (
+    <>
+      <td className={TD_NUM}>{stats.impressions.toLocaleString("en-IN")}</td>
+      <td className={TD_NUM}>{stats.clicks.toLocaleString("en-IN")}</td>
+      <td className={TD_NUM}>{(stats.ctr_bp / 100).toFixed(1)}%</td>
+    </>
+  );
+}
+
+const TH =
+  "border-b border-cream-line px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-muted";
+const TD = "border-b border-cream-line px-3 py-2.5 align-middle";
+const TD_NUM = `${TD} font-display font-semibold`;
+
 export function AdsConsoleClient() {
   const [businesses, setBusinesses] = useState<BusinessRef[] | null>(null);
   const [businessError, setBusinessError] = useState(false);
@@ -520,6 +605,8 @@ export function AdsConsoleClient() {
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  /** campaign id → stats, `null` once a fetch failed for that row. */
+  const [rowStats, setRowStats] = useState<Record<string, RowStats>>({});
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -550,6 +637,31 @@ export function AdsConsoleClient() {
     };
   }, []);
 
+  /** One stats read per campaign, in parallel. A failure is that row's
+   * problem: it shows dashes, the rest of the table is unaffected. */
+  const loadStats = (rows: MyCampaign[], businessId: string) => {
+    for (const row of rows) {
+      void (async () => {
+        try {
+          const body = await getJson(`/api/ads/my/campaigns/${row.id}/stats?days=30`);
+          if (selectedIdRef.current !== businessId) return;
+          setRowStats((prev) => ({
+            ...prev,
+            [row.id]: {
+              impressions: Number(body.impressions ?? 0),
+              clicks: Number(body.clicks ?? 0),
+              ctr_bp: Number(body.ctr_bp ?? 0),
+              spend_paise: body.spend_paise == null ? null : Number(body.spend_paise),
+            },
+          }));
+        } catch {
+          if (selectedIdRef.current !== businessId) return;
+          setRowStats((prev) => ({ ...prev, [row.id]: null }));
+        }
+      })();
+    }
+  };
+
   const loadCampaigns = async (businessId: string, cursorParam: string | null, append: boolean) => {
     if (append) setLoadingMore(true);
     else setListLoading(true);
@@ -562,6 +674,7 @@ export function AdsConsoleClient() {
       const items = (body.items as MyCampaign[] | undefined) ?? [];
       setCampaigns((prev) => (append ? [...prev, ...items] : items));
       setCursor((body.next_cursor as string | null | undefined) ?? null);
+      loadStats(items, businessId);
     } catch {
       if (selectedIdRef.current !== businessId) return;
       if (!append) {
@@ -581,6 +694,7 @@ export function AdsConsoleClient() {
     setCursor(null);
     setWizardOpen(false);
     setExpandedId(null);
+    setRowStats({});
     void loadCampaigns(selectedId, null, false);
   }, [selectedId]);
 
@@ -593,112 +707,229 @@ export function AdsConsoleClient() {
     if (selectedId) void loadCampaigns(selectedId, null, false);
   };
 
+  const topbar = (
+    <ConsoleTopbar
+      eyebrow="Ad engine · shared module, config per vertical"
+      title="Advertise · Campaigns"
+      sub="Sponsored is always labelled · organic ranking is never for sale · creatives are approved before they serve"
+      actions={
+        <>
+          <a href="/business/ads/register" className={consoleGhostButtonClass}>
+            Billing details
+          </a>
+          {selectedId ? (
+            <button
+              type="button"
+              className={consoleMoneyButtonClass}
+              onClick={() => setWizardOpen(true)}
+            >
+              + New campaign
+            </button>
+          ) : null}
+        </>
+      }
+    />
+  );
+
   if (businessError) {
     return (
-      <div className="mt-4">
+      <>
+        {topbar}
         <AlertNotice>Could not load your businesses — please try again.</AlertNotice>
-      </div>
+      </>
     );
   }
   if (businesses === null) {
     return (
-      <div className="mt-4 space-y-3">
-        <Skeleton width="100%" height="44px" />
-        <Skeleton width="100%" height="160px" />
-      </div>
+      <>
+        {topbar}
+        <div className="space-y-3">
+          <Skeleton width="100%" height="44px" />
+          <Skeleton width="100%" height="160px" />
+        </div>
+      </>
     );
   }
   if (businesses.length === 0) {
     return (
-      <EmptyState
-        className="mt-4"
-        icon="📣"
-        title="Create a listing first"
-        action={
-          <a href="/business/listings" className="text-[13px] font-semibold text-ink underline">
-            Go to listings
-          </a>
-        }
+      <>
+        {topbar}
+        <EmptyState
+          icon="📣"
+          title="Create a listing first"
+          action={
+            <a href="/business/listings" className="text-[13px] font-semibold text-ink underline">
+              Go to listings
+            </a>
+          }
+        />
+      </>
+    );
+  }
+
+  // A3 `#/ads-new` is a PAGE, not a panel inside the list: while the wizard
+  // is open it owns the whole surface, topbar included. Rendering both left
+  // two headings stacked on one screen.
+  if (wizardOpen && selectedId) {
+    return (
+      <CampaignWizard
+        businessId={selectedId}
+        onCancel={() => setWizardOpen(false)}
+        onDone={() => {
+          setWizardOpen(false);
+          refreshCampaigns();
+        }}
       />
     );
   }
 
   return (
-    <div className="mt-4 space-y-4">
-      <Suspense fallback={null}>
-        <PaidReturnBanner onSettled={refreshCampaigns} />
-      </Suspense>
+    <>
+      {topbar}
+      <div className="space-y-3">
+        <Suspense fallback={null}>
+          <PaidReturnBanner onSettled={refreshCampaigns} />
+        </Suspense>
 
-      <label className={LABEL}>
-        Business
-        <select className={FIELD} value={selectedId ?? ""} onChange={(e) => setSelectedId(e.target.value)}>
-          {businesses.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        {businesses.length > 1 ? (
+          <label className={LABEL}>
+            Business
+            <select
+              className={FIELD}
+              value={selectedId ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {businesses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
-      {listError ? (
-        <AlertNotice>Could not load campaigns — please try again.</AlertNotice>
-      ) : listLoading ? (
-        <Skeleton width="100%" height="120px" />
-      ) : campaigns.length === 0 ? (
-        <EmptyState icon="📢" title="No campaigns yet — start one below." />
-      ) : (
-        <div className="space-y-3">
-          {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="space-y-2 break-words p-4">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="min-w-0 break-words text-[13px] font-extrabold text-ink">
-                  {campaign.name}
-                </span>
-                <StatusChip status={campaign.display_status} />
+        {listError ? (
+          <AlertNotice>Could not load campaigns — please try again.</AlertNotice>
+        ) : listLoading ? (
+          <Skeleton width="100%" height="160px" />
+        ) : campaigns.length === 0 ? (
+          <ConsolePanel>
+            <EmptyState
+              icon="📢"
+              title="No campaigns yet"
+              description="Sponsored placement puts your listing at the top of your categories and pincodes. Approved creatives only — paid placement never changes organic ranking."
+              action={
+                <button
+                  type="button"
+                  className={consoleMoneyButtonClass}
+                  onClick={() => setWizardOpen(true)}
+                >
+                  + New campaign
+                </button>
+              }
+            />
+          </ConsolePanel>
+        ) : (
+          <ConsolePanel title={`Your campaigns · ${campaigns.length}`}>
+            {/* A3 `.tbl-wrap` — the table scrolls, the page never does. */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse text-xs">
+                <thead>
+                  <tr>
+                    <th className={TH}>Campaign</th>
+                    <th className={TH}>Status</th>
+                    <th className={TH}>Placement</th>
+                    <th className={TH}>Serves</th>
+                    <th className={TH}>Impressions</th>
+                    <th className={TH}>Clicks</th>
+                    <th className={TH}>CTR</th>
+                    <th className={TH}>Spend</th>
+                    <th className={TH} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaigns.map((campaign) => {
+                    const stats = rowStats[campaign.id];
+                    const spend =
+                      stats && stats.spend_paise != null ? rupees(stats.spend_paise) : null;
+                    return (
+                      <Fragment key={campaign.id}>
+                        <tr className="transition-colors hover:bg-cream">
+                          <td className={TD}>
+                            <b className="font-medium text-ink">{campaign.name}</b>
+                            <br />
+                            <small className="text-muted">
+                              {campaign.flight_start} – {campaign.flight_end}
+                            </small>
+                          </td>
+                          <td className={TD}>
+                            <StatusChip status={campaign.display_status} />
+                          </td>
+                          <td className={TD}>
+                            {campaign.placements.length > 0
+                              ? campaign.placements.map((p) => p.slot_key).join(", ")
+                              : "—"}
+                          </td>
+                          <td className={TD_NUM}>
+                            {campaign.budget_serves_total == null
+                              ? "—"
+                              : `${campaign.budget_serves_used.toLocaleString(
+                                  "en-IN",
+                                )} / ${campaign.budget_serves_total.toLocaleString("en-IN")}`}
+                          </td>
+                          <StatCells stats={stats} />
+                          <td className={TD_NUM}>
+                            {spend ??
+                              (campaign.price_paise != null ? rupees(campaign.price_paise) : "—")}
+                          </td>
+                          <td className={TD}>
+                            <button
+                              type="button"
+                              className="tap-target inline-flex min-h-[32px] items-center rounded-btn border border-cream-line bg-card px-3 text-[11px] font-medium text-brand-deep"
+                              onClick={() =>
+                                setExpandedId((prev) => (prev === campaign.id ? null : campaign.id))
+                              }
+                            >
+                              {expandedId === campaign.id ? "Hide" : "Manage"}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedId === campaign.id ? (
+                          <tr>
+                            <td className={`${TD} bg-cream`} colSpan={9}>
+                              <CampaignDetailPanel
+                                campaignId={campaign.id}
+                                onChanged={refreshCampaigns}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {cursor ? (
+              <div className="mt-3">
+                <Button type="button" variant="ghost" disabled={loadingMore} onClick={handleLoadMore}>
+                  {loadingMore ? "Loading..." : "Load more"}
+                </Button>
               </div>
-              <p className="text-[12px] text-sub">
-                {campaign.flight_start} → {campaign.flight_end}
-                {campaign.price_paise != null ? ` · ${rupees(campaign.price_paise)}` : " · Not priced yet"}
-              </p>
-              {campaign.placements.length > 0 ? (
-                <p className="text-[12px] text-sub">
-                  {campaign.placements.map((p) => p.slot_key).join(", ")}
-                </p>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-[44px] min-w-0 max-w-[200px] break-words"
-                onClick={() => setExpandedId((prev) => (prev === campaign.id ? null : campaign.id))}
-              >
-                {expandedId === campaign.id ? "Hide details" : "Manage"}
-              </Button>
-              {expandedId === campaign.id ? (
-                <CampaignDetailPanel campaignId={campaign.id} onChanged={refreshCampaigns} />
-              ) : null}
-            </Card>
-          ))}
-          {cursor ? (
-            <Button type="button" variant="ghost" disabled={loadingMore} onClick={handleLoadMore}>
-              {loadingMore ? "Loading..." : "Load more"}
-            </Button>
-          ) : null}
-        </div>
-      )}
+            ) : null}
 
-      {wizardOpen && selectedId ? (
-        <CampaignWizard
-          businessId={selectedId}
-          onDone={() => {
-            setWizardOpen(false);
-            refreshCampaigns();
-          }}
-        />
-      ) : (
-        <Button type="button" variant="brand" onClick={() => setWizardOpen(true)}>
-          New campaign
-        </Button>
-      )}
-    </div>
+            {/* The frequency cap is a server setting (ads_freq_cap_per_day),
+                not something this client is told — so it is described, not
+                quoted as a number the page cannot verify. */}
+            <ConsoleMiniNote>
+              Impressions, clicks and spend are per campaign over the last 30 days; open Manage for
+              the by-pincode and by-category split. Delivery is frequency-capped per viewer per day
+              and every served creative carries its Sponsored label.
+            </ConsoleMiniNote>
+          </ConsolePanel>
+        )}
+      </div>
+    </>
   );
 }

@@ -117,7 +117,20 @@ export async function SiteHeader() {
                 so the wrapper restyles its login button by selector — tokens
                 only, no fork of the auth package. */}
             <span className="contents [&_[data-testid=auth-login]]:!min-h-[44px] [&_[data-testid=auth-login]]:!flex-none [&_[data-testid=auth-login]]:!rounded-pill [&_[data-testid=auth-login]]:!bg-card [&_[data-testid=auth-login]]:!px-4 [&_[data-testid=auth-login]]:!text-[13px] [&_[data-testid=auth-login]]:!text-brand-deep">
-              <AuthCluster loginLabel={t("auth.login")} />
+              <AuthCluster
+                loginLabel={t("auth.login")}
+                // The avatar is Account, not a logout button (A1 §2 labels
+                // it "Account"). Log out lives inside the menu.
+                accountHref="/account"
+                accountLabel={t("nav.profile")}
+                logoutLabel={t("auth.logout")}
+                // Owner-scoped and permission-gated on purpose: a face is
+                // not a product photo, so it is fetched through this app's
+                // BFF proxy rather than served from a public prefix. 404 —
+                // the normal case, nobody has uploaded one — shows the
+                // initial instead.
+                photoSrc="/api/identity/profile/avatar"
+              />
             </span>
           </span>
         }

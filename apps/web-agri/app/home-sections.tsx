@@ -1,4 +1,5 @@
 import type { MandiCommodity, TodayPayload, TranslatedText } from "@agri/types";
+import Link from "next/link";
 import {
   AdCarousel,
   Badge,
@@ -970,8 +971,9 @@ export async function ReviewsStrip({ pincode }: { pincode: string }) {
                 : t("agriHome.reviews.coinsNudgeNoAmount")}
             </span>
           </div>
-          <a
+          <Link
             href="/directory"
+            prefetch={false}
             className={cn(
               buttonVariants({ variant: "ghost" }),
               "mt-3 inline-flex flex-none px-4 text-[12.5px] no-underline",
@@ -980,7 +982,7 @@ export async function ReviewsStrip({ pincode }: { pincode: string }) {
             {amount !== undefined
               ? t("agriHome.reviews.cta", { amount })
               : t("agriHome.reviews.ctaNoAmount")}
-          </a>
+          </Link>
         </div>
       </Section>
     );

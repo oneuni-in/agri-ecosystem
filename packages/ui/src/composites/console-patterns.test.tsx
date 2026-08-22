@@ -27,6 +27,7 @@ import {
   ConsolePanel,
   ConsoleRow,
   ConsoleShell,
+  ConsoleSidebarBrand,
   ConsoleStatRow,
   ConsoleStatTile,
   ConsoleTable,
@@ -40,15 +41,17 @@ describe("ConsoleShell", () => {
     <ConsoleShell
       navLabel="Business console"
       heading="Business console"
+      brand={<ConsoleSidebarBrand icon="🏪" name="AgroMart" sub="✓ Verified" />}
       nav={
-        <ConsoleNavList>
-          <ConsoleNavItem>
-            <a href="#" className={consoleNavLinkClass(true)}>
+        <ConsoleNavList breakpoint="lg">
+          <ConsoleNavItem breakpoint="lg">
+            <a href="#" className={consoleNavLinkClass(true, "lg")}>
               Dashboard
             </a>
           </ConsoleNavItem>
         </ConsoleNavList>
       }
+      footer="One AgriID"
     >
       <p>content</p>
     </ConsoleShell>,
@@ -57,6 +60,22 @@ describe("ConsoleShell", () => {
   it("renders one nav landmark with the given label", () => {
     expect(html).toContain('aria-label="Business console"');
     expect(html.match(/<nav/g)).toHaveLength(1);
+  });
+
+  it("A-U7: the heading is for screen readers, the brand card is the visible one", () => {
+    // The A3 rail shows the business, not the words "Business console" —
+    // but the landmark still needs a name that is not just an icon.
+    expect(html).toContain("sr-only");
+    expect(html).toContain("AgroMart");
+  });
+
+  it("A-U7: a white rail from lg:, a scrollable row below it", () => {
+    expect(html).toContain("lg:border-r");
+    expect(html).toContain("overflow-x-auto");
+  });
+
+  it("A-U7: the sidebar footer is desktop-only", () => {
+    expect(html).toMatch(/hidden[^"]*lg:block[^"]*">One AgriID/);
   });
 
   it("matches snapshot", () => {

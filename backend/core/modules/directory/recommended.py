@@ -1,17 +1,24 @@
 """M3.C: the "Recommended" rail ranking - ORGANIC ONLY.
 
-This function is the single source of the Recommended label (the storefront
-renders the label exclusively from milk-home's `recommended` field, which
-only this fn populates). Inputs are trust + service-quality signals:
-verification, approved-review ratings, lead first-response time, coverage
-freshness. Paid signals - subscription_tier, ad campaigns, budgets - MUST
-NEVER enter this scoring: paid can never buy the label (spec M3.C;
-test_milk_home_recommended.py::test_paid_signals_never_enter_ranking)."""
+This function is the single source of the Recommended label (every storefront
+renders the label exclusively from what this fn populates - milk-home's
+`recommended` field and, since A-U6, `/directory/covers`'s per-item flag).
+Inputs are trust + service-quality signals: verification, approved-review
+ratings, lead first-response time, coverage freshness. Paid signals -
+subscription_tier, ad campaigns, budgets - MUST NEVER enter this scoring:
+paid can never buy the label (spec M3.C;
+test_milk_home_recommended.py::test_paid_signals_never_enter_ranking).
+
+A-U6 widened the input type from MilkCard to the `Rankable` protocol below.
+Nothing about the scoring changed - the point is that agri.in's category
+landing gets THIS ranking rather than a second, drifting implementation of
+the same label.
+"""
 
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +26,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modules.directory.models import BusinessCoverage
 from modules.directory.reviews_models import RatingAggregate
 
-if TYPE_CHECKING:
-    from modules.directory.milk_home import MilkCard
+
+class Rankable(Protocol):
+    """The two fields the scoring reads off a candidate row. Both `MilkCard`
+    (milk-home) and `CoversItem` (the directory coverage read) satisfy it, so
+    one ranking serves both without either importing the other."""
+
+    @property
+    def id(self) -> uuid.UUID: ...
+
+    @property
+    def verification_status(self) -> str: ...
+
 
 RECOMMENDED_LIMIT = 3
 MIN_SCORE = 3.0  # verified floor - a no-signal unverified card never rails
@@ -48,7 +65,7 @@ _RESPONSE_SQL = text(
 
 
 async def rank_recommended(
-    session: AsyncSession, cards: Sequence["MilkCard"], *, now: datetime
+    session: AsyncSession, cards: Sequence[Rankable], *, now: datetime
 ) -> list[uuid.UUID]:
     """Top-RECOMMENDED_LIMIT business ids among `cards`, best first. Ties keep
     the caller's (organic covers) order - sorted() is stable. Only cards
@@ -82,7 +99,7 @@ async def rank_recommended(
         ).all()
     }
 
-    def score(card: "MilkCard") -> float:
+    def score(card: Rankable) -> float:
         s = _VERIFIED_POINTS if card.verification_status == "verified" else 0.0
         rated = ratings.get(card.id)
         if rated is not None:

@@ -878,7 +878,8 @@
         "agriTag": "mandi · weather · dealers",
         "milkTag": "milk vendors · cattle",
         "organicTag": "certified organic"
-      }
+      },
+      "logout": "Log out"
     },
     "badges": {
       "verified": "✔ Verified",
@@ -1079,7 +1080,16 @@
         "needCoverage": "Add delivery pincodes",
         "needProducts": "List products",
         "needAbout": "Add a description",
-        "allComplete": "Every listing is complete."
+        "allComplete": "Every listing is complete.",
+        "ownedCount": "{count} businesses · {verified} verified",
+        "greeting": "Welcome back",
+        "viewPublic": "👁 View public profile",
+        "promote": "📣 Promote",
+        "eyebrow": "BUSINESS CONSOLE · OWNERSHIP-ENFORCED",
+        "servedLine": "Your listings serve {pincodes} pincodes",
+        "promoteBody": "Sponsored placement puts your listing at the top of your categories and pincodes. Approved creatives only — paid placement never changes organic ranking.",
+        "promoteCta": "Start advertising",
+        "promoteNote": "Sponsored is always labelled. Money never buys the Recommended label."
       },
       "listings": {
         "loadFailed": "Could not load your businesses — please try again.",
@@ -1294,7 +1304,8 @@
         "saveFailed": "Could not update — please try again.",
         "loadFailed": "Could not load your preferences — please try again.",
         "openCenter": "Open notification center"
-      }
+      },
+      "shellFoot": "One AgriID — this console is the same engine that runs milk.in and theorganic.in, themed by config."
     },
     "dairyCategories": {
       "veterinarian": {

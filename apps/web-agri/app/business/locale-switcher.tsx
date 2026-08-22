@@ -33,7 +33,10 @@ export function ConsoleLocaleSwitcher() {
           lang={locale.code}
           aria-pressed={locale.code === active}
           className={cn(
-            "min-h-[44px] rounded-pill px-3 text-[12px] font-semibold",
+            // `min-w-[44px]` as well as the height: "EN" is only 41px wide
+            // at this padding, which clears the tap floor in one dimension
+            // and misses it in the other.
+            "min-h-[44px] min-w-[44px] rounded-pill px-3 text-[12px] font-semibold",
             locale.code === active ? "bg-brand-soft text-brand-deep" : "text-sub hover:bg-line",
           )}
           onClick={() => switchTo(locale.code)}

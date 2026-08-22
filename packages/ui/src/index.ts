@@ -6,6 +6,7 @@
  * Server-component-first; only Modal/Toast are client islands.
  */
 export { AdImage } from "./components/ad-image";
+export { AvatarMenu, AvatarMenuItem } from "./composites/avatar-menu";
 export { Badge } from "./components/badge";
 export { BottomNav } from "./components/bottom-nav";
 export type { BottomNavItem } from "./components/bottom-nav";
@@ -168,25 +169,51 @@ export {
   AdminDataTable,
   AdminShell,
   ConsoleCell,
+  ConsoleCheckRow,
   ConsoleField,
+  ConsoleFieldRow,
+  ConsoleGrid2,
   ConsoleHeadCell,
+  ConsoleKpi,
+  ConsoleKpiRow,
+  ConsoleLabel,
+  ConsoleLeadRow,
+  ConsoleMiniNote,
   ConsoleModuleCard,
+  ConsoleNavCount,
+  ConsoleNavIcon,
   ConsoleNavItem,
   ConsoleNavList,
   ConsoleNotice,
   ConsolePageHeader,
   ConsolePanel,
+  ConsolePolicyNote,
+  ConsoleProgress,
   ConsoleRow,
   ConsoleShell,
+  ConsoleSidebarBrand,
+  ConsoleSlotCard,
+  ConsoleSlotGrid,
   ConsoleStatRow,
   ConsoleStatTile,
+  ConsoleSummaryRow,
   ConsoleTable,
+  ConsoleTagOption,
+  ConsoleTagPick,
+  ConsoleTopbar,
+  ConsoleUploadDrop,
+  ConsoleWizardActions,
+  ConsoleWizardSteps,
   consoleControlClass,
+  consoleGhostButtonClass,
+  consoleMoneyButtonClass,
   consoleNavLinkClass,
+  consolePrimaryButtonClass,
   StateChip,
 } from "./composites/console-patterns";
 export type {
   AdminColumn,
+  ConsoleNavBreakpoint,
   ConsoleStateTone,
 } from "./composites/console-patterns";
 export { ConfirmAction } from "./composites/confirm-action";

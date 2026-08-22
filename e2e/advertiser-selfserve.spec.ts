@@ -141,9 +141,12 @@ test.describe("M5 advertiser self-serve (Task 17, NN1/NN2)", () => {
 
     // Step 2: Categories - ghee only (uncheck "All categories" first).
     await page.getByRole("checkbox", { name: /all categories/i }).uncheck();
-    const gheeCheckbox = page.getByRole("checkbox", { name: /^ghee$/i });
-    await expect(gheeCheckbox).toBeVisible({ timeout: 15_000 }); // /catalog/verticals/milk/schema fetch
-    await gheeCheckbox.check();
+    // A-U7: the category options are the A3 reference's `.tag-pick` chips —
+    // toggle buttons carrying aria-pressed, not checkboxes.
+    const gheeChip = page.getByRole("button", { name: /^ghee$/i });
+    await expect(gheeChip).toBeVisible({ timeout: 15_000 }); // /catalog/verticals/milk/schema fetch
+    await gheeChip.click();
+    await expect(gheeChip).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Step 3: Areas - specific pincode 641001.
@@ -395,10 +398,14 @@ test.describe("M5 advertiser self-serve (Task 17, NN1/NN2)", () => {
 
     // Categories
     await page.getByRole("checkbox", { name: /all categories/i }).uncheck();
-    const gheeCheckbox = page.getByRole("checkbox", { name: /^ghee$/i });
-    await expect(gheeCheckbox).toBeVisible({ timeout: 15_000 });
-    await gheeCheckbox.check();
-    await assertTappable(gheeCheckbox.locator("xpath=.."));
+    // A-U7: a `.tag-pick` chip — a toggle button, and the button IS the tap
+    // target (44px in its own right), so tappability is asserted on it and
+    // not on a wrapping label the way the native checkboxes above need.
+    const gheeChip = page.getByRole("button", { name: /^ghee$/i });
+    await expect(gheeChip).toBeVisible({ timeout: 15_000 });
+    await gheeChip.click();
+    await expect(gheeChip).toHaveAttribute("aria-pressed", "true");
+    await assertTappable(gheeChip);
     await assertNoHorizontalOverflow();
     await page.getByRole("button", { name: "Next", exact: true }).click();
 

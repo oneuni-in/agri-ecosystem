@@ -56,6 +56,27 @@ export interface CoverageItem {
   distance_m: number;
   lat: string | null;
   lng: string | null;
+  /**
+   * The branch a Call/WhatsApp tap on a card should reveal, or null when no
+   * branch on this business carries a number.
+   *
+   * An ID, never a number. `/directory/covers` still returns no phone or
+   * WhatsApp: only `POST /directory/branches/{id}/reveal` does, and that is
+   * login-gated, daily-capped and DPDP-logged (D18.C). Putting the id in the
+   * list payload moves the BUTTON to the card; it does not move the number.
+   */
+  contact_branch_id?: string | null;
+  /**
+   * The M3.C organic label, scored by the backend's `recommended.py` — the
+   * SAME ranking milk.in's rail uses (verification, approved-review ratings,
+   * lead first-response time, coverage freshness). Paid signals never enter
+   * it, which is why this is a distinct field from `subscription_tier` and
+   * why the badge must never be styled like the Sponsored pill.
+   *
+   * Optional on the wire: the flag defaults false server-side, so an older
+   * payload simply means "no badge" rather than a parse failure.
+   */
+  recommended?: boolean;
 }
 
 export interface CoveragePage {
@@ -198,4 +219,96 @@ export async function searchFederated(options: {
       searched: [],
     }
   );
+}
+
+/* ── A-U6 · the category landing (`/directory/[category]/[pincode]`) ────── */
+
+/** A pincode's district never changes. A day is a short window for a fact
+ * that is effectively permanent, and it keeps a flag flip visible same-day. */
+const DISTRICT_REVALIDATE = 86_400;
+
+/**
+ * "641001" → "Coimbatore", for the category landing's title and crumb.
+ *
+ * There is no geo lookup endpoint. `GET /market/today/{pincode}` is the only
+ * public read that resolves a pincode to its district, so that is what this
+ * calls — deliberately taking one field off a larger payload rather than
+ * inventing a district table the backend does not have.
+ *
+ * The route is gated by the `agri_today` flag and 404s while it is off, so
+ * this returns null often enough that null must be a first-class answer: the
+ * page falls back to "near 641001" rather than showing a district it cannot
+ * prove.
+ */
+export async function fetchDistrict(pincode: string): Promise<string | null> {
+  const body = await getJson<{ district?: string | null }>(
+    `/market/today/${encodeURIComponent(pincode)}`,
+    DISTRICT_REVALIDATE,
+  );
+  const district = body?.district;
+  return typeof district === "string" && district.trim() ? district : null;
+}
+
+/** One row of `GET /catalog/businesses/{slug}/products` (public, approved-only). */
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  business_name: string | null;
+  business_slug: string | null;
+  price_display: string | null;
+  specs: Record<string, unknown> | null;
+  images: string[] | null;
+}
+
+/** A business's approved catalogue. Empty on any failure — a catalogue
+ * service having a bad minute costs the strip, never the page. */
+export async function fetchBusinessProducts(
+  slug: string,
+  limit = 6,
+): Promise<CatalogProduct[]> {
+  const page = await getJson<{ items: CatalogProduct[] }>(
+    `/catalog/businesses/${encodeURIComponent(slug)}/products?limit=${limit}`,
+    DIRECTORY_REVALIDATE,
+  );
+  return page?.items ?? [];
+}
+
+/**
+ * The category landing's product strip.
+ *
+ * There is no "products in category X" read: `/catalog/verticals/{v}/products`
+ * is keyed by VERTICAL, and a category ("dairy") is not a vertical ("milk") —
+ * no mapping between them is exposed. Federated `/search?kind=product` is the
+ * other candidate and is not usable either: its agri index has no filterable
+ * attributes configured, so `kind` filtering 500s.
+ *
+ * So the strip is built from the businesses ALREADY on the page: their own
+ * approved catalogues, one product each until the strip is full. That makes
+ * the claim it renders exactly true — these are products from sellers serving
+ * this pincode — instead of a category-wide claim nothing can substantiate.
+ * One product per business, so a single large catalogue cannot own the strip
+ * (the same rule the home's review strip follows).
+ */
+export async function fetchStripProducts(
+  businesses: CoverageItem[],
+  want = 4,
+): Promise<CatalogProduct[]> {
+  const sources = businesses.slice(0, want * 2);
+  const lists = await Promise.all(
+    sources.map((business) => fetchBusinessProducts(business.slug, 2)),
+  );
+  const strip: CatalogProduct[] = [];
+  for (const [index, list] of lists.entries()) {
+    const first = list[0];
+    if (!first) continue;
+    const source = sources[index];
+    strip.push({
+      ...first,
+      business_name: first.business_name ?? source?.name ?? null,
+      business_slug: first.business_slug ?? source?.slug ?? null,
+    });
+    if (strip.length === want) break;
+  }
+  return strip;
 }

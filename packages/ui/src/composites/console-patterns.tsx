@@ -979,7 +979,12 @@ export function ConsoleTagOption({
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        "tap-target min-h-[36px] rounded-pill border-[1.5px] px-3.5 text-[11px] disabled:opacity-50",
+        // A real 44px box, not 36px plus a `tap-target` overlay. The A3
+        // reference draws these chips at ~26px, and the overlay exists for
+        // pills whose design demands smallness — but this is a wizard's
+        // primary multi-select on a phone, and an e2e helper that measures
+        // the box (rightly) cannot see a pseudo-element.
+        "min-h-[44px] rounded-pill border-[1.5px] px-3.5 text-[11px] disabled:opacity-50",
         selected
           ? "border-brand bg-brand-soft font-medium text-brand-deep"
           : "border-cream-line bg-card text-ink",

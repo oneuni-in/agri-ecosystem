@@ -17,7 +17,16 @@
  * campaign (server truth) rather than trusting `draft` for money.
  */
 
-import { Button, Card, Skeleton, cn } from "@agri/ui";
+import {
+  Card,
+  ConsolePanel,
+  ConsoleTopbar,
+  ConsoleWizardActions,
+  ConsoleWizardSteps,
+  Skeleton,
+  consoleGhostButtonClass,
+  consolePrimaryButtonClass,
+} from "@agri/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ApiError, getJson, patchJson, postJson } from "@/lib/api";
@@ -359,89 +368,92 @@ export function CampaignWizard({ businessId, onDone, onCancel }: CampaignWizardP
     setStepError(null);
     if (stepIndex > 0) setStepIndex((s) => s - 1);
   };
-
   return (
-    <Card className="space-y-4 break-words p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Campaign steps">
-          {STEPS.map((label, i) => (
-            <span
-              key={label}
-              aria-current={i === stepIndex ? "step" : undefined}
-              className={cn(
-                "min-h-[32px] rounded-pill px-3 py-1 text-[12px] font-semibold",
-                i === stepIndex
-                  ? "bg-ink text-card"
-                  : i < stepIndex
-                    ? "bg-verified-bg text-verified-fg"
-                    : "bg-line text-sub",
-              )}
-            >
-              {i + 1}. {label}
-            </span>
-          ))}
-        </div>
-        <Button type="button" variant="ghost" className="min-h-[44px] flex-none px-4" onClick={onCancel ?? onDone}>
-          Close
-        </Button>
-      </div>
+    <>
+      {/* A3 `#/ads-new`: the wizard is its own page-level surface, not a card
+          inside the list — the topbar names it and the rail says where you
+          are. The reference stacks all five panels at once because it is a
+          static mock; this is one step at a time, which is what the M5 flow
+          actually is (each step can save server-side before the next). */}
+      <ConsoleTopbar
+        eyebrow="M5 · Advertiser self-serve · campaign wizard"
+        title="New campaign"
+        sub="Categories × pincodes × schedule · versioned rate card (tier × category) · pay per week"
+        actions={
+          <button type="button" className={consoleGhostButtonClass} onClick={onCancel ?? onDone}>
+            Close
+          </button>
+        }
+      />
 
-      {stepIndex === 0 ? <GoalStep draft={draft} onChange={updateDraft} /> : null}
-      {stepIndex === 1 ? (
-        <CategoriesStep draft={draft} onChange={updateDraft} options={categoryOptions} />
-      ) : null}
-      {stepIndex === 2 ? <AreasStep draft={draft} onChange={updateDraft} /> : null}
-      {stepIndex === 3 ? <ScheduleStep draft={draft} onChange={updateDraft} /> : null}
-      {stepIndex === 4 ? (
-        campaignId ? (
-          <CreativesStep campaignId={campaignId} />
-        ) : (
-          <AlertNotice>Something went wrong saving this campaign — please restart it.</AlertNotice>
-        )
-      ) : null}
-      {stepIndex === 5 ? (
-        campaignId ? (
-          <ReviewPayStep campaignId={campaignId} draft={draft} />
-        ) : (
-          <AlertNotice>Something went wrong saving this campaign — please restart it.</AlertNotice>
-        )
-      ) : null}
+      <ConsoleWizardSteps steps={STEPS} current={stepIndex} label="Campaign steps" />
 
-      {stepIndex >= 1 && stepIndex <= 3 ? <QuoteRail draft={draft} /> : null}
+      <ConsolePanel title={`${stepIndex + 1} · ${STEPS[stepIndex]}`}>
+        {stepIndex === 0 ? <GoalStep draft={draft} onChange={updateDraft} /> : null}
+        {stepIndex === 1 ? (
+          <CategoriesStep draft={draft} onChange={updateDraft} options={categoryOptions} />
+        ) : null}
+        {stepIndex === 2 ? <AreasStep draft={draft} onChange={updateDraft} /> : null}
+        {stepIndex === 3 ? <ScheduleStep draft={draft} onChange={updateDraft} /> : null}
+        {stepIndex === 4 ? (
+          campaignId ? (
+            <CreativesStep campaignId={campaignId} />
+          ) : (
+            <AlertNotice>
+              Something went wrong saving this campaign — please restart it.
+            </AlertNotice>
+          )
+        ) : null}
+        {stepIndex === 5 ? (
+          campaignId ? (
+            <ReviewPayStep campaignId={campaignId} draft={draft} />
+          ) : (
+            <AlertNotice>
+              Something went wrong saving this campaign — please restart it.
+            </AlertNotice>
+          )
+        ) : null}
 
-      {stepError ? <AlertNotice>{stepError}</AlertNotice> : null}
+        {stepError ? (
+          <div className="mt-3">
+            <AlertNotice>{stepError}</AlertNotice>
+          </div>
+        ) : null}
 
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          className="min-h-[44px] min-w-0 max-w-[240px] break-words"
-          disabled={stepIndex === 0}
-          onClick={handleBack}
+        <ConsoleWizardActions
+          back={
+            stepIndex > 0 ? (
+              <button type="button" className={consoleGhostButtonClass} onClick={handleBack}>
+                ← Back
+              </button>
+            ) : null
+          }
         >
-          Back
-        </Button>
-        {stepIndex < STEPS.length - 1 ? (
-          <Button
-            type="button"
-            variant="brand"
-            className="min-h-[44px] min-w-0 max-w-[240px] break-words"
-            disabled={saving}
-            onClick={() => void handleNext()}
-          >
-            {saving ? "Saving..." : stepIndex === 3 ? "Save & continue" : "Next"}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="brand"
-            className="min-h-[44px] min-w-0 max-w-[240px] break-words"
-            onClick={onDone}
-          >
-            Back to campaigns
-          </Button>
-        )}
-      </div>
-    </Card>
+          {stepIndex < STEPS.length - 1 ? (
+            <button
+              type="button"
+              className={consolePrimaryButtonClass}
+              disabled={saving}
+              onClick={() => void handleNext()}
+            >
+              {saving ? "Saving..." : stepIndex === 3 ? "Save & continue" : "Next"}
+            </button>
+          ) : (
+            <button type="button" className={consolePrimaryButtonClass} onClick={onDone}>
+              Back to campaigns
+            </button>
+          )}
+        </ConsoleWizardActions>
+      </ConsolePanel>
+
+      {/* The live quote sits BESIDE the steps that change it, so the price
+          moves while the targeting does — the reference folds it into the
+          budget panel, which cannot show the effect of a category change. */}
+      {stepIndex >= 1 && stepIndex <= 3 ? (
+        <div className="mt-3">
+          <QuoteRail draft={draft} />
+        </div>
+      ) : null}
+    </>
   );
 }

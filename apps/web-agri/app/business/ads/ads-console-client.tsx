@@ -712,8 +712,12 @@ export function AdsConsoleClient() {
       title="Advertise · Campaigns"
       sub="Sponsored is always labelled · organic ranking is never for sale · creatives are approved before they serve"
       actions={
-        !wizardOpen && selectedId ? (
-          <button type="button" className={consoleMoneyButtonClass} onClick={() => setWizardOpen(true)}>
+        selectedId ? (
+          <button
+            type="button"
+            className={consoleMoneyButtonClass}
+            onClick={() => setWizardOpen(true)}
+          >
             + New campaign
           </button>
         ) : null
@@ -757,6 +761,22 @@ export function AdsConsoleClient() {
     );
   }
 
+  // A3 `#/ads-new` is a PAGE, not a panel inside the list: while the wizard
+  // is open it owns the whole surface, topbar included. Rendering both left
+  // two headings stacked on one screen.
+  if (wizardOpen && selectedId) {
+    return (
+      <CampaignWizard
+        businessId={selectedId}
+        onCancel={() => setWizardOpen(false)}
+        onDone={() => {
+          setWizardOpen(false);
+          refreshCampaigns();
+        }}
+      />
+    );
+  }
+
   return (
     <>
       {topbar}
@@ -782,16 +802,7 @@ export function AdsConsoleClient() {
           </label>
         ) : null}
 
-        {wizardOpen && selectedId ? (
-          <CampaignWizard
-            businessId={selectedId}
-            onCancel={() => setWizardOpen(false)}
-            onDone={() => {
-              setWizardOpen(false);
-              refreshCampaigns();
-            }}
-          />
-        ) : listError ? (
+        {listError ? (
           <AlertNotice>Could not load campaigns — please try again.</AlertNotice>
         ) : listLoading ? (
           <Skeleton width="100%" height="160px" />

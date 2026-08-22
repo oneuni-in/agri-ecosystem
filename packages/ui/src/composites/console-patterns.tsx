@@ -804,6 +804,261 @@ export function AdminShell({
   );
 }
 
+/* ── A-U7: the A3 campaign-wizard shapes ───────────────────────────────── */
+
+/**
+ * The A3 `.wiz-steps` progress rail: numbered circles joined by a line,
+ * green behind you, gold where you are, grey ahead.
+ *
+ * Real elements rather than the reference's `::before`/`::after` — the step
+ * numbers and the connector are drawn, and a pseudo-element cannot carry
+ * `aria-current`. The list is the accessible name for "which step am I on",
+ * which the reference's CSS-only version has no way to say.
+ */
+export function ConsoleWizardSteps({
+  steps,
+  current,
+  label,
+}: {
+  steps: readonly string[];
+  /** Zero-based index of the step being shown. */
+  current: number;
+  label: string;
+}) {
+  return (
+    <ol className="my-1 mb-4 flex list-none gap-0 overflow-x-auto p-0" aria-label={label}>
+      {steps.map((step, i) => {
+        const done = i < current;
+        const now = i === current;
+        return (
+          <li
+            key={step}
+            aria-current={now ? "step" : undefined}
+            className={cn(
+              "relative min-w-[110px] flex-1 pt-[26px] text-center text-[10.5px]",
+              done && "text-brand-deep",
+              now && "font-medium text-ink",
+              !done && !now && "text-muted",
+            )}
+          >
+            {/* connector — absent on the last step */}
+            {i < steps.length - 1 ? (
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute left-[calc(50%+14px)] right-[calc(-50%+14px)] top-[11px] h-0.5",
+                  done ? "bg-brand-soft-2" : "bg-cream-deep",
+                )}
+              />
+            ) : null}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "absolute left-1/2 top-0 flex h-[22px] w-[22px] -translate-x-1/2 items-center justify-center rounded-full text-[10px] font-semibold",
+                done && "bg-brand text-white",
+                now && "bg-accent text-accent-ink",
+                !done && !now && "bg-cream-deep text-muted",
+              )}
+            >
+              {i + 1}
+            </span>
+            {step}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** A3 `.slot-grid`: two across from `sm:`, one on a phone. */
+export function ConsoleSlotGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-2.5 sm:grid-cols-2">{children}</div>;
+}
+
+/**
+ * A3 `.slot`: one placement option — emoji, name, what it actually is, and
+ * the price pill in the corner.
+ *
+ * `price` is a slot, not a number: what a placement costs depends on the
+ * tier and category mix, so the caller passes whatever it can honestly say
+ * (a quoted figure, "by quote", or nothing at all).
+ */
+export function ConsoleSlotCard({
+  selected,
+  onSelect,
+  icon,
+  title,
+  description,
+  price,
+  disabled = false,
+  children,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  icon: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  price?: ReactNode;
+  disabled?: boolean;
+  /** Extra controls revealed when this option is the selected one. */
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      role="radio"
+      aria-checked={selected}
+      aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : 0}
+      onClick={disabled ? undefined : onSelect}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={cn(
+        "relative cursor-pointer rounded-card border-[1.5px] px-4 py-3.5 text-left transition-[border-color,background,transform] duration-150",
+        "hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        selected ? "border-brand bg-brand-soft" : "border-cream-line bg-card",
+        disabled && "cursor-not-allowed opacity-60",
+      )}
+    >
+      {price ? (
+        <span className="absolute right-3.5 top-3 rounded-pill bg-sponsored-bg px-2.5 py-[3px] text-[10.5px] font-semibold text-sponsored-fg">
+          {price}
+        </span>
+      ) : null}
+      <span aria-hidden="true" className="block text-xl leading-none">
+        {icon}
+      </span>
+      <b className="mt-1.5 block text-[13px] font-medium text-ink">{title}</b>
+      {description ? (
+        <small className="mt-0.5 block text-[10.5px] leading-relaxed text-muted">
+          {description}
+        </small>
+      ) : null}
+      {children ? (
+        // Nested controls must not re-fire the card's own select handler.
+        <div className="mt-2 border-t border-cream-line pt-2" onClick={(e) => e.stopPropagation()}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** A3 `.tag-pick`: a wrapping row of selectable chips. */
+export function ConsoleTagPick({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="mt-2 flex flex-wrap gap-1.5">
+      {children}
+    </div>
+  );
+}
+
+export function ConsoleTagOption({
+  selected,
+  onSelect,
+  children,
+  disabled = false,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        "tap-target min-h-[36px] rounded-pill border-[1.5px] px-3.5 text-[11px] disabled:opacity-50",
+        selected
+          ? "border-brand bg-brand-soft font-medium text-brand-deep"
+          : "border-cream-line bg-card text-ink",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** A3 `.f-row`: two fields side by side, stacked on a phone. */
+export function ConsoleFieldRow({ children }: { children: ReactNode }) {
+  return <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">{children}</div>;
+}
+
+/** A3 `.lbl`: the small label above a console field. */
+export function ConsoleLabel({ children }: { children: ReactNode }) {
+  return <span className="mb-1 block text-[11px] font-medium text-sub">{children}</span>;
+}
+
+/** A3 `.upload`: the dashed drop zone. Presentation only — the caller wires
+ * the actual input, because file handling is never the catalog's business. */
+export function ConsoleUploadDrop({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-card border-2 border-dashed border-brand-soft-2 bg-cream p-6 text-center text-xs text-muted">
+      {children}
+    </div>
+  );
+}
+
+/** A3 `.policy`: the standing rule under a step, in the quieter register. */
+export function ConsolePolicyNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-2.5 rounded-btn bg-cream-deep px-3.5 py-2.5 text-[10.5px] leading-relaxed text-muted">
+      {children}
+    </p>
+  );
+}
+
+/** A3 `.sum-row`: one line of the review summary. */
+export function ConsoleSummaryRow({
+  label,
+  children,
+  emphasis = false,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+  /** The total line — larger, display face. */
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex justify-between gap-3 border-b border-cream-line py-2 text-xs last:border-b-0">
+      <span className="text-muted">{label}</span>
+      <b
+        className={cn(
+          "text-right font-medium text-ink",
+          emphasis && "font-display text-base font-semibold",
+        )}
+      >
+        {children}
+      </b>
+    </div>
+  );
+}
+
+/** A3 `.wiz-actions`: back on the left, commit on the right. */
+export function ConsoleWizardActions({
+  back,
+  children,
+}: {
+  /** The "← Back" control, if this step has one. */
+  back?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      {back}
+      <span className="flex-1" />
+      {children}
+    </div>
+  );
+}
+
 /* ── U3 · admin data table ─────────────────────────────────────────────── */
 
 /** One column of an `AdminDataTable`. */

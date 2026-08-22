@@ -12,7 +12,22 @@
  * Razorpay redirect) alongside the four above.
  */
 
-import { AdImage, Button, Card, Skeleton, cn } from "@agri/ui";
+import {
+  AdImage,
+  Button,
+  Card,
+  ConsoleFieldRow,
+  ConsoleLabel,
+  ConsolePolicyNote,
+  ConsoleSlotCard,
+  ConsoleSlotGrid,
+  ConsoleSummaryRow,
+  ConsoleTagOption,
+  ConsoleTagPick,
+  ConsoleUploadDrop,
+  Skeleton,
+  cn,
+} from "@agri/ui";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ApiError, getJson, postJson } from "@/lib/api";
@@ -90,43 +105,6 @@ function AlertNotice({ children }: { children: ReactNode }) {
   );
 }
 
-function RadioCard({
-  selected,
-  onSelect,
-  title,
-  subtitle,
-  children,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  title: string;
-  subtitle?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div
-      role="radio"
-      aria-checked={selected}
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className={cn(
-        "min-h-[44px] cursor-pointer rounded-card border-2 p-3",
-        selected ? "border-brand bg-brand-soft" : "border-line bg-card",
-      )}
-    >
-      <p className="text-[13px] font-extrabold text-ink">{title}</p>
-      {subtitle ? <p className="text-[12px] text-sub">{subtitle}</p> : null}
-      {children}
-    </div>
-  );
-}
-
 export function GoalStep({ draft, onChange }: StepProps) {
   const toggleBannerSlot = (key: string) => {
     if (draft.slotKeys.includes(key)) {
@@ -150,43 +128,53 @@ export function GoalStep({ draft, onChange }: StepProps) {
         />
       </label>
 
-      <div className="space-y-2" role="radiogroup" aria-label="Ad goal">
-        <RadioCard
-          selected={draft.goalMode === "banner"}
-          onSelect={() => onChange({ goalMode: "banner", slotKeys: [] })}
-          title="Banner ads"
-          subtitle="Image banners shown across the milk site"
-        >
-          {draft.goalMode === "banner" ? (
-            <div className="mt-2 space-y-1 border-t border-line pt-2" onClick={(e) => e.stopPropagation()}>
-              <p className="text-[12px] text-sub">Choose up to {MAX_BANNER_SLOTS} placements</p>
-              {BANNER_SLOTS.map((slot) => (
-                <label
-                  key={slot.key}
-                  className="flex min-h-[44px] min-w-0 items-center gap-2 text-[13px] text-ink"
-                >
-                  <input
-                    type="checkbox"
-                    className="min-h-[20px] min-w-[20px] flex-none"
-                    checked={draft.slotKeys.includes(slot.key)}
-                    disabled={
-                      !draft.slotKeys.includes(slot.key) && draft.slotKeys.length >= MAX_BANNER_SLOTS
-                    }
-                    onChange={() => toggleBannerSlot(slot.key)}
-                  />
-                  <span className="min-w-0 break-words">{slot.label}</span>
-                </label>
-              ))}
-            </div>
-          ) : null}
-        </RadioCard>
-        <RadioCard
-          selected={draft.goalMode === "sponsored"}
-          onSelect={() => onChange({ goalMode: "sponsored", slotKeys: [SPONSORED_SLOT] })}
-          title="Sponsored listing"
-          subtitle="Your listing highlighted in search results"
-        />
-      </div>
+      {/* A3 `.slot-grid`. NO price pill: the reference prints "from ₹499/wk"
+          on each option, but price here comes from the versioned rate card
+          and depends on the tier × category mix chosen two steps later —
+          POST /ads/my/quote is the only thing that knows it, and it answers
+          for a whole draft, not for one placement. The live quote appears
+          under the targeting steps instead, where it can be true. */}
+      <ConsoleSlotGrid>
+        <div className="contents" role="radiogroup" aria-label="Ad goal">
+          <ConsoleSlotCard
+            selected={draft.goalMode === "sponsored"}
+            onSelect={() => onChange({ goalMode: "sponsored", slotKeys: [SPONSORED_SLOT] })}
+            icon="⭐"
+            title="Sponsored listing"
+            description="Your listing highlighted in results, always labelled “Sponsored”. Organic order is untouched."
+          />
+          <ConsoleSlotCard
+            selected={draft.goalMode === "banner"}
+            onSelect={() => onChange({ goalMode: "banner", slotKeys: [] })}
+            icon="🖼️"
+            title="Banner ads"
+            description={`Image banners across the site. Choose up to ${MAX_BANNER_SLOTS} placements.`}
+          >
+            {draft.goalMode === "banner" ? (
+              <div className="space-y-1">
+                {BANNER_SLOTS.map((slot) => (
+                  <label
+                    key={slot.key}
+                    className="flex min-h-[44px] min-w-0 items-center gap-2 text-[12.5px] text-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      className="min-h-[20px] min-w-[20px] flex-none accent-brand"
+                      checked={draft.slotKeys.includes(slot.key)}
+                      disabled={
+                        !draft.slotKeys.includes(slot.key) &&
+                        draft.slotKeys.length >= MAX_BANNER_SLOTS
+                      }
+                      onChange={() => toggleBannerSlot(slot.key)}
+                    />
+                    <span className="min-w-0 break-words">{slot.label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </ConsoleSlotCard>
+        </div>
+      </ConsoleSlotGrid>
     </div>
   );
 }
@@ -223,22 +211,19 @@ export function CategoriesStep({
         options.length === 0 ? (
           <Skeleton width="100%" height="120px" />
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          // A3 `.tag-pick`: chips, not a checkbox grid. `aria-pressed` on a
+          // real button carries the same state the checkbox did.
+          <ConsoleTagPick label="Categories">
             {options.map((option) => (
-              <label
+              <ConsoleTagOption
                 key={option.slug}
-                className="flex min-h-[44px] min-w-0 items-center gap-2 break-words rounded-btn border border-line bg-card px-2 text-[13px] text-ink"
+                selected={draft.categories.includes(option.slug)}
+                onSelect={() => toggleCategory(option.slug)}
               >
-                <input
-                  type="checkbox"
-                  className="min-h-[20px] min-w-[20px] flex-none"
-                  checked={draft.categories.includes(option.slug)}
-                  onChange={() => toggleCategory(option.slug)}
-                />
-                <span className="min-w-0 break-words">{option.label}</span>
-              </label>
+                {option.label}
+              </ConsoleTagOption>
             ))}
-          </div>
+          </ConsoleTagPick>
         )
       ) : null}
     </div>
@@ -283,16 +268,25 @@ export function AreasStep({ draft, onChange }: StepProps) {
   };
 
   return (
-    <div className="space-y-2" role="radiogroup" aria-label="Area targeting">
-      <RadioCard selected={draft.areaMode === "all"} onSelect={() => onChange({ areaMode: "all" })} title="All of India" />
+    <ConsoleSlotGrid>
+      <div className="contents" role="radiogroup" aria-label="Area targeting">
+      <ConsoleSlotCard
+        selected={draft.areaMode === "all"}
+        onSelect={() => onChange({ areaMode: "all" })}
+        icon="🇮🇳"
+        title="All of India"
+        description="Serve wherever the placement runs."
+      />
 
-      <RadioCard
+      <ConsoleSlotCard
         selected={draft.areaMode === "pincodes"}
         onSelect={() => onChange({ areaMode: "pincodes" })}
+        icon="📍"
         title="Specific pincodes"
+        description={`Up to ${MAX_PINCODES} pincodes you name.`}
       >
         {draft.areaMode === "pincodes" ? (
-          <div className="mt-2 space-y-2 border-t border-line pt-2" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-2">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -333,31 +327,31 @@ export function AreasStep({ draft, onChange }: StepProps) {
             </p>
           </div>
         ) : null}
-      </RadioCard>
+      </ConsoleSlotCard>
 
-      <RadioCard
+      <ConsoleSlotCard
         selected={draft.areaMode === "tiers"}
         onSelect={() => onChange({ areaMode: "tiers" })}
+        icon="🏘️"
         title="By town tier"
-        subtitle="Tamil Nadu only in this release"
+        description="Tiers are automatic (M4 census + user count, promote-only). Tamil Nadu only in this release."
       >
         {draft.areaMode === "tiers" ? (
-          <div className="mt-2 space-y-1 border-t border-line pt-2" onClick={(e) => e.stopPropagation()}>
+          <ConsoleTagPick label="Town tiers">
             {[1, 2, 3, 4, 5].map((tier) => (
-              <label key={tier} className="flex min-h-[44px] min-w-0 items-center gap-2 text-[13px] text-ink">
-                <input
-                  type="checkbox"
-                  className="min-h-[20px] min-w-[20px] flex-none"
-                  checked={draft.tiers.includes(tier)}
-                  onChange={() => toggleTier(tier)}
-                />
-                <span className="min-w-0 break-words">{TIER_LABELS[tier]}</span>
-              </label>
+              <ConsoleTagOption
+                key={tier}
+                selected={draft.tiers.includes(tier)}
+                onSelect={() => toggleTier(tier)}
+              >
+                {TIER_LABELS[tier]}
+              </ConsoleTagOption>
             ))}
-          </div>
+          </ConsoleTagPick>
         ) : null}
-      </RadioCard>
-    </div>
+      </ConsoleSlotCard>
+      </div>
+    </ConsoleSlotGrid>
   );
 }
 
@@ -381,46 +375,42 @@ export function ScheduleStep({ draft, onChange }: StepProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className={LABEL}>
-          Start date
+      <ConsoleFieldRow>
+        <label className="block">
+          <ConsoleLabel>Start</ConsoleLabel>
           <input
             type="date"
-            className={FIELD}
+            className={cn(FIELD, "mt-0")}
             value={draft.flightStart}
             onChange={(e) => onChange({ flightStart: e.target.value })}
           />
         </label>
-        <label className={LABEL}>
-          End date
+        <label className="block">
+          <ConsoleLabel>End</ConsoleLabel>
           <input
             type="date"
-            className={FIELD}
+            className={cn(FIELD, "mt-0")}
             value={draft.flightEnd}
             onChange={(e) => onChange({ flightEnd: e.target.value })}
           />
         </label>
-      </div>
+      </ConsoleFieldRow>
       {dateError ? <AlertNotice>The end date must be after the start date.</AlertNotice> : null}
 
       {model === "cpm" ? (
         <div className="space-y-2">
-          <p className={LABEL}>Ad views to buy</p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Ad view presets">
+          <ConsoleLabel>Ad views to buy</ConsoleLabel>
+          <ConsoleTagPick label="Ad view presets">
             {SERVES_PRESETS.map((preset) => (
-              <button
+              <ConsoleTagOption
                 key={preset}
-                type="button"
-                onClick={() => onChange({ servesTotal: preset })}
-                className={cn(
-                  "min-h-[44px] rounded-pill px-4 text-[13px] font-semibold",
-                  draft.servesTotal === preset ? "bg-ink text-card" : "bg-line text-ink",
-                )}
+                selected={draft.servesTotal === preset}
+                onSelect={() => onChange({ servesTotal: preset })}
               >
                 {(preset / 1000).toLocaleString("en-IN")}k
-              </button>
+              </ConsoleTagOption>
             ))}
-          </div>
+          </ConsoleTagPick>
           <label className={LABEL}>
             Or a custom number (min {MIN_CPM_SERVES.toLocaleString("en-IN")})
             <input
@@ -618,14 +608,29 @@ function CreativeForm({
   return (
     <form className="space-y-3 rounded-card border border-line bg-ghost p-3" onSubmit={(e) => void submit(e)}>
       {isEdit ? <AlertNotice>Editing sends this ad for review again.</AlertNotice> : null}
-      <label className={LABEL}>
-        Image (optional)
-        <input
-          type="file"
-          accept={CREATIVE_ACCEPT}
-          className={FIELD}
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-        />
+      {/* A3 `.upload`. A real <input type=file> inside the zone rather than a
+          scripted drop target: the input is what works with a keyboard, a
+          screen reader and every phone browser, and the dashed frame is the
+          label around it. */}
+      <label className="block cursor-pointer">
+        <ConsoleUploadDrop>
+          <span aria-hidden="true" className="mb-1.5 block text-[28px]">
+            🖼️
+          </span>
+          <b className="block text-[12.5px] font-medium text-ink">Choose an image</b>
+          <span className="mt-0.5 block">
+            JPG or PNG · EXIF is stripped on upload · image-only in v1
+          </span>
+          <span className="mt-0.5 block text-[10.5px]">
+            No misleading claims · no price-guarantee wording · Tamil and English both welcome
+          </span>
+          <input
+            type="file"
+            accept={CREATIVE_ACCEPT}
+            className="sr-only"
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          />
+        </ConsoleUploadDrop>
       </label>
       {previewUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- local blob: preview, never a remote/optimizable URL
@@ -939,77 +944,57 @@ export function ReviewPayStep({ campaignId, draft }: { campaignId: string; draft
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-2 p-4">
-        <p className="text-[13px] font-extrabold text-ink">{draft.name}</p>
-        <dl className="space-y-1 text-[13px] text-ink">
-          <div className="flex gap-2">
-            <dt className="min-w-0 flex-1 break-words text-sub">Goal</dt>
-            <dd className="min-w-0 flex-1 break-words text-right">{goalSummary}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="min-w-0 flex-1 break-words text-sub">Categories</dt>
-            <dd className="min-w-0 flex-1 break-words text-right">{categorySummary}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="min-w-0 flex-1 break-words text-sub">Areas</dt>
-            <dd className="min-w-0 flex-1 break-words text-right">{areaSummary}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="min-w-0 flex-1 break-words text-sub">Schedule</dt>
-            <dd className="min-w-0 flex-1 break-words text-right">
-              {draft.flightStart} → {draft.flightEnd}
-            </dd>
-          </div>
-          {draft.servesTotal !== null ? (
-            <div className="flex gap-2">
-              <dt className="min-w-0 flex-1 break-words text-sub">Ad views</dt>
-              <dd className="min-w-0 flex-1 break-words text-right">
-                {draft.servesTotal.toLocaleString("en-IN")}
-                {draft.dailyServeCap ? ` (max ${draft.dailyServeCap.toLocaleString("en-IN")}/day)` : ""}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      </Card>
+      <div>
+        <p className="mb-1 text-[13px] font-semibold text-ink">{draft.name}</p>
+        <ConsoleSummaryRow label="Placement">{goalSummary}</ConsoleSummaryRow>
+        <ConsoleSummaryRow label="Categories">{categorySummary}</ConsoleSummaryRow>
+        <ConsoleSummaryRow label="Targeting">{areaSummary}</ConsoleSummaryRow>
+        <ConsoleSummaryRow label="Schedule">
+          {draft.flightStart} → {draft.flightEnd}
+        </ConsoleSummaryRow>
+        {draft.servesTotal !== null ? (
+          <ConsoleSummaryRow label="Ad views">
+            {draft.servesTotal.toLocaleString("en-IN")}
+            {draft.dailyServeCap
+              ? ` (max ${draft.dailyServeCap.toLocaleString("en-IN")}/day)`
+              : ""}
+          </ConsoleSummaryRow>
+        ) : null}
+      </div>
 
       {loadError ? <AlertNotice>Could not load the final price — please try again.</AlertNotice> : null}
       {campaign === null && !loadError ? <Skeleton width="100%" height="96px" /> : null}
       {campaign ? (
-        <Card className="space-y-2 p-4">
-          <p className="text-[13px] font-extrabold text-ink">Final price</p>
-          <div className="space-y-0.5 text-[13px] text-ink">
-            <div className="flex gap-2">
-              <span className="min-w-0 flex-1 break-words text-sub">Subtotal</span>
-              <span className="flex-none">
-                {campaign.price_subtotal_paise != null ? rupees(campaign.price_subtotal_paise) : "—"}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <span className="min-w-0 flex-1 break-words text-sub">GST</span>
-              <span className="flex-none">
-                {campaign.price_gst_paise != null ? rupees(campaign.price_gst_paise) : "—"}
-              </span>
-            </div>
-            <div className="flex gap-2 border-t border-line pt-1 text-[14px] font-extrabold">
-              <span className="min-w-0 flex-1 break-words">Total</span>
-              <span className="flex-none">
-                {campaign.price_paise != null ? rupees(campaign.price_paise) : "—"}
-              </span>
-            </div>
-          </div>
-        </Card>
+        <div>
+          <ConsoleSummaryRow label="Subtotal">
+            {campaign.price_subtotal_paise != null ? rupees(campaign.price_subtotal_paise) : "—"}
+          </ConsoleSummaryRow>
+          <ConsoleSummaryRow label="GST">
+            {campaign.price_gst_paise != null ? rupees(campaign.price_gst_paise) : "—"}
+          </ConsoleSummaryRow>
+          <ConsoleSummaryRow label="Total" emphasis>
+            {campaign.price_paise != null ? rupees(campaign.price_paise) : "—"}
+          </ConsoleSummaryRow>
+        </div>
       ) : null}
 
-      <label className={LABEL}>
-        GSTIN (optional, for the tax invoice)
+      <label className="block">
+        <ConsoleLabel>
+          GSTIN <span className="font-normal text-muted">(optional — needed for a GST invoice)</span>
+        </ConsoleLabel>
         <input
-          className={FIELD}
+          className={cn(FIELD, "mt-0")}
           value={gstin}
           maxLength={15}
           onChange={(e) => handleGstinChange(e.target.value)}
           placeholder="22AAAAA0000A1Z5"
         />
       </label>
+      {/* A3 `.policy`: the two promises, stated where the money is. */}
+      <ConsolePolicyNote>
+        Creatives serve only after a person approves them. Paid placement never changes organic
+        ranking or the Recommended label — advertising sells placement, never ranking.
+      </ConsolePolicyNote>
       {gstinError ? <AlertNotice>{gstinError}</AlertNotice> : null}
 
       {campaign && creativeCount === 0 ? (

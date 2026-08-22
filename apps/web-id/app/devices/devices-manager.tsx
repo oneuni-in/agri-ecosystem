@@ -201,9 +201,14 @@ export function DevicesManager({ agriId }: { agriId: string }) {
     [groups],
   );
 
-  // devices, not credentials: "sign out 2 devices" is the truth a person can
-  // act on, where "sign out 7 sessions" was an artefact of how we store them
-  const otherCount = groups.filter((group) => !group.current).length;
+  // SESSIONS, not groups — deliberately not folded like the cards above.
+  // logout-everywhere ends every session, including the app sessions sharing
+  // THIS device, and the confirm copy says so ("End # other session?" /
+  // "Every other session, on every site"). Counting groups instead hid the
+  // button entirely for the common case: one browser signed into two apps
+  // folds into a single group that is `current`, so the count was 0 and there
+  // was no way to end anything. e2e/sso.spec.ts covers exactly that shape.
+  const otherCount = (devices ?? []).filter((device) => !device.current).length;
 
   const row = (group: DeviceGroup) => (
     <li key={group.key}>

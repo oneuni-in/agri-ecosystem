@@ -1,5 +1,6 @@
 """D09.C web-session lifecycle: resolve, deny, revoke, revoke-everything."""
 
+import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -12,6 +13,7 @@ from modules.identity.service import assign_role, create_user
 from modules.identity.session_service import (
     create_web_session,
     device_fingerprint,
+    legacy_fingerprints,
     resolve_web_session,
     revoke_everything,
     revoke_web_session,
@@ -24,6 +26,33 @@ def test_fingerprint_is_stable_and_opaque() -> None:
     assert fp != device_fingerprint("Mozilla/5.0 (X11; Linux)", '"Linux"')
     assert len(fp) == 32 and "Mozilla" not in fp
     assert device_fingerprint(None, None)  # never crashes on missing headers
+
+
+def test_fingerprint_survives_a_missing_platform_hint() -> None:
+    """One browser is one device even when sec-ch-ua-platform does not arrive.
+
+    Chrome omits the hint on some request paths (and the BFF only forwards
+    what it received), so a platform-sensitive fingerprint split a single
+    browser into two "devices" that drifted apart on every visit - and made
+    this-device logout miss whichever half the current request did not match.
+    """
+    ua = "Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0"
+    assert device_fingerprint(ua, '"Windows"') == device_fingerprint(ua, None)
+    assert device_fingerprint(ua, '"Windows"') == device_fingerprint(ua, "")
+
+
+def test_legacy_fingerprints_recognise_pre_fix_rows() -> None:
+    """Rows minted before the fix hash UA|platform. Rotation must recognise
+    them as the same device instead of reading them as token theft."""
+    ua = "Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0"
+    legacy_with_hint = hashlib.sha256(f'{ua}|"Windows"'.encode()).hexdigest()[:32]
+    legacy_without = hashlib.sha256(f"{ua}|".encode()).hexdigest()[:32]
+
+    assert legacy_with_hint in legacy_fingerprints(ua, '"Windows"')
+    assert legacy_without in legacy_fingerprints(ua, '"Windows"')
+    assert legacy_without in legacy_fingerprints(ua, None)
+    # a different browser's legacy hash is never accepted
+    assert legacy_with_hint not in legacy_fingerprints("Mozilla/5.0 (X11; Linux)", '"Windows"')
 
 
 async def _user(session: AsyncSession, phone: str) -> User:
@@ -43,6 +72,32 @@ async def test_create_and_resolve(db_session: AsyncSession) -> None:
     row = (await db_session.scalars(select(SessionWeb))).one()
     assert row.sid_hash != sid  # hashed at rest
     assert row.last_seen_at is not None
+
+
+async def test_login_supersedes_this_devices_previous_session(db_session: AsyncSession) -> None:
+    """One browser holds one agri_sid, so the previous session on the same
+    device is unreachable the moment a new one is minted - keeping it live only
+    grew /devices by a row per login. Fixation hardening is unaffected: the new
+    sid is still freshly generated, never adopted from the old one."""
+    user = await _user(db_session, "+919876510010")
+    old = await create_web_session(db_session, user_id=user.id, fingerprint="fp-1", ip=None)
+    elsewhere = await create_web_session(db_session, user_id=user.id, fingerprint="fp-2", ip=None)
+    new = await create_web_session(db_session, user_id=user.id, fingerprint="fp-1", ip=None)
+
+    assert new != old
+    assert await resolve_web_session(db_session, old) is None  # superseded
+    assert await resolve_web_session(db_session, new) is not None
+    assert await resolve_web_session(db_session, elsewhere) is not None  # other device untouched
+
+
+async def test_supersede_is_scoped_to_one_user(db_session: AsyncSession) -> None:
+    """Two people on a shared computer share a fingerprint. One signing in
+    must never sign the other out."""
+    alice = await _user(db_session, "+919876510011")
+    bob = await _user(db_session, "+919876510012")
+    alice_sid = await create_web_session(db_session, user_id=alice.id, fingerprint="fp", ip=None)
+    await create_web_session(db_session, user_id=bob.id, fingerprint="fp", ip=None)
+    assert await resolve_web_session(db_session, alice_sid) is not None
 
 
 async def test_resolve_denies_garbage_expired_revoked_suspended(

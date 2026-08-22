@@ -52,7 +52,11 @@ from modules.identity.refresh_service import (
     rotate_refresh_token,
 )
 from modules.identity.session_limits import SESSION_COOKIE_NAME
-from modules.identity.session_service import device_fingerprint, resolve_web_session
+from modules.identity.session_service import (
+    device_fingerprint,
+    legacy_fingerprints,
+    resolve_web_session,
+)
 from shared.db import get_session
 from shared.security import SecureRouter
 
@@ -176,6 +180,12 @@ async def token(request: Request, session: SessionDep) -> Response:
                 token=params["refresh_token"],
                 client=ctx.client.row,
                 fingerprint=fingerprint,
+                # families minted before the UA-only fingerprint are the same
+                # device, not theft - see session_service.legacy_fingerprints
+                legacy=legacy_fingerprints(
+                    request.headers.get("user-agent"),
+                    request.headers.get("sec-ch-ua-platform"),
+                ),
             )
             ctx.rotation = rotation
             ctx.subject = rotation.subject

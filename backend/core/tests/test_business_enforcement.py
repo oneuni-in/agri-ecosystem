@@ -311,7 +311,12 @@ async def test_enforcement_audits_and_reinstate_restores_prior_state(
 
     entries = list(
         await session.scalars(
-            select(AuditEntry).where(AuditEntry.action == "directory.business_reinstated")
+            select(AuditEntry)
+            .where(AuditEntry.action == "directory.business_reinstated")
+            # entries[-1] means "the second reinstate", so the order has to be
+            # asked for: an unordered SELECT may hand back either row first, and
+            # CI caught exactly that. Ids are UUIDv7, so id order is time order.
+            .order_by(AuditEntry.id)
         )
     )
     assert len(entries) == 2

@@ -4,7 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
-import { deviceIcon, siteLabelKey as siteKey, type Device } from "@/lib/account-devices";
+import {
+  deviceIcon,
+  groupDevices,
+  siteLabelKey as siteKey,
+  type Device,
+} from "@/lib/account-devices";
 
 /**
  * /account/devices — where you are signed in (AG-U5 P5).
@@ -52,6 +57,8 @@ export default async function DevicesPage() {
   ]);
 
   const idOrigin = (process.env.ID_PUBLIC_ORIGIN ?? "http://localhost:3003").replace(/\/+$/, "");
+  // one card per DEVICE, not per credential — see groupDevices
+  const groups = groupDevices(devices);
 
   return (
     <main className="pb-6">
@@ -66,27 +73,43 @@ export default async function DevicesPage() {
         </p>
       ) : (
         <ul className="space-y-2">
-          {devices.map((device) => (
-            <li key={`${device.kind}-${device.device_id}`}>
+          {groups.map((group) => (
+            <li key={group.key}>
               <Card className="flex flex-wrap items-center gap-2.5 p-3">
                 <span aria-hidden="true" className="text-[18px] leading-none">
-                  {deviceIcon(device.device_kind)}
+                  {deviceIcon(group.deviceKind)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold text-ink">
-                    {device.label ?? device.device_kind ?? tDevices("unknownDevice")}
+                    {group.label ?? group.deviceKind ?? tDevices("unknownDevice")}
                   </span>
                   <span className="mt-0.5 block truncate text-[11.5px] text-sub">
-                    {[device.place, device.last_seen_at?.slice(0, 10)].filter(Boolean).join(" · ")}
+                    {/* Number.isFinite guard: this page is server-rendered, so
+                        an unparseable timestamp would throw inside toISOString
+                        and take the whole account section down rather than
+                        drop one date. */}
+                    {[
+                      group.place,
+                      Number.isFinite(group.activeAt)
+                        ? new Date(group.activeAt).toISOString().slice(0, 10)
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
                 </span>
-                <span className="inline-flex shrink-0 items-center rounded-pill bg-brand-soft px-2.5 py-1 text-[11px] font-extrabold text-brand-deep">
-                  {/* Raw `kind` when the catalogue has no name for it —
-                      `t()` throws on a missing key, and an unrecognised
-                      client must not take the row down (ID-U1's note). */}
-                  {siteKey(device.kind) ? tDevices(siteKey(device.kind) as string) : device.kind}
-                </span>
-                {device.current ? (
+                {group.sites.map((site) => (
+                  <span
+                    key={site}
+                    className="inline-flex shrink-0 items-center rounded-pill bg-brand-soft px-2.5 py-1 text-[11px] font-extrabold text-brand-deep"
+                  >
+                    {/* Raw `kind` when the catalogue has no name for it —
+                        `t()` throws on a missing key, and an unrecognised
+                        client must not take the row down (ID-U1's note). */}
+                    {siteKey(site) ? tDevices(siteKey(site) as string) : site}
+                  </span>
+                ))}
+                {group.current ? (
                   <span className="inline-flex shrink-0 items-center rounded-pill bg-verified-bg px-2.5 py-1 text-[11px] font-extrabold text-verified-fg">
                     {tDevices("current")}
                   </span>

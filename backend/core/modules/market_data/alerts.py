@@ -62,6 +62,36 @@ async def subscribe(session: AsyncSession, user_id: uuid.UUID, pincode: str) -> 
     if existing is not None:
         return existing
 
+    # A previously UNSUBSCRIBED row for the same pincode is still sitting
+    # there, soft-deleted and invisible to the select above. It has to be
+    # revived rather than replaced, because uq_price_alerts_user_pincode is a
+    # plain unique on (user_id, pincode) and does NOT exclude deleted rows —
+    # an INSERT here dies on the constraint, which made unsubscribe a one-way
+    # door: that pincode could never be followed again, and the home card's
+    # button 500'd forever. Found in AG-U5, when /account first grew a way to
+    # turn an alert off.
+    #
+    # `include_deleted` is the documented per-statement opt-out (shared/db.py)
+    # and this is exactly its case: the row's existence is the constraint we
+    # are reconciling with, so we must be able to see it.
+    revivable = await session.scalar(
+        select(PriceAlert)
+        .where(PriceAlert.user_id == user_id, PriceAlert.pincode == pincode)
+        .execution_options(include_deleted=True)
+    )
+    if revivable is not None:
+        # Counted against the cap like any other subscription — reviving is
+        # subscribing, so a user at their limit must not slip past it here.
+        if len(await list_alerts(session, user_id)) >= get_settings().price_alert_max_per_user:
+            raise AlertCapReached
+        revivable.deleted_at = None
+        # Cleared deliberately: the once-a-day latch belongs to the OLD
+        # subscription. Leaving today's date on it would silence the first
+        # digest of the new one.
+        revivable.last_notified_on = None
+        await session.flush()
+        return revivable
+
     # Cap counted AFTER the idempotent hit, so a user at the cap can still
     # re-press a button for an area they already follow.
     held = len(await list_alerts(session, user_id))

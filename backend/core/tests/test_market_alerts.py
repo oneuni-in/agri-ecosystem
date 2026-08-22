@@ -31,6 +31,7 @@ from modules.market_data.alerts import (
     EVENT_TYPE,
     AlertCapReached,
     dispatch_due_alerts,
+    list_alerts,
     subscribe,
     unsubscribe,
 )
@@ -115,6 +116,70 @@ async def test_unsubscribe_only_touches_your_own(db_session: AsyncSession) -> No
     assert await unsubscribe(db_session, USER, mine.id) is True
     # Soft delete: an unsubscribe is auditable, not a silent gap.
     assert mine.deleted_at is not None
+
+
+async def test_resubscribing_after_unsubscribe_works(db_session: AsyncSession) -> None:
+    """Turning an alert off must not be a one-way door.
+
+    The soft delete leaves the row in place, but `uq_price_alerts_user_pincode`
+    is a plain unique on (user_id, pincode) that does NOT exclude deleted
+    rows — and subscribe()'s idempotency probe cannot see soft-deleted rows,
+    because SoftDeleteMixin hides them from ORM selects. So the second
+    subscribe used to fall through to an INSERT and die on the constraint.
+
+    Found in AG-U5, when /account grew a "Turn off" button: before that there
+    was no way to unsubscribe from any UI, so the path was unreachable. The
+    user-visible symptom was a 500 from the home's mandi card, forever, for
+    any pincode the farmer had ever turned off.
+    """
+    first = await subscribe(db_session, USER, "641001")
+    assert await unsubscribe(db_session, USER, first.id) is True
+
+    again = await subscribe(db_session, USER, "641001")
+
+    # The SAME row comes back, revived rather than duplicated — the unique
+    # constraint leaves no other correct answer.
+    assert again.id == first.id
+    assert again.deleted_at is None
+    # And it is visible again, which is the whole point of re-subscribing.
+    assert [a.id for a in await list_alerts(db_session, USER)] == [first.id]
+
+
+async def test_reviving_an_alert_still_respects_the_cap(db_session: AsyncSession) -> None:
+    """Reviving IS subscribing, so it cannot be a side door around the cap."""
+    cap = get_settings().price_alert_max_per_user
+    old = await subscribe(db_session, USER, "600001")
+    await unsubscribe(db_session, USER, old.id)
+
+    # Fill every slot with other areas while that one sits soft-deleted.
+    for n in range(cap):
+        await subscribe(db_session, USER, f"64100{n}")
+
+    with pytest.raises(AlertCapReached):
+        await subscribe(db_session, USER, "600001")
+    # Still off, and still not counted.
+    assert len(await list_alerts(db_session, USER)) == cap
+
+
+async def test_a_revived_alert_can_be_notified_the_same_day(
+    db_session: AsyncSession, tn_geo_sample: None, otp_redis: object
+) -> None:
+    """The once-a-day latch belongs to the old subscription, not the new one.
+
+    Without clearing `last_notified_on`, a farmer who received today's digest,
+    unsubscribed, then changed their mind would get silence until tomorrow —
+    the new subscription would start life already marked as sent.
+    """
+    await _seed_prices(db_session)
+    first = await subscribe(db_session, USER, "641001")
+    assert await dispatch_due_alerts(db_session, today=date(2026, 8, 16)) == 1
+    assert first.last_notified_on == date(2026, 8, 16)
+
+    await unsubscribe(db_session, USER, first.id)
+    again = await subscribe(db_session, USER, "641001")
+    assert again.last_notified_on is None
+
+    assert await dispatch_due_alerts(db_session, today=date(2026, 8, 16)) == 1
 
 
 # ── the daily digest ─────────────────────────────────────────────────

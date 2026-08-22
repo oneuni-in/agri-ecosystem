@@ -686,7 +686,7 @@ export async function SchemesBlock({ pincode }: { pincode: string }) {
           heading={<>⏰ {t("agriHome.schemes.deadlines")}</>}
           action={
             <a
-              href="/notifications"
+              href="/account/notifications"
               className="tap-target inline-flex min-h-[24px] items-center no-underline"
             >
               {t("agriHome.schemes.reminders")} 🔔

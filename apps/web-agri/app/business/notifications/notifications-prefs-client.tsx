@@ -116,7 +116,7 @@ export function NotificationsPrefsClient() {
       </ConsolePanel>
 
       <a
-        href="/notifications"
+        href="/account/notifications"
         className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-brand underline"
       >
         {t("openCenter")}

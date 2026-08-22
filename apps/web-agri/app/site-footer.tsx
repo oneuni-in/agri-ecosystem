@@ -59,7 +59,7 @@ export async function SiteFooter() {
 
           <FooterCol title={t("company")}>
             <li>{t("aboutUs")}</li>
-            <FooterLink href="/notifications">{t("contact")}</FooterLink>
+            <FooterLink href="/account/notifications">{t("contact")}</FooterLink>
             <li>{t("privacy")}</li>
             <li>{t("terms")}</li>
           </FooterCol>

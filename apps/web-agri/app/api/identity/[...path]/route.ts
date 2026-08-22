@@ -48,8 +48,22 @@ async function forward(
   if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
     return new NextResponse(null, { status: upstream.status });
   }
-  const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
-  return NextResponse.json(body, { status: upstream.status });
+  // Raw bytes with the upstream content-type, NOT `upstream.json()`.
+  // `GET /identity/profile/avatar` answers with image bytes; parsing every
+  // response as JSON turned an uploaded profile photo into `{}` served as
+  // application/json, so the header avatar could never render one. JSON
+  // responses are unaffected — they keep their own content-type and body.
+  const headers: Record<string, string> = {
+    "content-type": upstream.headers.get("content-type") ?? "application/json",
+  };
+  // The avatar route marks itself `private, must-revalidate` precisely so no
+  // shared cache holds one person's face; forward that rather than drop it.
+  const cacheControl = upstream.headers.get("cache-control");
+  if (cacheControl) headers["cache-control"] = cacheControl;
+  return new NextResponse(Buffer.from(await upstream.arrayBuffer()), {
+    status: upstream.status,
+    headers,
+  });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

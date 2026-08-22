@@ -13,8 +13,12 @@ import Link from "next/link";
  *               the flag is off the anchor scrolls to top, still honest)
  *   · Ask     → /#ask — the §12 Ask band's anchor on this page
  *   · Alerts  → /notifications (real)
- *   · Profile → /account/inquiries — the only account surface web-agri has
- *               today (there is no /account index route)
+ *   · Profile → /account — the same destination the header avatar's menu
+ *               uses, so "Profile" means one place. NOTE: the /account index
+ *               itself lands with AG-U5; until that branch merges this is a
+ *               404 here, which is the deliberate trade the owner chose over
+ *               pointing at /account/inquiries (that page is "my inquiries",
+ *               not a profile, and it would have to be un-pointed later).
  */
 export async function AgriBottomNav() {
   const t = await getTranslations("ui");
@@ -24,7 +28,7 @@ export async function AgriBottomNav() {
   ];
   const right = [
     { href: "/notifications", icon: "🔔", label: t("nav.alerts"), active: false },
-    { href: "/account/inquiries", icon: "👤", label: t("nav.profile"), active: false },
+    { href: "/account", icon: "👤", label: t("nav.profile"), active: false },
   ];
   return (
     <nav

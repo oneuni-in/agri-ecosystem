@@ -4,7 +4,7 @@
  * Client surface of @agri/auth-client (D10.C). Everything here works off the
  * /api/auth/* BFF routes - no token ever reaches this module.
  */
-import { Avatar, Button } from "@agri/ui";
+import { Avatar, AvatarMenu, AvatarMenuItem, Button } from "@agri/ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { currentRelativeUrl, hasSessionHint, shouldAttemptSilentSso, SSO_MARKER } from "./react-helpers";
@@ -141,17 +141,54 @@ export function SignedIn({ children }: { children: ReactNode }) {
  * in the `right` slot, the way CoinsBalancePill does - never render them
  * FROM INSIDE this component. Two D13 bugs (a duplicate coins pill, then a
  * dead placeholder field) both came from a spec reaching into AuthCluster
- * instead of adding a sibling; don't repeat that. */
-export function AuthCluster({ loginLabel = "Login" }: { loginLabel?: string }) {
+ * instead of adding a sibling; don't repeat that.
+ *
+ * THE AVATAR IS A MENU when `accountHref` is given. It used to BE the logout
+ * button: tapping your own face signed you out, with no confirmation and no
+ * other route to your account - and the A1 reference labels that same
+ * element "Account". Passing `accountHref` turns it into Account + Log out,
+ * and `photoSrc` lets an uploaded profile photo actually appear instead of
+ * an initial.
+ *
+ * Both are OPTIONAL, and without them this renders exactly what it always
+ * did. That is deliberate: three apps mount this cluster, and each needs its
+ * own account route and its own proxy path for the photo - web-admin has no
+ * account page at all. An app opts in by passing them. */
+export function AuthCluster({
+  loginLabel = "Login",
+  accountHref,
+  accountLabel = "Account",
+  logoutLabel = "Log out",
+  photoSrc,
+}: {
+  loginLabel?: string;
+  /** Where "Account" goes. Omitted => the avatar keeps its old
+   * logout-on-click behaviour rather than opening a menu with one item. */
+  accountHref?: string;
+  accountLabel?: string;
+  logoutLabel?: string;
+  /** Owner-scoped avatar endpoint, e.g. the app's `/api/identity/profile/avatar`
+   * proxy. 404 (no photo uploaded) falls back to the initial. */
+  photoSrc?: string;
+}) {
   const { user, status, login, logout } = useAgriUser();
   if (status === "loading") return null;
   if (user) {
+    const initial = (user.name ?? user.agriId).charAt(0).toUpperCase();
+    if (accountHref) {
+      return (
+        <AvatarMenu initial={initial} photoSrc={photoSrc} label={accountLabel}>
+          <AvatarMenuItem href={accountHref} icon="👤">
+            {accountLabel}
+          </AvatarMenuItem>
+          <AvatarMenuItem onSelect={() => void logout()} icon="↪️">
+            {logoutLabel}
+          </AvatarMenuItem>
+        </AvatarMenu>
+      );
+    }
     return (
-      <Avatar
-        initial={(user.name ?? user.agriId).charAt(0).toUpperCase()}
-        title="Log out"
-        onClick={() => void logout()}
-      />
+      <Avatar initial={initial} title={logoutLabel} onClick={() => void logout()} />
     );
   }
   // `data-testid` because the label is translated: e2e's "wait for the header

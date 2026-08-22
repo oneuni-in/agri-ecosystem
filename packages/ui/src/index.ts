@@ -6,6 +6,7 @@
  * Server-component-first; only Modal/Toast are client islands.
  */
 export { AdImage } from "./components/ad-image";
+export { AvatarMenu, AvatarMenuItem } from "./composites/avatar-menu";
 export { Badge } from "./components/badge";
 export { BottomNav } from "./components/bottom-nav";
 export type { BottomNavItem } from "./components/bottom-nav";

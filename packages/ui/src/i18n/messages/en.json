@@ -713,7 +713,8 @@
         "agriTag": "mandi · weather · dealers",
         "milkTag": "milk vendors · cattle",
         "organicTag": "certified organic"
-      }
+      },
+      "logout": "Log out"
     },
     "badges": {
       "verified": "✔ Verified",

@@ -355,7 +355,7 @@ footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:24px}
 
 /* ---------- reveal + skeleton (shared U1 layer) ---------- */
 .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
-.reveal.in{opacity:1;transform:none}
+.reveal.is-in{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
 .skeleton{background:linear-gradient(90deg,#F1EDE2 25%,#FAF7EF 50%,#F1EDE2 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
 @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
@@ -388,14 +388,14 @@ footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:24px}
 
 /* staggered tile pop-in (per group, when group reveals) */
 .vgroup.reveal .tile{opacity:0}
-.vgroup.reveal.in .tile{animation:pop .45s cubic-bezier(.2,.7,.3,1.1) both}
+.vgroup.reveal.is-in .tile{animation:pop .45s cubic-bezier(.2,.7,.3,1.1) both}
 @media (prefers-reduced-motion: reduce){.vgroup.reveal .tile{opacity:1}}
 @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
-.vgroup.in .tile:nth-child(1){animation-delay:0ms}.vgroup.in .tile:nth-child(2){animation-delay:45ms}
-.vgroup.in .tile:nth-child(3){animation-delay:90ms}.vgroup.in .tile:nth-child(4){animation-delay:135ms}
-.vgroup.in .tile:nth-child(5){animation-delay:180ms}.vgroup.in .tile:nth-child(6){animation-delay:225ms}
-.vgroup.in .tile:nth-child(7){animation-delay:270ms}.vgroup.in .tile:nth-child(8){animation-delay:315ms}
-.vgroup.in .tile:nth-child(9){animation-delay:360ms}.vgroup.in .tile:nth-child(10){animation-delay:405ms}
+.vgroup.is-in .tile:nth-child(1){animation-delay:0ms}.vgroup.is-in .tile:nth-child(2){animation-delay:45ms}
+.vgroup.is-in .tile:nth-child(3){animation-delay:90ms}.vgroup.is-in .tile:nth-child(4){animation-delay:135ms}
+.vgroup.is-in .tile:nth-child(5){animation-delay:180ms}.vgroup.is-in .tile:nth-child(6){animation-delay:225ms}
+.vgroup.is-in .tile:nth-child(7){animation-delay:270ms}.vgroup.is-in .tile:nth-child(8){animation-delay:315ms}
+.vgroup.is-in .tile:nth-child(9){animation-delay:360ms}.vgroup.is-in .tile:nth-child(10){animation-delay:405ms}
 .tile:hover .ic{animation:bounce .5s ease}
 @keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}70%{transform:translateY(2px)}}
 
@@ -406,7 +406,7 @@ footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:24px}
 /* mandi sparklines — draw on reveal */
 .spark{margin-top:7px}
 .spark polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:120;stroke-dashoffset:120}
-.reveal.in .spark polyline{animation:draw 1.1s .25s ease-out forwards}
+.reveal.is-in .spark polyline{animation:draw 1.1s .25s ease-out forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion: reduce){.spark polyline{stroke-dasharray:none;stroke-dashoffset:0}}
 .mcard .range{font-size:9.5px;color:var(--muted);margin-top:4px}
@@ -1324,7 +1324,7 @@ footer{background:var(--ag-deep);color:var(--ag-soft-2);margin-top:24px}
 const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
-  e.target.classList.add('in');
+  e.target.classList.add('is-in');
   e.target.querySelectorAll('[data-count]').forEach(el => {
     const end = +el.dataset.count, fmt = n => n >= 1000 ? n.toLocaleString('en-IN') + '+' : n;
     if (rm) { el.textContent = fmt(end); return; }
@@ -1337,7 +1337,7 @@ const io = new IntersectionObserver(es => es.forEach(e => {
   io.unobserve(e.target);
 }), { threshold: .25 });
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+if (rm) document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
 
 /* hero ad auto-rotate — D21 carousel behaviour (approved creatives only); paused for reduced motion */
 const SLIDES = [

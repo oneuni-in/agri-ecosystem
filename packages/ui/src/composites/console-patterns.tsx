@@ -325,9 +325,13 @@ export function ConsoleKpi({
   );
 }
 
-/** A-U7: the A3 `.grid2` — main column plus a reference rail. */
+/** A-U7: the A3 `.grid2` — main column plus a reference rail.
+ *
+ * `items-start` so a short column sizes to its content: without it the grid
+ * stretches both to the taller one, and a panel with three rows in it grows
+ * a screenful of empty white below them. */
 export function ConsoleGrid2({ children }: { children: ReactNode }) {
-  return <div className="mt-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]">{children}</div>;
+  return <div className="mt-3 grid items-start gap-3 lg:grid-cols-[1.6fr_1fr]">{children}</div>;
 }
 
 /** A-U7: a checklist row (A3 `.check`) — marker, label, optional right slot. */

@@ -30,6 +30,7 @@ import {
 } from "@agri/ui";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { readGstin, writeGstin } from "@/lib/advertiser";
 import { ApiError, getJson, postJson } from "@/lib/api";
 
 // Mirrors modules/ads/service.py SLOT_KEYS (M2 milk banner surfaces).
@@ -834,6 +835,14 @@ export function ReviewPayStep({ campaignId, draft }: { campaignId: string; draft
   const [loadError, setLoadError] = useState(false);
   const [gstin, setGstin] = useState("");
   const [gstinError, setGstinError] = useState<string | null>(null);
+
+  // A-U7 W4: prefill from what /business/ads/register remembered on this
+  // device. Read in an effect, not in render — localStorage does not exist
+  // on the server, and reading it during render breaks hydration.
+  useEffect(() => {
+    const saved = readGstin();
+    if (saved) setGstin(saved);
+  }, []);
   const [payError, setPayError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
 
@@ -878,6 +887,7 @@ export function ReviewPayStep({ campaignId, draft }: { campaignId: string; draft
   const creativeCount = campaign?.creatives.length ?? 0;
 
   const handlePay = async () => {
+    if (gstin && GSTIN_RE.test(gstin)) writeGstin(gstin);
     if (gstin && !GSTIN_RE.test(gstin)) {
       setGstinError("GSTIN must be exactly 15 characters (digits and uppercase letters).");
       return;

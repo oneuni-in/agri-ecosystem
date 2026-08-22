@@ -16,6 +16,7 @@ import {
   EmptyState,
   Skeleton,
   cn,
+  consoleGhostButtonClass,
   consoleMoneyButtonClass,
 } from "@agri/ui";
 import { useSearchParams } from "next/navigation";
@@ -712,15 +713,20 @@ export function AdsConsoleClient() {
       title="Advertise · Campaigns"
       sub="Sponsored is always labelled · organic ranking is never for sale · creatives are approved before they serve"
       actions={
-        selectedId ? (
-          <button
-            type="button"
-            className={consoleMoneyButtonClass}
-            onClick={() => setWizardOpen(true)}
-          >
-            + New campaign
-          </button>
-        ) : null
+        <>
+          <a href="/business/ads/register" className={consoleGhostButtonClass}>
+            Billing details
+          </a>
+          {selectedId ? (
+            <button
+              type="button"
+              className={consoleMoneyButtonClass}
+              onClick={() => setWizardOpen(true)}
+            >
+              + New campaign
+            </button>
+          ) : null}
+        </>
       }
     />
   );
